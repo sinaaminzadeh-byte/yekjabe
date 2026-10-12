@@ -88,3 +88,28 @@ model AuthCode {
 
   @@index([phone, createdAt])
 }
+
+// ── Per-account favorites (پشمالوهای محبوب) ──
+
+model Favorite {
+  id        String   @id @default(cuid())
+  userPhone String
+  kind      String // PlushKind
+  createdAt DateTime @default(now())
+
+  @@unique([userPhone, kind])
+  @@index([userPhone])
+}
+
+// ── Real customer reviews (نظرهای واقعی) ──
+
+model Review {
+  id        String   @id @default(cuid())
+  who       String // display name
+  role      String   @default("sender") // sender | receiver
+  stars     Int      @default(5) // 1..5
+  kind      String   @default("bear") // PlushKind of the gift
+  title     String   @default("")
+  text      String
+  createdAt DateTime @default(now())
+}

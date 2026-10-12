@@ -29,6 +29,7 @@ import { CHARITY_TARGET, PLUSH_MAP } from "@/lib/pishnam-data";
 import { fa } from "@/lib/fa";
 import { useToast } from "@/hooks/use-toast";
 import {
+  pullFavorites,
   pullOrders,
   pullOrdersForPhone,
   syncStatus,
@@ -1094,6 +1095,15 @@ function useOtpFlow(): OtpFlow {
         toast({
           title: "هدیه‌هات رسیدن!",
           description: `${fa(n)} هدیه از حساب قبلیت به این گوشی اومد.`,
+        });
+      }
+    });
+    // cross-device favorites: hearts saved on other devices land here too
+    void pullFavorites(p).then((n) => {
+      if (n > 0) {
+        toast({
+          title: "محبوب‌هات هم رسیدن ♥",
+          description: `${fa(n)} رفیق پشمالو از حساب قبلیت به قلبت اضافه شد.`,
         });
       }
     });

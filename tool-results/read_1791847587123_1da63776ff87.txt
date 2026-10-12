@@ -1,0 +1,1370 @@
+     1→"use client";
+     2→
+     3→// ── Info pages (About / Mission / Contact / Reviews / Shipping) — ported from
+     4→//    design pages 04–08 (desktop) + 09–13 (mobile) of the Pishnam system ──
+     5→import { useEffect, useState, type FormEvent, type ReactNode } from "react";
+     6→import { Logo } from "../logo";
+     7→import { Plush } from "../plush";
+     8→import { BackIcon, CheckIcon, HeartSticker, MailIcon } from "../icons";
+     9→import { navigate, type Route } from "@/lib/hash-route";
+    10→import {
+    11→  ABOUT_STATS,
+    12→  ABOUT_TIMELINE,
+    13→  ABOUT_VALUES,
+    14→  REVIEWS_BARS,
+    15→  REVIEWS_CARDS,
+    16→  SHIPPING_SECTIONS,
+    17→  type PlushKind,
+    18→} from "@/lib/pishnam-data";
+    19→import { fa, faPrice } from "@/lib/fa";
+    20→import { useToast } from "@/hooks/use-toast";
+    21→
+    22→/* ═══════════════ shared bits ═══════════════ */
+    23→
+    24→// Mobile page root + top bar (back → home, logo) — matches design pages 09–13
+    25→function InfoShell({ children }: { children: ReactNode }) {
+    26→  return (
+    27→    <div className="flex min-h-screen flex-col bg-[#F2FAFD] text-[#04202E] md:hidden">
+    28→      <div className="flex items-center justify-between px-4 pb-2 pt-3.5">
+    29→        <button
+    30→          type="button"
+    31→          aria-label="برگشت"
+    32→          onClick={() => navigate("home")}
+    33→          className="flex h-11 w-11 items-center justify-center rounded-full border border-[#D3E8F0] bg-white text-[#04202E]"
+    34→        >
+    35→          <BackIcon />
+    36→        </button>
+    37→        <Logo size={32} />
+    38→      </div>
+    39→      {children}
+    40→    </div>
+    41→  );
+    42→}
+    43→
+    44→// Desktop page root — the shell provides the global header
+    45→function InfoDesktop({ children }: { children: ReactNode }) {
+    46→  return <div className="hidden min-h-screen flex-col bg-[#F2FAFD] text-[#04202E] md:flex">{children}</div>;
+    47→}
+    48→
+    49→function FooterLinkMobile({ label, route }: { label: string; route: Route }) {
+    50→  return (
+    51→    <button type="button" className="text-right" onClick={() => navigate(route)}>
+    52→      {label}
+    53→    </button>
+    54→  );
+    55→}
+    56→
+    57→function FooterLinkDesktop({ label, route }: { label: string; route: Route }) {
+    58→  return (
+    59→    <button
+    60→      type="button"
+    61→      className="text-right transition-colors hover:text-[#00ABE7]"
+    62→      onClick={() => navigate(route)}
+    63→    >
+    64→      {label}
+    65→    </button>
+    66→  );
+    67→}
+    68→
+    69→function BrandOnDark({ size = 40 }: { size?: number }) {
+    70→  return (
+    71→    <div className="flex items-center gap-2.5">
+    72→      <Logo size={size} showName={false} />
+    73→      <span className="text-xl font-black text-white">پیشتم</span>
+    74→    </div>
+    75→  );
+    76→}
+    77→
+    78→// Mobile footer (design pages 09–13)
+    79→function InfoFooter() {
+    80→  return (
+    81→    <footer className="mt-auto bg-[#04202E] px-4 pb-5 pt-8 text-white">
+    82→      <div className="flex flex-col gap-2.5">
+    83→        <BrandOnDark />
+    84→        <span className="text-[14.5px] font-bold text-[#BFE9F8]">یه بغل، تو یه جعبه</span>
+    85→      </div>
+    86→      <div className="mt-[22px] grid grid-cols-2 gap-x-[14px] gap-y-5 text-[14.5px] font-semibold">
+    87→        <div className="flex flex-col gap-2.5">
+    88→          <span className="text-[15px] font-extrabold text-[#00ABE7]">پیشتم</span>
+    89→          <FooterLinkMobile label="ماموریت" route="mission" />
+    90→          <FooterLinkMobile label="درباره‌ی ما" route="about" />
+    91→          <FooterLinkMobile label="دفتر مهربونی" route="impact" />
+    92→        </div>
+    93→        <div className="flex flex-col gap-2.5">
+    94→          <span className="text-[15px] font-extrabold text-[#00ABE7]">کمک</span>
+    95→          <FooterLinkMobile label="تماس با ما" route="contact" />
+    96→          <FooterLinkMobile label="ارسال و بازگشت" route="shipping" />
+    97→          <FooterLinkMobile label="نظرها" route="reviews" />
+    98→        </div>
+    99→      </div>
+   100→      <div className="mt-[22px] flex flex-col gap-2 text-[14.5px] font-semibold">
+   101→        <span className="text-[15px] font-extrabold text-[#00ABE7]">ما رو دنبال کن</span>
+   102→        <span>پیشتم@ اینستاگرام</span>
+   103→        <span>پیشتم@ تلگرام</span>
+   104→      </div>
+   105→      <div className="mt-4 border-t border-[#0E3C52] pt-4 text-center text-[12.5px] font-medium text-[#BFE9F8]">
+   106→        پیشتم · همه‌ی حقوق محفوظ است
+   107→      </div>
+   108→    </footer>
+   109→  );
+   110→}
+   111→
+   112→// Desktop footer (design pages 04–08)
+   113→function InfoFooterDesktop() {
+   114→  return (
+   115→    <footer className="mt-24 bg-[#04202E] text-white">
+   116→      <div className="mx-auto box-border flex w-full max-w-[1200px] flex-wrap justify-between gap-x-[60px] gap-y-8 px-6 pb-9 pt-12">
+   117→        <div className="flex flex-[1_1_280px] flex-col gap-3">
+   118→          <BrandOnDark />
+   119→          <span className="text-[15px] font-bold text-[#BFE9F8]">یه بغل، تو یه جعبه</span>
+   120→        </div>
+   121→        <div className="flex flex-col gap-2.5 text-[15px] font-semibold">
+   122→          <span className="text-base font-extrabold text-[#00ABE7]">پیشتم</span>
+   123→          <FooterLinkDesktop label="ماموریت" route="mission" />
+   124→          <FooterLinkDesktop label="درباره‌ی ما" route="about" />
+   125→          <FooterLinkDesktop label="دفتر مهربونی" route="impact" />
+   126→        </div>
+   127→        <div className="flex flex-col gap-2.5 text-[15px] font-semibold">
+   128→          <span className="text-base font-extrabold text-[#00ABE7]">کمک</span>
+   129→          <FooterLinkDesktop label="تماس با ما" route="contact" />
+   130→          <FooterLinkDesktop label="ارسال و بازگشت" route="shipping" />
+   131→          <FooterLinkDesktop label="نظرها" route="reviews" />
+   132→        </div>
+   133→        <div className="flex flex-col gap-2.5 text-[15px] font-semibold">
+   134→          <span className="text-base font-extrabold text-[#00ABE7]">ما رو دنبال کن</span>
+   135→          <span>پیشتم@ اینستاگرام</span>
+   136→          <span>پیشتم@ تلگرام</span>
+   137→        </div>
+   138→      </div>
+   139→      <div className="border-t border-[#0E3C52] px-6 py-[18px] text-center text-[13px] font-medium text-[#BFE9F8]">
+   140→        پیشتم · همه‌ی حقوق محفوظ است
+   141→      </div>
+   142→    </footer>
+   143→  );
+   144→}
+   145→
+   146→function SectionHead({ eyebrow, title, size = 28 }: { eyebrow: string; title: string; size?: number }) {
+   147→  return (
+   148→    <div className="flex flex-col gap-1.5">
+   149→      <span className="text-[14px] font-extrabold text-[#00779F]">{eyebrow}</span>
+   150→      <h2 className="m-0 font-black leading-[1.45]" style={{ fontSize: size }}>
+   151→        {title}
+   152→      </h2>
+   153→    </div>
+   154→  );
+   155→}
+   156→
+   157→// inline cross-link inside paragraphs
+   158→function InlineLink({ label, route }: { label: string; route: Route }) {
+   159→  return (
+   160→    <button
+   161→      type="button"
+   162→      onClick={() => navigate(route)}
+   163→      className="inline font-extrabold text-[#00779F] underline-offset-4 hover:underline"
+   164→    >
+   165→      {label}
+   166→    </button>
+   167→  );
+   168→}
+   169→
+   170→function Stars({ n, size = 15 }: { n: number; size?: number }) {
+   171→  return (
+   172→    <span className="flex items-center gap-0.5" aria-label={`${fa(n)} ستاره`}>
+   173→      {[1, 2, 3, 4, 5].map((i) => (
+   174→        <svg key={i} width={size} height={size} viewBox="0 0 24 24" aria-hidden="true">
+   175→          <path
+   176→            d="M12 2.5l2.9 6 6.6.9-4.8 4.6 1.2 6.5L12 17.4l-5.9 3.1 1.2-6.5L2.5 9.4l6.6-.9z"
+   177→            fill={i <= n ? "#FFC53D" : "#E3F0F5"}
+   178→            stroke="#04202E"
+   179→            strokeWidth="1.4"
+   180→            strokeLinejoin="round"
+   181→          />
+   182→        </svg>
+   183→      ))}
+   184→    </span>
+   185→  );
+   186→}
+   187→
+   188→// triggers once after mount → used to animate the rating bars' widths
+   189→function useBarsOn(): boolean {
+   190→  const [on, setOn] = useState(false);
+   191→  useEffect(() => {
+   192→    const t = window.setTimeout(() => setOn(true), 80);
+   193→    return () => window.clearTimeout(t);
+   194→  }, []);
+   195→  return on;
+   196→}
+   197→
+   198→// Persian-digit star labels ("۵"…) → numbers
+   199→const STAR_NUM: Record<string, number> = { "۵": 5, "۴": 4, "۳": 3, "۲": 2, "۱": 1 };
+   200→const REVIEWS_TOTAL = 318;
+   201→const REVIEW_AVG_FA = fa(
+   202→  (REVIEWS_BARS.reduce((acc, b) => acc + (STAR_NUM[b.stars] ?? 0) * b.pct, 0) / 100).toFixed(1),
+   203→).replace(".", "٫");
+   204→
+   205→const REVIEW_META = [
+   206→  { title: "بهترین حس دنیا", date: "۱۲ مهر" },
+   207→  { title: "دو ساله تو گوشیمه", date: "۳ آبان" },
+   208→  { title: "کلی ذوق کرد", date: "۲۱ آبان" },
+   209→  { title: "رفیق تختم شد", date: "۸ آذر" },
+   210→  { title: "خونه‌مون یه نفر بیشتر شد", date: "۲۴ آذر" },
+   211→  { title: "کل خونه خندید", date: "۵ دی" },
+   212→];
+   213→
+   214→const TEAM_CARDS: { kind: PlushKind; bg: string; label: string }[] = [
+   215→  { kind: "panda", bg: "#FFE0EA", label: "بسته‌بندی" },
+   216→  { kind: "cat", bg: "#E7E0FA", label: "پاسخ به پیام‌ها" },
+   217→  { kind: "duck", bg: "#FFF3C9", label: "ارسال" },
+   218→  { kind: "bunny", bg: "#DDF3EA", label: "دفتر مهربونی" },
+   219→];
+   220→
+   221→/* ═══════════════ ABOUT ═══════════════ */
+   222→
+   223→export function AboutPage() {
+   224→  return (
+   225→    <>
+   226→      {/* ───── mobile (09-درباره‌ی پیشتم) ───── */}
+   227→      <InfoShell>
+   228→        {/* hero */}
+   229→        <section className="flex flex-col gap-4 bg-[#00ABE7] px-4 pb-[34px] pt-3.5">
+   230→          <span className="self-start rounded-[14px] bg-[#04202E] px-3.5 py-[7px] text-[13px] font-bold text-white">
+   231→            درباره‌ی پیشتم
+   232→          </span>
+   233→          <h1 className="m-0 text-[30px] font-black leading-[1.5]">یه دوست پشمالو، یه قلب بزرگ</h1>
+   234→          <p className="m-0 text-[15px] font-semibold leading-[1.95]">
+   235→            پیشتم از یه ایده‌ی ساده شروع شد: هدیه دادن نباید فقط برای خوشحال کردن خودمون باشه.
+   236→            می‌خوایم هر کسی بتونه با یه جعبه‌ی کوچیک، دل یکی رو گرم کنه.
+   237→          </p>
+   238→          <div className="relative mt-1.5 flex h-[240px] items-end justify-center overflow-hidden rounded-[32px] bg-[#66CDF1]">
+   239→            <Plush kind="sheep" size={200} />
+   240→            <span className="absolute right-[18px] top-4 rotate-[-12deg]">
+   241→              <HeartSticker size={36} fill="#F0426B" stroke="#04202E" strokeWidth={2.6} />
+   242→            </span>
+   243→            <span className="absolute bottom-5 left-[18px] rotate-[14deg]">
+   244→              <HeartSticker size={28} fill="#fff" stroke="#04202E" strokeWidth={2.6} />
+   245→            </span>
+   246→          </div>
+   247→          <div className="mt-1 flex flex-col gap-2.5">
+   248→            <button
+   249→              type="button"
+   250→              onClick={() => navigate("pick")}
+   251→              className="flex h-[54px] items-center justify-center rounded-[27px] bg-[#04202E] text-base font-extrabold text-white transition-transform active:scale-[0.98]"
+   252→            >
+   253→              همین حالا شروع کن
+   254→            </button>
+   255→            <button
+   256→              type="button"
+   257→              onClick={() => navigate("impact")}
+   258→              className="box-border flex h-[52px] items-center justify-center rounded-[26px] border-[2.5px] border-[#04202E] text-[15px] font-bold text-[#04202E]"
+   259→            >
+   260→              دفتر مهربونی
+   261→            </button>
+   262→          </div>
+   263→        </section>
+   264→
+   265→        {/* founder letter */}
+   266→        <section className="flex flex-col gap-3.5 px-4 pt-9">
+   267→          <SectionHead eyebrow="از طرف بنیانگذار" title="نامه‌ی بنیانگذار" size={28} />
+   268→          <div className="rounded-[18px] border-2 border-dashed border-[#E0B43A] bg-[#FFF3C9] px-4 py-3 text-[13.5px] font-bold leading-[1.9]">
+   269→            اگه امروز فقط یه کار از دستت برمیاد، لطفاً همین باشه: برای یه نفر یه بغل بفرست.
+   270→          </div>
+   271→          <p className="m-0 text-[15.5px] font-medium leading-[2.05] text-[#1F3E4D]">
+   272→            همیشه فکر می‌کردم بهترین هدیه‌ها اون‌هایی‌ان که بی‌دلیل داده می‌شن. یه دستمال گردن
+   273→            دست‌دوز، یه یادداشت کوتاه، یه عروسک که کنار تخت یکی می‌خوابه.
+   274→          </p>
+   275→          <p className="m-0 text-[15.5px] font-medium leading-[2.05] text-[#1F3E4D]">
+   276→            پیشتم رو ساختیم که این حس رو راحت‌تر به دست بیاری. قیمت‌ها یکی‌ان، چون مهربونی وزن
+   277→            نداره و نمی‌خوایم کسی با هدیه‌ی گران‌تر فخر بفروشه.
+   278→          </p>
+   279→          <div className="text-base font-black">نگار، بنیانگذار پیشتم</div>
+   280→          <div className="flex flex-col gap-3 rounded-[28px] bg-[#CFEFFB] p-[18px]">
+   281→            <div className="flex h-[170px] items-end justify-center gap-1">
+   282→              <Plush kind="bear" size={130} />
+   283→              <Plush kind="bunny" size={104} />
+   284→            </div>
+   285→            <div className="text-[13.5px] font-bold leading-[1.8] text-[#1F3E4D]">
+   286→              اولین جعبه‌های پیشتم همین‌جا، با دست و با کلی دقت بسته‌بندی شدن.
+   287→            </div>
+   288→          </div>
+   289→        </section>
+   290→
+   291→        {/* timeline */}
+   292→        <section className="flex flex-col gap-4 px-4 pt-10">
+   293→          <SectionHead eyebrow="مسیر ما" title="از ایده تا امروز" size={28} />
+   294→          <div className="mt-2 flex flex-col gap-4">
+   295→            {ABOUT_TIMELINE.map((t) => (
+   296→              <div
+   297→                key={t.title}
+   298→                className="flex flex-col gap-2.5 rounded-[24px] border border-[#DDEEF5] bg-white px-5 py-[18px] transition-transform hover:-translate-y-0.5"
+   299→              >
+   300→                <span
+   301→                  className="self-start rounded-[13px] border-2 border-[#04202E] px-3 py-[3px] text-[13.5px] font-black"
+   302→                  style={{ background: t.bg }}
+   303→                >
+   304→                  {t.year}
+   305→                </span>
+   306→                <div className="text-[18px] font-extrabold">{t.title}</div>
+   307→                <div className="text-sm font-medium leading-[1.95] text-[#1F3E4D]">{t.body}</div>
+   308→              </div>
+   309→            ))}
+   310→          </div>
+   311→        </section>
+   312→
+   313→        {/* stats */}
+   314→        <section className="px-4 pt-10">
+   315→          <div className="flex flex-wrap gap-y-6 gap-x-4 rounded-[32px] bg-[#04202E] p-[28px_22px] text-white">
+   316→            {ABOUT_STATS.map((s) => (
+   317→              <div key={s.label} className="flex min-w-0 flex-[1_1_40%] flex-col gap-1.5">
+   318→                <span className="text-[36px] font-black leading-[1.15] text-[#00ABE7]">{s.num}</span>
+   319→                <span className="text-sm font-semibold leading-[1.8] text-[#D3EEF9]">{s.label}</span>
+   320→              </div>
+   321→            ))}
+   322→          </div>
+   323→        </section>
+   324→
+   325→        {/* values */}
+   326→        <section className="flex flex-col gap-3.5 px-4 pt-10">
+   327→          <SectionHead eyebrow="چی برامون مهمه" title="سه اصلی که هیچ‌وقت عوض نمی‌شن" size={26} />
+   328→          <div className="mt-2 flex flex-col gap-3.5">
+   329→            {ABOUT_VALUES.map((v) => (
+   330→              <div
+   331→                key={v.title}
+   332→                className="flex flex-col gap-2.5 rounded-[28px] p-[22px]"
+   333→                style={{ background: v.bg }}
+   334→              >
+   335→                <span className="flex h-[46px] w-[46px] items-center justify-center rounded-[23px] bg-[#04202E] text-[19px] font-black text-white">
+   336→                  {v.n}
+   337→                </span>
+   338→                <div className="text-[19px] font-black">{v.title}</div>
+   339→                <div className="text-[14.5px] font-medium leading-[2] text-[#1F3E4D]">{v.body}</div>
+   340→              </div>
+   341→            ))}
+   342→          </div>
+   343→        </section>
+   344→
+   345→        {/* behind the scenes */}
+   346→        <section className="flex flex-col gap-3.5 px-4 pt-10">
+   347→          <SectionHead eyebrow="پشت صحنه" title="بسته‌بندی با دست، ارسال با دقت" size={26} />
+   348→          <p className="m-0 text-[15px] font-medium leading-[2] text-[#1F3E4D]">
+   349→            هر جعبه قبل از رفتن، یه بار دیگه چک می‌شه: شماره‌ی هدیه درست روی تگ، کارت QR سالم، و
+   350→            استیکرهای قلب و پنجه سر جاشون. تیم ما کوچیکه و پیام‌های مشتری‌ها رو خودمون می‌خونیم.
+   351→          </p>
+   352→          <p className="m-0 text-[15px] font-medium leading-[2] text-[#1F3E4D]">
+   353→            ۷ نفر تو تیم داریم؛ از بسته‌بندی تا جواب پیام‌ها همه‌ش با خودمونه.
+   354→          </p>
+   355→          <div className="mt-1 grid grid-cols-2 gap-3">
+   356→            {TEAM_CARDS.map((c) => (
+   357→              <div
+   358→                key={c.label}
+   359→                className="flex flex-col items-center gap-1.5 rounded-[24px] p-3.5 transition-transform hover:-translate-y-0.5"
+   360→                style={{ background: c.bg }}
+   361→              >
+   362→                <Plush kind={c.kind} size={110} />
+   363→                <span className="text-sm font-extrabold">{c.label}</span>
+   364→              </div>
+   365→            ))}
+   366→          </div>
+   367→        </section>
+   368→
+   369→        {/* CTA */}
+   370→        <section className="px-4 pt-10">
+   371→          <div className="flex flex-col gap-3.5 rounded-[32px] bg-[#00ABE7] p-[28px_22px]">
+   372→            <h2 className="m-0 text-2xl font-black leading-[1.5]">آماده‌ای یکی رو خوشحال کنی؟</h2>
+   373→            <p className="m-0 text-[15px] font-semibold leading-[1.95]">
+   374→              یه دوست رو انتخاب کن، یه کارت پستال بنویس، و بقیه‌ش با ما.
+   375→            </p>
+   376→            <button
+   377→              type="button"
+   378→              onClick={() => navigate("pick")}
+   379→              className="flex h-[54px] items-center justify-center rounded-[27px] bg-[#04202E] text-base font-extrabold text-white transition-transform active:scale-[0.98]"
+   380→            >
+   381→              بساز و بفرست
+   382→            </button>
+   383→          </div>
+   384→        </section>
+   385→
+   386→        <InfoFooter />
+   387→      </InfoShell>
+   388→
+   389→      {/* ───── desktop (04-درباره‌ی پیشتم) ───── */}
+   390→      <InfoDesktop>
+   391→        {/* hero */}
+   392→        <section className="mt-1.5 bg-[#00ABE7]">
+   393→          <div className="mx-auto box-border flex w-full max-w-[1200px] flex-wrap items-center gap-10 px-6 pb-[72px] pt-[60px]">
+   394→            <div className="flex min-w-0 flex-[1_1_460px] flex-col items-start gap-5">
+   395→              <span className="rounded-[16px] bg-[#04202E] px-4 py-2 text-[13.5px] font-bold text-white">
+   396→                درباره‌ی پیشتم
+   397→              </span>
+   398→              <h1 className="m-0 text-[clamp(38px,5vw,62px)] font-black leading-[1.35]">
+   399→                یه دوست پشمالو، یه قلب بزرگ
+   400→              </h1>
+   401→              <p className="m-0 max-w-[560px] text-[19px] font-medium leading-[2]">
+   402→                پیشتم از یه ایده‌ی ساده شروع شد: هدیه دادن نباید فقط برای خوشحال کردن خودمون باشه.
+   403→                می‌خوایم هر کسی بتونه با یه جعبه‌ی کوچیک، دل یکی رو گرم کنه.
+   404→              </p>
+   405→              <div className="mt-1 flex flex-wrap gap-3">
+   406→                <button
+   407→                  type="button"
+   408→                  onClick={() => navigate("pick")}
+   409→                  className="flex h-[58px] items-center rounded-[29px] bg-[#04202E] px-[34px] text-[17px] font-extrabold text-white transition-transform hover:scale-[1.03]"
+   410→                >
+   411→                  همین حالا شروع کن
+   412→                </button>
+   413→                <button
+   414→                  type="button"
+   415→                  onClick={() => navigate("impact")}
+   416→                  className="box-border flex h-[58px] items-center rounded-[29px] border-[2.5px] border-[#04202E] px-7 text-base font-bold text-[#04202E] transition-colors hover:bg-white/40"
+   417→                >
+   418→                  دفتر مهربونی
+   419→                </button>
+   420→              </div>
+   421→            </div>
+   422→            <div className="flex min-w-0 flex-[1_1_340px] justify-center">
+   423→              <div className="relative aspect-square w-[min(440px,100%)] overflow-hidden">
+   424→                <div className="absolute inset-0 rounded-full bg-[#66CDF1]" />
+   425→                <div className="absolute left-1/2 top-1/2 -ml-[150px] -mt-[150px]">
+   426→                  <Plush kind="sheep" size={300} />
+   427→                </div>
+   428→                <span className="absolute right-[10%] top-[12%] rotate-[-12deg]">
+   429→                  <HeartSticker size={44} fill="#F0426B" stroke="#04202E" strokeWidth={2.6} />
+   430→                </span>
+   431→                <span className="absolute bottom-[16%] left-[10%] rotate-[14deg]">
+   432→                  <HeartSticker size={34} fill="#fff" stroke="#04202E" strokeWidth={2.6} />
+   433→                </span>
+   434→              </div>
+   435→            </div>
+   436→          </div>
+   437→        </section>
+   438→
+   439→        {/* founder letter */}
+   440→        <section className="mx-auto box-border w-full max-w-[1200px] px-6 pt-20">
+   441→          <div className="flex flex-wrap items-start gap-10">
+   442→            <div className="flex min-w-0 flex-[1_1_380px] flex-col gap-4">
+   443→              <span className="text-sm font-extrabold text-[#006387]">از طرف بنیانگذار</span>
+   444→              <h2 className="m-0 text-[38px] font-black leading-[1.4]">نامه‌ی بنیانگذار</h2>
+   445→              <div className="rounded-[20px] border-2 border-dashed border-[#E0B43A] bg-[#FFF3C9] px-[18px] py-3.5 text-sm font-bold leading-[1.9]">
+   446→                اگه امروز فقط یه کار از دستت برمیاد، لطفاً همین باشه: برای یه نفر یه بغل بفرست.
+   447→              </div>
+   448→              <p className="m-0 text-[16.5px] font-medium leading-[2.1] text-[#1F3E4D]">
+   449→                همیشه فکر می‌کردم بهترین هدیه‌ها اون‌هایی‌ان که بی‌دلیل داده می‌شن. یه دستمال گردن
+   450→                دست‌دوز، یه یادداشت کوتاه، یه عروسک که کنار تخت یکی می‌خوابه.
+   451→              </p>
+   452→              <p className="m-0 text-[16.5px] font-medium leading-[2.1] text-[#1F3E4D]">
+   453→                پیشتم رو ساختیم که این حس رو راحت‌تر به دست بیاری. قیمت‌ها یکی‌ان، چون مهربونی وزن
+   454→                نداره و نمی‌خوایم کسی با هدیه‌ی گران‌تر فخر بفروشه.
+   455→              </p>
+   456→              <div className="mt-1.5 text-[17px] font-black">نگار، بنیانگذار پیشتم</div>
+   457→            </div>
+   458→            <div className="flex min-w-0 flex-[1_1_380px] flex-col gap-4">
+   459→              <div className="flex flex-col gap-4 rounded-[32px] bg-[#CFEFFB] p-7">
+   460→                <div className="flex h-[210px] items-end justify-center gap-1 overflow-hidden">
+   461→                  <Plush kind="bear" size={150} />
+   462→                  <Plush kind="bunny" size={120} />
+   463→                </div>
+   464→                <div className="text-sm font-bold text-[#1F3E4D]">
+   465→                  اولین جعبه‌های پیشتم همین‌جا، با دست و با کلی دقت بسته‌بندی شدن.
+   466→                </div>
+   467→              </div>
+   468→            </div>
+   469→          </div>
+   470→        </section>
+   471→
+   472→        {/* timeline */}
+   473→        <section className="mx-auto box-border w-full max-w-[1200px] px-6 pt-[88px]">
+   474→          <div className="mb-9 flex flex-col gap-2">
+   475→            <span className="text-sm font-extrabold text-[#006387]">مسیر ما</span>
+   476→            <h2 className="m-0 text-[38px] font-black leading-[1.4]">از ایده تا امروز</h2>
+   477→          </div>
+   478→          <div className="flex flex-wrap gap-[18px]">
+   479→            {ABOUT_TIMELINE.map((t) => (
+   480→              <div
+   481→                key={t.title}
+   482→                className="box-border flex min-w-0 flex-[1_1_240px] flex-col gap-3 rounded-[28px] border border-[#DDEEF5] bg-white p-6 transition-transform hover:-translate-y-1"
+   483→              >
+   484→                <span
+   485→                  className="self-start rounded-[14px] border-2 border-[#04202E] px-3.5 py-1 text-sm font-black"
+   486→                  style={{ background: t.bg }}
+   487→                >
+   488→                  {t.year}
+   489→                </span>
+   490→                <div className="text-[19px] font-extrabold">{t.title}</div>
+   491→                <div className="text-[14.5px] font-medium leading-[1.95] text-[#1F3E4D]">{t.body}</div>
+   492→              </div>
+   493→            ))}
+   494→          </div>
+   495→        </section>
+   496→
+   497→        {/* stats */}
+   498→        <section className="mx-auto box-border w-full max-w-[1200px] px-6 pt-[88px]">
+   499→          <div className="flex flex-wrap justify-between gap-5 rounded-[40px] bg-[#04202E] p-[48px_40px] text-white">
+   500→            {ABOUT_STATS.map((s) => (
+   501→              <div key={s.label} className="flex min-w-0 flex-[1_1_200px] flex-col gap-2">
+   502→                <span className="text-[48px] font-black leading-[1.1] text-[#00ABE7]">{s.num}</span>
+   503→                <span className="text-[15px] font-semibold leading-[1.8] text-[#D3EEF9]">{s.label}</span>
+   504→              </div>
+   505→            ))}
+   506→          </div>
+   507→        </section>
+   508→
+   509→        {/* values */}
+   510→        <section className="mx-auto box-border w-full max-w-[1200px] px-6 pt-[88px]">
+   511→          <div className="mb-8 flex flex-col gap-2">
+   512→            <span className="text-sm font-extrabold text-[#006387]">چی برامون مهمه</span>
+   513→            <h2 className="m-0 text-[38px] font-black leading-[1.4]">
+   514→              سه اصلی که هیچ‌وقت عوض نمی‌شن
+   515→            </h2>
+   516→          </div>
+   517→          <div className="flex flex-wrap gap-[18px]">
+   518→            {ABOUT_VALUES.map((v) => (
+   519→              <div
+   520→                key={v.title}
+   521→                className="box-border flex min-w-0 flex-[1_1_280px] flex-col gap-3.5 rounded-[32px] p-7 transition-transform hover:-translate-y-1"
+   522→                style={{ background: v.bg }}
+   523→              >
+   524→                <span className="flex h-[52px] w-[52px] items-center justify-center rounded-[26px] bg-[#04202E] text-[22px] font-black text-white">
+   525→                  {v.n}
+   526→                </span>
+   527→                <div className="text-[22px] font-black">{v.title}</div>
+   528→                <div className="text-[15px] font-medium leading-[2] text-[#1F3E4D]">{v.body}</div>
+   529→              </div>
+   530→            ))}
+   531→          </div>
+   532→        </section>
+   533→
+   534→        {/* behind the scenes */}
+   535→        <section className="mx-auto box-border w-full max-w-[1200px] px-6 pt-[88px]">
+   536→          <div className="flex flex-wrap items-center gap-10">
+   537→            <div className="flex min-w-0 flex-[1_1_380px] flex-col gap-4">
+   538→              <span className="text-sm font-extrabold text-[#006387]">پشت صحنه</span>
+   539→              <h2 className="m-0 text-[36px] font-black leading-[1.45]">
+   540→                بسته‌بندی با دست، ارسال با دقت
+   541→              </h2>
+   542→              <p className="m-0 text-base font-medium leading-[2.05] text-[#1F3E4D]">
+   543→                هر جعبه قبل از رفتن، یه بار دیگه چک می‌شه: شماره‌ی هدیه درست روی تگ، کارت QR سالم،
+   544→                و استیکرهای قلب و پنجه سر جاشون. تیم ما کوچیکه و پیام‌های مشتری‌ها رو خودمون
+   545→                می‌خونیم.
+   546→              </p>
+   547→              <p className="m-0 text-base font-medium leading-[2.05] text-[#1F3E4D]">
+   548→                ۷ نفر تو تیم داریم؛ از بسته‌بندی تا جواب پیام‌ها همه‌ش با خودمونه.
+   549→              </p>
+   550→            </div>
+   551→            <div className="grid min-w-0 flex-[1_1_380px] grid-cols-2 gap-3.5">
+   552→              {TEAM_CARDS.map((c) => (
+   553→                <div
+   554→                  key={c.label}
+   555→                  className="flex flex-col items-center gap-2 rounded-[26px] p-[18px] transition-transform hover:-translate-y-1"
+   556→                  style={{ background: c.bg }}
+   557→                >
+   558→                  <Plush kind={c.kind} size={130} />
+   559→                  <span className="text-sm font-extrabold">{c.label}</span>
+   560→                </div>
+   561→              ))}
+   562→            </div>
+   563→          </div>
+   564→        </section>
+   565→
+   566→        {/* CTA */}
+   567→        <section className="mx-auto box-border w-full max-w-[1200px] px-6 pt-[88px]">
+   568→          <div className="flex flex-wrap items-center justify-between gap-6 rounded-[40px] bg-[#00ABE7] p-[52px_44px]">
+   569→            <div className="flex max-w-[620px] flex-col gap-2.5">
+   570→              <h2 className="m-0 text-[36px] font-black leading-[1.45]">
+   571→                آماده‌ای یکی رو خوشحال کنی؟
+   572→              </h2>
+   573→              <p className="m-0 text-base font-semibold leading-[1.95]">
+   574→                یه دوست رو انتخاب کن، یه کارت پستال بنویس، و بقیه‌ش با ما.
+   575→              </p>
+   576→            </div>
+   577→            <button
+   578→              type="button"
+   579→              onClick={() => navigate("pick")}
+   580→              className="flex h-[58px] items-center rounded-[29px] bg-[#04202E] px-[34px] text-[17px] font-extrabold text-white transition-transform hover:scale-[1.03]"
+   581→            >
+   582→              بساز و بفرست
+   583→            </button>
+   584→          </div>
+   585→        </section>
+   586→
+   587→        <InfoFooterDesktop />
+   588→      </InfoDesktop>
+   589→    </>
+   590→  );
+   591→}
+   592→
+   593→/* ═══════════════ MISSION ═══════════════ */
+   594→
+   595→const MISSION_PARTS = [
+   596→  {
+   597→    n: "بخش ۱",
+   598→    bg: "#FFFFFF",
+   599→    border: "#DDEEF5",
+   600→    title: "هدیه، بهانه‌ی حرف زدن",
+   601→    body: "یه عروسک کنار یه کارت پستال، کافیه تا یه نفر یادش بیفته کسی بهش فکر می‌کنه. ما هم همه‌ی دقت‌مون رو گذاشتیم روی همین حس: طراحی عروسک‌ها، انتخاب متن کارت، و بسته‌بندی‌ای که وقتی بازش می‌کنی لبخند بزنی.",
+   602→  },
+   603→  {
+   604→    n: "بخش ۲",
+   605→    bg: "#FFE9F0",
+   606→    border: "#F7C5D3",
+   607→    title: "یه قیمت، بدون فخر",
+   608→    body: "همه‌ی جعبه‌ها یه قیمتن. نمی‌خوایم کسی با هدیه‌ی گران‌تر، حس بهتری داشته باشه. اگه کسی با قلب و پنجه‌های زیادی فخر بفروشه، عیبی نداره؛ اون پول مستقیم به بچه‌ها و حیوونا رسیده و مدرکش هست.",
+   609→  },
+   610→  {
+   611→    n: "بخش ۳",
+   612→    bg: "#DDF3EA",
+   613→    border: "#B5E3CE",
+   614→    title: "شفافیت، نه شعار",
+   615→    body: "هر قلب و پنجه‌ای که فروخته می‌شه، کامل برای خیریه می‌ره. هر گزارش، تاریخ و رسید ارسال رو تو دفتر مهربونی می‌ذاریم.",
+   616→  },
+   617→];
+   618→
+   619→export function MissionPage() {
+   620→  return (
+   621→    <>
+   622→      {/* ───── mobile (10-ماموریت پیشتم) ───── */}
+   623→      <InfoShell>
+   624→        <section className="mx-4 mt-1.5 flex flex-col items-start gap-3.5 rounded-[32px] bg-[#00ABE7] p-[26px_22px_22px]">
+   625→          <span className="rounded-[14px] bg-[#04202E] px-3.5 py-[7px] text-[13px] font-bold text-white">
+   626→            ماموریت ما
+   627→          </span>
+   628→          <h1 className="m-0 text-[32px] font-black leading-[1.45]">عشق رو پخش کنیم</h1>
+   629→          <p className="m-0 text-[15px] font-semibold leading-[1.95]">
+   630→            دنیایی رو می‌خوایم که با پخش کردن عشق و مثبت‌اندیشی به هم نزدیک‌تر باشه. هدیه‌ها بهانه‌ن؛
+   631→            اصل ماجرا، حسیه که وسط جعبه جا می‌گیره.
+   632→          </p>
+   633→          <div className="mb-1 mt-1 self-center">
+   634→            <Plush kind="duck" size={200} />
+   635→          </div>
+   636→          <button
+   637→            type="button"
+   638→            onClick={() => navigate("pick")}
+   639→            className="flex h-[54px] w-full items-center justify-center rounded-[27px] bg-[#04202E] text-base font-extrabold text-white transition-transform active:scale-[0.98]"
+   640→          >
+   641→            همین حالا شروع کن
+   642→          </button>
+   643→        </section>
+   644→
+   645→        <section className="flex flex-col gap-3.5 px-4 pt-[26px]">
+   646→          {MISSION_PARTS.map((p) => (
+   647→            <div
+   648→              key={p.n}
+   649→              className="flex flex-col gap-2.5 rounded-[28px] border p-[22px_24px] transition-transform hover:-translate-y-0.5"
+   650→              style={{ background: p.bg, borderColor: p.border }}
+   651→            >
+   652→              <span className="text-[13.5px] font-extrabold text-[#00779F]">{p.n}</span>
+   653→              <h2 className="m-0 text-[22px] font-black">{p.title}</h2>
+   654→              <p className="m-0 text-[15px] font-medium leading-[2] text-[#1F3E4D]">{p.body}</p>
+   655→            </div>
+   656→          ))}
+   657→        </section>
+   658→
+   659→        <section className="px-4 pt-[26px]">
+   660→          <div className="flex flex-col gap-3 rounded-[32px] bg-[#04202E] p-[28px_22px] text-white">
+   661→            <span className="text-[13.5px] font-extrabold text-[#00ABE7]">یه بخش بیشتر</span>
+   662→            <h2 className="m-0 text-[26px] font-black leading-[1.55]">ما با هم کار می‌کنیم</h2>
+   663→            <p className="m-0 text-[15px] font-medium leading-[2] text-[#D3EEF9]">
+   664→              اگه یه خیریه، پناهگاه یا گروه داوطلبی می‌شناسی که کار خوبی می‌کنه، بهمون بگو؛ پیشنهادت
+   665→              رو با فرم تماس برامون بفرست.
+   666→            </p>
+   667→            <button
+   668→              type="button"
+   669→              onClick={() => navigate("contact")}
+   670→              className="mt-1 flex h-[52px] items-center justify-center rounded-[26px] bg-[#00ABE7] text-base font-extrabold text-[#04202E] transition-transform active:scale-[0.98]"
+   671→            >
+   672→              پیشنهاد بده
+   673→            </button>
+   674→          </div>
+   675→        </section>
+   676→
+   677→        <section className="px-4 pt-[26px]">
+   678→          <div className="flex flex-col items-center gap-4 rounded-[32px] border border-[#DDEEF5] bg-white p-[30px_22px] text-center">
+   679→            <h2 className="m-0 text-[22px] font-black leading-[1.6]">
+   680→              هر هدیه، یه قدم کوچیک برای دنیای مهربون‌تر
+   681→            </h2>
+   682→            <button
+   683→              type="button"
+   684→              onClick={() => navigate("pick")}
+   685→              className="flex h-[54px] w-full items-center justify-center rounded-[27px] bg-[#00ABE7] text-base font-extrabold text-[#04202E] transition-transform active:scale-[0.98]"
+   686→            >
+   687→              بساز و بفرست
+   688→            </button>
+   689→          </div>
+   690→        </section>
+   691→
+   692→        <InfoFooter />
+   693→      </InfoShell>
+   694→
+   695→      {/* ───── desktop (05-ماموریت پیشتم) ───── */}
+   696→      <InfoDesktop>
+   697→        <section className="mx-auto box-border w-full max-w-[1200px] px-6 pt-6">
+   698→          <div className="flex flex-wrap items-center gap-9 rounded-[40px] bg-[#00ABE7] p-[64px_56px]">
+   699→            <div className="flex min-w-0 flex-[1_1_460px] flex-col items-start gap-[18px]">
+   700→              <span className="rounded-[16px] bg-[#04202E] px-4 py-2 text-[13.5px] font-bold text-white">
+   701→                ماموریت ما
+   702→              </span>
+   703→              <h1 className="m-0 text-[clamp(42px,5.6vw,72px)] font-black leading-[1.3]">
+   704→                عشق رو پخش کنیم
+   705→              </h1>
+   706→              <p className="m-0 max-w-[580px] text-[19px] font-semibold leading-[2]">
+   707→                دنیایی رو می‌خوایم که با پخش کردن عشق و مثبت‌اندیشی به هم نزدیک‌تر باشه. هدیه‌ها
+   708→                بهانه‌ن؛ اصل ماجرا، حسیه که وسط جعبه جا می‌گیره.
+   709→              </p>
+   710→              <button
+   711→                type="button"
+   712→                onClick={() => navigate("pick")}
+   713→                className="mt-1 flex h-[58px] items-center rounded-[29px] bg-[#04202E] px-[34px] text-[17px] font-extrabold text-white transition-transform hover:scale-[1.03]"
+   714→              >
+   715→                همین حالا شروع کن
+   716→              </button>
+   717→            </div>
+   718→            <div className="flex min-w-0 flex-[1_1_320px] justify-center">
+   719→              <Plush kind="duck" size={300} />
+   720→            </div>
+   721→          </div>
+   722→        </section>
+   723→
+   724→        <section className="mx-auto box-border flex w-full max-w-[1200px] flex-wrap gap-[18px] px-6 pt-[88px]">
+   725→          {MISSION_PARTS.map((p) => (
+   726→            <div
+   727→              key={p.n}
+   728→              className="box-border flex min-w-0 flex-[1_1_360px] flex-col gap-3.5 rounded-[32px] border p-8 transition-transform hover:-translate-y-1"
+   729→              style={{ background: p.bg, borderColor: p.border }}
+   730→            >
+   731→              <span className="text-sm font-extrabold text-[#006387]">{p.n}</span>
+   732→              <h2 className="m-0 text-[26px] font-black">{p.title}</h2>
+   733→              <p className="m-0 text-[15.5px] font-medium leading-[2] text-[#1F3E4D]">{p.body}</p>
+   734→            </div>
+   735→          ))}
+   736→        </section>
+   737→
+   738→        <section className="mx-auto box-border w-full max-w-[1200px] px-6 pt-[88px]">
+   739→          <div className="flex flex-wrap items-center gap-10 rounded-[40px] bg-[#04202E] p-[52px_44px] text-white">
+   740→            <div className="flex min-w-0 flex-[1_1_440px] flex-col gap-4">
+   741→              <span className="text-sm font-extrabold text-[#00ABE7]">یه بخش بیشتر</span>
+   742→              <h2 className="m-0 text-[36px] font-black leading-[1.5]">ما با هم کار می‌کنیم</h2>
+   743→              <p className="m-0 text-base font-medium leading-[2] text-[#D3EEF9]">
+   744→                اگه یه خیریه، پناهگاه یا گروه داوطلبی می‌شناسی که کار خوبی می‌کنه، بهمون بگو؛
+   745→                پیشنهادت رو با فرم تماس برامون بفرست.
+   746→              </p>
+   747→            </div>
+   748→            <button
+   749→              type="button"
+   750→              onClick={() => navigate("contact")}
+   751→              className="flex h-[54px] flex-none items-center rounded-[27px] bg-[#00ABE7] px-[30px] text-base font-extrabold text-[#04202E] transition-transform hover:scale-[1.03]"
+   752→            >
+   753→              پیشنهاد بده
+   754→            </button>
+   755→          </div>
+   756→        </section>
+   757→
+   758→        <section className="mx-auto box-border w-full max-w-[1200px] px-6 pt-[88px] text-center">
+   759→          <div className="flex flex-col items-center gap-[18px] rounded-[40px] border border-[#DDEEF5] bg-white p-[48px_32px]">
+   760→            <h2 className="m-0 text-[34px] font-black">
+   761→              هر هدیه، یه قدم کوچیک برای دنیای مهربون‌تر
+   762→            </h2>
+   763→            <button
+   764→              type="button"
+   765→              onClick={() => navigate("pick")}
+   766→              className="flex h-[58px] items-center rounded-[29px] bg-[#00ABE7] px-9 text-[17px] font-extrabold text-[#04202E] transition-transform hover:scale-[1.03]"
+   767→            >
+   768→              بساز و بفرست
+   769→            </button>
+   770→          </div>
+   771→        </section>
+   772→
+   773→        <InfoFooterDesktop />
+   774→      </InfoDesktop>
+   775→    </>
+   776→  );
+   777→}
+   778→
+   779→/* ═══════════════ CONTACT ═══════════════ */
+   780→
+   781→const SUBJECTS = [
+   782→  "می‌خوام آدرس سفارشم رو عوض کنم",
+   783→  "نوشته تحویل شده ولی نرسیده",
+   784→  "چرا این‌قدر طول کشید؟",
+   785→  "می‌خوام سفارشم رو لغو کنم",
+   786→  "می‌خوام متن کارتم رو عوض کنم",
+   787→  "مشکل با عروسک یا بسته دارم",
+   788→  "یه چیز دیگه",
+   789→];
+   790→
+   791→const FIELD =
+   792→  "box-border w-full rounded-[16px] border-[1.5px] border-[#CFE6EF] bg-[#F8FDFF] px-4 text-base text-[#04202E] outline-none transition-colors focus:border-[#00ABE7]";
+   793→
+   794→function FieldError({ msg }: { msg?: string }) {
+   795→  if (!msg) return null;
+   796→  return <span className="text-[12.5px] font-bold text-[#E0315B]">{msg}</span>;
+   797→}
+   798→
+   799→function ContactForm({ idp }: { idp: string }) {
+   800→  const { toast } = useToast();
+   801→  const [name, setName] = useState("");
+   802→  const [email, setEmail] = useState("");
+   803→  const [subject, setSubject] = useState("");
+   804→  const [orderNo, setOrderNo] = useState("");
+   805→  const [message, setMessage] = useState("");
+   806→  const [errors, setErrors] = useState<{
+   807→    name?: string;
+   808→    email?: string;
+   809→    subject?: string;
+   810→    message?: string;
+   811→  }>({});
+   812→  const [sending, setSending] = useState(false);
+   813→  const [sent, setSent] = useState(false);
+   814→
+   815→  const submit = async (e: FormEvent) => {
+   816→    e.preventDefault();
+   817→    const errs: typeof errors = {};
+   818→    if (!name.trim()) errs.name = "اسمت رو بنویس.";
+   819→    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) errs.email = "یه ایمیل درست بنویس.";
+   820→    if (!subject) errs.subject = "یکی از موضوع‌ها رو انتخاب کن.";
+   821→    if (!message.trim()) errs.message = "پیامت رو بنویس.";
+   822→    setErrors(errs);
+   823→    if (Object.keys(errs).length > 0 || sending) return;
+   824→    setSending(true);
+   825→    const startedAt = Date.now();
+   826→    try {
+   827→      const res = await fetch("/api/contact", {
+   828→        method: "POST",
+   829→        headers: { "Content-Type": "application/json" },
+   830→        body: JSON.stringify({ name, email, subject, orderNo, message }),
+   831→      });
+   832→      if (!res.ok) throw new Error("server");
+   833→      const wait = Math.max(0, 900 - (Date.now() - startedAt));
+   834→      window.setTimeout(() => {
+   835→        setSending(false);
+   836→        setSent(true);
+   837→        toast({
+   838→          title: "پیامت رسید!",
+   839→          description: "خیلی مچکریم؛ معمولاً کمتر از یه روز کاری جواب می‌دیم.",
+   840→        });
+   841→      }, wait);
+   842→    } catch {
+   843→      setSending(false);
+   844→      toast({
+   845→        title: "ارسال نشد!",
+   846→        description: "اتصال به سرور برقرار نشد؛ چند لحظه بعد دوباره امتحان کن.",
+   847→      });
+   848→    }
+   849→  };
+   850→
+   851→  const reset = () => {
+   852→    setName("");
+   853→    setEmail("");
+   854→    setSubject("");
+   855→    setOrderNo("");
+   856→    setMessage("");
+   857→    setErrors({});
+   858→    setSent(false);
+   859→  };
+   860→
+   861→  if (sent) {
+   862→    return (
+   863→      <div className="pishnam-reveal flex flex-col items-center gap-3.5 rounded-[28px] border-[1.5px] border-[#B5E3CE] bg-[#DDF3EA] p-7 text-center">
+   864→        <span className="flex h-16 w-16 items-center justify-center rounded-full border-[3px] border-[#04202E] bg-white">
+   865→          <CheckIcon size={30} stroke="#04202E" />
+   866→        </span>
+   867→        <div className="text-[22px] font-black">پیامت رسید!</div>
+   868→        <p className="m-0 text-[14.5px] font-medium leading-[1.9] text-[#1F3E4D]">
+   869→          ممنون که باهامون حرف زدی{name.trim() ? `، ${name.trim()}` : ""}. جوابت رو به ایمیلت
+   870→          می‌فرستیم — معمولاً کمتر از یه روز کاری.
+   871→        </p>
+   872→        <button
+   873→          type="button"
+   874→          onClick={reset}
+   875→          className="mt-1 flex h-12 items-center rounded-full border-2 border-[#04202E] bg-white px-6 text-[15px] font-extrabold text-[#04202E]"
+   876→        >
+   877→          فرم جدید
+   878→        </button>
+   879→      </div>
+   880→    );
+   881→  }
+   882→
+   883→  return (
+   884→    <form onSubmit={submit} className="flex flex-col gap-4">
+   885→      <div className="flex flex-wrap gap-3.5">
+   886→        <div className="flex min-w-0 flex-[1_1_200px] flex-col gap-1.5">
+   887→          <label htmlFor={`${idp}-name`} className="text-sm font-extrabold">
+   888→            اسمت
+   889→          </label>
+   890→          <input
+   891→            id={`${idp}-name`}
+   892→            type="text"
+   893→            value={name}
+   894→            onChange={(e) => setName(e.target.value)}
+   895→            placeholder="اسم و فامیل"
+   896→            className={`${FIELD} h-[52px]`}
+   897→          />
+   898→          <FieldError msg={errors.name} />
+   899→        </div>
+   900→        <div className="flex min-w-0 flex-[1_1_200px] flex-col gap-1.5">
+   901→          <label htmlFor={`${idp}-email`} className="text-sm font-extrabold">
+   902→            ایمیل
+   903→          </label>
+   904→          <input
+   905→            id={`${idp}-email`}
+   906→            type="email"
+   907→            dir="ltr"
+   908→            value={email}
+   909→            onChange={(e) => setEmail(e.target.value)}
+   910→            placeholder="you@example.com"
+   911→            className={`${FIELD} h-[52px] text-right`}
+   912→          />
+   913→          <FieldError msg={errors.email} />
+   914→        </div>
+   915→      </div>
+   916→      <div className="flex flex-col gap-1.5">
+   917→        <label htmlFor={`${idp}-subject`} className="text-sm font-extrabold">
+   918→          موضوع
+   919→        </label>
+   920→        <select
+   921→          id={`${idp}-subject`}
+   922→          value={subject}
+   923→          onChange={(e) => setSubject(e.target.value)}
+   924→          className={`${FIELD} h-[52px] ${subject ? "" : "text-[#7E97A3]"}`}
+   925→        >
+   926→          <option value="">یکی رو انتخاب کن</option>
+   927→          {SUBJECTS.map((s) => (
+   928→            <option key={s} value={s}>
+   929→              {s}
+   930→            </option>
+   931→          ))}
+   932→        </select>
+   933→        <FieldError msg={errors.subject} />
+   934→      </div>
+   935→      <div className="flex flex-col gap-1.5">
+   936→        <label htmlFor={`${idp}-order`} className="text-sm font-extrabold">
+   937→          شماره‌ی سفارش (اختیاری)
+   938→        </label>
+   939→        <input
+   940→          id={`${idp}-order`}
+   941→          type="text"
+   942→          value={orderNo}
+   943→          onChange={(e) => setOrderNo(e.target.value)}
+   944→          placeholder="مثلاً ۱۰۱"
+   945→          className={`${FIELD} h-[52px]`}
+   946→        />
+   947→      </div>
+   948→      <div className="flex flex-col gap-1.5">
+   949→        <label htmlFor={`${idp}-message`} className="text-sm font-extrabold">
+   950→          پیامت
+   951→        </label>
+   952→        <textarea
+   953→          id={`${idp}-message`}
+   954→          rows={5}
+   955→          value={message}
+   956→          onChange={(e) => setMessage(e.target.value)}
+   957→          placeholder="هر چی که لازمه بدونیم رو بنویس…"
+   958→          className={`${FIELD} resize-y p-3 leading-[1.85]`}
+   959→        />
+   960→        <FieldError msg={errors.message} />
+   961→      </div>
+   962→      <button
+   963→        type="submit"
+   964→        disabled={sending}
+   965→        className="flex h-14 items-center justify-center gap-2 rounded-[28px] bg-[#00ABE7] text-[17px] font-extrabold text-[#04202E] transition-transform active:scale-[0.98] disabled:opacity-80"
+   966→      >
+   967→        {sending ? (
+   968→          <>
+   969→            در حال ارسال…
+   970→            <svg
+   971→              className="animate-spin"
+   972→              width="20"
+   973→              height="20"
+   974→              viewBox="0 0 24 24"
+   975→              fill="none"
+   976→              aria-hidden="true"
+   977→            >
+   978→              <circle cx="12" cy="12" r="9" stroke="#04202E" strokeOpacity=".25" strokeWidth="3" />
+   979→              <path d="M21 12a9 9 0 0 0-9-9" stroke="#04202E" strokeWidth="3" strokeLinecap="round" />
+   980→            </svg>
+   981→          </>
+   982→        ) : (
+   983→          "بفرست"
+   984→        )}
+   985→      </button>
+   986→      <span className="text-[13px] font-medium leading-[1.8] text-[#4A6572]">
+   987→        معمولاً کمتر از یه روز کاری جواب می‌دیم.
+   988→      </span>
+   989→    </form>
+   990→  );
+   991→}
+   992→
+   993→const CONTACT_ROWS = [
+   994→  {
+   995→    bg: "#D6F1FB",
+   996→    icon: <MailIcon size={20} />,
+   997→    label: "ایمیل",
+   998→    value: "hello@pishnam.ir",
+   999→    ltr: true,
+  1000→  },
+  1001→  {
+  1002→    bg: "#FFE0EA",
+  1003→    icon: (
+  1004→      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#04202E" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+  1005→        <path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a1 1 0 0 1-1 1A16 16 0 0 1 4 5a1 1 0 0 1 1-1z" />
+  1006→      </svg>
+  1007→    ),
+  1008→    label: "تلفن",
+  1009→    value: "۰۲۱-۹۱۰۰۹۱۰۰",
+  1010→    ltr: false,
+  1011→  },
+  1012→  {
+  1013→    bg: "#FFF3C9",
+  1014→    icon: (
+  1015→      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#04202E" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+  1016→        <circle cx="12" cy="12" r="9" />
+  1017→        <path d="M12 7v5l3 2" />
+  1018→      </svg>
+  1019→    ),
+  1020→    label: "ساعت پاسخ‌گویی",
+  1021→    value: "شنبه تا پنجشنبه، ۹ تا ۱۸",
+  1022→    ltr: false,
+  1023→  },
+  1024→];
+  1025→
+  1026→export function ContactPage() {
+  1027→  return (
+  1028→    <>
+  1029→      {/* ───── mobile (11-تماس با پیشتم) ───── */}
+  1030→      <InfoShell>
+  1031→        <section className="flex flex-col gap-[18px] px-4 pt-3.5">
+  1032→          <div className="flex flex-col gap-2">
+  1033→            <span className="text-sm font-extrabold text-[#00779F]">ما اینجاییم</span>
+  1034→            <h1 className="m-0 text-[30px] font-black leading-[1.45]">باهامون حرف بزن</h1>
+  1035→            <p className="m-0 text-[15px] font-medium leading-[1.95] text-[#1F3E4D]">
+  1036→              اگه سؤالی داشتی، یا جعبه‌ت یه جای دیگه رفت، یا می‌خوای چیزی رو عوض کنی، فقط کافیه این
+  1037→              فرم رو پر کنی. قبلش شاید جواب سؤالت تو <InlineLink label="ارسال و بازگشت" route="shipping" />{" "}
+  1038→              باشه.
+  1039→            </p>
+  1040→          </div>
+  1041→
+  1042→          <div className="flex flex-col rounded-[22px] border border-[#DDEEF5] bg-white px-4 py-1.5">
+  1043→            {CONTACT_ROWS.map((r, i) => (
+  1044→              <div
+  1045→                key={r.label}
+  1046→                className={`flex items-center gap-3 py-3 ${i < CONTACT_ROWS.length - 1 ? "border-b border-[#EAF4F8]" : ""}`}
+  1047→              >
+  1048→                <span
+  1049→                  className="flex h-[42px] w-[42px] flex-none items-center justify-center rounded-full"
+  1050→                  style={{ background: r.bg }}
+  1051→                >
+  1052→                  {r.icon}
+  1053→                </span>
+  1054→                <div className="flex min-w-0 flex-col gap-0.5">
+  1055→                  <span className="text-[12.5px] font-semibold text-[#4A6572]">{r.label}</span>
+  1056→                  <span
+  1057→                    className="text-[15.5px] font-extrabold"
+  1058→                    dir={r.ltr ? "ltr" : undefined}
+  1059→                    style={r.ltr ? { textAlign: "right" } : undefined}
+  1060→                  >
+  1061→                    {r.value}
+  1062→                  </span>
+  1063→                </div>
+  1064→              </div>
+  1065→            ))}
+  1066→          </div>
+  1067→
+  1068→          <div className="rounded-[28px] border border-[#DDEEF5] bg-white p-[22px_18px]">
+  1069→            <ContactForm idp="cm" />
+  1070→          </div>
+  1071→        </section>
+  1072→
+  1073→        <InfoFooter />
+  1074→      </InfoShell>
+  1075→
+  1076→      {/* ───── desktop (06-تماس با پیشتم) ───── */}
+  1077→      <InfoDesktop>
+  1078→        <div className="mx-auto box-border flex w-full max-w-[1200px] flex-wrap items-start gap-9 px-6 pt-10">
+  1079→          <div className="flex min-w-0 flex-[1_1_360px] flex-col gap-[22px]">
+  1080→            <div className="flex flex-col gap-2.5">
+  1081→              <span className="text-sm font-extrabold text-[#006387]">ما اینجاییم</span>
+  1082→              <h1 className="m-0 text-[44px] font-black leading-[1.35]">باهامون حرف بزن</h1>
+  1083→              <p className="m-0 text-base font-medium leading-[2] text-[#1F3E4D]">
+  1084→                اگه سؤالی داشتی، یا جعبه‌ت یه جای دیگه رفت، یا می‌خوای چیزی رو عوض کنی، فقط کافیه این
+  1085→                فرم رو پر کنی. قبلش شاید جواب سؤالت تو{" "}
+  1086→                <InlineLink label="ارسال و بازگشت" route="shipping" /> باشه.
+  1087→              </p>
+  1088→            </div>
+  1089→            <div className="flex flex-col gap-3 rounded-[22px] border border-[#DDEEF5] bg-white p-[18px_20px]">
+  1090→              {[
+  1091→                { bg: "#D6F1FB", glyph: "@" },
+  1092→                { bg: "#FFE0EA", glyph: "☎" },
+  1093→                { bg: "#FFF3C9", glyph: "۸" },
+  1094→              ].map((g, i) => (
+  1095→                <div key={g.glyph} className="flex items-center gap-3">
+  1096→                  <span
+  1097→                    className="flex h-11 w-11 items-center justify-center rounded-[22px] text-[18px] font-black"
+  1098→                    style={{ background: g.bg }}
+  1099→                  >
+  1100→                    {g.glyph}
+  1101→                  </span>
+  1102→                  <div className="flex min-w-0 flex-col">
+  1103→                    <span className="text-[13px] font-semibold text-[#4A6572]">
+  1104→                      {CONTACT_ROWS[i].label}
+  1105→                    </span>
+  1106→                    <span
+  1107→                      className="text-base font-extrabold"
+  1108→                      dir={CONTACT_ROWS[i].ltr ? "ltr" : undefined}
+  1109→                      style={CONTACT_ROWS[i].ltr ? { textAlign: "right" } : undefined}
+  1110→                    >
+  1111→                      {CONTACT_ROWS[i].value}
+  1112→                    </span>
+  1113→                  </div>
+  1114→                </div>
+  1115→              ))}
+  1116→            </div>
+  1117→          </div>
+  1118→
+  1119→          <div className="box-border flex min-w-0 flex-[1_1_480px] flex-col rounded-[32px] border border-[#DDEEF5] bg-white p-8">
+  1120→            <ContactForm idp="cd" />
+  1121→          </div>
+  1122→        </div>
+  1123→
+  1124→        <InfoFooterDesktop />
+  1125→      </InfoDesktop>
+  1126→    </>
+  1127→  );
+  1128→}
+  1129→
+  1130→/* ═══════════════ REVIEWS ═══════════════ */
+  1131→
+  1132→export function ReviewsPage() {
+  1133→  const barsOn = useBarsOn();
+  1134→
+  1135→  const cards = REVIEWS_CARDS.map((c, i) => ({
+  1136→    ...c,
+  1137→    meta: REVIEW_META[i] ?? { title: "یه تجربه‌ی قشنگ", date: "امروز" },
+  1138→    name: c.who.split("،")[0].trim(),
+  1139→  }));
+  1140→
+  1141→  return (
+  1142→    <>
+  1143→      {/* ───── mobile (12-نظرها) ───── */}
+  1144→      <InfoShell>
+  1145→        <section className="flex flex-col gap-[18px] px-4 pt-3.5">
+  1146→          <div className="flex flex-col gap-2">
+  1147→            <span className="text-sm font-extrabold text-[#00779F]">نظر کسایی که هدیه گرفتن</span>
+  1148→            <h1 className="m-0 text-[30px] font-black leading-[1.45]">نظرها</h1>
+  1149→          </div>
+  1150→
+  1151→          <div className="flex flex-col gap-1.5 rounded-[26px] border border-[#DDEEF5] bg-white p-5">
+  1152→            <span className="text-sm font-bold text-[#4A6572]">میانگین امتیاز</span>
+  1153→            <span className="text-[38px] font-black leading-[1.15]">{REVIEW_AVG_FA}</span>
+  1154→            <span className="text-[13.5px] font-semibold text-[#4A6572]">
+  1155→              از {fa(REVIEWS_TOTAL)} نظر
+  1156→            </span>
+  1157→          </div>
+  1158→
+  1159→          <div className="flex flex-col gap-3 rounded-[26px] border border-[#DDEEF5] bg-white p-[18px_16px]">
+  1160→            {REVIEWS_BARS.map((b) => {
+  1161→              const count = Math.round((b.pct / 100) * REVIEWS_TOTAL);
+  1162→              return (
+  1163→                <div key={b.stars} className="flex items-center gap-2.5">
+  1164→                  <span className="w-[58px] flex-none text-[13.5px] font-bold">{b.stars} ستاره</span>
+  1165→                  <div className="h-3 min-w-0 flex-1 overflow-hidden rounded-full bg-[#E3F0F5]">
+  1166→                    <div
+  1167→                      className="h-3 rounded-full bg-[#00ABE7] transition-[width] duration-1000 ease-out"
+  1168→                      style={{ width: barsOn ? `${b.pct}%` : "0%" }}
+  1169→                    />
+  1170→                  </div>
+  1171→                  <span className="flex-none text-[12.5px] font-semibold text-[#4A6572]">
+  1172→                    {fa(b.pct)}٪ · {fa(count)} نظر
+  1173→                  </span>
+  1174→                </div>
+  1175→              );
+  1176→            })}
+  1177→          </div>
+  1178→
+  1179→          {cards.map((c) => (
+  1180→            <div
+  1181→              key={c.who}
+  1182→              className="flex flex-col gap-2.5 rounded-[26px] border border-[#DDEEF5] bg-white p-5 transition-transform hover:-translate-y-0.5"
+  1183→            >
+  1184→              <div className="flex items-center justify-between">
+  1185→                <Stars n={c.stars} />
+  1186→                <span className="text-[12.5px] font-semibold text-[#4A6572]">{c.meta.date}</span>
+  1187→              </div>
+  1188→              <div className="text-base font-extrabold">{c.meta.title}</div>
+  1189→              <div className="text-sm font-medium leading-[1.95] text-[#1F3E4D]">{c.text}</div>
+  1190→              <div className="mt-1 flex items-center gap-2.5">
+  1191→                <Plush kind={c.kind} size={44} />
+  1192→                <span className="text-[13.5px] font-bold">{c.name}</span>
+  1193→              </div>
+  1194→            </div>
+  1195→          ))}
+  1196→
+  1197→          <button
+  1198→            type="button"
+  1199→            onClick={() => navigate("pick")}
+  1200→            className="box-border flex min-h-[54px] items-center justify-center rounded-[27px] bg-[#00ABE7] px-5 py-3 text-center text-[15.5px] font-extrabold leading-[1.6] text-[#04202E] transition-transform active:scale-[0.98]"
+  1201→          >
+  1202→            خودت هم یه نظر بذار، بعد از دریافت هدیه
+  1203→          </button>
+  1204→        </section>
+  1205→
+  1206→        <InfoFooter />
+  1207→      </InfoShell>
+  1208→
+  1209→      {/* ───── desktop (07-نظرها) ───── */}
+  1210→      <InfoDesktop>
+  1211→        <div className="mx-auto box-border flex w-full max-w-[1200px] flex-col gap-7 px-6 pt-10">
+  1212→          <div className="flex flex-wrap items-center justify-between gap-8">
+  1213→            <div className="flex flex-col gap-2.5">
+  1214→              <span className="text-sm font-extrabold text-[#006387]">
+  1215→                نظر کسایی که هدیه گرفتن
+  1216→              </span>
+  1217→              <h1 className="m-0 text-[44px] font-black leading-[1.35]">نظرها</h1>
+  1218→            </div>
+  1219→            <div className="flex min-w-[260px] flex-col gap-2 rounded-[28px] border border-[#DDEEF5] bg-white p-[22px_26px]">
+  1220→              <span className="text-sm font-bold text-[#4A6572]">میانگین امتیاز</span>
+  1221→              <span className="text-[40px] font-black leading-[1.1]">{REVIEW_AVG_FA}</span>
+  1222→              <span className="text-[13.5px] font-semibold text-[#4A6572]">
+  1223→                از {fa(REVIEWS_TOTAL)} نظر
+  1224→              </span>
+  1225→            </div>
+  1226→          </div>
+  1227→
+  1228→          <div className="flex flex-col gap-3 rounded-[28px] border border-[#DDEEF5] bg-white p-[26px]">
+  1229→            {REVIEWS_BARS.map((b) => {
+  1230→              const count = Math.round((b.pct / 100) * REVIEWS_TOTAL);
+  1231→              return (
+  1232→                <div key={b.stars} className="flex items-center gap-3.5">
+  1233→                  <span className="w-[60px] flex-none text-sm font-bold">{b.stars} ستاره</span>
+  1234→                  <div className="h-3 min-w-0 flex-1 overflow-hidden rounded-full bg-[#E3F0F5]">
+  1235→                    <div
+  1236→                      className="h-3 rounded-full bg-[#00ABE7] transition-[width] duration-1000 ease-out"
+  1237→                      style={{ width: barsOn ? `${b.pct}%` : "0%" }}
+  1238→                    />
+  1239→                  </div>
+  1240→                  <span className="w-[110px] flex-none text-left text-[13.5px] font-semibold text-[#4A6572]">
+  1241→                    {fa(b.pct)}٪ · {fa(count)} نظر
+  1242→                  </span>
+  1243→                </div>
+  1244→              );
+  1245→            })}
+  1246→          </div>
+  1247→
+  1248→          <div className="flex flex-wrap gap-[18px]">
+  1249→            {cards.map((c) => (
+  1250→              <div
+  1251→                key={c.who}
+  1252→                className="box-border flex min-w-0 flex-[1_1_300px] flex-col gap-3 rounded-[28px] border border-[#DDEEF5] bg-white p-[22px] transition-transform hover:-translate-y-1"
+  1253→              >
+  1254→                <div className="flex items-center justify-between">
+  1255→                  <Stars n={c.stars} />
+  1256→                  <span className="text-[12.5px] font-semibold text-[#4A6572]">{c.meta.date}</span>
+  1257→                </div>
+  1258→                <div className="text-base font-extrabold">{c.meta.title}</div>
+  1259→                <div className="text-[14.5px] font-medium leading-[1.95] text-[#1F3E4D]">{c.text}</div>
+  1260→                <div className="mt-auto flex items-center gap-2.5">
+  1261→                  <Plush kind={c.kind} size={44} />
+  1262→                  <span className="text-[13.5px] font-bold">{c.name}</span>
+  1263→                </div>
+  1264→              </div>
+  1265→            ))}
+  1266→          </div>
+  1267→
+  1268→          <div className="pt-3 text-center">
+  1269→            <button
+  1270→              type="button"
+  1271→              onClick={() => navigate("pick")}
+  1272→              className="inline-flex h-[54px] items-center rounded-[27px] bg-[#00ABE7] px-[30px] text-base font-extrabold text-[#04202E] transition-transform hover:scale-[1.03]"
+  1273→            >
+  1274→              خودت هم یه نظر بذار، بعد از دریافت هدیه
+  1275→            </button>
+  1276→          </div>
+  1277→        </div>
+  1278→
+  1279→        <InfoFooterDesktop />
+  1280→      </InfoDesktop>
+  1281→    </>
+  1282→  );
+  1283→}
+  1284→
+  1285→/* ═══════════════ SHIPPING ═══════════════ */
+  1286→
+  1287→export function ShippingPage() {
+  1288→  return (
+  1289→    <>
+  1290→      {/* ───── mobile (13-ارسال و بازگشت) ───── */}
+  1291→      <InfoShell>
+  1292→        <section className="flex flex-col gap-[18px] px-4 pt-3.5">
+  1293→          <div className="flex flex-col gap-2">
+  1294→            <span className="text-sm font-extrabold text-[#00779F]">قبل از سفارش بخون</span>
+  1295→            <h1 className="m-0 text-[30px] font-black leading-[1.45]">ارسال و بازگشت</h1>
+  1296→            <p className="m-0 text-[15px] font-medium leading-[2] text-[#1F3E4D]">
+  1297→              همه‌چی اینجا ساده و روشنه. اگه جوابت رو اینجا پیدا نکردی، از{" "}
+  1298→              <InlineLink label="تماس با ما" route="contact" /> بپرس.
+  1299→            </p>
+  1300→          </div>
+  1301→
+  1302→          {SHIPPING_SECTIONS.map((s) => (
+  1303→            <div
+  1304→              key={s.title}
+  1305→              className="flex flex-col gap-3 rounded-[26px] border border-[#DDEEF5] bg-white p-[20px_22px] transition-transform hover:-translate-y-0.5"
+  1306→            >
+  1307→              <div className="flex items-center gap-3">
+  1308→                <span
+  1309→                  className="flex h-9 w-9 flex-none items-center justify-center rounded-full border-2 border-[#04202E] font-black"
+  1310→                  style={{ background: s.bg }}
+  1311→                >
+  1312→                  {s.n}
+  1313→                </span>
+  1314→                <h2 className="m-0 text-[19px] font-black">{s.title}</h2>
+  1315→              </div>
+  1316→              <div className="text-[14.5px] font-medium leading-[2.05] text-[#1F3E4D]">{s.body}</div>
+  1317→            </div>
+  1318→          ))}
+  1319→
+  1320→          <div className="rounded-[26px] border-[1.5px] border-[#F7C5D3] bg-[#FFE9F0] p-[18px_20px] text-sm font-semibold leading-[2]">
+  1321→            هزینه‌ی ارسال تهران {faPrice(49_000)} و شهرستان‌ها {faPrice(69_000)} ه‌ست و همین موقع ثبت
+  1322→            آدرس حساب می‌شه. بازگشت یا تعویض هم تا ۷ روز بعد از تحویل آزاده.
+  1323→          </div>
+  1324→        </section>
+  1325→
+  1326→        <InfoFooter />
+  1327→      </InfoShell>
+  1328→
+  1329→      {/* ───── desktop (08-ارسال و بازگشت) ───── */}
+  1330→      <InfoDesktop>
+  1331→        <div className="mx-auto box-border flex w-full max-w-[920px] flex-col gap-7 px-6 pt-10">
+  1332→          <div className="flex flex-col gap-2.5">
+  1333→            <span className="text-sm font-extrabold text-[#006387]">قبل از سفارش بخون</span>
+  1334→            <h1 className="m-0 text-[44px] font-black leading-[1.35]">ارسال و بازگشت</h1>
+  1335→            <p className="m-0 text-base font-medium leading-[2] text-[#1F3E4D]">
+  1336→              همه‌چی اینجا ساده و روشنه. اگه جوابت رو اینجا پیدا نکردی، از{" "}
+  1337→              <InlineLink label="تماس با ما" route="contact" /> بپرس.
+  1338→            </p>
+  1339→          </div>
+  1340→
+  1341→          {SHIPPING_SECTIONS.map((s) => (
+  1342→            <div
+  1343→              key={s.title}
+  1344→              className="box-border flex flex-col gap-3 rounded-[28px] border border-[#DDEEF5] bg-white p-[26px_28px] transition-transform hover:-translate-y-0.5"
+  1345→            >
+  1346→              <div className="flex items-center gap-3">
+  1347→                <span
+  1348→                  className="flex h-[38px] w-[38px] flex-none items-center justify-center rounded-[19px] border-2 border-[#04202E] font-black"
+  1349→                  style={{ background: s.bg }}
+  1350→                >
+  1351→                  {s.n}
+  1352→                </span>
+  1353→                <h2 className="m-0 text-[21px] font-black">{s.title}</h2>
+  1354→              </div>
+  1355→              <div className="text-[15px] font-medium leading-[2.05] text-[#1F3E4D]">{s.body}</div>
+  1356→            </div>
+  1357→          ))}
+  1358→
+  1359→          <div className="rounded-[28px] border-[1.5px] border-[#F7C5D3] bg-[#FFE9F0] p-[22px_26px] text-[14.5px] font-semibold leading-[2]">
+  1360→            هزینه‌ی ارسال تهران {faPrice(49_000)} و شهرستان‌ها {faPrice(69_000)} ه‌ست و همین موقع ثبت
+  1361→            آدرس حساب می‌شه. بازگشت یا تعویض هم تا ۷ روز بعد از تحویل آزاده.
+  1362→          </div>
+  1363→        </div>
+  1364→
+  1365→        <InfoFooterDesktop />
+  1366→      </InfoDesktop>
+  1367→    </>
+  1368→  );
+  1369→}
+  1370→

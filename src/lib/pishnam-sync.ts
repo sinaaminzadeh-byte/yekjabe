@@ -2,6 +2,7 @@
 // Push-side happens inside store actions (placeOrder / advanceStatus / markOpened)
 // to avoid an import cycle. This module is pull + merge only.
 import { usePishnam, type GiftOrder, type GiftStatus } from "./pishnam-store";
+import type { PlushKind } from "./pishnam-data";
 
 const STATUS_RANK: Record<string, number> = { paid: 0, packing: 1, shipped: 2, delivered: 3 };
 
@@ -111,11 +112,42 @@ export async function pullOrdersForPhone(phone: string): Promise<number> {
   }
 }
 
+/**
+ * Pulls the account's server-side favorites and merges them (union) into the
+ * local list — favorites are hearts, so union is the friendly policy.
+ * Returns how many NEW kinds landed (0 = nothing new / offline / guest).
+ */
+const KNOWN_KINDS = new Set(["bear", "bunny", "cat", "duck", "panda", "sheep"]);
+
+export async function pullFavorites(phone: string): Promise<number> {
+  if (!phone) return 0;
+  try {
+    const res = await fetch(`/api/favorites?phone=${encodeURIComponent(phone)}`, { cache: "no-store" });
+    if (!res.ok) return 0;
+    const json = (await res.json()) as { kinds?: unknown };
+    if (!Array.isArray(json.kinds)) return 0;
+    const remote = json.kinds.filter(
+      (k): k is PlushKind => typeof k === "string" && (KNOWN_KINDS as Set<string>).has(k),
+    );
+    const st = usePishnam.getState();
+    const fresh = remote.filter((k) => !st.favorites.includes(k));
+    if (fresh.length > 0) {
+      usePishnam.setState({ favorites: [...st.favorites, ...fresh] });
+    }
+    return fresh.length;
+  } catch {
+    return 0; // offline → local-only favorites, UI keeps working
+  }
+}
+
 /** Boot-time sync: global board pull first, then the account-bound pull. */
 export async function bootSync(): Promise<void> {
   await pullOrders();
   const u = usePishnam.getState().user;
-  if (u?.phone) await pullOrdersForPhone(u.phone);
+  if (u?.phone) {
+    await pullOrdersForPhone(u.phone);
+    await pullFavorites(u.phone);
+  }
 }
 
 /**

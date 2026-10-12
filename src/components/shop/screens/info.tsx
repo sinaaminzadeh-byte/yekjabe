@@ -11,6 +11,8 @@ import {
   ABOUT_STATS,
   ABOUT_TIMELINE,
   ABOUT_VALUES,
+  PLUSHES,
+  PLUSH_MAP,
   REVIEWS_BARS,
   REVIEWS_CARDS,
   SHIPPING_SECTIONS,
@@ -198,9 +200,6 @@ function useBarsOn(): boolean {
 // Persian-digit star labels ("۵"…) → numbers
 const STAR_NUM: Record<string, number> = { "۵": 5, "۴": 4, "۳": 3, "۲": 2, "۱": 1 };
 const REVIEWS_TOTAL = 318;
-const REVIEW_AVG_FA = fa(
-  (REVIEWS_BARS.reduce((acc, b) => acc + (STAR_NUM[b.stars] ?? 0) * b.pct, 0) / 100).toFixed(1),
-).replace(".", "٫");
 
 const REVIEW_META = [
   { title: "بهترین حس دنیا", date: "۱۲ مهر" },
@@ -1129,14 +1128,371 @@ export function ContactPage() {
 
 /* ═══════════════ REVIEWS ═══════════════ */
 
+// real reviews pulled from the server (newest first) + optimistic local adds
+interface ServerReview {
+  id: string;
+  who: string;
+  role: string; // sender | receiver
+  stars: number;
+  kind: string;
+  title: string;
+  text: string;
+  createdAt: string;
+}
+
+function faDate(iso: string): string {
+  try {
+    return new Intl.DateTimeFormat("fa-IR", { day: "numeric", month: "long" }).format(new Date(iso));
+  } catch {
+    return "امروز";
+  }
+}
+
+function useRealReviews() {
+  const [real, setReal] = useState<ServerReview[] | null>(null);
+  useEffect(() => {
+    let alive = true;
+    fetch("/api/reviews", { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error("bad"))))
+      .then((j: { reviews?: ServerReview[] }) => {
+        if (alive && Array.isArray(j.reviews)) setReal(j.reviews);
+      })
+      .catch(() => {}); // offline → seed cards only, page keeps working
+    return () => {
+      alive = false;
+    };
+  }, []);
+  const add = (r: ServerReview) => setReal((cur) => [r, ...(cur ?? [])]);
+  return { real, add };
+}
+
+// pulsing «live data» chip — real reviews are synced from the DB
+function LiveReviewsChip({ count }: { count: number }) {
+  return (
+    <span
+      className="inline-flex items-center gap-1.5 rounded-full border border-[#CDEFFB] bg-white px-3 py-1 text-[11.5px] font-extrabold text-[#00779F]"
+      title="نظرهای واقعی مستقیم از دیتابیس میان"
+    >
+      <span className="relative flex h-2 w-2">
+        <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#00ABE7] opacity-60" />
+        <span className="relative inline-flex h-2 w-2 rounded-full bg-[#00ABE7]" />
+      </span>
+      {count > 0 ? `داده‌ی زنده · ${fa(count)} نظر واقعی` : "داده‌ی زنده"}
+    </span>
+  );
+}
+
+// clickable star rating input
+function StarPicker({ n, onPick, desktop = false }: { n: number; onPick: (i: number) => void; desktop?: boolean }) {
+  return (
+    <span className="flex items-center gap-1" role="radiogroup" aria-label="امتیازت">
+      {[1, 2, 3, 4, 5].map((i) => (
+        <button
+          key={i}
+          type="button"
+          role="radio"
+          aria-checked={i === n}
+          aria-label={`${fa(i)} ستاره`}
+          onClick={() => onPick(i)}
+          className="flex items-center transition-transform active:scale-90"
+        >
+          <svg width={desktop ? 27 : 23} height={desktop ? 27 : 23} viewBox="0 0 24 24" aria-hidden="true">
+            <path
+              d="M12 2.5l2.9 6 6.6.9-4.8 4.6 1.2 6.5L12 17.4l-5.9 3.1 1.2-6.5L2.5 9.4l6.6-.9z"
+              fill={i <= n ? "#FFC53D" : "#E3F0F5"}
+              stroke="#04202E"
+              strokeWidth="1.4"
+              strokeLinejoin="round"
+            />
+          </svg>
+        </button>
+      ))}
+    </span>
+  );
+}
+
+// «ثبت نظر» collapsible form — posts to /api/reviews, appears instantly
+function ReviewForm({
+  idp,
+  desktop = false,
+  onAdded,
+}: {
+  idp: string;
+  desktop?: boolean;
+  onAdded: (r: ServerReview) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [who, setWho] = useState("");
+  const [role, setRole] = useState<"sender" | "receiver">("sender");
+  const [stars, setStars] = useState(5);
+  const [kind, setKind] = useState<PlushKind>("bear");
+  const [title, setTitle] = useState("");
+  const [text, setText] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState("");
+  const { toast } = useToast();
+
+  const submit = () => {
+    if (busy) return;
+    if (who.trim().length < 2) {
+      setErr("اسمت رو بنویس (حداقل ۲ حرف).");
+      return;
+    }
+    if (text.trim().length < 5) {
+      setErr("متن نظرت حداقل ۵ حرف باشه.");
+      return;
+    }
+    setErr("");
+    setBusy(true);
+    fetch("/api/reviews", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ who: who.trim(), role, stars, kind, title: title.trim(), text: text.trim() }),
+    })
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error("bad"))))
+      .then((j: { review?: ServerReview }) => {
+        if (j.review) onAdded(j.review);
+        setBusy(false);
+        setText("");
+        setTitle("");
+        toast({ title: "نظرت ثبت شد ♥", description: "ممنون که تجربه‌ت رو با بقیه تقسیم می‌کنی." });
+      })
+      .catch(() => {
+        setBusy(false);
+        setErr("ثبت نشد؛ اتصال به سرور برقرار نیست. چند لحظه بعد دوباره امتحان کن.");
+      });
+  };
+
+  const chip = (on: boolean) =>
+    ({
+      background: on ? "#04202E" : "#FFFFFF",
+      border: `1.5px solid ${on ? "#04202E" : "#CFE6EF"}`,
+      color: on ? "#FFFFFF" : "#04202E",
+    }) as const;
+
+  return (
+    <div
+      className={
+        desktop
+          ? "flex flex-col gap-4 rounded-[28px] border border-[#DDEEF5] bg-white p-[26px]"
+          : "flex flex-col gap-4 rounded-[26px] border border-[#DDEEF5] bg-white p-5"
+      }
+    >
+      <button
+        type="button"
+        aria-expanded={open}
+        onClick={() => setOpen((o) => !o)}
+        className={`flex items-center justify-between gap-3 ${
+          open
+            ? "w-full text-start"
+            : desktop
+              ? "h-[54px] rounded-[27px] bg-[#00ABE7] px-[26px] text-base font-extrabold text-[#04202E] transition-transform hover:scale-[1.02]"
+              : "min-h-[54px] rounded-[27px] bg-[#00ABE7] px-5 text-center text-[15.5px] font-extrabold text-[#04202E] transition-transform active:scale-[0.98]"
+        }`}
+      >
+        <span className="flex items-center gap-2">
+          <HeartSticker size={18} fill="#FFFFFF" stroke="#04202E" strokeWidth={2.4} />
+          {open ? "نوشتن نظرت" : "خودت هم یه نظر بذار ♥"}
+        </span>
+        <span className={open ? "flex items-center text-[13px] font-extrabold text-[#4A6572]" : "hidden"}>
+          بستن
+        </span>
+      </button>
+
+      {open && (
+        <div className="flex flex-col gap-4">
+          <div className={desktop ? "grid grid-cols-2 gap-4" : "flex flex-col gap-4"}>
+            <div className="flex flex-col gap-1.5">
+              <label htmlFor={`${idp}-who`} className="text-sm font-extrabold">
+                اسمت
+              </label>
+              <input
+                id={`${idp}-who`}
+                type="text"
+                value={who}
+                onChange={(e) => setWho(e.target.value.slice(0, 30))}
+                placeholder="مثلاً نیلا"
+                className={`${FIELD} h-[52px]`}
+              />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <span className="text-sm font-extrabold">کی بودی؟</span>
+              <div className="flex gap-2" role="group" aria-label="نقش تو">
+                <button type="button" aria-pressed={role === "sender"} onClick={() => setRole("sender")} style={chip(role === "sender")} className="h-[52px] flex-1 rounded-[16px] text-[14px] font-extrabold">
+                  فرستنده بودم
+                </button>
+                <button type="button" aria-pressed={role === "receiver"} onClick={() => setRole("receiver")} style={chip(role === "receiver")} className="h-[52px] flex-1 rounded-[16px] text-[14px] font-extrabold">
+                  گیرنده بودم
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex flex-col gap-1.5">
+              <span className="text-sm font-extrabold">چند ستاره؟</span>
+              <StarPicker n={stars} onPick={setStars} desktop={desktop} />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <span className="text-sm font-extrabold">کدوم دوست پشمالو؟</span>
+              <div className="flex flex-wrap items-center gap-1.5" role="group" aria-label="انتخاب عروسک">
+                {PLUSHES.map((p) => (
+                  <button
+                    key={p.kind}
+                    type="button"
+                    aria-pressed={kind === p.kind}
+                    aria-label={p.name}
+                    title={p.name}
+                    onClick={() => setKind(p.kind)}
+                    className="flex h-10 w-10 items-center justify-center rounded-full transition-transform active:scale-90"
+                    style={{
+                      background: p.bg,
+                      boxShadow: kind === p.kind ? "0 0 0 2.5px #04202E" : "none",
+                    }}
+                  >
+                    <Plush kind={p.kind} size={28} />
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <label htmlFor={`${idp}-title`} className="text-sm font-extrabold">
+              عنوان (اختیاری)
+            </label>
+            <input
+              id={`${idp}-title`}
+              type="text"
+              value={title}
+              onChange={(e) => setTitle(e.target.value.slice(0, 60))}
+              placeholder="مثلاً بهترین حس دنیا"
+              className={`${FIELD} h-[52px]`}
+            />
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <label htmlFor={`${idp}-text`} className="text-sm font-extrabold">
+              نظرت
+            </label>
+            <textarea
+              id={`${idp}-text`}
+              rows={4}
+              value={text}
+              onChange={(e) => setText(e.target.value.slice(0, 400))}
+              placeholder="تجربه‌ت از پیشتم رو تعریف کن…"
+              className={`${FIELD} resize-y p-3 leading-[1.85]`}
+            />
+            <span className="self-end text-[11.5px] font-semibold text-[#4A6572]">
+              {fa(text.length)}/{fa(400)}
+            </span>
+          </div>
+
+          {err && <span className="text-[12.5px] font-bold text-[#E0315B]">{err}</span>}
+
+          <button
+            type="button"
+            onClick={submit}
+            disabled={busy}
+            className={`flex h-[54px] items-center justify-center gap-2 rounded-[27px] bg-[#00ABE7] font-extrabold text-[#04202E] transition-transform active:scale-[0.98] disabled:opacity-80 ${
+              desktop ? "w-[220px] text-base" : "w-full text-[15.5px]"
+            }`}
+          >
+            {busy ? (
+              <>
+                در حال ثبت…
+                <svg className="animate-spin" width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <circle cx="12" cy="12" r="9" stroke="#04202E" strokeOpacity=".25" strokeWidth="3" />
+                  <path d="M21 12a9 9 0 0 0-9-9" stroke="#04202E" strokeWidth="3" strokeLinecap="round" />
+                </svg>
+              </>
+            ) : (
+              "ثبت نظر"
+            )}
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function ReviewsPage() {
   const barsOn = useBarsOn();
+  const { real, add } = useRealReviews();
+  const realList = real ?? [];
 
-  const cards = REVIEWS_CARDS.map((c, i) => ({
-    ...c,
+  // honest stats: seeded baseline + real DB rows
+  const total = REVIEWS_TOTAL + realList.length;
+  const seedCount = (star: number) => {
+    const b = REVIEWS_BARS.find((x) => (STAR_NUM[x.stars] ?? 0) === star);
+    return b ? Math.round((b.pct / 100) * REVIEWS_TOTAL) : 0;
+  };
+  const realCount = (star: number) => realList.filter((r) => r.stars === star).length;
+  const bars = REVIEWS_BARS.map((b) => {
+    const star = STAR_NUM[b.stars] ?? 0;
+    const count = seedCount(star) + realCount(star);
+    return { ...b, count, pct: total > 0 ? Math.round((count / total) * 100) : 0 };
+  });
+  const avgSum =
+    REVIEWS_BARS.reduce((a, b) => a + (STAR_NUM[b.stars] ?? 0) * seedCount(STAR_NUM[b.stars] ?? 0), 0) +
+    realList.reduce((a, r) => a + r.stars, 0);
+  const avgFa = fa((total > 0 ? avgSum / total : 0).toFixed(1)).replace(".", "٫");
+
+  const seedCards = REVIEWS_CARDS.map((c, i) => ({
+    key: `seed-${i}`,
+    kind: c.kind,
+    stars: c.stars,
+    who: c.who.split("،")[0].trim(),
+    role: c.who.split("،")[1]?.trim() ?? "فرستنده",
     meta: REVIEW_META[i] ?? { title: "یه تجربه‌ی قشنگ", date: "امروز" },
-    name: c.who.split("،")[0].trim(),
+    text: c.text,
   }));
+  const realCards = realList.map((r) => ({
+    key: r.id,
+    kind: (PLUSH_MAP[r.kind as PlushKind] ? r.kind : "bear") as PlushKind,
+    stars: r.stars,
+    who: r.who,
+    role: r.role === "receiver" ? "گیرنده" : "فرستنده",
+    meta: { title: r.title || "یه تجربه‌ی قشنگ", date: faDate(r.createdAt) },
+    text: r.text,
+  }));
+
+  const reviewCard = (
+    c: (typeof seedCards)[number] & { real?: boolean },
+    desktop: boolean,
+  ) => (
+    <div
+      key={c.key}
+      className={
+        desktop
+          ? "box-border flex min-w-0 flex-[1_1_300px] flex-col gap-3 rounded-[28px] border bg-white p-[22px] transition-transform hover:-translate-y-1"
+          : "flex flex-col gap-2.5 rounded-[26px] border bg-white p-5 transition-transform hover:-translate-y-0.5"
+      }
+      style={{ borderColor: c.real ? "#BFE7F5" : "#DDEEF5" }}
+    >
+      <div className="flex items-center justify-between gap-2">
+        <Stars n={c.stars} />
+        {c.real ? (
+          <span className="flex items-center gap-2">
+            <span className="text-[12.5px] font-semibold text-[#4A6572]">{c.meta.date}</span>
+            <span className="rounded-full bg-[#DDF3EA] px-2.5 py-0.5 text-[11px] font-extrabold text-[#007A5C]">واقعی</span>
+          </span>
+        ) : (
+          <span className="text-[12.5px] font-semibold text-[#4A6572]">{c.meta.date}</span>
+        )}
+      </div>
+      <div className="text-base font-extrabold">{c.meta.title}</div>
+      <div className={desktop ? "text-[14.5px] font-medium leading-[1.95] text-[#1F3E4D]" : "text-sm font-medium leading-[1.95] text-[#1F3E4D]"}>
+        {c.text}
+      </div>
+      <div className="mt-auto flex items-center gap-2.5">
+        <Plush kind={c.kind} size={44} />
+        <span className="text-[13.5px] font-bold">
+          {c.who}، {c.role}
+        </span>
+      </div>
+    </div>
+  );
 
   return (
     <>
@@ -1144,63 +1500,40 @@ export function ReviewsPage() {
       <InfoShell>
         <section className="flex flex-col gap-[18px] px-4 pt-3.5">
           <div className="flex flex-col gap-2">
-            <span className="text-sm font-extrabold text-[#00779F]">نظر کسایی که هدیه گرفتن</span>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <span className="text-sm font-extrabold text-[#00779F]">نظر کسایی که هدیه گرفتن</span>
+              {real !== null && <LiveReviewsChip count={realList.length} />}
+            </div>
             <h1 className="m-0 text-[30px] font-black leading-[1.45]">نظرها</h1>
           </div>
 
           <div className="flex flex-col gap-1.5 rounded-[26px] border border-[#DDEEF5] bg-white p-5">
             <span className="text-sm font-bold text-[#4A6572]">میانگین امتیاز</span>
-            <span className="text-[38px] font-black leading-[1.15]">{REVIEW_AVG_FA}</span>
-            <span className="text-[13.5px] font-semibold text-[#4A6572]">
-              از {fa(REVIEWS_TOTAL)} نظر
-            </span>
+            <span className="text-[38px] font-black leading-[1.15]">{avgFa}</span>
+            <span className="text-[13.5px] font-semibold text-[#4A6572]">از {fa(total)} نظر</span>
           </div>
 
           <div className="flex flex-col gap-3 rounded-[26px] border border-[#DDEEF5] bg-white p-[18px_16px]">
-            {REVIEWS_BARS.map((b) => {
-              const count = Math.round((b.pct / 100) * REVIEWS_TOTAL);
-              return (
-                <div key={b.stars} className="flex items-center gap-2.5">
-                  <span className="w-[58px] flex-none text-[13.5px] font-bold">{b.stars} ستاره</span>
-                  <div className="h-3 min-w-0 flex-1 overflow-hidden rounded-full bg-[#E3F0F5]">
-                    <div
-                      className="h-3 rounded-full bg-[#00ABE7] transition-[width] duration-1000 ease-out"
-                      style={{ width: barsOn ? `${b.pct}%` : "0%" }}
-                    />
-                  </div>
-                  <span className="flex-none text-[12.5px] font-semibold text-[#4A6572]">
-                    {fa(b.pct)}٪ · {fa(count)} نظر
-                  </span>
+            {bars.map((b) => (
+              <div key={b.stars} className="flex items-center gap-2.5">
+                <span className="w-[58px] flex-none text-[13.5px] font-bold">{b.stars} ستاره</span>
+                <div className="h-3 min-w-0 flex-1 overflow-hidden rounded-full bg-[#E3F0F5]">
+                  <div
+                    className="h-3 rounded-full bg-[#00ABE7] transition-[width] duration-1000 ease-out"
+                    style={{ width: barsOn ? `${b.pct}%` : "0%" }}
+                  />
                 </div>
-              );
-            })}
+                <span className="flex-none text-[12.5px] font-semibold text-[#4A6572]">
+                  {fa(b.pct)}٪ · {fa(b.count)} نظر
+                </span>
+              </div>
+            ))}
           </div>
 
-          {cards.map((c) => (
-            <div
-              key={c.who}
-              className="flex flex-col gap-2.5 rounded-[26px] border border-[#DDEEF5] bg-white p-5 transition-transform hover:-translate-y-0.5"
-            >
-              <div className="flex items-center justify-between">
-                <Stars n={c.stars} />
-                <span className="text-[12.5px] font-semibold text-[#4A6572]">{c.meta.date}</span>
-              </div>
-              <div className="text-base font-extrabold">{c.meta.title}</div>
-              <div className="text-sm font-medium leading-[1.95] text-[#1F3E4D]">{c.text}</div>
-              <div className="mt-1 flex items-center gap-2.5">
-                <Plush kind={c.kind} size={44} />
-                <span className="text-[13.5px] font-bold">{c.name}</span>
-              </div>
-            </div>
-          ))}
+          {realCards.map((c) => reviewCard({ ...c, real: true }, false))}
+          {seedCards.map((c) => reviewCard(c, false))}
 
-          <button
-            type="button"
-            onClick={() => navigate("pick")}
-            className="box-border flex min-h-[54px] items-center justify-center rounded-[27px] bg-[#00ABE7] px-5 py-3 text-center text-[15.5px] font-extrabold leading-[1.6] text-[#04202E] transition-transform active:scale-[0.98]"
-          >
-            خودت هم یه نظر بذار، بعد از دریافت هدیه
-          </button>
+          <ReviewForm idp="rm" onAdded={add} />
         </section>
 
         <InfoFooter />
@@ -1211,69 +1544,42 @@ export function ReviewsPage() {
         <div className="mx-auto box-border flex w-full max-w-[1200px] flex-col gap-7 px-6 pt-10">
           <div className="flex flex-wrap items-center justify-between gap-8">
             <div className="flex flex-col gap-2.5">
-              <span className="text-sm font-extrabold text-[#006387]">
-                نظر کسایی که هدیه گرفتن
-              </span>
+              <div className="flex flex-wrap items-center gap-3">
+                <span className="text-sm font-extrabold text-[#006387]">نظر کسایی که هدیه گرفتن</span>
+                {real !== null && <LiveReviewsChip count={realList.length} />}
+              </div>
               <h1 className="m-0 text-[44px] font-black leading-[1.35]">نظرها</h1>
             </div>
             <div className="flex min-w-[260px] flex-col gap-2 rounded-[28px] border border-[#DDEEF5] bg-white p-[22px_26px]">
               <span className="text-sm font-bold text-[#4A6572]">میانگین امتیاز</span>
-              <span className="text-[40px] font-black leading-[1.1]">{REVIEW_AVG_FA}</span>
-              <span className="text-[13.5px] font-semibold text-[#4A6572]">
-                از {fa(REVIEWS_TOTAL)} نظر
-              </span>
+              <span className="text-[40px] font-black leading-[1.1]">{avgFa}</span>
+              <span className="text-[13.5px] font-semibold text-[#4A6572]">از {fa(total)} نظر</span>
             </div>
           </div>
 
           <div className="flex flex-col gap-3 rounded-[28px] border border-[#DDEEF5] bg-white p-[26px]">
-            {REVIEWS_BARS.map((b) => {
-              const count = Math.round((b.pct / 100) * REVIEWS_TOTAL);
-              return (
-                <div key={b.stars} className="flex items-center gap-3.5">
-                  <span className="w-[60px] flex-none text-sm font-bold">{b.stars} ستاره</span>
-                  <div className="h-3 min-w-0 flex-1 overflow-hidden rounded-full bg-[#E3F0F5]">
-                    <div
-                      className="h-3 rounded-full bg-[#00ABE7] transition-[width] duration-1000 ease-out"
-                      style={{ width: barsOn ? `${b.pct}%` : "0%" }}
-                    />
-                  </div>
-                  <span className="w-[110px] flex-none text-left text-[13.5px] font-semibold text-[#4A6572]">
-                    {fa(b.pct)}٪ · {fa(count)} نظر
-                  </span>
+            {bars.map((b) => (
+              <div key={b.stars} className="flex items-center gap-3.5">
+                <span className="w-[60px] flex-none text-sm font-bold">{b.stars} ستاره</span>
+                <div className="h-3 min-w-0 flex-1 overflow-hidden rounded-full bg-[#E3F0F5]">
+                  <div
+                    className="h-3 rounded-full bg-[#00ABE7] transition-[width] duration-1000 ease-out"
+                    style={{ width: barsOn ? `${b.pct}%` : "0%" }}
+                  />
                 </div>
-              );
-            })}
-          </div>
-
-          <div className="flex flex-wrap gap-[18px]">
-            {cards.map((c) => (
-              <div
-                key={c.who}
-                className="box-border flex min-w-0 flex-[1_1_300px] flex-col gap-3 rounded-[28px] border border-[#DDEEF5] bg-white p-[22px] transition-transform hover:-translate-y-1"
-              >
-                <div className="flex items-center justify-between">
-                  <Stars n={c.stars} />
-                  <span className="text-[12.5px] font-semibold text-[#4A6572]">{c.meta.date}</span>
-                </div>
-                <div className="text-base font-extrabold">{c.meta.title}</div>
-                <div className="text-[14.5px] font-medium leading-[1.95] text-[#1F3E4D]">{c.text}</div>
-                <div className="mt-auto flex items-center gap-2.5">
-                  <Plush kind={c.kind} size={44} />
-                  <span className="text-[13.5px] font-bold">{c.name}</span>
-                </div>
+                <span className="w-[110px] flex-none text-left text-[13.5px] font-semibold text-[#4A6572]">
+                  {fa(b.pct)}٪ · {fa(b.count)} نظر
+                </span>
               </div>
             ))}
           </div>
 
-          <div className="pt-3 text-center">
-            <button
-              type="button"
-              onClick={() => navigate("pick")}
-              className="inline-flex h-[54px] items-center rounded-[27px] bg-[#00ABE7] px-[30px] text-base font-extrabold text-[#04202E] transition-transform hover:scale-[1.03]"
-            >
-              خودت هم یه نظر بذار، بعد از دریافت هدیه
-            </button>
+          <div className="flex flex-wrap gap-[18px]">
+            {realCards.map((c) => reviewCard({ ...c, real: true }, true))}
+            {seedCards.map((c) => reviewCard(c, true))}
           </div>
+
+          <ReviewForm idp="rd" desktop onAdded={add} />
         </div>
 
         <InfoFooterDesktop />

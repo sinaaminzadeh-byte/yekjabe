@@ -280,12 +280,22 @@ export const usePishnam = create<PishnamState>()(
         }),
 
       selectOrder: (id) => set({ selectedId: id }),
-      toggleFavorite: (k) =>
-        set({
-          favorites: get().favorites.includes(k)
-            ? get().favorites.filter((f) => f !== k)
-            : [...get().favorites, k],
-        }),
+      toggleFavorite: (k) => {
+        const favorites = get().favorites.includes(k)
+          ? get().favorites.filter((f) => f !== k)
+          : [...get().favorites, k];
+        set({ favorites });
+        // account-bound favorites follow the user across devices (offline-safe:
+        // the local toggle always lands first, the PUT is fire-and-forget)
+        const phone = get().user?.phone;
+        if (phone) {
+          void fetch("/api/favorites", {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ phone, kinds: favorites }),
+          }).catch(() => {});
+        }
+      },
     }),
     {
       name: "pishnam-app",
