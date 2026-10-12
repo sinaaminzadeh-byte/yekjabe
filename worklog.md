@@ -28,3 +28,22 @@ Stage Summary:
 - Key artifacts: `public/pages/*` (32 files), `src/data/pages.ts`, `src/components/pishnam/{header,sidebar,viewer,gallery}.tsx`, `scripts/{extract-bundle,extract-inner,reconstruct}.mjs`, `public/fonts/*`.
 - Source-of-truth metadata (labels/sizes/link-graph) lives in `scripts/reconstruct.mjs`; re-run it after changing mappings.
 - Known minor notes: gallery mounts ~32 lazy iframes (heavy but lazy); unknown dc-link targets only log a warning; Esc closes viewer to gallery.
+
+---
+Task ID: 2
+Agent: cron web-dev-review (round 2)
+Task: QA pass + new features (command palette, recently-viewed, auto-play tour, copy-link, a11y & styling polish).
+
+Work Log:
+- QA via agent-browser: app loads clean, gallery/viewer/nav all functional, no runtime errors. Found 1 Radix a11y console warning.
+- Fixed a11y warnings: moved DialogHeader (Title+Description) inside DialogContent in `src/components/ui/command.tsx`; added sr-only SheetDescription in header Sheet; passed Persian title/description to CommandDialog. Console now 100% clean (verified via console --clear + reload + interactions).
+- NEW: Command palette (`src/components/pishnam/command-palette.tsx`) — Ctrl/⌘+K, Persian search over labels/titles/slugs/dc-names/categories, "بازدید اخیر" group, numbered items with sizes, actions (گالری، ادامه‌ی آخرین صفحه), footer key hints, header trigger button with Ctrl K kbd chip.
+- NEW: Recently viewed (`src/hooks/use-recent-pages.ts`, localStorage `pishnam:recent`, max 6, validated) — sidebar section + horizontal chips row in gallery under hint bar.
+- NEW: Auto-play tour in viewer — play/pause button (cyan filled when playing), 4.5s per page auto-advance, animated gradient progress bar (`.pishnam-tour-bar` keyframes in globals.css), "در حال پخش…" title indicator, pink pulsing status dot, completion toast, auto-stop at last page; any manual prev/next/back pauses it.
+- NEW: Copy-link button in viewer toolbar with clipboard API + execCommand fallback and success/failure toasts; unknown dc-link targets now show a Persian toast instead of console-only warning.
+- Styling polish: framer-motion fade/slide page transition on viewer canvas (key=slug), flow stepper bar (9 segments, «مسیر N از 9») for flow pages, gallery card hover lift (-translate-y-1 + deeper shadow), recent chips hover micro-lift.
+- Verified with agent-browser: palette opens with Ctrl+K and jumps via typed search + Enter (پرداخت → page 5/32); tour auto-advanced across multiple pages incl. crossing category boundaries; recent sections update in sidebar + gallery; copy toast appears (headless blocks clipboard → fallback path exercised); console clean after fixes; `bun run lint` 0 errors.
+
+Stage Summary:
+- Studio upgraded from "viewer" to a real design-system workspace: ⌘K palette, history, tour playback, shareable copy-link, toast system.
+- Remaining ideas for next rounds: hash-scroll support for links like `Desktop-Home.dc.html#friends`, per-page notes/annotations, favorites (pinned) beyond recents, export a single self-contained index.html of the whole studio, light perf audit of 32 gallery iframes (option: static thumbnails).

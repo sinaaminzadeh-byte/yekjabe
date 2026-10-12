@@ -4,7 +4,7 @@ import { useMemo, useState } from 'react';
 import { CATEGORIES, PAGES, type PageDef } from '@/data/pages';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Search, Gift, Unlock, Smartphone, Monitor, Puzzle, Printer, Heart } from 'lucide-react';
+import { Search, Gift, Unlock, Smartphone, Monitor, Puzzle, Printer, Heart, Clock } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const CAT_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
@@ -28,10 +28,11 @@ const CAT_COLORS: Record<string, string> = {
 interface SidebarProps {
   activeSlug: string | null;
   onOpen: (slug: string) => void;
+  recent?: string[];
   className?: string;
 }
 
-export function Sidebar({ activeSlug, onOpen, className }: SidebarProps) {
+export function Sidebar({ activeSlug, onOpen, recent = [], className }: SidebarProps) {
   const [query, setQuery] = useState('');
 
   const filtered = useMemo(() => {
@@ -81,6 +82,42 @@ export function Sidebar({ activeSlug, onOpen, className }: SidebarProps) {
 
       <ScrollArea className="flex-1 min-h-0 px-3 pb-4">
         <nav className="space-y-4">
+          {recent.length > 0 && !query.trim() && (
+            <section aria-label="بازدید اخیر">
+              <div className="flex items-center gap-2 px-1 mb-2">
+                <span className="flex items-center justify-center size-6 rounded-lg border bg-[#FFF3C9]/70 text-[#8A6D1F] border-[#F0DE9A]/70">
+                  <Clock className="size-3.5" aria-hidden />
+                </span>
+                <h3 className="text-[12.5px] font-extrabold text-[#04202E]">بازدید اخیر</h3>
+              </div>
+              <ul className="space-y-1">
+                {recent
+                  .map((s) => PAGES.find((p) => p.slug === s))
+                  .filter((p): p is PageDef => Boolean(p))
+                  .map((p) => (
+                    <li key={`recent-${p.slug}`}>
+                      <button
+                        type="button"
+                        onClick={() => onOpen(p.slug)}
+                        className={cn(
+                          'group w-full text-right rounded-2xl px-3 py-2 transition-all duration-200 border flex items-center gap-2',
+                          p.slug === activeSlug
+                            ? 'bg-[#00ABE7]/10 border-[#00ABE7]/30'
+                            : 'bg-transparent border-transparent hover:bg-[#F2FAFD] hover:border-[#D3E8F0]',
+                        )}
+                      >
+                        <Clock className="size-3 text-[#8A6D1F]/70 shrink-0" aria-hidden />
+                        <span className="text-[12.5px] font-bold text-[#04202E] truncate">{p.label}</span>
+                        <span className="ms-auto text-[9.5px] font-bold tabular-nums text-[#4A6572]/50 shrink-0">
+                          {p.w}×{p.h}
+                        </span>
+                      </button>
+                    </li>
+                  ))}
+              </ul>
+            </section>
+          )}
+
           {CATEGORIES.map((cat) => {
             const items = byCat.get(cat.id) ?? [];
             if (items.length === 0) return null;

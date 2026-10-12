@@ -1,8 +1,8 @@
 'use client';
 
 import { Button } from '@/components/ui/button';
-import { Sheet, SheetContent, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
-import { LayoutGrid, Menu, PawPrint } from 'lucide-react';
+import { Sheet, SheetContent, SheetDescription, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
+import { LayoutGrid, Menu, PawPrint, Command } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 function Logo({ size = 38 }: { size?: number }) {
@@ -24,10 +24,19 @@ interface HeaderProps {
   sidebarSlot?: React.ReactNode;
   drawerOpen?: boolean;
   onDrawerOpenChange?: (open: boolean) => void;
+  onOpenPalette?: () => void;
   className?: string;
 }
 
-export function Header({ view, onGallery, sidebarSlot, drawerOpen, onDrawerOpenChange, className }: HeaderProps) {
+export function Header({
+  view,
+  onGallery,
+  sidebarSlot,
+  drawerOpen,
+  onDrawerOpenChange,
+  onOpenPalette,
+  className,
+}: HeaderProps) {
   return (
     <header
       className={cn(
@@ -45,6 +54,7 @@ export function Header({ view, onGallery, sidebarSlot, drawerOpen, onDrawerOpenC
             </SheetTrigger>
             <SheetContent side="right" className="p-0 w-[300px] bg-white">
               <SheetTitle className="sr-only">فهرست صفحه‌های طراحی</SheetTitle>
+              <SheetDescription className="sr-only">جست‌وجو و باز کردن صفحه‌های دیزاین‌سیستم پیشتم</SheetDescription>
               {sidebarSlot}
             </SheetContent>
           </Sheet>
@@ -62,6 +72,20 @@ export function Header({ view, onGallery, sidebarSlot, drawerOpen, onDrawerOpenC
       </div>
 
       <div className="ms-auto flex items-center gap-2">
+        {onOpenPalette && (
+          <Button
+            variant="outline"
+            onClick={onOpenPalette}
+            className="hidden md:inline-flex rounded-xl border-[#D3E8F0] h-9 px-3 text-[12px] font-extrabold gap-2 text-[#4A6572] hover:text-[#04202E] hover:border-[#00ABE7]/50 bg-white/70"
+            aria-label="جست‌وجوی سریع صفحه‌ها"
+          >
+            <Command className="size-3.5 text-[#00ABE7]" aria-hidden />
+            برو به صفحه…
+            <kbd className="rounded-md border border-[#D3E8F0] bg-[#F2FAFD] px-1.5 py-0.5 text-[10px] font-black text-[#4A6572]" dir="ltr">
+              Ctrl K
+            </kbd>
+          </Button>
+        )}
         {view === 'viewer' && (
           <Button
             variant="outline"

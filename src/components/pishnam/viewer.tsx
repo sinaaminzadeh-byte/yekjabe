@@ -2,19 +2,25 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { PageDef } from '@/data/pages';
-import { CATEGORIES } from '@/data/pages';
+import { CATEGORIES, PAGES } from '@/data/pages';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { useToast } from '@/hooks/use-toast';
+import { motion } from 'framer-motion';
 import {
   ChevronRight,
   ChevronLeft,
+  Copy,
+  Check,
   ExternalLink,
   LayoutGrid,
   Loader2,
   Maximize,
   Minus,
   Plus,
+  Pause,
+  Play,
   Smartphone,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -29,17 +35,23 @@ interface ViewerProps {
   onNext: () => void;
 }
 
+const TOUR_MS = 4500;
 const isMobileCat = (cat: string) => cat === 'flow' || cat === 'receiver' || cat === 'info-m';
+const FLOW_IDS = PAGES.filter((p) => p.cat === 'flow').map((p) => p.slug);
 
 export function Viewer({ page, index, total, onBack, onPrev, onNext }: ViewerProps) {
   const canvasRef = useRef<HTMLDivElement>(null);
   const [zoom, setZoom] = useState<'fit' | number>('fit');
   const [autoScale, setAutoScale] = useState(1);
   const [loadedSlug, setLoadedSlug] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+  const [playing, setPlaying] = useState(false);
   const loaded = loadedSlug === page.slug;
+  const { toast } = useToast();
 
   const mobile = isMobileCat(page.cat);
   const cat = CATEGORIES.find((c) => c.id === page.cat);
+  const flowPos = FLOW_IDS.indexOf(page.slug); // -1 for non-flow pages
 
   const measure = useCallback(() => {
     const el = canvasRef.current;
@@ -73,16 +85,85 @@ export function Viewer({ page, index, total, onBack, onPrev, onNext }: ViewerPro
     return () => window.removeEventListener('keydown', onKey);
   }, [onNext, onPrev, onBack]);
 
+  // auto-play tour
+  useEffect(() => {
+    if (!playing) return;
+    const t = window.setTimeout(() => {
+      if (index >= total - 1) {
+        setPlaying(false);
+        toast({ title: 'تور تمام شد! 🎉', description: 'همه‌ی صفحه‌ها را دیدی.' });
+      } else {
+        onNext();
+      }
+    }, TOUR_MS);
+    return () => window.clearTimeout(t);
+  }, [playing, index, total, onNext, toast]);
+
+  const copyLink = useCallback(async () => {
+    const url = `${window.location.origin}/?page=${page.slug}`;
+    try {
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(url);
+      } else {
+        // fallback for non-secure contexts
+        const ta = document.createElement('textarea');
+        ta.value = url;
+        ta.style.cssText = 'position:fixed;opacity:0;pointer-events:none';
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        ta.remove();
+      }
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1600);
+      toast({ title: 'لینک صفحه کپی شد ✓', description: url });
+    } catch {
+      toast({ title: 'کپی نشد', description: url });
+    }
+  }, [page.slug, toast]);
+
   const zoomPct = Math.round(scale * 100);
 
   return (
     <div className="flex flex-col h-full min-h-0">
+      {/* flow stepper for the gift-building journey */}
+      {flowPos > -1 && (
+        <div className="shrink-0 flex items-center gap-1.5 px-4 pt-2.5 pb-1 bg-white/60" aria-hidden>
+          {FLOW_IDS.map((s, i) => (
+            <div
+              key={s}
+              className={cn(
+                'h-[5px] flex-1 rounded-full transition-colors duration-500',
+                i < flowPos ? 'bg-[#00ABE7]/35' : i === flowPos ? 'bg-[#00ABE7]' : 'bg-[#D3E8F0]',
+              )}
+            />
+          ))}
+          <span className="ms-2 text-[10px] font-black text-[#006387] shrink-0 leading-none">
+            مسیر {flowPos + 1} از {FLOW_IDS.length}
+          </span>
+        </div>
+      )}
+
+      {/* tour progress bar */}
+      {playing && (
+        <div className="h-[3px] shrink-0 bg-[#00ABE7]/15 overflow-hidden" aria-hidden>
+          <div
+            key={page.slug}
+            className="h-full bg-gradient-to-l from-[#00ABE7] to-[#7FD8F7] pishnam-tour-bar"
+            style={{ animationDuration: `${TOUR_MS}ms` }}
+          />
+        </div>
+      )}
+
       {/* toolbar */}
       <div className="flex items-center gap-2 px-3 sm:px-4 h-14 shrink-0 border-b border-[#D3E8F0] bg-white/80 backdrop-blur">
         <Button
           variant="outline"
           size="icon"
-          onClick={onBack}
+          onClick={() => {
+            setPlaying(false);
+            onBack();
+          }}
           className="size-9 rounded-xl border-[#D3E8F0] shrink-0"
           aria-label="بازگشت به گالری"
           title="بازگشت به گالری (Esc)"
@@ -97,7 +178,10 @@ export function Viewer({ page, index, total, onBack, onPrev, onNext }: ViewerPro
                 <Button
                   variant="ghost"
                   size="icon"
-                  onClick={onPrev}
+                  onClick={() => {
+                    setPlaying(false);
+                    onPrev();
+                  }}
                   disabled={index === 0}
                   className="size-9 rounded-none"
                   aria-label="صفحه‌ی قبلی"
@@ -117,7 +201,10 @@ export function Viewer({ page, index, total, onBack, onPrev, onNext }: ViewerPro
                 <Button
                   variant="ghost"
                   size="icon"
-                  onClick={onNext}
+                  onClick={() => {
+                    setPlaying(false);
+                    onNext();
+                  }}
                   disabled={index === total - 1}
                   className="size-9 rounded-none"
                   aria-label="صفحه‌ی بعدی"
@@ -130,8 +217,35 @@ export function Viewer({ page, index, total, onBack, onPrev, onNext }: ViewerPro
           </TooltipProvider>
         </div>
 
+        {/* tour play/pause */}
+        <TooltipProvider delayDuration={200}>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant={playing ? 'default' : 'outline'}
+                size="icon"
+                onClick={() => setPlaying((p) => !p)}
+                className={cn(
+                  'size-9 rounded-xl shrink-0',
+                  playing
+                    ? 'bg-[#00ABE7] hover:bg-[#009BD1] text-[#04202E] border-[#00ABE7] shadow-[0_4px_12px_rgba(0,171,231,0.4)]'
+                    : 'border-[#D3E8F0]',
+                )}
+                aria-label={playing ? 'توقف تور خودکار' : 'پخش خودکار تور صفحه‌ها'}
+                title={playing ? 'توقف تور' : 'پخش خودکار تور (هر صفحه ۴.۵ ثانیه)'}
+              >
+                {playing ? <Pause className="size-4" aria-hidden /> : <Play className="size-4" aria-hidden />}
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>{playing ? 'توقف تور خودکار' : 'پخش خودکار همه‌ی صفحه‌ها'}</TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+
         <div className="min-w-0 flex-1">
-          <h2 className="text-[14px] sm:text-[15px] font-black text-[#04202E] truncate">{page.label}</h2>
+          <h2 className="text-[14px] sm:text-[15px] font-black text-[#04202E] truncate">
+            {page.label}
+            {playing && <span className="text-[10.5px] font-bold text-[#00ABE7] ms-2">· در حال پخش…</span>}
+          </h2>
           <p className="hidden md:block text-[11px] font-medium text-[#4A6572] truncate">{page.desc}</p>
         </div>
 
@@ -194,6 +308,24 @@ export function Viewer({ page, index, total, onBack, onPrev, onNext }: ViewerPro
           </Button>
         </div>
 
+        <TooltipProvider delayDuration={200}>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={copyLink}
+                className="size-9 rounded-xl border-[#D3E8F0] shrink-0 hidden sm:inline-flex"
+                aria-label="کپی لینک صفحه"
+                title="کپی لینک این صفحه"
+              >
+                {copied ? <Check className="size-4 text-[#1F9D55]" aria-hidden /> : <Copy className="size-4" aria-hidden />}
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>کپی لینک صفحه</TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+
         <Button
           variant="outline"
           size="icon"
@@ -213,11 +345,14 @@ export function Viewer({ page, index, total, onBack, onPrev, onNext }: ViewerPro
         role="region"
         aria-label={`نمایش صفحه‌ی ${page.title}`}
       >
-        <div className="min-h-full w-max min-w-full flex justify-center py-8 px-6">
-          <div
-            className="relative"
-            style={{ width: page.w * scale, height: page.h * scale }}
-          >
+        <motion.div
+          key={page.slug}
+          initial={{ opacity: 0, y: 14 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.25, ease: 'easeOut' }}
+          className="min-h-full w-max min-w-full flex justify-center py-8 px-6"
+        >
+          <div className="relative" style={{ width: page.w * scale, height: page.h * scale }}>
             <div
               style={{
                 width: page.w,
@@ -253,14 +388,14 @@ export function Viewer({ page, index, total, onBack, onPrev, onNext }: ViewerPro
               />
             </div>
           </div>
-        </div>
+        </motion.div>
       </div>
 
       {/* status bar */}
       <footer className="h-9 shrink-0 flex items-center gap-3 px-4 border-t border-[#D3E8F0] bg-white/80 backdrop-blur text-[11px] font-bold text-[#4A6572]">
         <span className="flex items-center gap-1.5">
-          <span className="size-2 rounded-full bg-[#2BD97C] shadow-[0_0_6px_rgba(43,217,124,0.7)]" aria-hidden />
-          اجرای زنده
+          <span className={cn('size-2 rounded-full', playing ? 'bg-[#FF9DB8] shadow-[0_0_6px_rgba(255,157,184,0.8)] animate-pulse' : 'bg-[#2BD97C] shadow-[0_0_6px_rgba(43,217,124,0.7)]')} aria-hidden />
+          {playing ? 'پخش خودکار' : 'اجرای زنده'}
         </span>
         <span className="text-[#4A6572]/50" aria-hidden>·</span>
         <span className="tabular-nums">{page.dc}</span>

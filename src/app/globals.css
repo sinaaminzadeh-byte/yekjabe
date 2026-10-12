@@ -174,3 +174,23 @@
 .pishnam-canvas::-webkit-scrollbar-thumb:hover {
   background: rgba(0, 171, 231, 0.65);
 }
+
+/* ── Pishnam tour progress bar ── */
+@keyframes pishnam-tour-fill {
+  from { width: 0%; }
+  to { width: 100%; }
+}
+.pishnam-tour-bar {
+  width: 0%;
+  animation-name: pishnam-tour-fill;
+  animation-timing-function: linear;
+  animation-fill-mode: forwards;
+}
+
+/* ── Pishnam recent chips row ── */
+.pishnam-recent-row {
+  scrollbar-width: none;
+}
+.pishnam-recent-row::-webkit-scrollbar {
+  display: none;
+}

@@ -15,6 +15,7 @@ import {
   Link2,
   Sparkles,
   MousePointerClick,
+  Clock,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { CAT_COLORS } from './sidebar';
@@ -90,9 +91,14 @@ function ScaledPreview({ page, eager }: { page: PageDef; eager?: boolean }) {
 interface GalleryProps {
   activeSlug: string | null;
   onOpen: (slug: string) => void;
+  recent?: string[];
 }
 
-export function Gallery({ activeSlug, onOpen }: GalleryProps) {
+export function Gallery({ activeSlug, onOpen, recent = [] }: GalleryProps) {
+  const recentPages = recent
+    .map((s) => PAGES.find((p) => p.slug === s))
+    .filter((p): p is PageDef => Boolean(p));
+
   return (
     <div className="flex-1 min-h-0 overflow-y-auto pishnam-canvas">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6 sm:py-8 space-y-8">
@@ -156,6 +162,31 @@ export function Gallery({ activeSlug, onOpen }: GalleryProps) {
           </span>
         </div>
 
+        {/* recent chips */}
+        {recentPages.length > 0 && (
+          <div className="flex items-center gap-2 overflow-x-auto pb-1 pishnam-recent-row" role="region" aria-label="بازدید اخیر">
+            <span className="flex items-center gap-1.5 text-[11px] font-black text-[#8A6D1F] shrink-0">
+              <Clock className="size-3.5" aria-hidden />
+              بازدید اخیر:
+            </span>
+            {recentPages.map((p) => (
+              <button
+                key={`recent-chip-${p.slug}`}
+                type="button"
+                onClick={() => onOpen(p.slug)}
+                className={cn(
+                  'shrink-0 rounded-full border px-3.5 py-1.5 text-[12px] font-extrabold transition-all duration-200 hover:-translate-y-0.5',
+                  p.slug === activeSlug
+                    ? 'bg-[#00ABE7] border-[#00ABE7] text-white shadow-[0_4px_12px_rgba(0,171,231,0.35)]'
+                    : 'bg-white/80 border-[#D3E8F0] text-[#04202E] hover:border-[#00ABE7]/60 hover:text-[#006387] hover:shadow-[0_4px_12px_rgba(4,32,46,0.08)]',
+                )}
+              >
+                {p.label}
+              </button>
+            ))}
+          </div>
+        )}
+
         {/* categories */}
         {CATEGORIES.map((cat, ci) => {
           const items = PAGES.filter((p) => p.cat === cat.id);
@@ -191,10 +222,10 @@ export function Gallery({ activeSlug, onOpen }: GalleryProps) {
                       onClick={() => onOpen(p.slug)}
                       aria-label={`باز کردن صفحه‌ی ${p.label}`}
                       className={cn(
-                        'group text-right rounded-[22px] border p-2.5 pb-3 transition-all duration-200 bg-white/70 hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#00ABE7]',
+                        'group text-right rounded-[22px] border p-2.5 pb-3 transition-all duration-200 bg-white/70 hover:bg-white hover:-translate-y-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#00ABE7]',
                         active
                           ? 'border-[#00ABE7] shadow-[0_10px_28px_rgba(0,171,231,0.25)]'
-                          : 'border-[#D3E8F0] hover:border-[#00ABE7]/50 hover:shadow-[0_10px_28px_rgba(4,32,46,0.10)]',
+                          : 'border-[#D3E8F0] hover:border-[#00ABE7]/50 hover:shadow-[0_14px_32px_rgba(4,32,46,0.13)]',
                       )}
                     >
                       <div className="relative">
