@@ -11,6 +11,18 @@ import {
   type PlushKind,
 } from "./pishnam-data";
 
+export type TrackStep = 0 | 1 | 2 | 3; // index into TRACK_STEPS
+export const TRACK_STEPS = [
+  { key: "paid", label: "پرداخت شد", body: "هدیه‌ت ثبت شد و جعبه‌ش رو گرفتمیم." },
+  { key: "packing", label: "بسته‌بندی", body: "کارت پستال، قلب و پنجه‌ها رو جعبه می‌چسبونیم." },
+  { key: "shipped", label: "در راه", body: "جعبه تحویل پست شد؛ به‌زودی می‌رسه." },
+  { key: "delivered", label: "تحویل شد", body: "جعبه رسید! حالا نوبت رمز کارته." },
+] as const;
+
+export function statusToStep(s: GiftStatus): TrackStep {
+  return s === "paid" ? 0 : s === "packing" ? 1 : s === "shipped" ? 2 : 3;
+}
+
 export type GiftStatus = "paid" | "packing" | "shipped" | "delivered";
 
 export interface GiftOrder {
@@ -62,6 +74,10 @@ interface PishnamState {
   // orders
   orders: GiftOrder[];
   nextNo: number;
+  selectedId: string | null;
+
+  // favorites (پشمالوهای محبوب)
+  favorites: PlushKind[];
 
   setKind: (k: PlushKind) => void;
   setOccasion: (i: number) => void;
@@ -82,6 +98,8 @@ interface PishnamState {
   advanceStatus: (id: string) => void;
   markOpened: (id: string) => void;
   resetBuilder: () => void;
+  selectOrder: (id: string | null) => void;
+  toggleFavorite: (k: PlushKind) => void;
 }
 
 const DEFAULT_RECEIVER: Receiver = { name: "", city: "", address: "", phone: "" };
@@ -114,6 +132,8 @@ export const usePishnam = create<PishnamState>()(
 
       user: null,
 
+      selectedId: null,
+      favorites: ["panda"],
       orders: [
         {
           id: "seed-1",
@@ -220,6 +240,14 @@ export const usePishnam = create<PishnamState>()(
           photoAdded: false,
           videoAdded: false,
         }),
+
+      selectOrder: (id) => set({ selectedId: id }),
+      toggleFavorite: (k) =>
+        set({
+          favorites: get().favorites.includes(k)
+            ? get().favorites.filter((f) => f !== k)
+            : [...get().favorites, k],
+        }),
     }),
     {
       name: "pishnam-app",
@@ -238,6 +266,16 @@ export function useCharityDone(): number {
 
 export function useCharmsTotal(): number {
   return usePishnam((s) => s.hearts + s.paws);
+}
+
+export function useSelectedOrder(): GiftOrder | null {
+  return usePishnam(
+    (s) => s.orders.find((o) => o.id === s.selectedId) ?? s.orders.find((o) => o.dir === "sent") ?? null,
+  );
+}
+
+export function useIsFavorite(kind: PlushKind): boolean {
+  return usePishnam((s) => s.favorites.includes(kind));
 }
 
 export function useBuilderTotal(): number {

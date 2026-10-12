@@ -15,6 +15,7 @@ import {
 import { navigate, type Route } from "@/lib/hash-route";
 import { usePishnam, useCharityDone } from "@/lib/pishnam-store";
 import { fa, money } from "@/lib/fa";
+import { FavHeart } from "../fav";
 import {
   PLUSHES,
   BOX_PRICE,
@@ -93,14 +94,22 @@ export function DesktopBuilder({ step }: { step: 1 | 2 | 3 | 4 }) {
               {PLUSHES.map((p) => {
                 const isOn = p.kind === kind;
                 return (
-                  <button
+                  <div
                     key={p.kind}
-                    type="button"
+                    role="button"
+                    tabIndex={0}
                     aria-pressed={isOn}
                     onClick={() => setKind(p.kind)}
-                    className="relative box-border flex min-w-0 flex-[1_1_150px] flex-col gap-0.5 rounded-3xl bg-white p-2 pb-3 text-right"
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        setKind(p.kind);
+                      }
+                    }}
+                    className="relative box-border flex min-w-0 cursor-pointer flex-[1_1_150px] flex-col gap-0.5 rounded-3xl bg-white p-2 pb-3 text-right outline-none transition-all focus-visible:ring-2 focus-visible:ring-[#00ABE7]"
                     style={{ border: `3px solid ${isOn ? "#00ABE7" : "#E1EFF5"}` }}
                   >
+                    <FavHeart kind={p.kind} name={p.name} size={20} box={30} className="absolute start-2.5 top-2.5 z-10" />
                     <div
                       className="flex h-32 items-center justify-center rounded-2xl"
                       style={{ background: p.bg }}
@@ -114,7 +123,7 @@ export function DesktopBuilder({ step }: { step: 1 | 2 | 3 | 4 }) {
                         <CheckIcon size={15} stroke="#04202E" />
                       </span>
                     )}
-                  </button>
+                  </div>
                 );
               })}
             </div>

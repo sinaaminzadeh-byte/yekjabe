@@ -383,9 +383,26 @@ function BadgesRow({ className = "" }: { className?: string }) {
 
 function MobileOrderCard({ o }: { o: GiftOrder }) {
   const advanceStatus = usePishnam((s) => s.advanceStatus);
+  const selectOrder = usePishnam((s) => s.selectOrder);
   const st = o.dir === "sent" ? STATUS_MAP[o.status] : recvStatus(o);
   return (
-    <div className="rounded-[24px] border border-[#DDEEF5] bg-white p-[14px] transition-shadow hover:shadow-[0_6px_18px_rgba(4,32,46,0.06)]">
+    <div
+      role="button"
+      tabIndex={0}
+      aria-label={`رهگیری هدیه ${fa(o.no)}`}
+      onClick={() => {
+        selectOrder(o.id);
+        navigate("track");
+      }}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          selectOrder(o.id);
+          navigate("track");
+        }
+      }}
+      className="cursor-pointer rounded-[24px] border border-[#DDEEF5] bg-white p-[14px] outline-none transition-all hover:border-[#00ABE7] hover:shadow-[0_6px_18px_rgba(4,32,46,0.06)] focus-visible:ring-2 focus-visible:ring-[#00ABE7]"
+    >
       <div className="flex items-center gap-[14px]">
         <PlushThumb o={o} size={54} box={64} />
         <div className="flex min-w-0 flex-1 flex-col gap-1">
@@ -406,7 +423,10 @@ function MobileOrderCard({ o }: { o: GiftOrder }) {
         <div className="mt-3 flex border-t border-[#EDF6FA] pt-3">
           <button
             type="button"
-            onClick={() => navigate("gift")}
+            onClick={(e) => {
+              e.stopPropagation();
+              navigate("gift");
+            }}
             className="flex h-10 flex-1 items-center justify-center gap-1.5 rounded-full bg-[#E3F6FD] text-[13px] font-extrabold text-[#006387] transition-transform active:scale-95"
           >
             مشاهده‌ی پیام
@@ -420,7 +440,10 @@ function MobileOrderCard({ o }: { o: GiftOrder }) {
           <span className="shrink-0 text-[11.5px] font-semibold text-[#4A6572]">شبیه‌سازی مسیر</span>
           <button
             type="button"
-            onClick={() => advanceStatus(o.id)}
+            onClick={(e) => {
+              e.stopPropagation();
+              advanceStatus(o.id);
+            }}
             className="flex h-10 flex-1 items-center justify-center gap-1.5 rounded-full bg-[#FFF3C9] text-[13px] font-extrabold text-[#04202E] transition-transform active:scale-95"
           >
             قدم بعدی: {NEXT_LABEL[o.status]}
@@ -493,9 +516,26 @@ export function MobileMyGifts() {
 
 function DesktopOrderCard({ o }: { o: GiftOrder }) {
   const advanceStatus = usePishnam((s) => s.advanceStatus);
+  const selectOrder = usePishnam((s) => s.selectOrder);
   const st = o.dir === "sent" ? STATUS_MAP[o.status] : recvStatus(o);
   return (
-    <div className="flex min-w-0 flex-[1_1_340px] max-w-[400px] items-center gap-[18px] rounded-[28px] border border-[#DDEEF5] bg-white p-5 transition-shadow hover:shadow-[0_10px_26px_rgba(4,32,46,0.08)]">
+    <div
+      role="button"
+      tabIndex={0}
+      aria-label={`رهگیری هدیه ${fa(o.no)}`}
+      onClick={() => {
+        selectOrder(o.id);
+        navigate("track");
+      }}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          selectOrder(o.id);
+          navigate("track");
+        }
+      }}
+      className="flex min-w-0 flex-[1_1_340px] max-w-[400px] cursor-pointer items-center gap-[18px] rounded-[28px] border border-[#DDEEF5] bg-white p-5 outline-none transition-all hover:border-[#00ABE7] hover:shadow-[0_10px_26px_rgba(4,32,46,0.08)] focus-visible:ring-2 focus-visible:ring-[#00ABE7]"
+    >
       <PlushThumb o={o} size={66} box={88} />
       <div className="flex min-w-0 flex-1 flex-col gap-1.5">
         <div className="flex items-center justify-between gap-2">
@@ -512,7 +552,10 @@ function DesktopOrderCard({ o }: { o: GiftOrder }) {
           {o.dir === "sent" && o.status !== "delivered" && (
             <button
               type="button"
-              onClick={() => advanceStatus(o.id)}
+              onClick={(e) => {
+                e.stopPropagation();
+                advanceStatus(o.id);
+              }}
               title="شبیه‌سازی مسیر ارسال"
               className="rounded-[10px] bg-[#F2F7F9] px-2.5 py-1 text-[11.5px] font-extrabold text-[#006387] transition-colors hover:bg-[#E3F6FD]"
             >
@@ -522,12 +565,26 @@ function DesktopOrderCard({ o }: { o: GiftOrder }) {
           {o.dir === "recv" && (
             <button
               type="button"
-              onClick={() => navigate("gift")}
+              onClick={(e) => {
+                e.stopPropagation();
+                navigate("gift");
+              }}
               className="rounded-[10px] bg-[#E3F6FD] px-2.5 py-1 text-[11.5px] font-extrabold text-[#006387] transition-colors hover:bg-[#CDEFFB]"
             >
               مشاهده‌ی پیام
             </button>
           )}
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              selectOrder(o.id);
+              navigate("track");
+            }}
+            className="ms-auto rounded-[10px] px-2.5 py-1 text-[11.5px] font-extrabold text-[#00779F] transition-colors hover:bg-[#E3F6FD]"
+          >
+            رهگیری ›
+          </button>
         </div>
       </div>
     </div>

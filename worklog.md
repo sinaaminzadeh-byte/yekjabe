@@ -107,3 +107,23 @@ Stage Summary:
 - ALL 15 routes are real, interactive, store-driven, responsive (mobile/desktop) — the Pishnam web-app UI is COMPLETE per the user's ask: mobile shows mobile UI, desktop shows desktop UI, flows/buttons/dashboards all work. Backend intentionally deferred (per user: UI first).
 - Root cause of user's "unfinished" impression: they likely previewed during the file-write window (module-not-found flash). Everything compiles and works now.
 - Next-round ideas remain: hash-scroll anchors, favorites/pins beyond recents, per-page notes, self-contained export, backend wiring (real orders/auth), perf audit of gallery iframes.
+
+---
+Task ID: 5
+Agent: main (Z.ai Code) — cron web dev review round
+Task: New features round — order tracking timeline route (#/track) + plush favorites (hearts) + wire my-gifts cards to tracker.
+
+Work Log:
+- Store (src/lib/pishnam-store.ts): added `selectedId` + `selectOrder()`, `favorites: PlushKind[]` + `toggleFavorite()` (persisted), `TRACK_STEPS` (paid/packing/shipped/delivered labels+bodies), `statusToStep()`, selectors `useSelectedOrder()` (falls back to first sent order) and `useIsFavorite()`.
+- Router (src/lib/hash-route.ts): added "track" route. page.tsx: case "track" renders MobileTrack + DesktopTrack.
+- NEW FILE src/components/shop/screens/track.tsx (~460 lines): رهگیری هدیه screens. Mobile: top bar back→my-gifts, header (plush tile, who, gift-no chip, status chip, date), mini progress bar «N از ۴ قدم», vertical timeline (done=cyan filled check, current=pulsing ring pishnam-pulse-ring, future=dashed numbered; per-step note «انجام شد ✓ / الان اینجاییم / هنوز نه»; shipped step shows fake postal tracking code, delivered shows password hint), details card (گیرنده/شهر/آدرس/قلب و پنجه/مبلغ), postcard card (message + occasion chip + رمز chip + ناشناس chip + QR), sticky actions (قدم بعدی simulate with toast / مشاهده‌ی پیام→gift / یه بغل دیگه بفرست→pick), empty state. Desktop: breadcrumb «هدیه‌هام / رهگیری هدیه‌ی N», big title + status chip, horizontal 4-step stepper with animated fill line, two-column layout (vertical timeline + details | plush card + postcard + actions). Fixed Tailwind bg-white/bg-[#00ABE7] conflict that hid the done-step check icon in the horizontal stepper.
+- dashboards.tsx: MobileOrderCard + DesktopOrderCard now clickable (role=button, tabIndex, Enter/Space keys) → selectOrder(o.id)+navigate("track"); inner buttons (قدم بعدی / مشاهده‌ی پیام) stopPropagation; desktop card got a «رهگیری ›» link; hover border/shadow + focus-visible ring for a11y.
+- NEW FILE src/components/shop/fav.tsx — FavHeart toggle (HeartSticker filled pink #F0426B when fav / white outline when not, aria-pressed, pishnam-heart-pop animation on click, stopPropagation, works inside role=button cards).
+- globals.css: added pishnam-pulse-ring + pishnam-heart-pop keyframes.
+- Favorites wired into: flow.tsx MobilePick (heart on big stage + 6 mini cards, cards converted button→div role=button), builder.tsx DesktopBuilder step-1 grid (6 hearts, check badge moved no conflict), home.tsx mobile friends row + desktop friends grid (hearts on all cards). All persisted via store (verified localStorage pishnam-app state.favorites updated).
+- QA via agent-browser: mobile 390px — my-gifts shows 6 clickable order cards, click→#/track renders full timeline (برای نیلا ۱۰۳), قدم بعدی simulates paid→packing with toast; home/pick hearts toggle + persist. Desktop 1440px — track page breadcrumb/stepper/columns correct after fix; favorites hearts show filled state for panda+bear; heart click in builder does NOT navigate (stopPropagation verified, favorites [panda,bear,duck]). Console clean after --clear + 5-route sweep; bun run lint 0 errors; tsc 0 errors in src/.
+
+Stage Summary:
+- App now has 16 routes. New capabilities: full order-journey tracking page (mobile+desktop) reachable by clicking any order card, and persistent plush favorites across home/pick/builder.
+- All store additions are backward-compatible with persisted localStorage (version 1, new fields merge with defaults).
+- Next-round ideas: favorites strip/filter on home, share/gift-card download, confetti on success upgrade, backend wiring (Prisma), hash-scroll anchors, self-contained export.

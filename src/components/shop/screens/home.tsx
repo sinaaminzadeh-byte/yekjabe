@@ -15,6 +15,7 @@ import {
   useCharityDone,
 } from "@/lib/pishnam-store";
 import { fa, faPrice, money } from "@/lib/fa";
+import { FavHeart } from "../fav";
 import {
   PLUSHES,
   BOX_PRICE,
@@ -149,12 +150,21 @@ export function MobileHome() {
       </div>
       <div className="no-scrollbar flex gap-3 overflow-x-auto px-5 pb-3 pt-1">
         {PLUSHES.map((p) => (
-          <button
+          <div
             key={p.kind}
-            type="button"
+            role="button"
+            tabIndex={0}
+            aria-label={`انتخاب ${p.name}`}
             onClick={() => navigate("pick")}
-            className="flex w-40 flex-col gap-1.5 rounded-3xl border border-[#DDEEF5] bg-white p-2.5 pb-3.5 text-right text-[#04202E] transition-transform active:scale-[0.97]"
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                navigate("pick");
+              }
+            }}
+            className="relative flex w-40 shrink-0 cursor-pointer flex-col gap-1.5 rounded-3xl border border-[#DDEEF5] bg-white p-2.5 pb-3.5 text-right text-[#04202E] outline-none transition-transform focus-visible:ring-2 focus-visible:ring-[#00ABE7] active:scale-[0.97]"
           >
+            <FavHeart kind={p.kind} name={p.name} size={20} box={30} className="absolute end-2 top-2 z-10" />
             <div
               className="flex h-[140px] items-center justify-center rounded-[18px]"
               style={{ background: p.bg }}
@@ -164,7 +174,7 @@ export function MobileHome() {
             <div className="pt-1 text-base font-extrabold">{p.name}</div>
             <div className="text-xs font-medium text-[#4A6572]">{p.chips.join(" · ")}</div>
             <div className="text-[13px] font-extrabold text-[#006387]">{faPrice(BOX_PRICE)}</div>
-          </button>
+          </div>
         ))}
       </div>
 
@@ -375,12 +385,21 @@ export function DesktopHome() {
         </div>
         <div className="flex flex-wrap gap-4">
           {PLUSHES.map((p) => (
-            <button
+            <div
               key={p.kind}
-              type="button"
+              role="button"
+              tabIndex={0}
+              aria-label={`انتخاب ${p.name}`}
               onClick={() => navigate("pick")}
-              className="group flex min-w-0 flex-[1_1_170px] flex-col gap-1.5 rounded-[28px] border border-[#DDEEF5] bg-white p-3 pb-[18px] text-right text-[#04202E] transition-all hover:-translate-y-1 hover:shadow-[0_12px_28px_rgba(4,32,46,0.08)]"
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  navigate("pick");
+                }
+              }}
+              className="group relative flex min-w-0 cursor-pointer flex-[1_1_170px] flex-col gap-1.5 rounded-[28px] border border-[#DDEEF5] bg-white p-3 pb-[18px] text-right text-[#04202E] outline-none transition-all focus-visible:ring-2 focus-visible:ring-[#00ABE7] hover:-translate-y-1 hover:shadow-[0_12px_28px_rgba(4,32,46,0.08)]"
             >
+              <FavHeart kind={p.kind} name={p.name} size={22} box={36} className="absolute end-3 top-3 z-10" />
               <div
                 className="flex h-[180px] items-center justify-center rounded-[20px] transition-transform group-hover:scale-[1.04]"
                 style={{ background: p.bg }}
@@ -390,7 +409,7 @@ export function DesktopHome() {
               <div className="pt-2 text-lg font-extrabold">{p.name}</div>
               <div className="text-[13px] font-medium text-[#4A6572]">{p.chips.join(" · ")}</div>
               <div className="text-[14.5px] font-extrabold text-[#006387]">{money(BOX_PRICE)} تومان</div>
-            </button>
+            </div>
           ))}
         </div>
       </section>

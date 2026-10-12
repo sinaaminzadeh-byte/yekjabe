@@ -18,7 +18,8 @@ export type Route =
   | "mission"
   | "contact"
   | "reviews"
-  | "shipping";
+  | "shipping"
+  | "track";
 
 export const ROUTES: Route[] = [
   "home",
@@ -36,6 +37,7 @@ export const ROUTES: Route[] = [
   "contact",
   "reviews",
   "shipping",
+  "track",
 ];
 
 function parseHash(): { route: Route; query: URLSearchParams } {

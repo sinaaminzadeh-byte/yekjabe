@@ -312,3 +312,24 @@
   animation: pishnam-shake 0.45s ease-in-out;
 }
 
+
+/* ── Pishnam: current-step pulse ring (order tracking) ── */
+@keyframes pishnam-pulse-ring {
+  0% { box-shadow: 0 0 0 0 rgba(0, 171, 231, 0.35); }
+  70% { box-shadow: 0 0 0 9px rgba(0, 171, 231, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(0, 171, 231, 0); }
+}
+.pishnam-pulse-ring {
+  animation: pishnam-pulse-ring 1.9s ease-out infinite;
+}
+
+/* ── Pishnam: favorite heart pop ── */
+@keyframes pishnam-heart-pop {
+  0% { transform: scale(1); }
+  40% { transform: scale(1.45) rotate(-8deg); }
+  70% { transform: scale(0.92); }
+  100% { transform: scale(1); }
+}
+.pishnam-heart-pop {
+  animation: pishnam-heart-pop 0.42s cubic-bezier(0.34, 1.56, 0.64, 1);
+}

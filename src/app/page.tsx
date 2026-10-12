@@ -19,6 +19,7 @@ import {
   DesktopLogin,
 } from "@/components/shop/screens/dashboards";
 import { GiftExperience } from "@/components/shop/screens/gift-experience";
+import { MobileTrack, DesktopTrack } from "@/components/shop/screens/track";
 import {
   AboutPage,
   MissionPage,
@@ -118,6 +119,13 @@ function PishnamScreens() {
         );
       case "gift":
         return <GiftExperience />;
+      case "track":
+        return (
+          <>
+            <MobileTrack />
+            <DesktopTrack />
+          </>
+        );
       case "about":
         return <AboutPage />;
       case "mission":

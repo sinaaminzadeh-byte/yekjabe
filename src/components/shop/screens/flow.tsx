@@ -30,6 +30,7 @@ import {
 } from "@/lib/pishnam-data";
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
+import { FavHeart } from "@/components/shop/fav";
 
 /* ═══════════════ 1 · PICK ═══════════════ */
 export function MobilePick() {
@@ -52,10 +53,11 @@ export function MobilePick() {
       <div className="mt-3 flex justify-center px-5">
         <div className="flex w-full flex-col items-center gap-2 rounded-[30px] border-[1.5px] border-[#00ABE7] bg-white p-5">
           <div
-            className="flex h-[240px] w-full items-center justify-center rounded-3xl"
+            className="relative flex h-[240px] w-full items-center justify-center rounded-3xl"
             style={{ background: sel.bg }}
           >
             <Plush kind={sel.kind} size={210} className="pishnam-float" />
+            <FavHeart kind={sel.kind} name={sel.name} className="absolute end-3 top-3" />
           </div>
           <div className="text-[20px] font-black">{sel.name}</div>
           <div className="flex flex-wrap justify-center gap-1.5">
@@ -73,14 +75,22 @@ export function MobilePick() {
         {PLUSHES.map((p) => {
           const isOn = p.kind === picked;
           return (
-            <button
+            <div
               key={p.kind}
-              type="button"
+              role="button"
+              tabIndex={0}
               aria-pressed={isOn}
               onClick={() => setKind(p.kind)}
-              className="flex flex-col items-center gap-1 rounded-[22px] bg-white p-2 pb-3 transition-all"
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  setKind(p.kind);
+                }
+              }}
+              className="relative flex cursor-pointer flex-col items-center gap-1 rounded-[22px] bg-white p-2 pb-3 transition-all outline-none focus-visible:ring-2 focus-visible:ring-[#00ABE7]"
               style={{ border: `1.5px solid ${isOn ? "#00ABE7" : "#E1EFF5"}` }}
             >
+              <FavHeart kind={p.kind} name={p.name} size={20} box={30} className="absolute end-1.5 top-1.5 z-10" />
               <div
                 className="flex h-[92px] w-full items-center justify-center rounded-[16px]"
                 style={{ background: p.bg }}
@@ -88,7 +98,7 @@ export function MobilePick() {
                 <Plush kind={p.kind} size={82} />
               </div>
               <span className="text-[13px] font-extrabold">{p.name}</span>
-            </button>
+            </div>
           );
         })}
       </div>
