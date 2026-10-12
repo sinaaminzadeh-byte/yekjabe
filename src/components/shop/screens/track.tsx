@@ -17,6 +17,7 @@ import {
 import { PLUSH_MAP, OCCASIONS } from "@/lib/pishnam-data";
 import { fa, faPrice } from "@/lib/fa";
 import { useToast } from "@/hooks/use-toast";
+import { downloadGiftCard } from "@/lib/gift-card";
 
 /* ── local helpers ── */
 const STATUS_CHIP: Record<string, { label: string; bg: string }> = {
@@ -88,6 +89,7 @@ async function copyText(text: string): Promise<boolean> {
 function PlushTile({ o, size, box }: { o: GiftOrder; size: number; box: number }) {
   return (
     <div
+      data-giftcard-plush
       className="flex shrink-0 items-center justify-center rounded-[22px]"
       style={{ width: box, height: box, background: PLUSH_MAP[o.kind].bg }}
     >
@@ -300,6 +302,48 @@ function CopyGiftButton({ o, dark = false }: { o: GiftOrder; dark?: boolean }) {
   );
 }
 
+/* ── download gift card as PNG (canvas-drawn, plush lifted from the live SVG) ── */
+function DownloadGiftButton({ o, dark = false }: { o: GiftOrder; dark?: boolean }) {
+  const { toast } = useToast();
+  const [busy, setBusy] = useState(false);
+
+  return (
+    <button
+      type="button"
+      disabled={busy}
+      onClick={async () => {
+        if (busy) return;
+        setBusy(true);
+        const svg = document.querySelector("[data-giftcard-plush] svg");
+        const ok = await downloadGiftCard(o, svg as SVGSVGElement | null);
+        setBusy(false);
+        toast(
+          ok
+            ? { title: "کارت هدیه ساخته شد 🖼", description: "عکس کارت دانلود شد؛ می‌تونی براش بفرستیش." }
+            : { title: "ساختن کارت ممکن نشد", description: "مرورگرت اجازه‌ی دانلود نداد؛ دوباره امتحان کن." },
+        );
+      }}
+      className={`relative flex h-[52px] w-full items-center justify-center gap-2 rounded-full text-[14.5px] font-extrabold transition-transform active:scale-95 disabled:opacity-60 md:h-[54px] md:text-[15px] md:active:scale-100 md:hover:scale-[1.02] ${
+        dark ? "border-2 border-[#04202E] text-[#04202E]" : "border-2 border-dashed border-[#F0B7C9] bg-white text-[#B02A52]"
+      }`}
+    >
+      {busy ? (
+        <span
+          aria-hidden
+          className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent"
+        />
+      ) : (
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+          <path d="M7 10l5 5 5-5" />
+          <path d="M12 15V3" />
+        </svg>
+      )}
+      {busy ? "در حال ساختن کارت…" : "دانلود کارت هدیه (PNG)"}
+    </button>
+  );
+}
+
 /* ═══ MOBILE ═══ */
 export function MobileTrack() {
   const o = useSelectedOrder();
@@ -415,7 +459,10 @@ export function MobileTrack() {
                 </button>
               )}
             </div>
-            <CopyGiftButton o={o} />
+            <div className="flex gap-3">
+              <CopyGiftButton o={o} />
+              <DownloadGiftButton o={o} />
+            </div>
           </div>
         </>
       )}
@@ -579,6 +626,7 @@ export function DesktopTrack() {
                 برگرد به هدیه‌هام
               </button>
               <CopyGiftButton o={o} dark />
+              <DownloadGiftButton o={o} dark />
             </div>
           </div>
         </section>

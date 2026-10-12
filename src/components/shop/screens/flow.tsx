@@ -31,6 +31,7 @@ import {
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { FavHeart, FavFilterChips, SurpriseButton } from "@/components/shop/fav";
+import { MessageIdeas } from "@/components/shop/ideas";
 
 /* ═══════════════ 1 · PICK ═══════════════ */
 export function MobilePick() {
@@ -222,6 +223,10 @@ export function MobileCard() {
             {fa(message.length)} / ۴۰۰
           </span>
         </div>
+      </div>
+
+      <div className="mx-5 mt-3">
+        <MessageIdeas occ={occ} onPick={setMessage} />
       </div>
 
       <div className="flex gap-3 px-5 pt-3">

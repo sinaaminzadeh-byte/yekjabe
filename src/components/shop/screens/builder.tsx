@@ -16,6 +16,7 @@ import { navigate, type Route } from "@/lib/hash-route";
 import { usePishnam, useCharityDone } from "@/lib/pishnam-store";
 import { fa, money } from "@/lib/fa";
 import { FavHeart, FavFilterChips, SurpriseButton } from "../fav";
+import { MessageIdeas } from "../ideas";
 import {
   PLUSHES,
   BOX_PRICE,
@@ -202,6 +203,7 @@ export function DesktopBuilder({ step }: { step: 1 | 2 | 3 | 4 }) {
                 <span>{fa(message.length)} / ۴۰۰</span>
               </div>
             </div>
+            <MessageIdeas occ={occ} onPick={setMessage} desktop />
             <div className="flex flex-wrap gap-3">
               <button
                 type="button"

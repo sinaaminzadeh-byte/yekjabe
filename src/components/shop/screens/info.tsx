@@ -812,7 +812,7 @@ function ContactForm({ idp }: { idp: string }) {
   const [sending, setSending] = useState(false);
   const [sent, setSent] = useState(false);
 
-  const submit = (e: FormEvent) => {
+  const submit = async (e: FormEvent) => {
     e.preventDefault();
     const errs: typeof errors = {};
     if (!name.trim()) errs.name = "اسمت رو بنویس.";
@@ -822,14 +822,30 @@ function ContactForm({ idp }: { idp: string }) {
     setErrors(errs);
     if (Object.keys(errs).length > 0 || sending) return;
     setSending(true);
-    window.setTimeout(() => {
-      setSending(false);
-      setSent(true);
-      toast({
-        title: "پیامت رسید!",
-        description: "خیلی مچکریم؛ معمولاً کمتر از یه روز کاری جواب می‌دیم.",
+    const startedAt = Date.now();
+    try {
+      const res = await fetch("/api/contact", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, email, subject, orderNo, message }),
       });
-    }, 1000);
+      if (!res.ok) throw new Error("server");
+      const wait = Math.max(0, 900 - (Date.now() - startedAt));
+      window.setTimeout(() => {
+        setSending(false);
+        setSent(true);
+        toast({
+          title: "پیامت رسید!",
+          description: "خیلی مچکریم؛ معمولاً کمتر از یه روز کاری جواب می‌دیم.",
+        });
+      }, wait);
+    } catch {
+      setSending(false);
+      toast({
+        title: "ارسال نشد!",
+        description: "اتصال به سرور برقرار نشد؛ چند لحظه بعد دوباره امتحان کن.",
+      });
+    }
   };
 
   const reset = () => {

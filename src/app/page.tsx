@@ -1,8 +1,10 @@
 "use client";
 
 // ── Pishnam — the real gift web-app (UI rebuilt in React from the design system) ──
+import { useEffect } from "react";
 import { useHashRoute } from "@/lib/hash-route";
 import { useHasMounted } from "@/hooks/use-has-mounted";
+import { pullOrders } from "@/lib/pishnam-sync";
 import { MobileNav, DesktopHeader } from "@/components/shop/nav";
 import { Logo } from "@/components/shop/logo";
 import { MobileHome, DesktopHome } from "@/components/shop/screens/home";
@@ -51,6 +53,11 @@ function Splash() {
 function PishnamScreens() {
   const { route } = useHashRoute();
   const standalone = route === "gift";
+
+  // boot-time server sync: merge orders persisted in SQLite into the local store
+  useEffect(() => {
+    void pullOrders();
+  }, []);
 
   const screen = (() => {
     switch (route) {

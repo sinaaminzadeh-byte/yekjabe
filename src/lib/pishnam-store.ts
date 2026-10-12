@@ -104,6 +104,32 @@ interface PishnamState {
 
 const DEFAULT_RECEIVER: Receiver = { name: "", city: "", address: "", phone: "" };
 
+/**
+ * Fire-and-forget server sync (UI keeps working offline).
+ * PATCH first; if the server doesn't know the row yet (order made before the
+ * backend existed / offline), fall back to pushing the full order (upsert).
+ */
+function syncOrderPatch(get: () => PishnamState, id: string, body: Record<string, unknown>) {
+  void fetch(`/api/orders/${id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  })
+    .then((res) => {
+      if (!res.ok) throw new Error("patch failed");
+    })
+    .catch(() => {
+      const o = get().orders.find((x) => x.id === id);
+      if (o) {
+        void fetch("/api/orders", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(o),
+        }).catch(() => {});
+      }
+    });
+}
+
 function todayFa(): string {
   try {
     return new Intl.DateTimeFormat("fa-IR", {
@@ -201,30 +227,40 @@ export const usePishnam = create<PishnamState>()(
           dir: "sent",
         };
         set({ orders: [order, ...s.orders], nextNo: no + 1 });
+        // direct upsert POST (server may not know this brand-new row yet)
+        void fetch("/api/orders", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(order),
+        }).catch(() => {});
         return order;
       },
 
-      advanceStatus: (id) =>
+      advanceStatus: (id) => {
+        const cur = get().orders.find((o) => o.id === id);
+        const next: GiftStatus | null = !cur
+          ? null
+          : cur.status === "paid"
+            ? "packing"
+            : cur.status === "packing"
+              ? "shipped"
+              : "delivered";
         set({
           orders: get().orders.map((o) =>
-            o.id === id
-              ? {
-                  ...o,
-                  status:
-                    o.status === "paid"
-                      ? "packing"
-                      : o.status === "packing"
-                        ? "shipped"
-                        : "delivered",
-                }
-              : o,
+            o.id === id && next ? { ...o, status: next } : o,
           ),
-        }),
+        });
+        if (next) {
+          syncOrderPatch(get, id, { status: next });
+        }
+      },
 
-      markOpened: (id) =>
+      markOpened: (id) => {
         set({
           orders: get().orders.map((o) => (o.id === id ? { ...o, opened: true } : o)),
-        }),
+        });
+        syncOrderPatch(get, id, { opened: true });
+      },
 
       resetBuilder: () =>
         set({
