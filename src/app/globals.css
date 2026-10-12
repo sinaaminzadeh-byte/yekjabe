@@ -227,3 +227,88 @@
   animation: pishnam-star-pop 0.45s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
+/* ── Pishnam app: marquee «یه بغل، تو یه جعبه» ── */
+@keyframes pishnam-marquee-move {
+  from { transform: translateX(0); }
+  to { transform: translateX(50%); }
+}
+.pishnam-marquee {
+  will-change: transform;
+  animation: pishnam-marquee-move 18s linear infinite;
+}
+
+/* ── Pishnam app: plush float ── */
+@keyframes pishnam-float {
+  0%, 100% { transform: translateY(0) rotate(-2deg); }
+  50% { transform: translateY(-10px) rotate(2deg); }
+}
+.pishnam-float {
+  animation: pishnam-float 3.4s ease-in-out infinite;
+}
+
+/* ── Pishnam app: postcard tilt wiggle ── */
+@keyframes pishnam-tilt {
+  0%, 100% { transform: rotate(-3deg); }
+  50% { transform: rotate(-1deg); }
+}
+.pishnam-tilt {
+  animation: pishnam-tilt 5s ease-in-out infinite;
+}
+
+/* ── Pishnam app: success confetti ── */
+@keyframes pishnam-confetti-fall {
+  0% {
+    transform: translateY(-24px) rotate(0deg);
+    opacity: 1;
+  }
+  85% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(105vh) rotate(420deg);
+    opacity: 0;
+  }
+}
+.pishnam-confetti {
+  top: -24px;
+  width: 8px;
+  height: 12px;
+  animation: pishnam-confetti-fall 3.2s linear infinite;
+}
+
+/* ── Pishnam app: hide scrollbars on horizontal carousels ── */
+.no-scrollbar {
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+/* ── Pishnam app: card open reveal ── */
+@keyframes pishnam-reveal {
+  0% { transform: scale(0.86) translateY(14px); opacity: 0; }
+  100% { transform: scale(1) translateY(0); opacity: 1; }
+}
+.pishnam-reveal {
+  animation: pishnam-reveal 0.55s cubic-bezier(0.34, 1.4, 0.64, 1) both;
+}
+
+/* ── Pishnam app: glow pulse for locked card ── */
+@keyframes pishnam-glow {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(0, 171, 231, 0.35); }
+  50% { box-shadow: 0 0 0 14px rgba(0, 171, 231, 0); }
+}
+.pishnam-glow {
+  animation: pishnam-glow 2.2s ease-out infinite;
+}
+
+/* ── Pishnam app: wrong-password shake ── */
+@keyframes pishnam-shake {
+  0%, 100% { transform: translateX(0); }
+  20%, 60% { transform: translateX(-8px); }
+  40%, 80% { transform: translateX(8px); }
+}
+.pishnam-shake {
+  animation: pishnam-shake 0.45s ease-in-out;
+}
+

@@ -1,0 +1,768 @@
+     1→"use client";
+     2→
+     3→// ── Mobile gift-builder flow: pick → card → extras → checkout ──
+     4→import { Plush } from "../plush";
+     5→import { MobileTopBar, StepBar } from "../nav";
+     6→import {
+     7→  HeartSticker,
+     8→  PawIcon,
+     9→  PawSticker,
+    10→  PhotoIcon,
+    11→  VideoIcon,
+    12→  ForwardIcon,
+    13→  CheckIcon,
+    14→  MinusIcon,
+    15→  PlusSmall,
+    16→} from "../icons";
+    17→import { navigate } from "@/lib/hash-route";
+    18→import {
+    19→  usePishnam,
+    20→  useCharityDone,
+    21→} from "@/lib/pishnam-store";
+    22→import { fa, money } from "@/lib/fa";
+    23→import {
+    24→  PLUSHES,
+    25→  BOX_PRICE,
+    26→  CHARM_PRICE,
+    27→  OCCASIONS,
+    28→  OCCASION_HOLDERS,
+    29→  CHARITY_TARGET,
+    30→} from "@/lib/pishnam-data";
+    31→import { useState } from "react";
+    32→import { useToast } from "@/hooks/use-toast";
+    33→
+    34→/* ═══════════════ 1 · PICK ═══════════════ */
+    35→export function MobilePick() {
+    36→  const picked = usePishnam((s) => s.kind);
+    37→  const setKind = usePishnam((s) => s.setKind);
+    38→  const sel = PLUSHES.find((p) => p.kind === picked) ?? PLUSHES[0];
+    39→
+    40→  return (
+    41→    <div className="flex min-h-screen flex-col bg-[#F2FAFD] md:hidden">
+    42→      <MobileTopBar title="قدم ۱ از ۴" back="home" />
+    43→      <StepBar step={1} />
+    44→
+    45→      <div className="px-5 pb-1 pt-[22px]">
+    46→        <h1 className="m-0 text-[30px] font-black leading-[1.4]">دوست پشمالوت رو انتخاب کن</h1>
+    47→        <p className="mb-0 mt-2 text-[15px] font-medium leading-[1.9] text-[#1F3E4D]">
+    48→          شش تا رفیق پشمالو منتظرن؛ همه با یه قیمت، تفاوت فقط تو قلبشونه.
+    49→        </p>
+    50→      </div>
+    51→
+    52→      <div className="mt-3 flex justify-center px-5">
+    53→        <div className="flex w-full flex-col items-center gap-2 rounded-[30px] border-[1.5px] border-[#00ABE7] bg-white p-5">
+    54→          <div
+    55→            className="flex h-[240px] w-full items-center justify-center rounded-3xl"
+    56→            style={{ background: sel.bg }}
+    57→          >
+    58→            <Plush kind={sel.kind} size={210} className="pishnam-float" />
+    59→          </div>
+    60→          <div className="text-[20px] font-black">{sel.name}</div>
+    61→          <div className="flex flex-wrap justify-center gap-1.5">
+    62→            {sel.chips.map((c) => (
+    63→              <span key={c} className="rounded-full bg-[#E3F6FD] px-3 py-1 text-xs font-bold text-[#006387]">
+    64→                {c}
+    65→              </span>
+    66→            ))}
+    67→          </div>
+    68→          <p className="m-0 text-center text-[13.5px] font-medium leading-[1.9] text-[#1F3E4D]">{sel.blurb}</p>
+    69→        </div>
+    70→      </div>
+    71→
+    72→      <div className="mt-4 grid grid-cols-3 gap-2.5 px-5">
+    73→        {PLUSHES.map((p) => {
+    74→          const isOn = p.kind === picked;
+    75→          return (
+    76→            <button
+    77→              key={p.kind}
+    78→              type="button"
+    79→              aria-pressed={isOn}
+    80→              onClick={() => setKind(p.kind)}
+    81→              className="flex flex-col items-center gap-1 rounded-[22px] bg-white p-2 pb-3 transition-all"
+    82→              style={{ border: `1.5px solid ${isOn ? "#00ABE7" : "#E1EFF5"}` }}
+    83→            >
+    84→              <div
+    85→                className="flex h-[92px] w-full items-center justify-center rounded-[16px]"
+    86→                style={{ background: p.bg }}
+    87→              >
+    88→                <Plush kind={p.kind} size={82} />
+    89→              </div>
+    90→              <span className="text-[13px] font-extrabold">{p.name}</span>
+    91→            </button>
+    92→          );
+    93→        })}
+    94→      </div>
+    95→
+    96→      <div className="sticky bottom-0 mt-auto flex items-center justify-between gap-3.5 border-t border-[#D3E8F0] bg-white/95 px-5 pb-[max(14px,env(safe-area-inset-bottom))] pt-3.5">
+    97→        <div className="flex flex-col">
+    98→          <span className="text-[13px] font-semibold text-[#4A6572]">جعبه + کارت پستال</span>
+    99→          <span className="text-lg font-black">{money(BOX_PRICE)} تومان</span>
+   100→        </div>
+   101→        <button
+   102→          type="button"
+   103→          onClick={() => navigate("card")}
+   104→          className="flex h-[54px] items-center gap-2 rounded-full bg-[#00ABE7] px-[26px] text-base font-extrabold text-[#04202E] transition-transform active:scale-95"
+   105→        >
+   106→          ادامه، کارت پستال
+   107→          <ForwardIcon />
+   108→        </button>
+   109→      </div>
+   110→    </div>
+   111→  );
+   112→}
+   113→
+   114→/* ═══════════════ 2 · CARD ═══════════════ */
+   115→export function MobileCard() {
+   116→  const occ = usePishnam((s) => s.occasion);
+   117→  const setOcc = usePishnam((s) => s.setOccasion);
+   118→  const message = usePishnam((s) => s.message);
+   119→  const setMessage = usePishnam((s) => s.setMessage);
+   120→  const anonymous = usePishnam((s) => s.anonymous);
+   121→  const setAnonymous = usePishnam((s) => s.setAnonymous);
+   122→  const senderName = usePishnam((s) => s.senderName);
+   123→  const setSenderName = usePishnam((s) => s.setSenderName);
+   124→  const cardPassword = usePishnam((s) => s.cardPassword);
+   125→  const setCardPassword = usePishnam((s) => s.setCardPassword);
+   126→  const photoAdded = usePishnam((s) => s.photoAdded);
+   127→  const addPhoto = usePishnam((s) => s.addPhoto);
+   128→  const videoAdded = usePishnam((s) => s.videoAdded);
+   129→  const addVideo = usePishnam((s) => s.addVideo);
+   130→  const nextNo = usePishnam((s) => s.nextNo);
+   131→  const user = usePishnam((s) => s.user);
+   132→  const { toast } = useToast();
+   133→
+   134→  return (
+   135→    <div className="flex min-h-screen flex-col bg-[#F2FAFD] md:hidden">
+   136→      <MobileTopBar title="قدم ۲ از ۴" back="pick" />
+   137→      <StepBar step={2} />
+   138→
+   139→      <div className="px-5 pb-1 pt-[22px]">
+   140→        <h1 className="m-0 text-[30px] font-black leading-[1.4]">کارت پستالت رو بنویس</h1>
+   141→        <p className="mb-0 mt-2 text-[15px] font-medium leading-[1.9] text-[#1F3E4D]">
+   142→          یه کارت پستال فقط با یه QR همراه جعبه می‌رسه. دوستت اسکنش می‌کنه، رمز رو می‌زنه و
+   143→          پیامت رو می‌بینه.
+   144→        </p>
+   145→      </div>
+   146→
+   147→      <div className="no-scrollbar flex gap-2 overflow-x-auto px-5 pb-1 pt-3.5">
+   148→        {OCCASIONS.map((label, i) => {
+   149→          const isOn = i === occ;
+   150→          return (
+   151→            <button
+   152→              key={label}
+   153→              type="button"
+   154→              aria-pressed={isOn}
+   155→              onClick={() => setOcc(i)}
+   156→              className="h-11 shrink-0 rounded-full px-[18px] text-[14.5px] font-bold"
+   157→              style={{
+   158→                background: isOn ? "#00ABE7" : "#fff",
+   159→                border: `1.5px solid ${isOn ? "#04202E" : "#CFE6EF"}`,
+   160→                color: "#04202E",
+   161→              }}
+   162→            >
+   163→              {label}
+   164→            </button>
+   165→          );
+   166→        })}
+   167→      </div>
+   168→
+   169→      <div className="mx-5 mt-3 flex flex-col gap-2 rounded-3xl border-[1.5px] border-[#CFE6EF] bg-white px-4 pb-3 pt-3.5">
+   170→        <label htmlFor="msg" className="text-sm font-extrabold">
+   171→          پیامت
+   172→        </label>
+   173→        <textarea
+   174→          id="msg"
+   175→          rows={5}
+   176→          maxLength={400}
+   177→          value={message}
+   178→          onChange={(e) => setMessage(e.target.value)}
+   179→          placeholder={OCCASION_HOLDERS[occ]}
+   180→          className="min-h-[130px] resize-none border-none bg-transparent text-base leading-[1.9] text-[#04202E] outline-none"
+   181→        />
+   182→        <div className="flex justify-between text-[12.5px] font-semibold text-[#4A6572]">
+   183→          <span>متن، عکس یا ویدیو؛ هر چی دلت خواست</span>
+   184→          <span>
+   185→            {fa(message.length)} / ۴۰۰
+   186→          </span>
+   187→        </div>
+   188→      </div>
+   189→
+   190→      <div className="flex gap-3 px-5 pt-3">
+   191→        <button
+   192→          type="button"
+   193→          onClick={() => {
+   194→            addPhoto();
+   195→            toast({ title: "عکس اضافه شد", description: "عکس تو پیامت، روی کارت QR چاپ می‌شه." });
+   196→          }}
+   197→          className="flex h-28 flex-1 flex-col items-center justify-center gap-1.5 rounded-[22px] border-2 border-dashed bg-[#E3F6FD] text-sm font-bold text-[#04202E]"
+   198→          style={{ borderColor: photoAdded ? "#04202E" : "#00ABE7", borderStyle: photoAdded ? "solid" : "dashed" }}
+   199→        >
+   200→          {photoAdded ? <CheckIcon size={28} stroke="#04202E" /> : <PhotoIcon />}
+   201→          {photoAdded ? "عکس اضافه شد ✓" : "افزودن عکس"}
+   202→        </button>
+   203→        <button
+   204→          type="button"
+   205→          onClick={() => {
+   206→            addVideo();
+   207→            toast({ title: "ویدیو اضافه شد", description: "ویدیو کنار پیامت روی کارت قرار می‌گیره." });
+   208→          }}
+   209→          className="flex h-28 flex-1 flex-col items-center justify-center gap-1.5 rounded-[22px] border-2 border-dashed bg-[#FFE9F0] text-sm font-bold text-[#04202E]"
+   210→          style={{ borderColor: videoAdded ? "#04202E" : "#F0426B", borderStyle: videoAdded ? "solid" : "dashed" }}
+   211→        >
+   212→          {videoAdded ? <CheckIcon size={28} stroke="#04202E" /> : <VideoIcon />}
+   213→          {videoAdded ? "ویدیو اضافه شد ✓" : "افزودن ویدیو"}
+   214→        </button>
+   215→      </div>
+   216→
+   217→      <div className="mx-5 mt-[18px] flex flex-col gap-2">
+   218→        <label htmlFor="pw" className="text-sm font-extrabold">
+   219→          رمز کارت
+   220→        </label>
+   221→        <input
+   222→          id="pw"
+   223→          type="text"
+   224→          value={cardPassword}
+   225→          onChange={(e) => setCardPassword(e.target.value)}
+   226→          placeholder="مثلاً اسم اولین جایی که با هم رفتید"
+   227→          className="box-border h-[54px] rounded-[18px] border-[1.5px] border-[#CFE6EF] bg-white px-4 text-base text-[#04202E] outline-none focus:border-[#00ABE7]"
+   228→        />
+   229→        <span className="text-[12.5px] font-medium leading-[1.8] text-[#4A6572]">
+   230→          فقط کسی که این رمز رو بدونه می‌تونه پیامت رو ببینه. رمز رو بهش بگو یا یه سرنخ بهش
+   231→          بده.
+   232→        </span>
+   233→      </div>
+   234→
+   235→      <div className="mx-5 mt-[18px] rounded-3xl border border-[#DDEEF5] bg-white px-4 py-1.5">
+   236→        <div className="flex items-center justify-between gap-3 py-3">
+   237→          <div className="flex flex-col gap-0.5">
+   238→            <span className="text-[15px] font-extrabold">ناشناس بفرست</span>
+   239→            <span className="text-[12.5px] font-medium text-[#4A6572]">توی جعبه هیچ اسمی نمی‌ذاریم</span>
+   240→          </div>
+   241→          <button
+   242→            type="button"
+   243→            role="switch"
+   244→            aria-checked={anonymous}
+   245→            aria-label="ارسال ناشناس"
+   246→            onClick={() => setAnonymous(!anonymous)}
+   247→            className="relative h-8 w-[54px] shrink-0 rounded-full border-none p-0"
+   248→            style={{ background: anonymous ? "#00ABE7" : "#C7DCE5" }}
+   249→          >
+   250→            <span
+   251→              className="absolute top-[3px] h-[26px] w-[26px] rounded-full bg-white shadow-[0_2px_5px_rgba(4,32,46,0.28)] transition-all"
+   252→              style={anonymous ? { left: 3 } : { right: 3 }}
+   253→            />
+   254→          </button>
+   255→        </div>
+   256→        {!anonymous && (
+   257→          <div className="flex flex-col gap-2 border-t border-[#E3F0F5] py-3 pb-3.5">
+   258→            <label htmlFor="nm" className="text-sm font-extrabold">
+   259→              اسم تو
+   260→            </label>
+   261→            <input
+   262→              id="nm"
+   263→              type="text"
+   264→              value={senderName}
+   265→              onChange={(e) => setSenderName(e.target.value)}
+   266→              placeholder={user ? user.name : "اسمت چیه؟"}
+   267→              className="box-border h-[50px] rounded-2xl border-[1.5px] border-[#CFE6EF] bg-[#F8FDFF] px-4 text-base text-[#04202E] outline-none focus:border-[#00ABE7]"
+   268→            />
+   269→          </div>
+   270→        )}
+   271→      </div>
+   272→
+   273→      <div className="mx-5 mt-[18px] flex items-center gap-4 rounded-[26px] bg-[#D6F1FB] p-[18px]">
+   274→        <div className="flex h-[98px] w-32 shrink-0 rotate-[-3deg] items-center justify-center rounded-xl border-[2.5px] border-[#04202E] bg-white">
+   275→          <PostcardQr />
+   276→        </div>
+   277→        <div className="flex flex-col gap-1.5">
+   278→          <span className="text-base font-extrabold">کارت پستالِ تو</span>
+   279→          <span className="text-[13px] font-medium leading-[1.85] text-[#1F3E4D]">
+   280→            روی کارت فقط همین QR هست. شماره‌ی هدیه‌ی تو، <b>{fa(nextNo)}</b>، روی خود جعبه
+   281→            می‌شینه.
+   282→          </span>
+   283→        </div>
+   284→      </div>
+   285→
+   286→      <div className="sticky bottom-0 mt-auto border-t border-[#D3E8F0] bg-white/95 px-5 pb-[max(14px,env(safe-area-inset-bottom))] pt-3.5">
+   287→        <button
+   288→          type="button"
+   289→          onClick={() => navigate("extras")}
+   290→          className="flex h-[54px] w-full items-center justify-center gap-2 rounded-full bg-[#00ABE7] text-base font-extrabold text-[#04202E] transition-transform active:scale-95"
+   291→        >
+   292→          ادامه، پنجه و قلب
+   293→          <ForwardIcon />
+   294→        </button>
+   295→      </div>
+   296→    </div>
+   297→  );
+   298→}
+   299→
+   300→/* ═══════════════ 3 · EXTRAS ═══════════════ */
+   301→export function MobileExtras() {
+   302→  const hearts = usePishnam((s) => s.hearts);
+   303→  const paws = usePishnam((s) => s.paws);
+   304→  const setHearts = usePishnam((s) => s.setHearts);
+   305→  const setPaws = usePishnam((s) => s.setPaws);
+   306→  const nextNo = usePishnam((s) => s.nextNo);
+   307→  const done = useCharityDone();
+   308→  const doneNow = done;
+   309→  const barPct = Math.min(100, Math.round((doneNow / CHARITY_TARGET) * 100));
+   310→
+   311→  const all: ("h" | "p")[] = [];
+   312→  let hi = 0;
+   313→  let pi = 0;
+   314→  while (hi < hearts || pi < paws) {
+   315→    if (hi < hearts) {
+   316→      all.push("h");
+   317→      hi++;
+   318→    }
+   319→    if (pi < paws) {
+   320→      all.push("p");
+   321→      pi++;
+   322→    }
+   323→  }
+   324→  const cap = 26;
+   325→  const shown = all.slice(0, cap);
+   326→  const hasMore = all.length > cap;
+   327→  const more = all.length - cap;
+   328→  const total = BOX_PRICE + (hearts + paws) * CHARM_PRICE;
+   329→
+   330→  return (
+   331→    <div className="flex min-h-screen flex-col bg-[#F2FAFD] md:hidden">
+   332→      <MobileTopBar title="قدم ۳ از ۴" back="card" />
+   333→      <StepBar step={3} />
+   334→
+   335→      <div className="px-5 pb-1 pt-[22px]">
+   336→        <h1 className="m-0 text-[30px] font-black leading-[1.4]">یه ذره مهربونی اضافه کن</h1>
+   337→        <p className="mb-0 mt-2 text-[15px] font-medium leading-[1.9] text-[#1F3E4D]">
+   338→          قلب قرمز و پنجه، استیکرای کوچیکی‌ان که روی جعبه می‌چسبن. پولشون می‌ره برای هدیه به
+   339→          بچه‌های بی‌سرپرست و پناهگاه حیوونا. هر چندتا که دلت خواست.
+   340→        </p>
+   341→      </div>
+   342→
+   343→      <div className="flex flex-col gap-3 px-5 pt-3.5">
+   344→        {/* hearts */}
+   345→        <div className="flex flex-col gap-3.5 rounded-[28px] border-[1.5px] border-[#F7C5D3] bg-[#FFE9F0] p-4">
+   346→          <div className="flex items-center gap-3.5">
+   347→            <div className="flex h-[68px] w-[68px] shrink-0 items-center justify-center rounded-full bg-white">
+   348→              <HeartSticker size={40} fill="#F0426B" stroke="#04202E" strokeWidth={2.4} />
+   349→            </div>
+   350→            <div className="flex flex-col gap-[3px]">
+   351→              <span className="text-lg font-black">قلب قرمز</span>
+   352→              <span className="text-[13px] font-medium text-[#1F3E4D]">برای هدیه به بچه‌های بی‌سرپرست</span>
+   353→            </div>
+   354→          </div>
+   355→          <div className="flex items-center justify-between">
+   356→            <span className="text-sm font-bold">هر کدوم {money(CHARM_PRICE)} تومان</span>
+   357→            <Counter
+   358→              value={hearts}
+   359→              onMinus={() => setHearts(hearts - 1)}
+   360→              onPlus={() => setHearts(hearts + 1)}
+   361→              minusLabel="یکی کم کن"
+   362→              plusLabel="یکی زیاد کن"
+   363→              plusBg="#F0426B"
+   364→              plusStroke="#fff"
+   365→            />
+   366→          </div>
+   367→        </div>
+   368→
+   369→        {/* paws */}
+   370→        <div className="flex flex-col gap-3.5 rounded-[28px] border-[1.5px] border-[#B5E3F5] bg-[#E3F6FD] p-4">
+   371→          <div className="flex items-center gap-3.5">
+   372→            <div className="flex h-[68px] w-[68px] shrink-0 items-center justify-center rounded-full bg-white">
+   373→              <PawIcon size={38} />
+   374→            </div>
+   375→            <div className="flex flex-col gap-[3px]">
+   376→              <span className="text-lg font-black">پنجه</span>
+   377→              <span className="text-[13px] font-medium text-[#1F3E4D]">برای هدیه به پناهگاه حیوونا</span>
+   378→            </div>
+   379→          </div>
+   380→          <div className="flex items-center justify-between">
+   381→            <span className="text-sm font-bold">هر کدوم {money(CHARM_PRICE)} تومان</span>
+   382→            <Counter
+   383→              value={paws}
+   384→              onMinus={() => setPaws(paws - 1)}
+   385→              onPlus={() => setPaws(paws + 1)}
+   386→              minusLabel="یکی کم کن"
+   387→              plusLabel="یکی زیاد کن"
+   388→              plusBg="#00ABE7"
+   389→              plusStroke="#04202E"
+   390→            />
+   391→          </div>
+   392→        </div>
+   393→      </div>
+   394→
+   395→      {/* box preview */}
+   396→      <div className="mx-5 mt-[18px]">
+   397→        <div className="pb-2.5 text-[15px] font-extrabold">روی جعبه‌ت این‌جوری می‌شینه</div>
+   398→        <div className="relative box-border min-h-[150px] rounded-[26px] border-[2.5px] border-[#04202E] bg-[#00ABE7] px-4 pb-4 pt-[18px]">
+   399→          <div className="absolute -top-0.5 left-[22px] h-11 w-[18px] rounded-b-md bg-[#04202E]" />
+   400→          <div className="inline-flex rotate-[-3deg] flex-col items-center rounded-[14px] border-[2.5px] border-[#04202E] bg-white px-3.5 pb-1 pt-1.5">
+   401→            <span className="text-[10.5px] font-bold text-[#4A6572]">هدیه‌ی شماره</span>
+   402→            <span className="text-[26px] font-black leading-[1.1]">{fa(nextNo)}</span>
+   403→          </div>
+   404→          <div className="flex flex-wrap items-center gap-1 pt-3">
+   405→            {shown.map((k, i) => (
+   406→              <span key={i} className="inline-flex" style={{ transform: `rotate(${((i * 37) % 28) - 14}deg)` }}>
+   407→                {k === "h" ? (
+   408→                  <HeartSticker size={34} fill="#F0426B" stroke="#fff" strokeWidth={3.6} />
+   409→                ) : (
+   410→                  <PawSticker size={34} />
+   411→                )}
+   412→              </span>
+   413→            ))}
+   414→            {hasMore && (
+   415→              <span className="rounded-[14px] bg-[#04202E] px-2.5 py-1.5 text-[13px] font-extrabold text-white">
+   416→                +{fa(more)}
+   417→              </span>
+   418→            )}
+   419→          </div>
+   420→        </div>
+   421→      </div>
+   422→
+   423→      {/* charity progress */}
+   424→      <div className="mx-5 mt-4 flex flex-col gap-2.5 rounded-3xl border border-[#DDEEF5] bg-white px-[18px] py-4">
+   425→        <div className="flex items-center justify-between">
+   426→          <span className="text-[15px] font-extrabold">اولین بسته‌ی خیریه</span>
+   427→          <span className="text-[13px] font-bold text-[#006387]">
+   428→            {fa(doneNow)} از {fa(CHARITY_TARGET)}
+   429→          </span>
+   430→        </div>
+   431→        <div className="h-3 overflow-hidden rounded-full bg-[#E3F0F5]">
+   432→          <div className="h-3 rounded-full bg-[#00ABE7] transition-all" style={{ width: `${barPct}%` }} />
+   433→        </div>
+   434→        <span className="text-[12.5px] font-medium leading-[1.85] text-[#4A6572]">
+   435→          وقتی تعداد قلب و پنجه‌ها به هدفمون برسه، هدیه‌ها رو می‌خریم، می‌فرستیم و مدرکش رو تو
+   436→          «دفتر مهربونی» می‌ذاریم.
+   437→        </span>
+   438→      </div>
+   439→
+   440→      <div className="sticky bottom-0 mt-auto flex items-center gap-3.5 border-t border-[#D3E8F0] bg-white/95 px-5 pb-[max(14px,env(safe-area-inset-bottom))] pt-3.5">
+   441→        <div className="flex flex-1 flex-col">
+   442→          <span className="text-[13px] font-semibold text-[#4A6572]">جمع (جعبه + قلب و پنجه)</span>
+   443→          <span className="text-lg font-black">{money(total)} تومان</span>
+   444→        </div>
+   445→        <button
+   446→          type="button"
+   447→          onClick={() => navigate("checkout")}
+   448→          className="flex h-[54px] items-center gap-2 rounded-full bg-[#00ABE7] px-[26px] text-base font-extrabold text-[#04202E] transition-transform active:scale-95"
+   449→        >
+   450→          برو به سبد
+   451→          <ForwardIcon />
+   452→        </button>
+   453→      </div>
+   454→    </div>
+   455→  );
+   456→}
+   457→
+   458→function Counter({
+   459→  value,
+   460→  onMinus,
+   461→  onPlus,
+   462→  minusLabel,
+   463→  plusLabel,
+   464→  plusBg,
+   465→  plusStroke,
+   466→}: {
+   467→  value: number;
+   468→  onMinus: () => void;
+   469→  onPlus: () => void;
+   470→  minusLabel: string;
+   471→  plusLabel: string;
+   472→  plusBg: string;
+   473→  plusStroke: string;
+   474→}) {
+   475→  return (
+   476→    <div className="flex items-center gap-1 rounded-full bg-white p-1">
+   477→      <button
+   478→        type="button"
+   479→        aria-label={minusLabel}
+   480→        onClick={onMinus}
+   481→        className="flex h-11 w-11 items-center justify-center rounded-full border-none bg-[#F2FAFD]"
+   482→      >
+   483→        <MinusIcon />
+   484→      </button>
+   485→      <span className="min-w-[38px] text-center text-xl font-black">{fa(value)}</span>
+   486→      <button
+   487→        type="button"
+   488→        aria-label={plusLabel}
+   489→        onClick={onPlus}
+   490→        className="flex h-11 w-11 items-center justify-center rounded-full border-none"
+   491→        style={{ background: plusBg }}
+   492→      >
+   493→        <PlusSmall stroke={plusStroke} />
+   494→      </button>
+   495→    </div>
+   496→  );
+   497→}
+   498→
+   499→/* ═══════════════ 4 · CHECKOUT ═══════════════ */
+   500→export function MobileCheckout() {
+   501→  const nextNo = usePishnam((s) => s.nextNo);
+   502→  const kind = usePishnam((s) => s.kind);
+   503→  const hearts = usePishnam((s) => s.hearts);
+   504→  const paws = usePishnam((s) => s.paws);
+   505→  const receiver = usePishnam((s) => s.receiver);
+   506→  const setReceiver = usePishnam((s) => s.setReceiver);
+   507→  const [coupon, setCoupon] = useState("");
+   508→  const [couponOk, setCouponOk] = useState(false);
+   509→  const { toast } = useToast();
+   510→
+   511→  const sel = PLUSHES.find((p) => p.kind === kind) ?? PLUSHES[0];
+   512→  const total = BOX_PRICE + (hearts + paws) * CHARM_PRICE;
+   513→
+   514→  const rows = [];
+   515→  if (hearts > 0)
+   516→    rows.push({ isHeart: true, bg: "#FFE9F0", title: `قلب قرمز × ${fa(hearts)}`, sub: "برای بچه‌های بی‌سرپرست", amount: money(hearts * CHARM_PRICE) });
+   517→  if (paws > 0)
+   518→    rows.push({ isHeart: false, bg: "#E3F6FD", title: `پنجه × ${fa(paws)}`, sub: "برای پناهگاه حیوونا", amount: money(paws * CHARM_PRICE) });
+   519→
+   520→  const valid = receiver.name.trim() !== "" && receiver.phone.trim().length >= 8 && receiver.address.trim() !== "";
+   521→
+   522→  return (
+   523→    <div className="flex min-h-screen flex-col bg-[#F2FAFD] md:hidden">
+   524→      <MobileTopBar title="قدم ۴ از ۴" back="extras" />
+   525→      <StepBar step={4} />
+   526→
+   527→      <div className="px-5 pb-1 pt-[22px]">
+   528→        <h1 className="m-0 text-[30px] font-black leading-[1.4]">سبد و پرداخت</h1>
+   529→      </div>
+   530→
+   531→      {/* ticket */}
+   532→      <div className="relative mx-5 mt-3 flex items-stretch overflow-hidden rounded-[26px] bg-[#00ABE7]">
+   533→        <div className="flex w-[118px] shrink-0 flex-col items-center justify-center py-[18px]">
+   534→          <span className="text-xs font-bold">هدیه‌ی شماره</span>
+   535→          <span className="text-[44px] font-black leading-[1.15]">{fa(nextNo)}</span>
+   536→        </div>
+   537→        <div className="my-3.5 w-0 border-r-[2.5px] border-dashed border-[#04202E]" />
+   538→        <div className="flex flex-1 flex-col justify-center gap-1 px-4 py-[18px]">
+   539→          <span className="text-base font-black">این شماره مال هدیه‌ی توئه</span>
+   540→          <span className="text-[12.5px] font-medium leading-[1.8]">
+   541→            روی جعبه و کارت پستال می‌شینه و اسمش تو دفتر ما ثبت می‌شه.
+   542→          </span>
+   543→        </div>
+   544→        <div className="absolute -top-3 right-[106px] h-6 w-6 rounded-full bg-[#F2FAFD]" />
+   545→        <div className="absolute -bottom-3 right-[106px] h-6 w-6 rounded-full bg-[#F2FAFD]" />
+   546→      </div>
+   547→
+   548→      {/* items */}
+   549→      <div className="mx-5 mt-4 rounded-[26px] border border-[#DDEEF5] bg-white px-4 py-2">
+   550→        <div className="flex items-center gap-3 border-b border-[#E3F0F5] py-3">
+   551→          <div
+   552→            className="flex h-16 w-16 shrink-0 items-center justify-center rounded-[18px]"
+   553→            style={{ background: sel.bg }}
+   554→          >
+   555→            <Plush kind={sel.kind} size={54} />
+   556→          </div>
+   557→          <div className="flex flex-1 flex-col gap-0.5">
+   558→            <span className="text-[15px] font-extrabold">{sel.name}، دوست پشمالو</span>
+   559→            <span className="text-[12.5px] font-medium text-[#4A6572]">جعبه‌ی کادویی + کارت پستال QR</span>
+   560→          </div>
+   561→          <span className="text-sm font-extrabold">{money(BOX_PRICE)}</span>
+   562→        </div>
+   563→        {rows.map((r) => (
+   564→          <div key={r.title} className="flex items-center gap-3 border-b border-[#E3F0F5] py-3">
+   565→            <div
+   566→              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full"
+   567→              style={{ background: r.bg }}
+   568→            >
+   569→              {r.isHeart ? (
+   570→                <HeartSticker size={22} fill="#F0426B" stroke="#04202E" strokeWidth={2.6} />
+   571→              ) : (
+   572→                <PawIcon size={22} />
+   573→              )}
+   574→            </div>
+   575→            <div className="flex flex-1 flex-col gap-0.5">
+   576→              <span className="text-[15px] font-extrabold">{r.title}</span>
+   577→              <span className="text-[12.5px] font-medium text-[#4A6572]">{r.sub}</span>
+   578→            </div>
+   579→            <span className="text-sm font-extrabold">{r.amount}</span>
+   580→          </div>
+   581→        ))}
+   582→        <div className="flex justify-between py-3 pb-1.5 text-sm font-semibold text-[#4A6572]">
+   583→          <span>هزینه‌ی ارسال</span>
+   584→          <span>{receiver.city ? (receiver.city.includes("تهران") ? money(49_000) : money(69_000)) : "بعد از ثبت آدرس"}</span>
+   585→        </div>
+   586→        <div className="flex items-center justify-between py-2 pb-3 text-[17px] font-black">
+   587→          <span>جمع کل</span>
+   588→          <span>{money(total)} تومان</span>
+   589→        </div>
+   590→      </div>
+   591→
+   592→      {/* receiver */}
+   593→      <div className="px-5 pb-2 pt-[22px] text-lg font-extrabold">گیرنده‌ی هدیه</div>
+   594→      <div className="mx-5 rounded-[26px] border border-[#DDEEF5] bg-white px-4 py-1">
+   595→        <Field
+   596→          label="اسم گیرنده"
+   597→          value={receiver.name}
+   598→          onChange={(v) => setReceiver({ name: v })}
+   599→          placeholder="اسم دوستت"
+   600→        />
+   601→        <Field
+   602→          label="شماره‌ی موبایل گیرنده"
+   603→          value={receiver.phone}
+   604→          onChange={(v) => setReceiver({ phone: v })}
+   605→          placeholder="۰۹۱۲ ۱۲۳ ۴۵۶۷"
+   606→          tel
+   607→        />
+   608→        <Field
+   609→          label="استان و شهر"
+   610→          value={receiver.city}
+   611→          onChange={(v) => setReceiver({ city: v })}
+   612→          placeholder="مثلاً تهران، تهران"
+   613→        />
+   614→        <div className="flex flex-col gap-1 border-b border-[#E3F0F5] py-3">
+   615→          <label htmlFor="ra" className="text-[12.5px] font-bold text-[#4A6572]">
+   616→            آدرس کامل
+   617→          </label>
+   618→          <textarea
+   619→            id="ra"
+   620→            rows={2}
+   621→            value={receiver.address}
+   622→            onChange={(e) => setReceiver({ address: e.target.value })}
+   623→            placeholder="خیابان، کوچه، پلاک، واحد"
+   624→            className="resize-none border-none bg-transparent text-base leading-[1.8] text-[#04202E] outline-none"
+   625→          />
+   626→        </div>
+   627→      </div>
+   628→
+   629→      {/* coupon */}
+   630→      <div className="mx-5 mt-3.5 flex items-center gap-2.5 rounded-[22px] border border-[#DDEEF5] bg-white py-1.5 pl-1.5 pr-4">
+   631→        <input
+   632→          aria-label="کد تخفیف"
+   633→          type="text"
+   634→          value={coupon}
+   635→          onChange={(e) => setCoupon(e.target.value)}
+   636→          placeholder={couponOk ? "کد مهربونی فعال شد ✓" : "کد تخفیف داری؟ (امتحان کن: مهربونی)"}
+   637→          className="h-11 flex-1 border-none bg-transparent text-base text-[#04202E] outline-none"
+   638→        />
+   639→        <button
+   640→          type="button"
+   641→          onClick={() => {
+   642→            if (coupon.trim() === "مهربونی") {
+   643→              setCouponOk(true);
+   644→              toast({ title: "کد تخفیف اعمال شد", description: "قلب بعدی مهمون ما! یکی‌ش رو خودمون حساب می‌کنیم." });
+   645→            } else {
+   646→              toast({ title: "این کد کار نمی‌کنه", description: "راهنمایی: کلمه‌ی «مهربونی» رو امتحان کن." });
+   647→            }
+   648→          }}
+   649→          className="h-11 rounded-2xl border-none bg-[#D6F1FB] px-5 text-[14.5px] font-extrabold text-[#04202E]"
+   650→        >
+   651→          اعمال
+   652→        </button>
+   653→      </div>
+   654→
+   655→      {/* payment method */}
+   656→      <div className="px-5 pb-2 pt-[22px] text-lg font-extrabold">روش پرداخت</div>
+   657→      <div className="mx-5 flex items-center gap-3 rounded-[22px] border-2 border-[#00ABE7] bg-white px-4 py-3.5">
+   658→        <span className="flex h-[26px] w-[26px] shrink-0 items-center justify-center rounded-full border-2 border-[#04202E] bg-[#00ABE7]">
+   659→          <CheckIcon size={14} stroke="#04202E" />
+   660→        </span>
+   661→        <div className="flex flex-1 flex-col gap-0.5">
+   662→          <span className="text-[15px] font-extrabold">پرداخت آنلاین</span>
+   663→          <span className="text-[12.5px] font-medium text-[#4A6572]">
+   664→            با همه‌ی کارت‌های عضو شتاب، از درگاه امن بانکی
+   665→          </span>
+   666→        </div>
+   667→        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#04202E" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+   668→          <rect x="3" y="6" width="18" height="13" rx="3" />
+   669→          <path d="M3 10.5h18M7 15h4" />
+   670→        </svg>
+   671→      </div>
+   672→
+   673→      <div className="px-6 pt-3.5 text-center text-[12.5px] font-medium leading-[1.9] text-[#4A6572]">
+   674→        با پرداخت، قوانین و شرایط پیشتم رو قبول می‌کنی. رسید قلب‌ها و پنجه‌ها بعد از ارسال
+   675→        هدیه‌ها تو دفتر مهربونی ثبت می‌شه.
+   676→      </div>
+   677→
+   678→      <div className="sticky bottom-0 mt-auto flex items-center gap-3.5 border-t border-[#D3E8F0] bg-white/95 px-5 pb-[max(14px,env(safe-area-inset-bottom))] pt-3.5">
+   679→        <div className="flex flex-col">
+   680→          <span className="text-[13px] font-semibold text-[#4A6572]">جمع کل</span>
+   681→          <span className="text-lg font-black">{money(total)} تومان</span>
+   682→        </div>
+   683→        <button
+   684→          type="button"
+   685→          disabled={!valid}
+   686→          onClick={() => {
+   687→            const evt = new CustomEvent("pishnam:pay");
+   688→            window.dispatchEvent(evt);
+   689→          }}
+   690→          className="flex h-[54px] flex-1 items-center justify-center gap-2 rounded-full text-base font-extrabold transition-all active:scale-95"
+   691→          style={{ background: valid ? "#00ABE7" : "#CFE6EF", color: "#04202E", opacity: valid ? 1 : 0.7 }}
+   692→        >
+   693→          پرداخت و فرستادن
+   694→          <HeartSticker size={20} fill="#04202E" stroke="none" />
+   695→        </button>
+   696→      </div>
+   697→      {!valid && (
+   698→        <div className="bg-[#FFF3C9] px-5 pb-3 pt-2 text-center text-xs font-bold text-[#7A5C00]">
+   699→          برای پرداخت، اسم، موبایل و آدرس گیرنده رو کامل کن
+   700→        </div>
+   701→      )}
+   702→    </div>
+   703→  );
+   704→}
+   705→
+   706→function Field({
+   707→  label,
+   708→  value,
+   709→  onChange,
+   710→  placeholder,
+   711→  tel,
+   712→}: {
+   713→  label: string;
+   714→  value: string;
+   715→  onChange: (v: string) => void;
+   716→  placeholder: string;
+   717→  tel?: boolean;
+   718→}) {
+   719→  return (
+   720→    <div className="flex flex-col gap-1 border-b border-[#E3F0F5] py-3">
+   721→      <label className="text-[12.5px] font-bold text-[#4A6572]">{label}</label>
+   722→      <input
+   723→        type={tel ? "tel" : "text"}
+   724→        inputMode={tel ? "numeric" : undefined}
+   725→        value={value}
+   726→        onChange={(e) => onChange(e.target.value)}
+   727→        placeholder={placeholder}
+   728→        className="h-[30px] border-none bg-transparent text-base text-[#04202E] outline-none"
+   729→      />
+   730→    </div>
+   731→  );
+   732→}
+   733→
+   734→function PostcardQr() {
+   735→  return (
+   736→    <svg width="72" height="72" viewBox="0 0 25 25" aria-hidden="true">
+   737→      <g fill="#04202E">
+   738→        <path fillRule="evenodd" d="M0 0h7v7H0zM1 1v5h5V1z" />
+   739→        <rect x="2" y="2" width="3" height="3" />
+   740→        <path fillRule="evenodd" transform="translate(18 0)" d="M0 0h7v7H0zM1 1v5h5V1z" />
+   741→        <rect x="20" y="2" width="3" height="3" />
+   742→        <path fillRule="evenodd" transform="translate(0 18)" d="M0 0h7v7H0zM1 1v5h5V1z" />
+   743→        <rect x="2" y="20" width="3" height="3" />
+   744→        <rect x="9" y="0" width="2" height="2" />
+   745→        <rect x="12" y="2" width="2" height="2" />
+   746→        <rect x="9" y="5" width="3" height="2" />
+   747→        <rect x="14" y="6" width="2" height="2" />
+   748→        <rect x="0" y="9" width="2" height="2" />
+   749→        <rect x="4" y="10" width="3" height="2" />
+   750→        <rect x="9" y="9" width="2" height="2" />
+   751→        <rect x="13" y="10" width="3" height="3" />
+   752→        <rect x="18" y="9" width="2" height="2" />
+   753→        <rect x="22" y="11" width="3" height="2" />
+   754→        <rect x="2" y="13" width="2" height="2" />
+   755→        <rect x="7" y="14" width="2" height="3" />
+   756→        <rect x="11" y="14" width="2" height="2" />
+   757→        <rect x="16" y="15" width="3" height="2" />
+   758→        <rect x="21" y="15" width="2" height="2" />
+   759→        <rect x="9" y="18" width="3" height="2" />
+   760→        <rect x="14" y="19" width="2" height="3" />
+   761→        <rect x="18" y="20" width="2" height="2" />
+   762→        <rect x="22" y="21" width="3" height="2" />
+   763→        <rect x="10" y="22" width="2" height="3" />
+   764→      </g>
+   765→    </svg>
+   766→  );
+   767→}
+   768→

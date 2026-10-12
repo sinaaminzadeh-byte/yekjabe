@@ -1,175 +1,159 @@
-'use client';
+"use client";
 
-import { useCallback, useEffect, useState } from 'react';
-import { PAGES, pageBySlug } from '@/data/pages';
-import { Header } from '@/components/pishnam/header';
-import { Sidebar } from '@/components/pishnam/sidebar';
-import { Viewer } from '@/components/pishnam/viewer';
-import { Gallery } from '@/components/pishnam/gallery';
-import { CommandPalette } from '@/components/pishnam/command-palette';
-import { useRecentPages } from '@/hooks/use-recent-pages';
-import { useFavoritePages } from '@/hooks/use-favorite-pages';
-import { usePageNotes } from '@/hooks/use-page-notes';
-import { useToast } from '@/hooks/use-toast';
+// ── Pishnam — the real gift web-app (UI rebuilt in React from the design system) ──
+import { useHashRoute } from "@/lib/hash-route";
+import { useHasMounted } from "@/hooks/use-has-mounted";
+import { MobileNav, DesktopHeader } from "@/components/shop/nav";
+import { Logo } from "@/components/shop/logo";
+import { MobileHome, DesktopHome } from "@/components/shop/screens/home";
+import { MobilePick, MobileCard, MobileExtras, MobileCheckout } from "@/components/shop/screens/flow";
+import { MobileSuccess, DesktopSuccess } from "@/components/shop/screens/success";
+import { PayModal } from "@/components/shop/screens/pay-modal";
+import { DesktopBuilder } from "@/components/shop/screens/builder";
+import {
+  MobileMyGifts,
+  DesktopMyGifts,
+  MobileImpact,
+  DesktopImpact,
+  MobileLogin,
+  DesktopLogin,
+} from "@/components/shop/screens/dashboards";
+import { GiftExperience } from "@/components/shop/screens/gift-experience";
+import {
+  AboutPage,
+  MissionPage,
+  ContactPage,
+  ReviewsPage,
+  ShippingPage,
+} from "@/components/shop/screens/info";
 
-type View = 'gallery' | 'viewer';
+export default function PishnamApp() {
+  // The app is state-driven (persisted store + hash route): render a branded
+  // splash until mounted so server HTML always matches the first client render.
+  const mounted = useHasMounted();
 
-export default function Home() {
-  const [view, setView] = useState<View>('gallery');
-  const [slug, setSlug] = useState<string | null>(null);
-  const [hash, setHash] = useState<string | null>(null);
-  const [drawerOpen, setDrawerOpen] = useState(false);
-  const [paletteOpen, setPaletteOpen] = useState(false);
-  const { recent, push } = useRecentPages();
-  const { favs, toggle: toggleFav } = useFavoritePages();
-  const { notes, setNote } = usePageNotes();
-  const { toast } = useToast();
+  if (!mounted) return <Splash />;
+  return <PishnamScreens />;
+}
 
-  // read ?page=slug[&h=anchor] from URL on first mount (supports /?page=..., /?m-pick, /#m-pick)
-  useEffect(() => {
-    const raf = requestAnimationFrame(() => {
-      const params = new URLSearchParams(window.location.search);
-      const fromQuery = params.get('page');
-      const fromHash = window.location.hash.replace(/^#\/?/, '');
-      const initial = fromQuery || fromHash;
-      const h = params.get('h');
-      if (initial && pageBySlug(initial)) {
-        setHash(h);
-        setSlug(initial);
-        setView('viewer');
-      }
-    });
-    return () => cancelAnimationFrame(raf);
-  }, []);
-
-  const syncUrl = useCallback(
-    (s: string | null, h?: string | null) => {
-      const params = new URLSearchParams();
-      if (s) params.set('page', s);
-      if (s && h) params.set('h', h);
-      const qs = params.toString();
-      window.history.replaceState(null, '', qs ? `/?${qs}` : '/');
-    },
-    [],
+function Splash() {
+  return (
+    <div className="flex min-h-screen flex-col items-center justify-center gap-6 bg-[#F2FAFD]">
+      <div className="pishnam-glow rounded-[22px]">
+        <Logo size={72} />
+      </div>
+      <span className="text-sm font-bold text-[#4A6572]">یه بغل، تو یه جعبه…</span>
+    </div>
   );
+}
 
-  const openPage = useCallback(
-    (s: string, h?: string | null) => {
-      setSlug(s);
-      setHash(h ?? null);
-      setView('viewer');
-      syncUrl(s, h ?? null);
-      setDrawerOpen(false);
-      push(s);
-    },
-    [syncUrl, push],
-  );
+function PishnamScreens() {
+  const { route } = useHashRoute();
+  const standalone = route === "gift";
 
-  const goGallery = useCallback(() => {
-    setView('gallery');
-    setHash(null);
-    syncUrl(null);
-  }, [syncUrl]);
-
-  const step = useCallback(
-    (dir: -1 | 1) => {
-      const i = PAGES.findIndex((p) => p.slug === slug);
-      if (i < 0) return;
-      const next = PAGES[i + dir];
-      if (next) openPage(next.slug);
-    },
-    [openPage, slug],
-  );
-
-  // cross-page navigation from inside design pages (postMessage shim)
-  useEffect(() => {
-    const onMessage = (e: MessageEvent) => {
-      const d = e.data as { type?: string; slug?: string | null; name?: string; hash?: string };
-      if (!d || d.type !== 'pishnam-nav') return;
-      const target = d.slug ?? null;
-      if (target && pageBySlug(target)) {
-        openPage(target, d.hash || null);
-      } else {
-        toast({
-          title: 'این لینک هنوز به صفحه‌ای وصل نیست',
-          description: `مقصده: ${d.name ?? 'نامشخص'} — احتمالاً صفحه‌ای که طراحی نشده.`,
-        });
-      }
-    };
-    window.addEventListener('message', onMessage);
-    return () => window.removeEventListener('message', onMessage);
-  }, [openPage, toast]);
-
-  const page = slug ? pageBySlug(slug) : undefined;
-  const index = slug ? PAGES.findIndex((p) => p.slug === slug) : -1;
+  const screen = (() => {
+    switch (route) {
+      case "home":
+        return (
+          <>
+            <MobileHome />
+            <DesktopHome />
+          </>
+        );
+      case "pick":
+        return (
+          <>
+            <MobilePick />
+            <DesktopBuilder step={1} />
+          </>
+        );
+      case "card":
+        return (
+          <>
+            <MobileCard />
+            <DesktopBuilder step={2} />
+          </>
+        );
+      case "extras":
+        return (
+          <>
+            <MobileExtras />
+            <DesktopBuilder step={3} />
+          </>
+        );
+      case "checkout":
+        return (
+          <>
+            <MobileCheckout />
+            <DesktopBuilder step={4} />
+          </>
+        );
+      case "success":
+        return (
+          <>
+            <MobileSuccess />
+            <DesktopSuccess />
+          </>
+        );
+      case "my-gifts":
+        return (
+          <>
+            <MobileMyGifts />
+            <DesktopMyGifts />
+          </>
+        );
+      case "impact":
+        return (
+          <>
+            <MobileImpact />
+            <DesktopImpact />
+          </>
+        );
+      case "login":
+        return (
+          <>
+            <MobileLogin />
+            <DesktopLogin />
+          </>
+        );
+      case "gift":
+        return <GiftExperience />;
+      case "about":
+        return <AboutPage />;
+      case "mission":
+        return <MissionPage />;
+      case "contact":
+        return <ContactPage />;
+      case "reviews":
+        return <ReviewsPage />;
+      case "shipping":
+        return <ShippingPage />;
+      default:
+        return (
+          <>
+            <MobileHome />
+            <DesktopHome />
+          </>
+        );
+    }
+  })();
 
   return (
-    <div className="h-screen flex flex-col bg-[#F6FBFD] vazirmatn overflow-hidden">
-      <Header
-        view={view}
-        onGallery={goGallery}
-        drawerOpen={drawerOpen}
-        onDrawerOpenChange={setDrawerOpen}
-        onOpenPalette={() => setPaletteOpen(true)}
-        sidebarSlot={
-          <Sidebar
-            activeSlug={slug}
-            onOpen={openPage}
-            recent={recent}
-            favs={favs}
-            onToggleFav={toggleFav}
-            notes={notes}
-            className="h-full"
-          />
-        }
-      />
-      <div className="flex flex-1 min-h-0">
-        <Sidebar
-          activeSlug={slug}
-          onOpen={openPage}
-          recent={recent}
-          favs={favs}
-          onToggleFav={toggleFav}
-          notes={notes}
-          className="hidden lg:flex w-[292px] shrink-0"
-        />
-        <main className="flex-1 min-w-0 flex flex-col min-h-0" aria-live="polite">
-          {view === 'viewer' && page ? (
-            <Viewer
-              page={page}
-              index={index}
-              total={PAGES.length}
-              anchorHash={hash}
-              isFav={favs.includes(page.slug)}
-              onToggleFav={toggleFav}
-              note={notes[page.slug] ?? ''}
-              onNoteChange={(t) => setNote(page.slug, t)}
-              onBack={goGallery}
-              onPrev={() => step(-1)}
-              onNext={() => step(1)}
-            />
-          ) : (
-            <Gallery
-              activeSlug={slug}
-              onOpen={openPage}
-              recent={recent}
-              favs={favs}
-              onToggleFav={toggleFav}
-              notes={notes}
-            />
-          )}
-        </main>
-      </div>
-
-      <CommandPalette
-        open={paletteOpen}
-        onOpenChange={setPaletteOpen}
-        onOpenPage={openPage}
-        onGallery={goGallery}
-        recent={recent}
-        favs={favs}
-        activeSlug={slug}
-      />
+    <div className="min-h-screen bg-[#F2FAFD] text-[#04202E]">
+      {!standalone && (
+        <>
+          <div className="hidden md:block">
+            <DesktopHeader />
+          </div>
+        </>
+      )}
+      <main className="contents">{screen}</main>
+      {!standalone && (
+        <>
+          <MobileNav active={route} />
+        </>
+      )}
+      <PayModal />
     </div>
   );
 }

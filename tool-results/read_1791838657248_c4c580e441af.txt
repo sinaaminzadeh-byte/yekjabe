@@ -1,0 +1,382 @@
+  2804→
+  2805→class Component extends DCLogic {
+  2806→  renderVals() {
+  2807→    return {};
+  2808→  }
+  2809→}
+  2810→
+  2811→### BODY:
+  2812→
+  2813→<div style="width: 390px; min-height: 2200px; box-sizing: border-box; background: #F2FAFD; color: #04202E; font-family: 'Vazirmatn', system-ui, sans-serif; direction: rtl; display: flex; flex-direction: column">
+  2814→
+  2815→<div style="display: flex; align-items: center; justify-content: space-between; padding: 14px 16px 8px">
+  2816→<a href="Main.dc.html" aria-label="برگشت" style="width: 44px; height: 44px; border-radius: 22px; background: #fff; border: 1px solid #D3E8F0; display: flex; align-items: center; justify-content: center; color: #04202E; text-decoration: none">
+  2817→<svg width="22" height="22" sc-camel-view-box="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 5l7 7-7 7"></path></svg>
+  2818→</a>
+  2819→<dc-import name="Logo" size="32" hint-size="120px,32px"></dc-import>
+  2820→</div>
+  2821→
+  2822→<section style="margin: 6px 16px 0; background: #00ABE7; border-radius: 32px; padding: 26px 22px 22px; display: flex; flex-direction: column; gap: 14px; align-items: flex-start">
+  2823→<span style="background: #04202E; color: #fff; font-size: 13px; font-weight: 700; padding: 7px 14px; border-radius: 14px">ماموریت ما</span>
+  2824→<h1 style="margin: 0; font-size: 32px; line-height: 1.45; font-weight: 900">عشق رو پخش کنیم</h1>
+  2825→<p style="margin: 0; font-size: 15px; line-height: 1.95; font-weight: 600">دنیایی رو می‌خوایم که با پخش کردن عشق و مثبت‌اندیشی به هم نزدیک‌تر باشه. هدیه‌ها بهانه‌ن؛ اصل ماجرا، حسیه که وسط جعبه جا می‌گیره.</p>
+  2826→<div style="align-self: center; margin: 4px 0">
+  2827→<dc-import name="Plush" kind="duck" size="200" hint-size="200px,200px"></dc-import>
+  2828→</div>
+  2829→<a href="M-Pick.dc.html" style="align-self: stretch; text-decoration: none; background: #04202E; color: #fff; font-size: 16px; font-weight: 800; height: 54px; border-radius: 27px; display: flex; align-items: center; justify-content: center">همین حالا شروع کن</a>
+  2830→</section>
+  2831→
+  2832→<section style="padding: 26px 16px 0; display: flex; flex-direction: column; gap: 14px">
+  2833→<div style="background: #fff; border: 1px solid #DDEEF5; border-radius: 28px; padding: 24px 22px; display: flex; flex-direction: column; gap: 10px">
+  2834→<span style="font-size: 13.5px; font-weight: 800; color: #00779F">بخش ۱</span>
+  2835→<h2 style="margin: 0; font-size: 22px; font-weight: 900">هدیه، بهانه‌ی حرف زدن</h2>
+  2836→<p style="margin: 0; font-size: 15px; line-height: 2; font-weight: 500; color: #1F3E4D">یه عروسک کنار یه کارت پستال، کافیه تا یه نفر یادش بیفته کسی بهش فکر می‌کنه. ما هم همه‌ی دقت‌مون رو گذاشتیم روی همین حس: طراحی عروسک‌ها، انتخاب متن کارت، و بسته‌بندی‌ای که وقتی بازش می‌کنی لبخند بزنی.</p>
+  2837→</div>
+  2838→<div style="background: #FFE9F0; border: 1px solid #F7C5D3; border-radius: 28px; padding: 24px 22px; display: flex; flex-direction: column; gap: 10px">
+  2839→<span style="font-size: 13.5px; font-weight: 800; color: #00779F">بخش ۲</span>
+  2840→<h2 style="margin: 0; font-size: 22px; font-weight: 900">یه قیمت، بدون فخر</h2>
+  2841→<p style="margin: 0; font-size: 15px; line-height: 2; font-weight: 500; color: #1F3E4D">همه‌ی جعبه‌ها یه قیمتن. نمی‌خوایم کسی با هدیه‌ی گران‌تر، حس بهتری داشته باشه. اگه کسی با قلب و پنجه‌های زیادی فخر بفروشه، عیبی نداره؛ اون پول مستقیم به بچه‌ها و حیوونا رسیده و مدرکش هست.</p>
+  2842→</div>
+  2843→<div style="background: #DDF3EA; border: 1px solid #B5E3CE; border-radius: 28px; padding: 24px 22px; display: flex; flex-direction: column; gap: 10px">
+  2844→<span style="font-size: 13.5px; font-weight: 800; color: #00779F">بخش ۳</span>
+  2845→<h2 style="margin: 0; font-size: 22px; font-weight: 900">شفافیت، نه شعار</h2>
+  2846→<p style="margin: 0; font-size: 15px; line-height: 2; font-weight: 500; color: #1F3E4D">[درصد سود یا مبلغی که به خیریه‌ها می‌رسه] رو همین‌جا بنویس. هر گزارش، تاریخ و رسید ارسال رو تو دفتر مهربونی می‌ذاریم.</p>
+  2847→</div>
+  2848→</section>
+  2849→
+  2850→<section style="padding: 26px 16px 0">
+  2851→<div style="background: #04202E; color: #fff; border-radius: 32px; padding: 28px 22px; display: flex; flex-direction: column; gap: 12px">
+  2852→<span style="font-size: 13.5px; font-weight: 800; color: #00ABE7">یه بخش بیشتر</span>
+  2853→<h2 style="margin: 0; font-size: 26px; line-height: 1.55; font-weight: 900">ما با هم کار می‌کنیم</h2>
+  2854→<p style="margin: 0; font-size: 15px; line-height: 2; font-weight: 500; color: #D3EEF9">اگه یه خیریه، پناهگاه یا گروه داوطلبی می‌شناسی که کار خوبی می‌کنه، بهمون بگو. [فرم پیشنهاد خیریه] همین‌جا می‌ذاریم.</p>
+  2855→<a href="M-Contact.dc.html" style="text-decoration: none; background: #00ABE7; color: #04202E; font-size: 16px; font-weight: 800; height: 52px; border-radius: 26px; display: flex; align-items: center; justify-content: center">پیشنهاد بده</a>
+  2856→</div>
+  2857→</section>
+  2858→
+  2859→<section style="padding: 26px 16px 0">
+  2860→<div style="background: #fff; border: 1px solid #DDEEF5; border-radius: 32px; padding: 30px 22px; display: flex; flex-direction: column; gap: 16px; align-items: center; text-align: center">
+  2861→<h2 style="margin: 0; font-size: 22px; line-height: 1.6; font-weight: 900">هر هدیه، یه قدم کوچیک برای دنیای مهربون‌تر</h2>
+  2862→<a href="M-Pick.dc.html" style="align-self: stretch; text-decoration: none; background: #00ABE7; color: #04202E; font-size: 16px; font-weight: 800; height: 54px; border-radius: 27px; display: flex; align-items: center; justify-content: center">بساز و بفرست</a>
+  2863→</div>
+  2864→</section>
+  2865→
+  2866→<footer style="margin-top: auto; background: #04202E; color: #fff; padding: 32px 16px 20px; display: flex; flex-direction: column; gap: 22px">
+  2867→<div style="display: flex; flex-direction: column; gap: 10px">
+  2868→<dc-import name="Logo" size="40" hint-size="130px,40px"></dc-import>
+  2869→<span style="font-size: 14.5px; font-weight: 700; color: #BFE9F8">یه بغل، تو یه جعبه</span>
+  2870→</div>
+  2871→<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px 14px; font-size: 14.5px; font-weight: 600">
+  2872→<div style="display: flex; flex-direction: column; gap: 10px">
+  2873→<span style="font-size: 15px; font-weight: 800; color: #00ABE7">پیشتم</span>
+  2874→<a href="M-Mission.dc.html" style="text-decoration: none">ماموریت</a>
+  2875→<a href="M-About.dc.html" style="text-decoration: none">درباره‌ی ما</a>
+  2876→<a href="M-Impact.dc.html" style="text-decoration: none">دفتر مهربونی</a>
+  2877→</div>
+  2878→<div style="display: flex; flex-direction: column; gap: 10px">
+  2879→<span style="font-size: 15px; font-weight: 800; color: #00ABE7">کمک</span>
+  2880→<a href="M-Contact.dc.html" style="text-decoration: none">تماس با ما</a>
+  2881→<a href="M-Shipping.dc.html" style="text-decoration: none">ارسال و بازگشت</a>
+  2882→<a href="M-Reviews.dc.html" style="text-decoration: none">نظرها</a>
+  2883→</div>
+  2884→</div>
+  2885→<div style="display: flex; flex-direction: column; gap: 8px; font-size: 14.5px; font-weight: 600">
+  2886→<span style="font-size: 15px; font-weight: 800; color: #00ABE7">ما رو دنبال کن</span>
+  2887→<span>[آیدی اینستاگرام]</span>
+  2888→<span>[آیدی تلگرام]</span>
+  2889→</div>
+  2890→<div style="border-top: 1px solid #0E3C52; padding-top: 16px; text-align: center; font-size: 12.5px; font-weight: 500; color: #BFE9F8">پیشتم · همه‌ی حقوق محفوظ است</div>
+  2891→</footer>
+  2892→<nav aria-label="ناوبری اصلی" style="position: sticky; bottom: 0; z-index: 5; margin-top: auto; background: rgba(255,255,255,0.96); border-top: 1px solid #D3E8F0; padding: 8px 10px 22px; display: flex; justify-content: space-between">
+  2893→<a href="Main.dc.html" style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px; text-decoration: none; color: #5B7482; font-size: 11px; font-weight: 700"><svg width="24" height="24" sc-camel-view-box="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 11l8-7 8 7v8a1 1 0 0 1-1 1h-4v-5h-6v5H5a1 1 0 0 1-1-1z"></path></svg>خانه</a>
+  2894→<a href="M-Pick.dc.html" style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px; text-decoration: none; color: #5B7482; font-size: 11px; font-weight: 700"><svg width="24" height="24" sc-camel-view-box="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 8v8M8 12h8"></path></svg>شروع</a>
+  2895→<a href="M-MyGifts.dc.html" style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px; text-decoration: none; color: #5B7482; font-size: 11px; font-weight: 700"><svg width="24" height="24" sc-camel-view-box="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="3"></rect><path d="M4 7l8 6 8-6"></path></svg>هدیه‌هام</a>
+  2896→<a href="M-Impact.dc.html" style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px; text-decoration: none; color: #5B7482; font-size: 11px; font-weight: 700"><svg width="24" height="24" sc-camel-view-box="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20C5 15 3 11.5 3 8.7A4.7 4.7 0 0 1 12 7a4.7 4.7 0 0 1 9 1.7C21 11.5 19 15 12 20z"></path></svg>مهربونی</a>
+  2897→</nav>
+  2898→
+  2899→</div>
+  2900→
+  2901→==========================================
+  2902→### FILE: 11-تماس با پیشتم.html
+  2903→### TITLE: تماس با پیشتم
+  2904→### SCRIPT:
+  2905→
+  2906→class Component extends DCLogic {
+  2907→  renderVals() {
+  2908→    return { noop: (e) => { if (e && e.preventDefault) e.preventDefault(); } };
+  2909→  }
+  2910→}
+  2911→
+  2912→### BODY:
+  2913→
+  2914→<div style="width: 390px; min-height: 1500px; box-sizing: border-box; background: #F2FAFD; color: #04202E; font-family: 'Vazirmatn', system-ui, sans-serif; direction: rtl; display: flex; flex-direction: column">
+  2915→
+  2916→<div style="display: flex; align-items: center; justify-content: space-between; padding: 14px 16px 8px">
+  2917→<a href="Main.dc.html" aria-label="برگشت" style="width: 44px; height: 44px; border-radius: 22px; background: #fff; border: 1px solid #D3E8F0; display: flex; align-items: center; justify-content: center; color: #04202E; text-decoration: none">
+  2918→<svg width="22" height="22" sc-camel-view-box="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 5l7 7-7 7"></path></svg>
+  2919→</a>
+  2920→<dc-import name="Logo" size="32" hint-size="120px,32px"></dc-import>
+  2921→</div>
+  2922→
+  2923→<section style="padding: 14px 16px 0; display: flex; flex-direction: column; gap: 18px">
+  2924→<div style="display: flex; flex-direction: column; gap: 8px">
+  2925→<span style="font-size: 14px; font-weight: 800; color: #00779F">ما اینجاییم</span>
+  2926→<h1 style="margin: 0; font-size: 30px; line-height: 1.45; font-weight: 900">باهامون حرف بزن</h1>
+  2927→<p style="margin: 0; font-size: 15px; line-height: 1.95; font-weight: 500; color: #1F3E4D">اگه سؤالی داشتی، یا جعبه‌ت یه جای دیگه رفت، یا می‌خوای چیزی رو عوض کنی، فقط کافیه این فرم رو پر کنی. قبلش شاید جواب سؤالت تو <a href="M-Shipping.dc.html" style="color: #00779F; font-weight: 800">ارسال و بازگشت</a> باشه.</p>
+  2928→</div>
+  2929→<div style="background: #fff; border: 1px solid #DDEEF5; border-radius: 22px; padding: 6px 16px; display: flex; flex-direction: column">
+  2930→<div style="display: flex; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px solid #EAF4F8">
+  2931→<span style="flex: 0 0 auto; width: 42px; height: 42px; border-radius: 21px; background: #D6F1FB; display: flex; align-items: center; justify-content: center"><svg width="20" height="20" sc-camel-view-box="0 0 24 24" fill="none" stroke="#04202E" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="3"></rect><path d="M4 7l8 6 8-6"></path></svg></span>
+  2932→<div style="display: flex; flex-direction: column; gap: 2px"><span style="font-size: 12.5px; color: #4A6572; font-weight: 600">ایمیل</span><span style="font-size: 15.5px; font-weight: 800">[ایمیل پشتیبانی]</span></div>
+  2933→</div>
+  2934→<div style="display: flex; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px solid #EAF4F8">
+  2935→<span style="flex: 0 0 auto; width: 42px; height: 42px; border-radius: 21px; background: #FFE0EA; display: flex; align-items: center; justify-content: center"><svg width="20" height="20" sc-camel-view-box="0 0 24 24" fill="none" stroke="#04202E" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a1 1 0 0 1-1 1A16 16 0 0 1 4 5a1 1 0 0 1 1-1z"></path></svg></span>
+  2936→<div style="display: flex; flex-direction: column; gap: 2px"><span style="font-size: 12.5px; color: #4A6572; font-weight: 600">تلفن</span><span style="font-size: 15.5px; font-weight: 800">[شماره‌ی تماس]</span></div>
+  2937→</div>
+  2938→<div style="display: flex; align-items: center; gap: 12px; padding: 12px 0">
+  2939→<span style="flex: 0 0 auto; width: 42px; height: 42px; border-radius: 21px; background: #FFF3C9; display: flex; align-items: center; justify-content: center"><svg width="20" height="20" sc-camel-view-box="0 0 24 24" fill="none" stroke="#04202E" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3 2"></path></svg></span>
+  2940→<div style="display: flex; flex-direction: column; gap: 2px"><span style="font-size: 12.5px; color: #4A6572; font-weight: 600">ساعت پاسخ‌گویی</span><span style="font-size: 15.5px; font-weight: 800">[روزها و ساعت‌ها]</span></div>
+  2941→</div>
+  2942→</div>
+  2943→<form style="background: #fff; border: 1px solid #DDEEF5; border-radius: 28px; padding: 22px 18px; display: flex; flex-direction: column; gap: 16px; box-sizing: border-box" sc-camel-on-submit="{{noop}}">
+  2944→<div style="display: flex; flex-direction: column; gap: 6px"><label for="cn" style="font-size: 14px; font-weight: 800">اسمت</label><input id="cn" type="text" required="" placeholder="اسم و فامیل" style="width: 100%; height: 52px; box-sizing: border-box; border-radius: 16px; border: 1.5px solid #CFE6EF; background: #F8FDFF; padding: 0 16px; font-size: 16px; color: #04202E; outline: none; direction: rtl"></div>
+  2945→<div style="display: flex; flex-direction: column; gap: 6px"><label for="ce" style="font-size: 14px; font-weight: 800">ایمیل</label><input id="ce" type="email" required="" placeholder="you@example.com" style="width: 100%; height: 52px; box-sizing: border-box; border-radius: 16px; border: 1.5px solid #CFE6EF; background: #F8FDFF; padding: 0 16px; font-size: 16px; color: #04202E; outline: none; direction: ltr; text-align: right"></div>
+  2946→<div style="display: flex; flex-direction: column; gap: 6px"><label for="cc" style="font-size: 14px; font-weight: 800">موضوع</label><sc-raw-select id="cc" required="" style="width: 100%; height: 52px; box-sizing: border-box; border-radius: 16px; border: 1.5px solid #CFE6EF; background: #F8FDFF; padding: 0 16px; font-size: 16px; color: #04202E; outline: none">
+  2947→<option value="">یکی رو انتخاب کن</option>
+  2948→<option value="address">می‌خوام آدرس سفارشم رو عوض کنم</option>
+  2949→<option value="delivered">نوشته تحویل شده ولی نرسیده</option>
+  2950→<option value="late">چرا این‌قدر طول کشید؟</option>
+  2951→<option value="cancel">می‌خوام سفارشم رو لغو کنم</option>
+  2952→<option value="card">می‌خوام متن کارتم رو عوض کنم</option>
+  2953→<option value="product">مشکل با عروسک یا بسته دارم</option>
+  2954→<option value="other">یه چیز دیگه</option>
+  2955→</sc-raw-select></div>
+  2956→<div style="display: flex; flex-direction: column; gap: 6px"><label for="co" style="font-size: 14px; font-weight: 800">شماره‌ی سفارش (اختیاری)</label><input id="co" type="text" placeholder="مثلاً ۱۰۱" style="width: 100%; height: 52px; box-sizing: border-box; border-radius: 16px; border: 1.5px solid #CFE6EF; background: #F8FDFF; padding: 0 16px; font-size: 16px; color: #04202E; outline: none; direction: rtl"></div>
+  2957→<div style="display: flex; flex-direction: column; gap: 6px"><label for="cm" style="font-size: 14px; font-weight: 800">پیامت</label><textarea id="cm" rows="5" required="" placeholder="هر چی که لازمه بدونیم رو بنویس…" style="width: 100%; box-sizing: border-box; border-radius: 16px; border: 1.5px solid #CFE6EF; background: #F8FDFF; padding: 12px 16px; font-size: 16px; line-height: 1.85; color: #04202E; outline: none; resize: vertical; direction: rtl"></textarea></div>
+  2958→<button type="submit" style="height: 56px; border-radius: 28px; border: none; background: #00ABE7; color: #04202E; font-size: 17px; font-weight: 800; cursor: pointer">بفرست</button>
+  2959→<span style="font-size: 13px; line-height: 1.8; font-weight: 500; color: #4A6572">[زمان تقریبی جواب دادن رو اینجا بنویس.]</span>
+  2960→</form>
+  2961→</section>
+  2962→
+  2963→<footer style="margin-top: auto; background: #04202E; color: #fff; padding: 32px 16px 20px; display: flex; flex-direction: column; gap: 22px">
+  2964→<div style="display: flex; flex-direction: column; gap: 10px">
+  2965→<dc-import name="Logo" size="40" hint-size="130px,40px"></dc-import>
+  2966→<span style="font-size: 14.5px; font-weight: 700; color: #BFE9F8">یه بغل، تو یه جعبه</span>
+  2967→</div>
+  2968→<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px 14px; font-size: 14.5px; font-weight: 600">
+  2969→<div style="display: flex; flex-direction: column; gap: 10px">
+  2970→<span style="font-size: 15px; font-weight: 800; color: #00ABE7">پیشتم</span>
+  2971→<a href="M-Mission.dc.html" style="text-decoration: none">ماموریت</a>
+  2972→<a href="M-About.dc.html" style="text-decoration: none">درباره‌ی ما</a>
+  2973→<a href="M-Impact.dc.html" style="text-decoration: none">دفتر مهربونی</a>
+  2974→</div>
+  2975→<div style="display: flex; flex-direction: column; gap: 10px">
+  2976→<span style="font-size: 15px; font-weight: 800; color: #00ABE7">کمک</span>
+  2977→<a href="M-Contact.dc.html" style="text-decoration: none">تماس با ما</a>
+  2978→<a href="M-Shipping.dc.html" style="text-decoration: none">ارسال و بازگشت</a>
+  2979→<a href="M-Reviews.dc.html" style="text-decoration: none">نظرها</a>
+  2980→</div>
+  2981→</div>
+  2982→<div style="display: flex; flex-direction: column; gap: 8px; font-size: 14.5px; font-weight: 600">
+  2983→<span style="font-size: 15px; font-weight: 800; color: #00ABE7">ما رو دنبال کن</span>
+  2984→<span>[آیدی اینستاگرام]</span>
+  2985→<span>[آیدی تلگرام]</span>
+  2986→</div>
+  2987→<div style="border-top: 1px solid #0E3C52; padding-top: 16px; text-align: center; font-size: 12.5px; font-weight: 500; color: #BFE9F8">پیشتم · همه‌ی حقوق محفوظ است</div>
+  2988→</footer>
+  2989→<nav aria-label="ناوبری اصلی" style="position: sticky; bottom: 0; z-index: 5; margin-top: auto; background: rgba(255,255,255,0.96); border-top: 1px solid #D3E8F0; padding: 8px 10px 22px; display: flex; justify-content: space-between">
+  2990→<a href="Main.dc.html" style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px; text-decoration: none; color: #5B7482; font-size: 11px; font-weight: 700"><svg width="24" height="24" sc-camel-view-box="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 11l8-7 8 7v8a1 1 0 0 1-1 1h-4v-5h-6v5H5a1 1 0 0 1-1-1z"></path></svg>خانه</a>
+  2991→<a href="M-Pick.dc.html" style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px; text-decoration: none; color: #5B7482; font-size: 11px; font-weight: 700"><svg width="24" height="24" sc-camel-view-box="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 8v8M8 12h8"></path></svg>شروع</a>
+  2992→<a href="M-MyGifts.dc.html" style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px; text-decoration: none; color: #5B7482; font-size: 11px; font-weight: 700"><svg width="24" height="24" sc-camel-view-box="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="3"></rect><path d="M4 7l8 6 8-6"></path></svg>هدیه‌هام</a>
+  2993→<a href="M-Impact.dc.html" style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px; text-decoration: none; color: #5B7482; font-size: 11px; font-weight: 700"><svg width="24" height="24" sc-camel-view-box="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20C5 15 3 11.5 3 8.7A4.7 4.7 0 0 1 12 7a4.7 4.7 0 0 1 9 1.7C21 11.5 19 15 12 20z"></path></svg>مهربونی</a>
+  2994→</nav>
+  2995→
+  2996→</div>
+  2997→
+  2998→==========================================
+  2999→### FILE: 12-نظرها.html
+  3000→### TITLE: نظرها
+  3001→### SCRIPT:
+  3002→
+  3003→class Component extends DCLogic {
+  3004→  renderVals() {
+  3005→    return {
+  3006→      bars: [
+  3007→        { stars: '۵' }, { stars: '۴' }, { stars: '۳' }, { stars: '۲' }, { stars: '۱' },
+  3008→      ],
+  3009→      cards: [
+  3010→        { stars: '★★★★★', kind: 'bear' },
+  3011→        { stars: '★★★★★', kind: 'bunny' },
+  3012→        { stars: '★★★★★', kind: 'cat' },
+  3013→        { stars: '★★★★★', kind: 'panda' },
+  3014→        { stars: '★★★★★', kind: 'sheep' },
+  3015→        { stars: '★★★★★', kind: 'duck' },
+  3016→      ],
+  3017→    };
+  3018→  }
+  3019→}
+  3020→
+  3021→### BODY:
+  3022→
+  3023→<div style="width: 390px; min-height: 2000px; box-sizing: border-box; background: #F2FAFD; color: #04202E; font-family: 'Vazirmatn', system-ui, sans-serif; direction: rtl; display: flex; flex-direction: column">
+  3024→
+  3025→<div style="display: flex; align-items: center; justify-content: space-between; padding: 14px 16px 8px">
+  3026→<a href="Main.dc.html" aria-label="برگشت" style="width: 44px; height: 44px; border-radius: 22px; background: #fff; border: 1px solid #D3E8F0; display: flex; align-items: center; justify-content: center; color: #04202E; text-decoration: none">
+  3027→<svg width="22" height="22" sc-camel-view-box="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 5l7 7-7 7"></path></svg>
+  3028→</a>
+  3029→<dc-import name="Logo" size="32" hint-size="120px,32px"></dc-import>
+  3030→</div>
+  3031→
+  3032→<section style="padding: 14px 16px 0; display: flex; flex-direction: column; gap: 18px">
+  3033→<div style="display: flex; flex-direction: column; gap: 8px">
+  3034→<span style="font-size: 14px; font-weight: 800; color: #00779F">نظر کسایی که هدیه گرفتن</span>
+  3035→<h1 style="margin: 0; font-size: 30px; line-height: 1.45; font-weight: 900">نظرها</h1>
+  3036→</div>
+  3037→<div style="background: #fff; border: 1px solid #DDEEF5; border-radius: 26px; padding: 20px; display: flex; flex-direction: column; gap: 6px">
+  3038→<span style="font-size: 14px; font-weight: 700; color: #4A6572">میانگین امتیاز</span>
+  3039→<span style="font-size: 38px; font-weight: 900; line-height: 1.15">[امتیاز]</span>
+  3040→<span style="font-size: 13.5px; font-weight: 600; color: #4A6572">از [تعداد] نظر</span>
+  3041→</div>
+  3042→<div style="background: #fff; border: 1px solid #DDEEF5; border-radius: 26px; padding: 18px 16px; display: flex; flex-direction: column; gap: 12px">
+  3043→<sc-for list="{{bars}}" as="b" hint-placeholder-count="5">
+  3044→<div style="display: flex; align-items: center; gap: 10px">
+  3045→<span style="flex: 0 0 auto; width: 58px; font-size: 13.5px; font-weight: 700">{{b.stars}} ستاره</span>
+  3046→<div style="flex: 1; min-width: 0; height: 12px; border-radius: 6px; background: #E3F0F5; overflow: hidden"><div style="height: 12px; background: #00ABE7; width: 0%"></div></div>
+  3047→<span style="flex: 0 0 auto; font-size: 12.5px; font-weight: 600; color: #4A6572">[درصد] · [تعداد]</span>
+  3048→</div>
+  3049→</sc-for>
+  3050→</div>
+  3051→<sc-for list="{{cards}}" as="c" hint-placeholder-count="6">
+  3052→<div style="background: #fff; border: 1px solid #DDEEF5; border-radius: 26px; padding: 20px; display: flex; flex-direction: column; gap: 10px">
+  3053→<div style="display: flex; align-items: center; justify-content: space-between">
+  3054→<span style="font-size: 13px; font-weight: 700; color: #00779F">{{c.stars}}</span>
+  3055→<span style="font-size: 12.5px; font-weight: 600; color: #4A6572">[تاریخ]</span>
+  3056→</div>
+  3057→<div style="font-size: 16px; font-weight: 800">[عنوان نظر واقعی مشتری]</div>
+  3058→<div style="font-size: 14px; line-height: 1.95; font-weight: 500; color: #1F3E4D">[متن نظر واقعی مشتری. فقط نظرهای واقعی، با اجازه‌ی خود مشتری، اینجا بیان.]</div>
+  3059→<div style="margin-top: 4px; display: flex; align-items: center; gap: 10px">
+  3060→<dc-import name="Plush" kind="{{c.kind}}" size="44" hint-size="44px,44px"></dc-import>
+  3061→<span style="font-size: 13.5px; font-weight: 700">[اسم کوچیک]</span>
+  3062→</div>
+  3063→</div>
+  3064→</sc-for>
+  3065→<a href="M-Pick.dc.html" style="text-decoration: none; background: #00ABE7; color: #04202E; font-size: 15.5px; font-weight: 800; min-height: 54px; padding: 12px 20px; box-sizing: border-box; border-radius: 27px; display: flex; align-items: center; justify-content: center; text-align: center; line-height: 1.6">خودت هم یه نظر بذار، بعد از دریافت هدیه</a>
+  3066→</section>
+  3067→
+  3068→<footer style="margin-top: auto; background: #04202E; color: #fff; padding: 32px 16px 20px; display: flex; flex-direction: column; gap: 22px">
+  3069→<div style="display: flex; flex-direction: column; gap: 10px">
+  3070→<dc-import name="Logo" size="40" hint-size="130px,40px"></dc-import>
+  3071→<span style="font-size: 14.5px; font-weight: 700; color: #BFE9F8">یه بغل، تو یه جعبه</span>
+  3072→</div>
+  3073→<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px 14px; font-size: 14.5px; font-weight: 600">
+  3074→<div style="display: flex; flex-direction: column; gap: 10px">
+  3075→<span style="font-size: 15px; font-weight: 800; color: #00ABE7">پیشتم</span>
+  3076→<a href="M-Mission.dc.html" style="text-decoration: none">ماموریت</a>
+  3077→<a href="M-About.dc.html" style="text-decoration: none">درباره‌ی ما</a>
+  3078→<a href="M-Impact.dc.html" style="text-decoration: none">دفتر مهربونی</a>
+  3079→</div>
+  3080→<div style="display: flex; flex-direction: column; gap: 10px">
+  3081→<span style="font-size: 15px; font-weight: 800; color: #00ABE7">کمک</span>
+  3082→<a href="M-Contact.dc.html" style="text-decoration: none">تماس با ما</a>
+  3083→<a href="M-Shipping.dc.html" style="text-decoration: none">ارسال و بازگشت</a>
+  3084→<a href="M-Reviews.dc.html" style="text-decoration: none">نظرها</a>
+  3085→</div>
+  3086→</div>
+  3087→<div style="display: flex; flex-direction: column; gap: 8px; font-size: 14.5px; font-weight: 600">
+  3088→<span style="font-size: 15px; font-weight: 800; color: #00ABE7">ما رو دنبال کن</span>
+  3089→<span>[آیدی اینستاگرام]</span>
+  3090→<span>[آیدی تلگرام]</span>
+  3091→</div>
+  3092→<div style="border-top: 1px solid #0E3C52; padding-top: 16px; text-align: center; font-size: 12.5px; font-weight: 500; color: #BFE9F8">پیشتم · همه‌ی حقوق محفوظ است</div>
+  3093→</footer>
+  3094→<nav aria-label="ناوبری اصلی" style="position: sticky; bottom: 0; z-index: 5; margin-top: auto; background: rgba(255,255,255,0.96); border-top: 1px solid #D3E8F0; padding: 8px 10px 22px; display: flex; justify-content: space-between">
+  3095→<a href="Main.dc.html" style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px; text-decoration: none; color: #5B7482; font-size: 11px; font-weight: 700"><svg width="24" height="24" sc-camel-view-box="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 11l8-7 8 7v8a1 1 0 0 1-1 1h-4v-5h-6v5H5a1 1 0 0 1-1-1z"></path></svg>خانه</a>
+  3096→<a href="M-Pick.dc.html" style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px; text-decoration: none; color: #5B7482; font-size: 11px; font-weight: 700"><svg width="24" height="24" sc-camel-view-box="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 8v8M8 12h8"></path></svg>شروع</a>
+  3097→<a href="M-MyGifts.dc.html" style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px; text-decoration: none; color: #5B7482; font-size: 11px; font-weight: 700"><svg width="24" height="24" sc-camel-view-box="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="3"></rect><path d="M4 7l8 6 8-6"></path></svg>هدیه‌هام</a>
+  3098→<a href="M-Impact.dc.html" style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px; text-decoration: none; color: #5B7482; font-size: 11px; font-weight: 700"><svg width="24" height="24" sc-camel-view-box="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20C5 15 3 11.5 3 8.7A4.7 4.7 0 0 1 12 7a4.7 4.7 0 0 1 9 1.7C21 11.5 19 15 12 20z"></path></svg>مهربونی</a>
+  3099→</nav>
+  3100→
+  3101→</div>
+  3102→
+  3103→==========================================
+  3104→### FILE: 13-ارسال و بازگشت.html
+  3105→### TITLE: ارسال و بازگشت
+  3106→### SCRIPT:
+  3107→
+  3108→class Component extends DCLogic {
+  3109→  renderVals() {
+  3110→    return {
+  3111→      sections: [
+  3112→        { n: '۱', bg: '#CDEFFB', title: 'زمان ارسال', body: 'سفارش‌ها بعد از پرداخت حدود [تعداد] روز کاری بسته‌بندی می‌شن. بعدش برای دوستت پست می‌شه و زمان رسیدن بستگی به شهرش داره؛ [توضیح تقریبی زمان پست].' },
+  3113→        { n: '۲', bg: '#FFE0EA', title: 'هزینه‌ی ارسال', body: '[هزینه‌ی ارسال و اینکه چه موقع حساب می‌شه] رو بنویس. ارسال بعد از ثبت آدرس دوستت محاسبه و نشون داده می‌شه.' },
+  3114→        { n: '۳', bg: '#FFF3C9', title: 'کجا می‌فرستیم؟', body: 'فعلاً به [شهرها/کشورها] می‌فرستیم. اگه آدرس دوستت جای دیگه‌ست، از ما بپرس.' },
+  3115→        { n: '۴', bg: '#E7E0FA', title: 'اگه جعبه نرسید یا آسیب دید', body: 'اگه جعبه آسیب دیده یا عروسک اشتباهی رسید، فقط کافیه ظرف [تعداد] روز از تاریخ تحویل با ما تماس بگیری و عکس بفرستی. ما جایگزین می‌فرستیم یا پولت رو برمی‌گردونیم.' },
+  3116→        { n: '۵', bg: '#DDF3EA', title: 'تغییر آدرس یا لغو سفارش', body: 'تا قبل از بسته‌بندی، می‌تونی آدرس یا متن کارت رو عوض کنی یا سفارش رو لغو کنی. بعد از اون دیگه امکانش نیست، پس زودتر بهمون خبر بده.' },
+  3117→      ],
+  3118→    };
+  3119→  }
+  3120→}
+  3121→
+  3122→### BODY:
+  3123→
+  3124→<div style="width: 390px; min-height: 2100px; box-sizing: border-box; background: #F2FAFD; color: #04202E; font-family: 'Vazirmatn', system-ui, sans-serif; direction: rtl; display: flex; flex-direction: column">
+  3125→
+  3126→<div style="display: flex; align-items: center; justify-content: space-between; padding: 14px 16px 8px">
+  3127→<a href="Main.dc.html" aria-label="برگشت" style="width: 44px; height: 44px; border-radius: 22px; background: #fff; border: 1px solid #D3E8F0; display: flex; align-items: center; justify-content: center; color: #04202E; text-decoration: none">
+  3128→<svg width="22" height="22" sc-camel-view-box="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 5l7 7-7 7"></path></svg>
+  3129→</a>
+  3130→<dc-import name="Logo" size="32" hint-size="120px,32px"></dc-import>
+  3131→</div>
+  3132→
+  3133→<section style="padding: 14px 16px 0; display: flex; flex-direction: column; gap: 18px">
+  3134→<div style="display: flex; flex-direction: column; gap: 8px">
+  3135→<span style="font-size: 14px; font-weight: 800; color: #00779F">قبل از سفارش بخون</span>
+  3136→<h1 style="margin: 0; font-size: 30px; line-height: 1.45; font-weight: 900">ارسال و بازگشت</h1>
+  3137→<p style="margin: 0; font-size: 15px; line-height: 2; font-weight: 500; color: #1F3E4D">همه‌چی اینجا ساده و روشنه. اگه جوابت رو اینجا پیدا نکردی، از <a href="M-Contact.dc.html" style="color: #00779F; font-weight: 800">تماس با ما</a> بپرس.</p>
+  3138→</div>
+  3139→<sc-for list="{{sections}}" as="s" hint-placeholder-count="5">
+  3140→<div style="background: #fff; border: 1px solid #DDEEF5; border-radius: 26px; padding: 22px 20px; display: flex; flex-direction: column; gap: 12px">
+  3141→<div style="display: flex; align-items: center; gap: 12px"><span style="flex: 0 0 auto; width: 36px; height: 36px; border-radius: 18px; background: {{s.bg}}; border: 2px solid #04202E; display: flex; align-items: center; justify-content: center; font-weight: 900">{{s.n}}</span><h2 style="margin: 0; font-size: 19px; font-weight: 900">{{s.title}}</h2></div>
+  3142→<div style="font-size: 14.5px; line-height: 2.05; font-weight: 500; color: #1F3E4D">{{s.body}}</div>
+  3143→</div>
+  3144→</sc-for>
+  3145→<div style="background: #FFE9F0; border: 1.5px solid #F7C5D3; border-radius: 26px; padding: 18px 20px; font-size: 14px; line-height: 2; font-weight: 600">[زمان‌های ارسال، هزینه‌ی پست و شرایط بازگشت رو با اعداد واقعی خودت اینجا بنویس. عدد حدسی نذار.]</div>
+  3146→</section>
+  3147→
+  3148→<footer style="margin-top: auto; background: #04202E; color: #fff; padding: 32px 16px 20px; display: flex; flex-direction: column; gap: 22px">
+  3149→<div style="display: flex; flex-direction: column; gap: 10px">
+  3150→<dc-import name="Logo" size="40" hint-size="130px,40px"></dc-import>
+  3151→<span style="font-size: 14.5px; font-weight: 700; color: #BFE9F8">یه بغل، تو یه جعبه</span>
+  3152→</div>
+  3153→<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px 14px; font-size: 14.5px; font-weight: 600">
+  3154→<div style="display: flex; flex-direction: column; gap: 10px">
+  3155→<span style="font-size: 15px; font-weight: 800; color: #00ABE7">پیشتم</span>
+  3156→<a href="M-Mission.dc.html" style="text-decoration: none">ماموریت</a>
+  3157→<a href="M-About.dc.html" style="text-decoration: none">درباره‌ی ما</a>
+  3158→<a href="M-Impact.dc.html" style="text-decoration: none">دفتر مهربونی</a>
+  3159→</div>
+  3160→<div style="display: flex; flex-direction: column; gap: 10px">
+  3161→<span style="font-size: 15px; font-weight: 800; color: #00ABE7">کمک</span>
+  3162→<a href="M-Contact.dc.html" style="text-decoration: none">تماس با ما</a>
+  3163→<a href="M-Shipping.dc.html" style="text-decoration: none">ارسال و بازگشت</a>
+  3164→<a href="M-Reviews.dc.html" style="text-decoration: none">نظرها</a>
+  3165→</div>
+  3166→</div>
+  3167→<div style="display: flex; flex-direction: column; gap: 8px; font-size: 14.5px; font-weight: 600">
+  3168→<span style="font-size: 15px; font-weight: 800; color: #00ABE7">ما رو دنبال کن</span>
+  3169→<span>[آیدی اینستاگرام]</span>
+  3170→<span>[آیدی تلگرام]</span>
+  3171→</div>
+  3172→<div style="border-top: 1px solid #0E3C52; padding-top: 16px; text-align: center; font-size: 12.5px; font-weight: 500; color: #BFE9F8">پیشتم · همه‌ی حقوق محفوظ است</div>
+  3173→</footer>
+  3174→<nav aria-label="ناوبری اصلی" style="position: sticky; bottom: 0; z-index: 5; margin-top: auto; background: rgba(255,255,255,0.96); border-top: 1px solid #D3E8F0; padding: 8px 10px 22px; display: flex; justify-content: space-between">
+  3175→<a href="Main.dc.html" style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px; text-decoration: none; color: #5B7482; font-size: 11px; font-weight: 700"><svg width="24" height="24" sc-camel-view-box="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 11l8-7 8 7v8a1 1 0 0 1-1 1h-4v-5h-6v5H5a1 1 0 0 1-1-1z"></path></svg>خانه</a>
+  3176→<a href="M-Pick.dc.html" style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px; text-decoration: none; color: #5B7482; font-size: 11px; font-weight: 700"><svg width="24" height="24" sc-camel-view-box="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 8v8M8 12h8"></path></svg>شروع</a>
+  3177→<a href="M-MyGifts.dc.html" style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px; text-decoration: none; color: #5B7482; font-size: 11px; font-weight: 700"><svg width="24" height="24" sc-camel-view-box="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="3"></rect><path d="M4 7l8 6 8-6"></path></svg>هدیه‌هام</a>
+  3178→<a href="M-Impact.dc.html" style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px; text-decoration: none; color: #5B7482; font-size: 11px; font-weight: 700"><svg width="24" height="24" sc-camel-view-box="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20C5 15 3 11.5 3 8.7A4.7 4.7 0 0 1 12 7a4.7 4.7 0 0 1 9 1.7C21 11.5 19 15 12 20z"></path></svg>مهربونی</a>
+  3179→</nav>
+  3180→
+  3181→</div>
+  3182→
+  3183→==========================================
+
+[showing lines 2804-3183 of 3792; use offset=3184 with limit to continue reading]
