@@ -842,6 +842,8 @@ interface OtpFlow {
   name: string;
   error: string;
   timer: number;
+  devCode: string | null;
+  busy: boolean;
   setPhone: (v: string) => void;
   setOtp: (v: string) => void;
   setName: (v: string) => void;
@@ -861,6 +863,8 @@ function useOtpFlow(): OtpFlow {
   const [name, setName] = useState("");
   const [error, setError] = useState("");
   const [timer, setTimer] = useState(0);
+  const [devCode, setDevCode] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
 
   const norm = (s: string) => toEnDigits(s).replace(/\s/g, "");
   const setPhone = (v: string) => setPhoneRaw(fa(v.replace(/[^\d۰-۹]/g, "").slice(0, 11)));
@@ -872,38 +876,97 @@ function useOtpFlow(): OtpFlow {
     return () => clearInterval(t);
   }, [step, timer]);
 
+  /**
+   * Asks the server for a real OTP. If the API is unreachable, the flow
+   * falls back to demo mode (fixed ۱۲۳۴) so the UI always works offline.
+   * Returns the code to display as a hint (devCode).
+   */
+  const requestOtp = async (p: string): Promise<string> => {
+    try {
+      const res = await fetch("/api/auth/request", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone: p }),
+      });
+      const json = (await res.json()) as { devCode?: string };
+      if (res.ok && json.devCode) return json.devCode;
+      throw new Error("bad response");
+    } catch {
+      return "1234"; // demo fallback
+    }
+  };
+
   const submitPhone = () => {
     const p = norm(phone);
     if (!/^09\d{9}$/.test(p)) {
       setError("شماره باید ۱۱ رقم باشه و با ۰۹ شروع بشه.");
       return;
     }
+    if (busy) return;
     setError("");
     setPhoneRaw(fa(p));
-    setStep("otp");
-    setTimer(RESEND_SECONDS);
+    setBusy(true);
+    void requestOtp(p).then((code) => {
+      setDevCode(code);
+      setBusy(false);
+      setStep("otp");
+      setTimer(RESEND_SECONDS);
+    });
   };
 
   const submitOtp = () => {
-    if (!/^\d{4}$/.test(norm(otp))) {
+    const c = norm(otp);
+    if (!/^\d{4}$/.test(c)) {
       setError("کد چهار رقمی رو کامل بزن.");
       return;
     }
+    if (busy) return;
     setError("");
-    setStep("name");
+    setBusy(true);
+    const p = norm(phone);
+    void (async () => {
+      let ok = false;
+      let serverError = "";
+      try {
+        const res = await fetch("/api/auth/verify", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ phone: p, code: c }),
+        });
+        if (res.ok) ok = true;
+        else serverError = "کد اشتباهه یا منقضی شده؛ دوباره امتحان کن.";
+      } catch {
+        // offline → compare against the demo/dev code
+        ok = devCode ? c === devCode : false;
+        if (!ok) serverError = "کد اشتباهه.";
+      }
+      setBusy(false);
+      if (ok) setStep("name");
+      else setError(serverError || "کد اشتباهه.");
+    })();
   };
 
   const resend = () => {
-    if (timer > 0) return;
+    if (timer > 0 || busy) return;
     setTimer(RESEND_SECONDS);
     setOtpRaw("");
-    toast({ title: "کد دوباره فرستاده شد", description: "برای نمایش، همون چهار رقم رو بزن." });
+    void requestOtp(norm(phone)).then((code) => {
+      setDevCode(code);
+      toast({ title: "کد دوباره فرستاده شد", description: `کد نمایشی: ${fa(code)}` });
+    });
   };
 
   const submitLogin = () => {
     const p = norm(phone);
     const trimmed = name.trim();
     login(p, trimmed);
+    if (trimmed) {
+      void fetch("/api/auth/profile", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone: p, name: trimmed }),
+      }).catch(() => {});
+    }
     toast({
       title: "وارد شدی!",
       description: trimmed ? `خوش اومدی ${trimmed}! هدیه‌هات همین‌جاست.` : "خوش اومدی! هدیه‌هات همین‌جاست.",
@@ -924,6 +987,8 @@ function useOtpFlow(): OtpFlow {
     name,
     error,
     timer,
+    devCode,
+    busy,
     setPhone,
     setOtp,
     setName,
@@ -982,8 +1047,8 @@ function LoginFlowBlock({ flow }: { flow: OtpFlow }) {
             onKeyDown={(e) => e.key === "Enter" && flow.submitPhone()}
           />
           {flow.error && <span className="text-[12.5px] font-bold text-[#F0426B]">{flow.error}</span>}
-          <button type="button" onClick={flow.submitPhone} className={PRIMARY_BTN_CLS}>
-            ادامه
+          <button type="button" onClick={flow.submitPhone} disabled={flow.busy} className={`${PRIMARY_BTN_CLS} disabled:opacity-60`}>
+            {flow.busy ? "در حال فرستادن کد…" : "ادامه"}
           </button>
         </div>
       )}
@@ -1008,7 +1073,7 @@ function LoginFlowBlock({ flow }: { flow: OtpFlow }) {
           />
           <div className="flex flex-wrap items-center justify-between gap-2">
             <span className="rounded-full bg-[#E3F6FD] px-3 py-1.5 text-[12px] font-extrabold text-[#006387]">
-              برای نمایش: هر چهار رقم رو بزن
+              {flow.devCode ? `کد نمایشی: ${fa(flow.devCode)}` : "در حال فرستادن کد…"}
             </span>
             {flow.timer > 0 ? (
               <span className="text-[12px] font-bold text-[#4A6572]">ارسال دوباره تا {fa(flow.timer)} ثانیه</span>
@@ -1023,8 +1088,8 @@ function LoginFlowBlock({ flow }: { flow: OtpFlow }) {
             )}
           </div>
           {flow.error && <span className="text-[12.5px] font-bold text-[#F0426B]">{flow.error}</span>}
-          <button type="button" onClick={flow.submitOtp} className={PRIMARY_BTN_CLS}>
-            تایید و ادامه
+          <button type="button" onClick={flow.submitOtp} disabled={flow.busy} className={`${PRIMARY_BTN_CLS} disabled:opacity-60`}>
+            {flow.busy ? "در حال بررسی…" : "تایید و ادامه"}
           </button>
           <button
             type="button"

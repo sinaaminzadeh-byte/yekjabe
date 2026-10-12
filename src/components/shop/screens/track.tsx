@@ -303,7 +303,7 @@ function CopyGiftButton({ o, dark = false }: { o: GiftOrder; dark?: boolean }) {
 }
 
 /* ── download gift card as PNG (canvas-drawn, plush lifted from the live SVG) ── */
-function DownloadGiftButton({ o, dark = false }: { o: GiftOrder; dark?: boolean }) {
+export function DownloadGiftButton({ o, dark = false }: { o: GiftOrder; dark?: boolean }) {
   const { toast } = useToast();
   const [busy, setBusy] = useState(false);
 

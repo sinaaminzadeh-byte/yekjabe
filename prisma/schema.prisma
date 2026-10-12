@@ -63,3 +63,25 @@ model ContactMessage {
   message   String
   createdAt DateTime @default(now())
 }
+
+// ── Auth (demo OTP flow) ──
+
+model AppUser {
+  id          String   @id @default(cuid())
+  phone       String   @unique
+  name        String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  lastLoginAt DateTime @default(now())
+}
+
+model AuthCode {
+  id        String   @id @default(cuid())
+  phone     String
+  code      String // 4 digits
+  expiresAt DateTime
+  used      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([phone, createdAt])
+}

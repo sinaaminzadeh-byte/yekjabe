@@ -8,7 +8,7 @@ import { navigate } from "@/lib/hash-route";
 import { usePishnam } from "@/lib/pishnam-store";
 import { fa, orderNo, money } from "@/lib/fa";
 import { CHARM_PRICE, BOX_PRICE } from "@/lib/pishnam-data";
-import { useEffect } from "react";
+import { DownloadGiftButton } from "@/components/shop/screens/track";
 
 const STEP_BGS = ["#CDEFFB", "#FFE0EA", "#FFF3C9", "#E7E0FA"];
 
@@ -84,7 +84,15 @@ export function MobileSuccess() {
         ))}
       </div>
 
-      <div className="mx-5 mt-4 flex items-center gap-3.5 rounded-[26px] bg-[#04202E] p-[18px] text-white">
+      <div className="mx-5 mt-4 flex items-center gap-3 rounded-[22px] bg-[#04202E] p-[18px] text-white">
+        {order && (
+          <div
+            data-giftcard-plush
+            className="flex h-[64px] w-[64px] shrink-0 items-center justify-center rounded-2xl bg-white"
+          >
+            <Plush kind={order.kind} size={52} />
+          </div>
+        )}
         <div className="flex h-[84px] w-[84px] shrink-0 items-center justify-center rounded-2xl bg-white">
           <QrGlyph />
         </div>
@@ -120,6 +128,7 @@ export function MobileSuccess() {
         >
           هدیه‌هام رو ببین
         </button>
+        {order && <DownloadGiftButton o={order} />}
         <button
           type="button"
           onClick={() => navigate("home")}
@@ -196,6 +205,14 @@ export function DesktopSuccess() {
           ))}
         </div>
         <div className="flex flex-wrap items-center gap-5 rounded-[24px] bg-[#04202E] p-5 text-white">
+          {order && (
+            <div
+              data-giftcard-plush
+              className="flex h-24 w-24 shrink-0 items-center justify-center rounded-2xl bg-white"
+            >
+              <Plush kind={order.kind} size={80} />
+            </div>
+          )}
           <div className="flex h-24 w-24 shrink-0 items-center justify-center rounded-2xl bg-white">
             <QrGlyph />
           </div>
@@ -222,6 +239,7 @@ export function DesktopSuccess() {
           >
             برگرد به خانه
           </button>
+          {order && <DownloadGiftButton o={order} dark />}
           <button
             type="button"
             onClick={() => navigate("my-gifts")}
@@ -303,5 +321,4 @@ function Confetti() {
   );
 }
 
-// keep Plush import used (may be used in future gift preview)
-void Plush;
+// Plush import is used by the gift-card plush tiles above
