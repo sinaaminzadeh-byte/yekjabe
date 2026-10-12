@@ -9,7 +9,7 @@ import {
   HeartSticker,
   PawIcon,
 } from "../icons";
-import { navigate } from "@/lib/hash-route";
+import { navigate, type Route } from "@/lib/hash-route";
 import {
   usePishnam,
   useCharityDone,
@@ -531,6 +531,7 @@ export function DesktopHome() {
             <FooterLink label="سؤال‌های رایج" target="faq" />
             <FooterLink label="قوانین و شرایط" route="shipping" />
             <FooterLink label="تماس با ما" route="contact" />
+            <FooterLink label="ورود همکاران" route="admin" />
           </div>
           <div className="flex flex-col gap-2.5 text-[15px] font-semibold">
             <span className="text-base font-extrabold text-[#00ABE7]">ما رو دنبال کن</span>
@@ -547,7 +548,7 @@ export function DesktopHome() {
   );
 }
 
-function FooterLink({ label, target, route }: { label: string; target?: string; route?: "shipping" | "contact" }) {
+function FooterLink({ label, target, route }: { label: string; target?: string; route?: Route }) {
   return (
     <button
       type="button"

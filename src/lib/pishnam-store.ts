@@ -45,6 +45,7 @@ export interface GiftOrder {
   status: GiftStatus;
   opened: boolean;
   dir: "sent" | "recv";
+  userPhone?: string; // logged-in sender's phone (server-synced)
 }
 
 export interface Receiver {
@@ -225,6 +226,7 @@ export const usePishnam = create<PishnamState>()(
           status: "paid",
           opened: false,
           dir: "sent",
+          userPhone: s.user?.phone ?? "",
         };
         set({ orders: [order, ...s.orders], nextNo: no + 1 });
         // direct upsert POST (server may not know this brand-new row yet)

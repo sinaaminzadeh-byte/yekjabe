@@ -14,9 +14,12 @@ function str(v: unknown, max = 500): string {
   return typeof v === "string" ? v.slice(0, max) : "";
 }
 
-export async function GET() {
+export async function GET(req: Request) {
   try {
+    const url = new URL(req.url);
+    const phone = url.searchParams.get("phone");
     const orders = await db.giftOrder.findMany({
+      where: phone ? { userPhone: phone } : undefined,
       orderBy: { no: "desc" },
       take: 200,
     });
@@ -57,6 +60,7 @@ export async function POST(req: Request) {
       status,
       opened: Boolean(body.opened),
       dir: str(body.dir, 10) === "recv" ? "recv" : "sent",
+      userPhone: str(body.userPhone, 20),
     };
     const order = await db.giftOrder.upsert({
       where: { id },

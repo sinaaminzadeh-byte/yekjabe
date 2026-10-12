@@ -25,6 +25,7 @@ interface ServerOrder {
   status: string;
   opened: boolean;
   dir: string;
+  userPhone?: string;
 }
 
 /**

@@ -50,8 +50,11 @@ model GiftOrder {
   status     String   @default("paid") // paid | packing | shipped | delivered
   opened     Boolean  @default(false)
   dir        String   @default("sent") // sent | recv
+  userPhone  String   @default("") // phone of the logged-in sender (empty = guest)
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
+
+  @@index([userPhone])
 }
 
 model ContactMessage {

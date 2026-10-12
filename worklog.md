@@ -209,3 +209,22 @@ Stage Summary:
 - Auth is now real: OTP codes are generated server-side, single-use, expiring; users are persisted in SQLite; the UI shows the live code and degrades to demo mode offline. Success page can download the branded gift card PNG.
 - App remains fully functional offline (auth demo fallback, orders local-first) — backend is an enhancement, never a blocker.
 - Next-round ideas: server-side user↔orders binding (orders get phone/userId), impact receipts from DB, admin mini-view (read-only orders table), hash-scroll anchors (`#/home@friends`), self-contained studio export, per-page notes.
+
+---
+Task ID: 10
+Agent: main (Z.ai Code) — cron web dev review round
+Task: QA sweep + (A) order↔user server binding, (B) co-worker admin panel (#/admin), (C) hash section anchors.
+
+Work Log:
+- QA first: double-fork daemon from Task 9 still alive (200), desktop+mobile sweeps → 0 console errors, no overflow. Stable → features.
+- A) User↔orders binding: GiftOrder + `userPhone` column (indexed, default "") → db:push; store `GiftOrder.userPhone?` and placeOrder stamps `s.user?.phone ?? ""`; POST /api/orders accepts/clamps userPhone; GET /api/orders supports `?phone=` filter (verified via curl: upsert with userPhone → filtered list only returns bound rows); pishnam-sync ServerOrder interface updated so pull-merge keeps the field. Note: existing rows keep "" (guest) until re-touched — self-healing will adopt them with their phone on next status change while logged in.
+- B) Admin panel: hash-route.ts adds "admin" route; NEW `src/components/shop/screens/admin.tsx` — پنل همکاران: 4 stat cards (کل سفارش‌ها / جمع فروش / قلب و پنجه / تحویل‌شده) computed from live /api/orders data; status filter chips (همه/paid/packing/shipped/delivered); free-text search (receiver/phone/gift-no/userPhone/plush name, Persian-digit aware); desktop = 8-col table (کد/دوست پشمالو with plush tile/گیرنده + دریافتی badge/موبایل/فرستنده حساب or «مهمان»/مبلغ/وضعیت chip/تاریخ), mobile = order cards; skeleton loading, error state with retry, friendly empty state, manual refresh (spinner) — read-only by design. Entry: home footer «ورود همکاران» link (FooterLink widened to full Route type). Lint fix: initial fetch moved into its own effect (react-hooks/set-state-in-effect).
+- C) Hash anchors: hash `#/route@section` now parses (`@anchor`); useHashRoute returns anchor and after 160ms glides `scrollIntoView({behavior:"smooth"})` (regular routes still scroll-to-top); navigate(route, query, anchor). Verified `#/home@faq` lands with #faq at viewport top.
+- E2E via agent-browser: desktop admin renders 3 real DB rows + stats; filter تحویل شد → 1 row; search نیلا → g-104 row (shown as مهمان — placed pre-binding); mobile 390px shows cards (table hidden), no overflow; footer link navigates to #/admin; anchor scroll works. Final sweep 0 console errors; lint 0; tsc 0 in src/.
+- RUNBOOK UPDATE (extends Task 9): restarting the dev server = kill the OLD next-server PID first (a double-forked daemon keeps the port; a new daemon can't bind) → then double-fork start again. After any `prisma generate`, BOTH steps are required.
+
+Stage Summary:
+- Orders now carry their sender's identity to the server (userPhone + per-phone query API) — the data model is ready for true server-side «هدیه‌هام».
+- The co-worker panel gives a live read-only window into the DB (stats/filters/search) reachable from the footer — first internal tool screen.
+- Hash routing supports in-page section anchors like the original design-system links.
+- Next-round ideas: server-side «هدیه‌هام» (hydrate orders by ?phone= after login), impact receipts from DB, admin auth gate + PATCH status from admin, per-page notes, self-contained export.
