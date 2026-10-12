@@ -144,3 +144,29 @@ Stage Summary:
 - Navigation loop closed: success → رهگیری سفارش → track (order pre-selected); favorites now surface on home (strip) not just hearts; gift info shareable via copy button.
 - All new store reads are read-only (no migration needed); strip auto-hides when favorites empty.
 - Next-round ideas: confetti burst on successful copy, favorites filter chip on pick, Prisma backend wiring, gift-card image download, hash-scroll anchors, self-contained export.
+
+---
+Task ID: 7
+Agent: main (Z.ai Code) — cron web dev review round
+Task: QA sweep + new features round — pick-page favorites filter (mobile+desktop), «سورپرایزم کن» random plush picker, copy-success micro-confetti burst on track page.
+
+Work Log:
+- QA first: desktop 1440px sweep of all 15 routes → 0 console errors; mobile 390px sweep → no horizontal overflow (scrollWidth===innerWidth), 0 errors. Note: `agent-browser set viewport 390 844` is the correct way to switch viewports (the `--viewport` flag on `open` did not stick in this version).
+- NEW shared components in src/components/shop/fav.tsx:
+  - `FavFilterChips({favOnly,onToggle,desktop})` — «همه / محبوب‌هام ♥ (N)» pill pair; active chip goes dark (#04202E) with shadow; fav count badge in pink bubble; role=group + aria-pressed.
+  - `SurpriseButton({desktop,onPick})` — dice icon + «سورپرایزم کن»; picks a random plush ≠ current, setKind + dice-roll animation (pishnam-dice-roll) + toast «{name} رسید! 🎲».
+- MobilePick (flow.tsx): filter row (FavFilterChips + SurpriseButton) above the 6-card grid; grid maps the filtered list; favorites-only empty state (dashed pink box, «هنوز کسی رو به قلبت اضافه نکردی!» + «نشون بده همه رو»); big stage plush wrapped in key={stageKey} span that replays pishnam-pop-in when surprise fires.
+- DesktopBuilder step 1 (builder.tsx): same filter row (desktop sizing) + SurpriseButton under the section header; same filtered grid + empty state; `useState` import added.
+- CopyGiftButton (track.tsx): on successful copy, renders 12-piece micro-confetti burst around the button (pishnam-burst-piece with --bx/--by/--br CSS vars, radial layout, pishnam-burst-fly 0.75s); success-only (fallback path unchanged). Added useState/CSSProperties imports.
+- globals.css: added pishnam-pop-in (stage pop), pishnam-burst-piece/pishnam-burst-fly (micro-confetti), pishnam-dice-roll (dice wiggle).
+- Verified via agent-browser:
+  - Mobile 390: chips render (همه/محبوب‌هام ۳/سورپرایزم کن); fav filter click → grid 6→3 (کِرِمی/لپ‌قندی/بامبو); surprise → stage لپ‌قندی + toast; unfavorite-all → empty state shows → «نشون بده همه رو» works; favorites restored to [bear,bunny,panda].
+  - Desktop 1440: #dstep-1 has group + surprise; fav filter → 3 cards + aria-pressed; surprise → stage قات‌قات + toast; golden-path regression pick→card OK.
+  - Copy burst: headless clipboard is blocked (fallback toast, correct behavior); stubbed navigator.clipboard.writeText → burst renders exactly 12 pieces + «کپی شد ✓» toast.
+- Debugging note for future rounds: while verifying, stale Fast-Refresh module state made the new desktop chips invisible; a genuinely fresh navigation (about:blank → URL with ?cb= query) fixed it. Also re-confirmed the known terminal artifact: `pb-[max(` displays as `pb-ax(` in some grep/console outputs (ANSI `[m` swallowing) — files are correct on disk; don't "fix" it blindly.
+- bun run lint: 0 errors; bunx tsc --noEmit: 0 errors in src/.
+
+Stage Summary:
+- Pick experience upgraded on both breakpoints: you can now filter plushes by favorites and let chance pick for you; stage pops on surprise; copy-success rewards with micro-confetti.
+- Store untouched (read-only use of favorites); all additions are additive and backward-compatible.
+- Next-round ideas: Prisma backend wiring (persist orders server-side via /api routes), gift-card image download (canvas → PNG), hash-scroll anchors, self-contained studio export, occasion-based message suggestions on card step.

@@ -3,6 +3,7 @@
 // ═══ رهگیری هدیه — order journey timeline (mobile + desktop) ═══
 // Entry: click any order card in «هدیه‌هام» → selectOrder(id) → navigate("track")
 import { navigate } from "@/lib/hash-route";
+import { useState, type CSSProperties } from "react";
 import { MobileTopBar } from "@/components/shop/nav";
 import { Plush } from "@/components/shop/plush";
 import { ForwardIcon, CheckIcon, QrCode } from "@/components/shop/icons";
@@ -236,9 +237,13 @@ function EmptyTrack() {
   );
 }
 
-/* ── share/copy gift info button (shared logic, two looks) ── */
+/* ── share/copy gift info button (shared logic, two looks) + success micro-burst ── */
+const BURST_COLORS = ["#F0426B", "#00ABE7", "#FFF3C9", "#66CDF1", "#FFE0EA"];
+
 function CopyGiftButton({ o, dark = false }: { o: GiftOrder; dark?: boolean }) {
   const { toast } = useToast();
+  const [burst, setBurst] = useState(0);
+
   return (
     <button
       type="button"
@@ -246,6 +251,7 @@ function CopyGiftButton({ o, dark = false }: { o: GiftOrder; dark?: boolean }) {
         const link = `${window.location.origin}/#/gift`;
         const text = `یه بغل از پیشتم ♥\nهدیه‌ی شماره‌ی ${fa(o.no)} برای ${o.to}\nرمز کارت: ${o.password || "بهار"}\n${link}`;
         const ok = await copyText(text);
+        if (ok) setBurst((n) => n + 1);
         toast(
           ok
             ? { title: "کپی شد ✓", description: "اطلاعات هدیه تو حافظه‌ست؛ براش بفرستش." }
@@ -255,10 +261,36 @@ function CopyGiftButton({ o, dark = false }: { o: GiftOrder; dark?: boolean }) {
               },
         );
       }}
-      className={`flex h-[52px] w-full items-center justify-center gap-2 rounded-full text-[14.5px] font-extrabold transition-transform active:scale-95 md:h-[54px] md:text-[15px] md:active:scale-100 md:hover:scale-[1.02] ${
+      className={`relative flex h-[52px] w-full items-center justify-center gap-2 overflow-visible rounded-full text-[14.5px] font-extrabold transition-transform active:scale-95 md:h-[54px] md:text-[15px] md:active:scale-100 md:hover:scale-[1.02] ${
         dark ? "border-2 border-[#04202E] text-[#04202E]" : "border-2 border-dashed border-[#9CC9DA] bg-white text-[#006387]"
       }`}
     >
+      {burst > 0 && (
+        <span key={burst} aria-hidden="true" className="pointer-events-none absolute inset-0">
+          {Array.from({ length: 12 }).map((_, i) => {
+            const ang = (i / 12) * Math.PI * 2 + Math.random() * 0.4;
+            const dist = 34 + Math.random() * 30;
+            return (
+              <span
+                key={i}
+                className="pishnam-burst-piece block"
+                style={
+                  {
+                    "--bx": `${Math.cos(ang) * dist}px`,
+                    "--by": `${Math.sin(ang) * dist - 12}px`,
+                    "--br": `${(Math.random() * 2 - 1) * 220}deg`,
+                    width: i % 3 === 0 ? 9 : 6,
+                    height: i % 3 === 0 ? 9 : 11,
+                    borderRadius: i % 4 === 0 ? "50%" : 2.5,
+                    background: BURST_COLORS[i % BURST_COLORS.length],
+                    animationDelay: `${(i % 4) * 0.04}s`,
+                  } as CSSProperties
+                }
+              />
+            );
+          })}
+        </span>
+      )}
       <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
         <rect x="9" y="9" width="12" height="12" rx="2.5" />
         <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />

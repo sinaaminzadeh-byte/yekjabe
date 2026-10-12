@@ -15,7 +15,7 @@ import {
 import { navigate, type Route } from "@/lib/hash-route";
 import { usePishnam, useCharityDone } from "@/lib/pishnam-store";
 import { fa, money } from "@/lib/fa";
-import { FavHeart } from "../fav";
+import { FavHeart, FavFilterChips, SurpriseButton } from "../fav";
 import {
   PLUSHES,
   BOX_PRICE,
@@ -24,11 +24,14 @@ import {
   OCCASION_HOLDERS,
   CHARITY_TARGET,
 } from "@/lib/pishnam-data";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 
 export function DesktopBuilder({ step }: { step: 1 | 2 | 3 | 4 }) {
   const kind = usePishnam((s) => s.kind);
   const setKind = usePishnam((s) => s.setKind);
+  const favorites = usePishnam((s) => s.favorites);
+  const [favOnly, setFavOnly] = useState(false);
+  const list = favOnly ? PLUSHES.filter((p) => favorites.includes(p.kind)) : PLUSHES;
   const occ = usePishnam((s) => s.occasion);
   const setOcc = usePishnam((s) => s.setOccasion);
   const message = usePishnam((s) => s.message);
@@ -90,8 +93,25 @@ export function DesktopBuilder({ step }: { step: 1 | 2 | 3 | 4 }) {
               <h2 className="m-0 text-2xl font-black">دوستت رو انتخاب کن</h2>
               <span className="ms-auto text-sm font-bold text-[#006387]">همه {money(BOX_PRICE)} تومان</span>
             </div>
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <FavFilterChips favOnly={favOnly} onToggle={setFavOnly} desktop />
+              <SurpriseButton desktop />
+            </div>
+            {favOnly && list.length === 0 ? (
+              <div className="flex flex-col items-center gap-3 rounded-3xl border-[1.5px] border-dashed border-[#F7C5D3] bg-[#FFF7FA] px-6 py-10 text-center">
+                <HeartSticker size={40} fill="#FFFFFF" stroke="#F0426B" strokeWidth={2.2} />
+                <p className="m-0 text-[15px] font-bold text-[#B02A52]">هنوز کسی رو به قلبت اضافه نکردی!</p>
+                <button
+                  type="button"
+                  onClick={() => setFavOnly(false)}
+                  className="h-11 rounded-full bg-[#F0426B] px-6 text-[14px] font-extrabold text-white transition-transform hover:scale-[1.03] active:scale-95"
+                >
+                  نشون بده همه رو
+                </button>
+              </div>
+            ) : (
             <div className="flex flex-wrap gap-3">
-              {PLUSHES.map((p) => {
+              {list.map((p) => {
                 const isOn = p.kind === kind;
                 return (
                   <div
@@ -127,6 +147,7 @@ export function DesktopBuilder({ step }: { step: 1 | 2 | 3 | 4 }) {
                 );
               })}
             </div>
+            )}
             <div className="rounded-3xl bg-[#F8FDFF] px-5 py-4 text-[14px] font-medium leading-[1.9] text-[#1F3E4D]">
               <b className="text-[#04202E]">{sel.name}:</b> {sel.blurb}
             </div>

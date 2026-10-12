@@ -333,3 +333,42 @@
 .pishnam-heart-pop {
   animation: pishnam-heart-pop 0.42s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
+
+/* ── Pishnam: surprise pick stage pop-in ── */
+@keyframes pishnam-pop-in {
+  0% { transform: scale(0.6) rotate(-6deg); opacity: 0; }
+  55% { transform: scale(1.12) rotate(3deg); opacity: 1; }
+  75% { transform: scale(0.96) rotate(-1.5deg); }
+  100% { transform: scale(1) rotate(0deg); opacity: 1; }
+}
+.pishnam-pop-in {
+  animation: pishnam-pop-in 0.55s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+/* ── Pishnam: micro-confetti burst (copy success) ── */
+.pishnam-burst-piece {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  pointer-events: none;
+  animation: pishnam-burst-fly 0.75s cubic-bezier(0.16, 0.84, 0.44, 1) forwards;
+}
+@keyframes pishnam-burst-fly {
+  0% { transform: translate(-50%, -50%) scale(0.4) rotate(0deg); opacity: 1; }
+  70% { opacity: 1; }
+  100% {
+    transform: translate(calc(-50% + var(--bx)), calc(-50% + var(--by))) scale(1) rotate(var(--br));
+    opacity: 0;
+  }
+}
+
+/* ── Pishnam: dice wiggle on surprise button ── */
+@keyframes pishnam-dice-roll {
+  0% { transform: rotate(0deg); }
+  30% { transform: rotate(-18deg) scale(1.15); }
+  60% { transform: rotate(14deg) scale(1.1); }
+  100% { transform: rotate(0deg) scale(1); }
+}
+.pishnam-dice-roll {
+  animation: pishnam-dice-roll 0.5s ease-in-out;
+}

@@ -30,13 +30,17 @@ import {
 } from "@/lib/pishnam-data";
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
-import { FavHeart } from "@/components/shop/fav";
+import { FavHeart, FavFilterChips, SurpriseButton } from "@/components/shop/fav";
 
 /* ═══════════════ 1 · PICK ═══════════════ */
 export function MobilePick() {
   const picked = usePishnam((s) => s.kind);
   const setKind = usePishnam((s) => s.setKind);
+  const favorites = usePishnam((s) => s.favorites);
+  const [favOnly, setFavOnly] = useState(false);
+  const [stageKey, setStageKey] = useState(0);
   const sel = PLUSHES.find((p) => p.kind === picked) ?? PLUSHES[0];
+  const list = favOnly ? PLUSHES.filter((p) => favorites.includes(p.kind)) : PLUSHES;
 
   return (
     <div className="flex min-h-screen flex-col bg-[#F2FAFD] md:hidden">
@@ -56,7 +60,9 @@ export function MobilePick() {
             className="relative flex h-[240px] w-full items-center justify-center rounded-3xl"
             style={{ background: sel.bg }}
           >
-            <Plush kind={sel.kind} size={210} className="pishnam-float" />
+            <span key={stageKey} className={stageKey > 0 ? "pishnam-pop-in flex" : "flex"}>
+              <Plush kind={sel.kind} size={210} className="pishnam-float" />
+            </span>
             <FavHeart kind={sel.kind} name={sel.name} className="absolute end-3 top-3" />
           </div>
           <div className="text-[20px] font-black">{sel.name}</div>
@@ -71,8 +77,28 @@ export function MobilePick() {
         </div>
       </div>
 
-      <div className="mt-4 grid grid-cols-3 gap-2.5 px-5">
-        {PLUSHES.map((p) => {
+      <div className="mt-4 flex items-center justify-between gap-2 px-5">
+        <FavFilterChips favOnly={favOnly} onToggle={setFavOnly} />
+        <SurpriseButton onPick={() => setStageKey((k) => k + 1)} />
+      </div>
+
+      {favOnly && list.length === 0 ? (
+        <div className="mx-5 mt-3 flex flex-col items-center gap-3 rounded-[22px] border-[1.5px] border-dashed border-[#F7C5D3] bg-[#FFF7FA] px-4 py-7 text-center">
+          <HeartSticker size={34} fill="#FFFFFF" stroke="#F0426B" strokeWidth={2.2} />
+          <p className="m-0 text-[14px] font-bold leading-[1.9] text-[#B02A52]">
+            هنوز کسی رو به قلبت اضافه نکردی!
+          </p>
+          <button
+            type="button"
+            onClick={() => setFavOnly(false)}
+            className="h-10 rounded-full bg-[#F0426B] px-5 text-[13px] font-extrabold text-white transition-transform active:scale-95"
+          >
+            نشون بده همه رو
+          </button>
+        </div>
+      ) : (
+        <div className="mt-3 grid grid-cols-3 gap-2.5 px-5">
+          {list.map((p) => {
           const isOn = p.kind === picked;
           return (
             <div
@@ -100,8 +126,9 @@ export function MobilePick() {
               <span className="text-[13px] font-extrabold">{p.name}</span>
             </div>
           );
-        })}
-      </div>
+          })}
+        </div>
+      )}
 
       <div className="sticky bottom-0 mt-auto flex items-center justify-between gap-3.5 border-t border-[#D3E8F0] bg-white/95 px-5 pb-[max(14px,env(safe-area-inset-bottom))] pt-3.5">
         <div className="flex flex-col">
