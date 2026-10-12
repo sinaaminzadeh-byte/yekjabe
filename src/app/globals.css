@@ -372,3 +372,12 @@
 .pishnam-dice-roll {
   animation: pishnam-dice-roll 0.5s ease-in-out;
 }
+
+/* ── Pishnam: admin row flash after a status change ── */
+@keyframes pishnam-row-flash {
+  0% { background-color: #CDEFFB; }
+  100% { background-color: transparent; }
+}
+.pishnam-row-flash {
+  animation: pishnam-row-flash 0.95s ease-out;
+}

@@ -28,6 +28,11 @@ import {
 import { CHARITY_TARGET, PLUSH_MAP } from "@/lib/pishnam-data";
 import { fa } from "@/lib/fa";
 import { useToast } from "@/hooks/use-toast";
+import {
+  pullOrders,
+  pullOrdersForPhone,
+  syncStatus,
+} from "@/lib/pishnam-sync";
 
 /* ═══════════════ shared constants & helpers ═══════════════ */
 
@@ -98,7 +103,7 @@ function buildReceipts(sent: GiftOrder[]): ReceiptRow[] {
   const mine: ReceiptRow[] = sent.map((o) => ({
     bg: "#DDF3EA",
     name: `ارسال هدیه برای ${o.to}`,
-    meta: `${o.date} · ${fa(o.hearts + o.paws)} قلب و پنجه`,
+    meta: `${o.date} · هدیه‌ی ${fa(o.no)} · ${fa(o.hearts + o.paws)} قلب و پنجه`,
     tag: "سهم تو",
     mine: true,
   }));
@@ -143,6 +148,94 @@ function useBadges(): Badge[] {
 }
 
 /* ── small building blocks ── */
+
+/** Refresh icon (shared by sync buttons). */
+function RefreshIcon({ size = 15, spin = false }: { size?: number; spin?: boolean }) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.4"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      className={spin ? "animate-spin" : ""}
+    >
+      <path d="M21 12a9 9 0 1 1-2.64-6.36" />
+      <path d="M21 3v6h-6" />
+    </svg>
+  );
+}
+
+/**
+ * Manual «همگام‌سازی» — re-pulls the server board (+ account-bound orders when
+ * logged in) and toasts an honest result. Used on my-gifts (mobile + desktop).
+ */
+function SyncButton({ desktop = false }: { desktop?: boolean }) {
+  const user = usePishnam((s) => s.user);
+  const [busy, setBusy] = useState(false);
+  const { toast } = useToast();
+
+  const sync = () => {
+    if (busy) return;
+    setBusy(true);
+    void syncStatus(user?.phone).then(({ ok, changed }) => {
+      setBusy(false);
+      if (!ok) {
+        toast({ title: "سرور در دسترس نیست", description: "فعلاً با داده‌های همین گوشی کار می‌کنیم." });
+      } else if (changed > 0) {
+        toast({ title: "همگام شد ✓", description: `${fa(changed)} به‌روزرسانی از سرور اومد.` });
+      } else {
+        toast({ title: "همه‌چیز به‌روزه ✓" });
+      }
+    });
+  };
+
+  if (desktop) {
+    return (
+      <button
+        type="button"
+        onClick={sync}
+        disabled={busy}
+        aria-label="همگام‌سازی هدیه‌ها با سرور"
+        className="flex h-[50px] items-center gap-2 rounded-full border-2 border-[#04202E] bg-white px-[22px] text-[15px] font-extrabold text-[#04202E] transition-transform hover:scale-[1.02] active:scale-95 disabled:opacity-60"
+      >
+        <RefreshIcon size={16} spin={busy} />
+        {busy ? "در حال همگام…" : "همگام‌سازی"}
+      </button>
+    );
+  }
+  return (
+    <button
+      type="button"
+      onClick={sync}
+      disabled={busy}
+      aria-label="همگام‌سازی هدیه‌ها با سرور"
+      className="flex h-[42px] w-[42px] items-center justify-center rounded-full border border-[#D3E8F0] bg-white text-[#04202E] transition-transform active:scale-90 disabled:opacity-60"
+    >
+      <RefreshIcon size={16} spin={busy} />
+    </button>
+  );
+}
+
+/** «داده‌ی زنده» pulse chip for the impact page. */
+function LiveChip() {
+  return (
+    <span
+      className="inline-flex items-center gap-1.5 rounded-full border border-[#CDEFFB] bg-white px-3 py-1 text-[11.5px] font-extrabold text-[#00779F]"
+      title="مدارک از سرور همگام می‌شن"
+    >
+      <span className="relative flex h-2 w-2">
+        <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#00ABE7] opacity-60" />
+        <span className="relative inline-flex h-2 w-2 rounded-full bg-[#00ABE7]" />
+      </span>
+      داده‌ی زنده
+    </span>
+  );
+}
 
 function DocIcon({ size = 26 }: { size?: number }) {
   return (
@@ -469,13 +562,16 @@ export function MobileMyGifts() {
       {/* title row */}
       <div className="flex items-center justify-between px-5 pb-1.5 pt-4">
         <h1 className="m-0 text-[30px] font-black leading-[1.4]">هدیه‌هام</h1>
-        <button
-          type="button"
-          onClick={() => navigate("pick")}
-          className="flex h-[42px] items-center rounded-full bg-[#00ABE7] px-4 text-[14px] font-extrabold text-[#04202E] transition-transform active:scale-95"
-        >
-          + هدیه‌ی جدید
-        </button>
+        <div className="flex items-center gap-2">
+          <SyncButton />
+          <button
+            type="button"
+            onClick={() => navigate("pick")}
+            className="flex h-[42px] items-center rounded-full bg-[#00ABE7] px-4 text-[14px] font-extrabold text-[#04202E] transition-transform active:scale-95"
+          >
+            + هدیه‌ی جدید
+          </button>
+        </div>
       </div>
 
       {/* tabs */}
@@ -609,13 +705,16 @@ export function DesktopMyGifts() {
             <span className="text-[14px] font-extrabold text-[#00779F]">حساب تو</span>
             <h1 className="m-0 text-[44px] font-black leading-[1.35]">هدیه‌هام</h1>
           </div>
-          <button
-            type="button"
-            onClick={() => navigate("pick")}
-            className="flex h-[50px] items-center rounded-full bg-[#00ABE7] px-6 text-[15px] font-extrabold text-[#04202E] transition-transform hover:scale-[1.03]"
-          >
-            + هدیه‌ی جدید
-          </button>
+          <div className="flex items-center gap-3">
+            <SyncButton desktop />
+            <button
+              type="button"
+              onClick={() => navigate("pick")}
+              className="flex h-[50px] items-center rounded-full bg-[#00ABE7] px-6 text-[15px] font-extrabold text-[#04202E] transition-transform hover:scale-[1.03]"
+            >
+              + هدیه‌ی جدید
+            </button>
+          </div>
         </section>
 
         {/* tabs + stat cards */}
@@ -676,6 +775,11 @@ export function MobileImpact() {
   const pct = Math.min(100, Math.round((done / CHARITY_TARGET) * 100));
   const receipts = buildReceipts(sent);
 
+  // live data: receipts also reflect orders synced from the server
+  useEffect(() => {
+    void pullOrders();
+  }, []);
+
   return (
     <div className="flex min-h-screen flex-col bg-[#F2FAFD] pb-6 md:hidden">
       {/* top row: back + heart/paw */}
@@ -706,7 +810,10 @@ export function MobileImpact() {
       <CharityProgressCard done={done} pct={pct} />
 
       {/* receipts */}
-      <div className="px-5 pb-2.5 pt-6 text-[20px] font-extrabold">مدارک ارسال</div>
+      <div className="flex items-center justify-between px-5 pb-2.5 pt-6">
+        <span className="text-[20px] font-extrabold">مدارک ارسال</span>
+        <LiveChip />
+      </div>
       <div className="mx-5 flex flex-col gap-2.5">
         {receipts.map((r, i) => (
           <ReceiptCard key={`${r.name}-${i}`} r={r} />
@@ -739,6 +846,11 @@ export function DesktopImpact() {
   const paws = sent.reduce((a, o) => a + o.paws, 0);
   const pct = Math.min(100, Math.round((done / CHARITY_TARGET) * 100));
   const receipts = buildReceipts(sent);
+
+  // live data: receipts also reflect orders synced from the server
+  useEffect(() => {
+    void pullOrders();
+  }, []);
 
   return (
     <div className="hidden min-h-screen flex-col bg-[#F2FAFD] md:flex">
@@ -794,7 +906,10 @@ export function DesktopImpact() {
         {/* receipts + transparency */}
         <section className="flex flex-wrap items-start gap-7">
           <div className="flex min-w-0 flex-[1.4_1_540px] flex-col gap-3.5">
-            <h2 className="m-0 text-[26px] font-black">مدارک ارسال</h2>
+            <div className="flex items-center justify-between gap-3">
+              <h2 className="m-0 text-[26px] font-black">مدارک ارسال</h2>
+              <LiveChip />
+            </div>
             {receipts.map((r, i) => (
               <ReceiptCard key={`${r.name}-${i}`} r={r} desktop />
             ))}
@@ -972,6 +1087,16 @@ function useOtpFlow(): OtpFlow {
       description: trimmed ? `خوش اومدی ${trimmed}! هدیه‌هات همین‌جاست.` : "خوش اومدی! هدیه‌هات همین‌جاست.",
     });
     navigate("my-gifts");
+    // cross-device «هدیه‌هام»: pull orders bound to this account on the server
+    // (gifts made on other devices show up right here)
+    void pullOrdersForPhone(p).then((n) => {
+      if (n > 0) {
+        toast({
+          title: "هدیه‌هات رسیدن!",
+          description: `${fa(n)} هدیه از حساب قبلیت به این گوشی اومد.`,
+        });
+      }
+    });
   };
 
   const restart = () => {

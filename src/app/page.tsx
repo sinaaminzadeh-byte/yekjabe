@@ -4,7 +4,7 @@
 import { useEffect } from "react";
 import { useHashRoute } from "@/lib/hash-route";
 import { useHasMounted } from "@/hooks/use-has-mounted";
-import { pullOrders } from "@/lib/pishnam-sync";
+import { bootSync } from "@/lib/pishnam-sync";
 import { MobileNav, DesktopHeader } from "@/components/shop/nav";
 import { Logo } from "@/components/shop/logo";
 import { MobileHome, DesktopHome } from "@/components/shop/screens/home";
@@ -55,9 +55,10 @@ function PishnamScreens() {
   const { route } = useHashRoute();
   const standalone = route === "gift";
 
-  // boot-time server sync: merge orders persisted in SQLite into the local store
+  // boot-time server sync: merge orders persisted in SQLite into the local
+  // store (global board first, then the logged-in account's bound orders)
   useEffect(() => {
-    void pullOrders();
+    void bootSync();
   }, []);
 
   const screen = (() => {

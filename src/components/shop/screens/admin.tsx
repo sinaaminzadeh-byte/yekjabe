@@ -1,7 +1,8 @@
 "use client";
 
-// ═══ پنل همکاران — read-only orders admin view (server data via /api/orders) ═══
-// Single responsive screen (no design-source page): table on desktop, cards on mobile.
+// ═══ پنل همکاران — server-data orders admin view (via /api/orders) ═══
+// Single responsive screen (no design-source page): table on desktop, cards on
+// mobile. Gated behind a demo PIN (sessionStorage), with status-advance PATCH.
 import { useEffect, useMemo, useState } from "react";
 import { navigate } from "@/lib/hash-route";
 import { Plush } from "@/components/shop/plush";
@@ -9,6 +10,7 @@ import { ForwardIcon } from "@/components/shop/icons";
 import { PLUSH_MAP, type PlushKind } from "@/lib/pishnam-data";
 import { fa, faPrice, money } from "@/lib/fa";
 import { MobileTopBar } from "@/components/shop/nav";
+import { useToast } from "@/hooks/use-toast";
 
 interface AdminOrder {
   id: string;
@@ -41,6 +43,89 @@ const FILTERS = [
   { key: "delivered", label: "تحویل شد" },
 ] as const;
 
+// ── status advance (PATCH) ──
+const NEXT_STATUS: Record<string, string | null> = {
+  paid: "packing",
+  packing: "shipped",
+  shipped: "delivered",
+  delivered: null,
+};
+
+const NEXT_ACTION: Record<string, string> = {
+  paid: "بسته‌بندی",
+  packing: "تحویل به پست",
+  shipped: "تحویل به دوستت",
+  delivered: "",
+};
+
+// ── demo gate ──
+const ADMIN_PIN = "1398";
+const UNLOCK_KEY = "pishnam-admin-ok";
+
+function toEnDigits(s: string): string {
+  return s.replace(/[۰-۹]/g, (d) => String("۰۱۲۳۴۵۶۷۸۹".indexOf(d)));
+}
+
+function PinGate({ onOk }: { onOk: () => void }) {
+  const [pin, setPin] = useState("");
+  const [err, setErr] = useState(false);
+
+  const submit = () => {
+    const p = toEnDigits(pin.trim());
+    if (p === ADMIN_PIN) {
+      try {
+        sessionStorage.setItem(UNLOCK_KEY, "1");
+      } catch {}
+      onOk();
+    } else {
+      setErr(true);
+      setTimeout(() => setErr(false), 700);
+    }
+  };
+
+  return (
+    <div className="flex min-h-screen flex-col items-center justify-center bg-[#F2FAFD] px-5">
+      <div className="pishnam-reveal flex w-full max-w-[380px] flex-col items-center gap-4 rounded-[28px] border border-[#DDEEF5] bg-white p-7 text-center shadow-[0_14px_34px_rgba(4,32,46,0.06)]">
+        {/* plush medallion */}
+        <span className="flex h-[74px] w-[74px] items-center justify-center rounded-full bg-[#E3F6FD]">
+          <Plush kind="bear" size={52} />
+        </span>
+        <div className="flex flex-col gap-1.5">
+          <h1 className="m-0 text-[22px] font-black">پنل همکاران</h1>
+          <p className="m-0 text-[13.5px] font-medium leading-[1.9] text-[#4A6572]">
+            برای دیدن دفتر سفارش‌ها رمز همکاریت رو بزن.
+          </p>
+        </div>
+        <input
+          type="password"
+          inputMode="numeric"
+          dir="ltr"
+          maxLength={4}
+          value={pin}
+          onChange={(e) => setPin(e.target.value.replace(/[^\d۰-۹]/g, "").slice(0, 4))}
+          onKeyDown={(e) => e.key === "Enter" && submit()}
+          placeholder="••••"
+          aria-label="رمز همکاران"
+          className={`h-[54px] w-full rounded-[18px] border-2 bg-white text-center text-[20px] font-black tracking-[0.4em] text-[#04202E] outline-none transition-shadow focus:shadow-[0_0_0_4px_rgba(0,171,231,0.15)] ${
+            err ? "pishnam-shake border-[#F0426B]" : "border-[#04202E]"
+          }`}
+        />
+        {err && <span className="text-[12.5px] font-bold text-[#F0426B]">رمز درست نیست!</span>}
+        <button
+          type="button"
+          onClick={submit}
+          className="flex h-[52px] w-full items-center justify-center rounded-full bg-[#00ABE7] text-[16px] font-extrabold text-[#04202E] transition-transform active:scale-95"
+        >
+          ورود به پنل
+        </button>
+        <span className="rounded-full bg-[#FFF3C9] px-3.5 py-1.5 text-[11.5px] font-extrabold text-[#8A6D1F]">
+          حالت نمایشی — رمز: ۱۳۹۸
+        </span>
+      </div>
+    </div>
+  );
+}
+
 function plushOf(kind: string): PlushKind {
   return (PLUSH_MAP[kind as PlushKind] ? kind : "bear") as PlushKind;
 }
@@ -67,11 +152,22 @@ function StatCard({ n, label, bg }: { n: string; label: string; bg: string }) {
 }
 
 export function AdminScreen() {
+  // AdminScreen only renders after client mount (Splash gate in page.tsx), so
+  // reading sessionStorage in the lazy initializer is hydration-safe.
+  const [unlocked, setUnlocked] = useState(() => {
+    try {
+      return sessionStorage.getItem(UNLOCK_KEY) === "1";
+    } catch {
+      return false;
+    }
+  });
   const [orders, setOrders] = useState<AdminOrder[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [filter, setFilter] = useState<string>("all");
   const [q, setQ] = useState("");
+  const [flashId, setFlashId] = useState<string | null>(null);
+  const { toast } = useToast();
 
   const load = (silent = false) => {
     if (!silent) setRefreshing(true);
@@ -89,6 +185,7 @@ export function AdminScreen() {
   };
 
   useEffect(() => {
+    if (!unlocked) return;
     let alive = true;
     fetch("/api/orders", { cache: "no-store" })
       .then((r) => {
@@ -106,7 +203,32 @@ export function AdminScreen() {
     return () => {
       alive = false;
     };
-  }, []);
+  }, [unlocked]);
+
+  /** Optimistic status advance + PATCH; reloads server truth on failure. */
+  const advance = (o: AdminOrder) => {
+    const next = NEXT_STATUS[o.status];
+    if (!next) return;
+    setOrders((prev) => prev?.map((x) => (x.id === o.id ? { ...x, status: next } : x)) ?? prev);
+    setFlashId(o.id);
+    setTimeout(() => setFlashId(null), 950);
+    toast({
+      title: "وضعیت به‌روز شد ✓",
+      description: `هدیه‌ی ${fa(o.no)} → ${STATUS_LABEL[next]?.label ?? next}`,
+    });
+    void fetch(`/api/orders/${o.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status: next }),
+    })
+      .then((r) => {
+        if (!r.ok) throw new Error("patch failed");
+      })
+      .catch(() => {
+        toast({ title: "ثبت روی سرور نشد!", description: "دوباره تلاش کن." });
+        load(true);
+      });
+  };
 
   const list = useMemo(() => {
     if (!orders) return [];
@@ -129,6 +251,15 @@ export function AdminScreen() {
     };
   }, [orders]);
 
+  if (!unlocked) {
+    return (
+      <div className="flex min-h-screen flex-col bg-[#F2FAFD]">
+        <MobileTopBar title="پنل همکاران" back="home" />
+        <PinGate onOk={() => setUnlocked(true)} />
+      </div>
+    );
+  }
+
   return (
     <div className="flex min-h-screen flex-col bg-[#F2FAFD]">
       <MobileTopBar title="پنل همکاران" back="home" />
@@ -139,7 +270,7 @@ export function AdminScreen() {
           <div className="flex flex-col gap-1">
             <h1 className="m-0 text-[26px] font-black md:text-[34px]">دفتر سفارش‌ها</h1>
             <p className="m-0 text-[13.5px] font-medium text-[#4A6572] md:text-[15px]">
-              داده‌ی زنده از سرور — فقط خواندنی
+              داده‌ی زنده از سرور — وضعیت سفارش‌ها رو همین‌جا جلو ببر
             </p>
           </div>
           <button
@@ -246,6 +377,7 @@ export function AdminScreen() {
                     <th className="px-4 py-3.5">فرستنده (حساب)</th>
                     <th className="px-4 py-3.5">مبلغ</th>
                     <th className="px-4 py-3.5">وضعیت</th>
+                    <th className="px-4 py-3.5">اقدام</th>
                     <th className="px-4 py-3.5">تاریخ</th>
                   </tr>
                 </thead>
@@ -253,7 +385,9 @@ export function AdminScreen() {
                   {list.map((o) => (
                     <tr
                       key={o.id}
-                      className="border-t border-[#EDF6FA] text-[13.5px] font-semibold transition-colors hover:bg-[#F8FDFF]"
+                      className={`border-t border-[#EDF6FA] text-[13.5px] font-semibold transition-colors hover:bg-[#F8FDFF] ${
+                        flashId === o.id ? "pishnam-row-flash" : ""
+                      }`}
                     >
                       <td className="px-4 py-3 font-black">{fa(o.no)}</td>
                       <td className="px-4 py-3">
@@ -285,6 +419,21 @@ export function AdminScreen() {
                       <td className="px-4 py-3">
                         <StatusChip s={o.status} />
                       </td>
+                      <td className="px-4 py-3">
+                        {NEXT_STATUS[o.status] ? (
+                          <button
+                            type="button"
+                            onClick={() => advance(o)}
+                            title={`تغییر وضعیت به ${STATUS_LABEL[NEXT_STATUS[o.status] as string]?.label ?? ""}`}
+                            className="flex items-center gap-1.5 rounded-full bg-[#FFF3C9] px-3 py-1.5 text-[11.5px] font-extrabold text-[#04202E] transition-all hover:bg-[#F7E7A9] active:scale-95"
+                          >
+                            قدم بعدی: {NEXT_ACTION[o.status]}
+                            <ForwardIcon size={14} stroke="#04202E" />
+                          </button>
+                        ) : (
+                          <span className="text-[12px] font-extrabold text-[#3AA76D]">تمام ✓</span>
+                        )}
+                      </td>
                       <td className="px-4 py-3 text-[#4A6572]">{o.date}</td>
                     </tr>
                   ))}
@@ -295,7 +444,12 @@ export function AdminScreen() {
             {/* mobile cards */}
             <div className="flex flex-col gap-3 md:hidden">
               {list.map((o) => (
-                <div key={o.id} className="rounded-[20px] border border-[#DDEEF5] bg-white p-4">
+                <div
+                  key={o.id}
+                  className={`rounded-[20px] border border-[#DDEEF5] bg-white p-4 transition-colors ${
+                    flashId === o.id ? "pishnam-row-flash" : ""
+                  }`}
+                >
                   <div className="flex items-center gap-3">
                     <span
                       className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl"
@@ -321,6 +475,20 @@ export function AdminScreen() {
                       {o.userPhone ? `حساب: ${fa(o.userPhone)}` : "مهمان"}
                     </span>
                   </div>
+                  {NEXT_STATUS[o.status] ? (
+                    <button
+                      type="button"
+                      onClick={() => advance(o)}
+                      className="mt-2.5 flex h-10 w-full items-center justify-center gap-1.5 rounded-full bg-[#FFF3C9] text-[13px] font-extrabold text-[#04202E] transition-transform active:scale-95"
+                    >
+                      قدم بعدی: {NEXT_ACTION[o.status]}
+                      <ForwardIcon size={16} stroke="#04202E" />
+                    </button>
+                  ) : (
+                    <div className="mt-2.5 flex h-10 items-center justify-center rounded-full bg-[#DDF3EA] text-[13px] font-extrabold text-[#2E7D53]">
+                      تحویل داده شد ✓
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
