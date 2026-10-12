@@ -127,3 +127,20 @@ Stage Summary:
 - App now has 16 routes. New capabilities: full order-journey tracking page (mobile+desktop) reachable by clicking any order card, and persistent plush favorites across home/pick/builder.
 - All store additions are backward-compatible with persisted localStorage (version 1, new fields merge with defaults).
 - Next-round ideas: favorites strip/filter on home, share/gift-card download, confetti on success upgrade, backend wiring (Prisma), hash-scroll anchors, self-contained export.
+
+---
+Task ID: 6
+Agent: main (Z.ai Code) — cron web dev review round
+Task: Polish + feature round — success→track CTA, home favorites strip (محبوب‌های تو), track share/copy button, Persian-digit fix.
+
+Work Log:
+- QA first: app stable, console clean; investigated a suspected `pb-ax(...)` typo in success.tsx — FALSE ALARM (grep output had swallowed `[m` as an ANSI reset sequence; file was already correct `pb-[max(16px,env(safe-area-inset-bottom))]`).
+- success.tsx: added «رهگیری سفارش» primary CTA on MobileSuccess (top of the 3-button stack, cyan) and DesktopSuccess (3rd button in CTA row) — selectOrder(last sent)+navigate("track"); reordered mobile buttons (رهگیری cyan / هدیه‌هام dark / خانه outline); added active:scale + hover feedback; imported ForwardIcon.
+- fav.tsx: NEW `FavoritesStrip({desktop})` — pink panel (border #F7C5D3, bg #FFF7FA) shown only when favorites exist: heart sticker + «محبوب‌های تو» + «N تا رفیق پشمالو تو قلبت مونده», removable chips (mini plush on bg tile + name + × button), CTA «برای محبوبت بفرست ♥»→pick. Mounted on home mobile (after friends row, before marquee) and desktop (inside friends section after grid). Fixed Persian-digit bug: count now uses fa() (was showing Latin "3").
+- track.tsx: NEW `CopyGiftButton({o,dark})` — copies «یه بغل از پیشتم ♥ / هدیه‌ی شماره‌ی N برای X / رمز کارت: Y / link(#/gift)» via clipboard helper `copyText()` (navigator.clipboard → textarea+execCommand fallback with selection save/restore). Success toast «کپی شد ✓» or fallback toast that shows gift no+receiver+password for manual copying (headless browsers block clipboard — verified fallback path). Added to mobile sticky actions (second row) and desktop actions column (dark variant). SVG copy icon inline.
+- QA via agent-browser: mobile 390px — strip visible with 4 chips, × removed duck → store [panda,bear,bunny] + count text updated with Persian digits; success page shows 3 CTAs (mobile) and clicking رهگیری سفارش → #/track; copy button click → fallback info toast. Desktop 1440px — strip renders after friends grid with chips+CTA, hearts on cards match favorites; copy toast fallback verified. Console clean across home/track/my-gifts/pick/success sweep; lint 0 errors; tsc 0 errors in src/.
+
+Stage Summary:
+- Navigation loop closed: success → رهگیری سفارش → track (order pre-selected); favorites now surface on home (strip) not just hearts; gift info shareable via copy button.
+- All new store reads are read-only (no migration needed); strip auto-hides when favorites empty.
+- Next-round ideas: confetti burst on successful copy, favorites filter chip on pick, Prisma backend wiring, gift-card image download, hash-scroll anchors, self-contained export.

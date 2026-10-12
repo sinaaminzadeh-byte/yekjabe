@@ -3,7 +3,7 @@
 // ── Success screen: mobile + desktop ──
 import { Logo } from "../logo";
 import { Plush } from "../plush";
-import { HeartSticker } from "../icons";
+import { HeartSticker, ForwardIcon } from "../icons";
 import { navigate } from "@/lib/hash-route";
 import { usePishnam } from "@/lib/pishnam-store";
 import { fa, orderNo, money } from "@/lib/fa";
@@ -20,6 +20,7 @@ function useLastSentOrder() {
 /* ═══════════════ MOBILE ═══════════════ */
 export function MobileSuccess() {
   const order = useLastSentOrder();
+  const selectOrder = usePishnam((s) => s.selectOrder);
   const no = order?.no ?? 101;
   const charmLine = order
     ? `با این سفارش ${fa(order.hearts)} قلب و ${fa(order.paws)} پنجه هم برای بچه‌های بی‌سرپرست و حیوونا ثبت شد. رسیدش تو دفتر مهربونی می‌مونه.`
@@ -103,15 +104,26 @@ export function MobileSuccess() {
       <div className="mt-auto flex flex-col gap-2.5 px-5 pb-[max(16px,env(safe-area-inset-bottom))] pt-4">
         <button
           type="button"
+          onClick={() => {
+            if (order) selectOrder(order.id);
+            navigate("track");
+          }}
+          className="flex h-[54px] items-center justify-center gap-2 rounded-full bg-[#00ABE7] text-base font-extrabold text-[#04202E] transition-transform active:scale-95"
+        >
+          رهگیری سفارش
+          <ForwardIcon size={16} />
+        </button>
+        <button
+          type="button"
           onClick={() => navigate("my-gifts")}
-          className="flex h-[54px] items-center justify-center rounded-full bg-[#00ABE7] text-base font-extrabold text-[#04202E]"
+          className="flex h-[54px] items-center justify-center rounded-full bg-[#04202E] text-base font-extrabold text-white transition-transform active:scale-95"
         >
           هدیه‌هام رو ببین
         </button>
         <button
           type="button"
           onClick={() => navigate("home")}
-          className="box-border flex h-[50px] items-center justify-center rounded-full border-2 border-[#04202E] text-[15px] font-extrabold text-[#04202E]"
+          className="box-border flex h-[50px] items-center justify-center rounded-full border-2 border-[#04202E] text-[15px] font-extrabold text-[#04202E] transition-transform active:scale-95"
         >
           برگرد به خانه
         </button>
@@ -123,6 +135,7 @@ export function MobileSuccess() {
 /* ═══════════════ DESKTOP ═══════════════ */
 export function DesktopSuccess() {
   const order = useLastSentOrder();
+  const selectOrder = usePishnam((s) => s.selectOrder);
   const no = order?.no ?? 101;
   const total = order ? order.total : BOX_PRICE + 8 * CHARM_PRICE;
   const steps = [
@@ -205,16 +218,27 @@ export function DesktopSuccess() {
           <button
             type="button"
             onClick={() => navigate("home")}
-            className="box-border flex h-[52px] items-center rounded-full border-2 border-[#04202E] px-6 text-[15px] font-extrabold text-[#04202E]"
+            className="box-border flex h-[52px] items-center rounded-full border-2 border-[#04202E] px-6 text-[15px] font-extrabold text-[#04202E] transition-colors hover:bg-[#04202E] hover:text-white"
           >
             برگرد به خانه
           </button>
           <button
             type="button"
             onClick={() => navigate("my-gifts")}
-            className="flex h-[52px] items-center rounded-full bg-[#00ABE7] px-7 text-base font-extrabold text-[#04202E]"
+            className="flex h-[52px] items-center rounded-full bg-[#04202E] px-7 text-base font-extrabold text-white transition-transform hover:scale-[1.03]"
           >
             هدیه‌هام رو ببین
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              if (order) selectOrder(order.id);
+              navigate("track");
+            }}
+            className="flex h-[52px] items-center gap-2 rounded-full bg-[#00ABE7] px-7 text-base font-extrabold text-[#04202E] transition-transform hover:scale-[1.03]"
+          >
+            رهگیری سفارش
+            <ForwardIcon size={16} />
           </button>
         </div>
       </div>

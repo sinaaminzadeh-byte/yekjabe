@@ -50,6 +50,40 @@ function stepNote(i: number, current: number, o: GiftOrder): string {
   return "هنوز نه";
 }
 
+async function copyText(text: string): Promise<boolean> {
+  try {
+    if (navigator.clipboard && window.isSecureContext) {
+      await navigator.clipboard.writeText(text);
+      return true;
+    }
+  } catch {
+    /* fall through to legacy path */
+  }
+  try {
+    const ta = document.createElement("textarea");
+    ta.value = text;
+    ta.setAttribute("readonly", "");
+    ta.style.position = "fixed";
+    ta.style.top = "0";
+    ta.style.left = "0";
+    ta.style.opacity = "0";
+    document.body.appendChild(ta);
+    const sel = document.getSelection();
+    const saved = sel && sel.rangeCount > 0 ? sel.getRangeAt(0) : null;
+    ta.select();
+    ta.setSelectionRange(0, text.length);
+    const ok = document.execCommand("copy");
+    if (saved && sel) {
+      sel.removeAllRanges();
+      sel.addRange(saved);
+    }
+    document.body.removeChild(ta);
+    return ok;
+  } catch {
+    return false;
+  }
+}
+
 function PlushTile({ o, size, box }: { o: GiftOrder; size: number; box: number }) {
   return (
     <div
@@ -202,6 +236,38 @@ function EmptyTrack() {
   );
 }
 
+/* ── share/copy gift info button (shared logic, two looks) ── */
+function CopyGiftButton({ o, dark = false }: { o: GiftOrder; dark?: boolean }) {
+  const { toast } = useToast();
+  return (
+    <button
+      type="button"
+      onClick={async () => {
+        const link = `${window.location.origin}/#/gift`;
+        const text = `یه بغل از پیشتم ♥\nهدیه‌ی شماره‌ی ${fa(o.no)} برای ${o.to}\nرمز کارت: ${o.password || "بهار"}\n${link}`;
+        const ok = await copyText(text);
+        toast(
+          ok
+            ? { title: "کپی شد ✓", description: "اطلاعات هدیه تو حافظه‌ست؛ براش بفرستش." }
+            : {
+                title: "کپی نشد؛ دستی بردار:",
+                description: `هدیه‌ی ${fa(o.no)} برای ${o.to} · رمز: ${o.password || "بهار"}`,
+              },
+        );
+      }}
+      className={`flex h-[52px] w-full items-center justify-center gap-2 rounded-full text-[14.5px] font-extrabold transition-transform active:scale-95 md:h-[54px] md:text-[15px] md:active:scale-100 md:hover:scale-[1.02] ${
+        dark ? "border-2 border-[#04202E] text-[#04202E]" : "border-2 border-dashed border-[#9CC9DA] bg-white text-[#006387]"
+      }`}
+    >
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <rect x="9" y="9" width="12" height="12" rx="2.5" />
+        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+      </svg>
+      کپی اطلاعات هدیه
+    </button>
+  );
+}
+
 /* ═══ MOBILE ═══ */
 export function MobileTrack() {
   const o = useSelectedOrder();
@@ -281,40 +347,43 @@ export function MobileTrack() {
           </div>
 
           {/* actions */}
-          <div className="sticky bottom-0 mt-auto flex gap-3 border-t border-[#D3E8F0] bg-white/95 px-5 pb-[max(14px,env(safe-area-inset-bottom))] pt-3.5">
-            {o.dir === "recv" && (
-              <button
-                type="button"
-                onClick={() => navigate("gift")}
-                className="flex h-[52px] flex-1 items-center justify-center gap-1.5 rounded-full bg-[#E3F6FD] text-[14.5px] font-extrabold text-[#006387] transition-transform active:scale-95"
-              >
-                مشاهده‌ی پیام
-                <ForwardIcon size={16} stroke="#006387" />
-              </button>
-            )}
-            {o.dir === "sent" && o.status !== "delivered" && (
-              <button
-                type="button"
-                onClick={() => {
-                  advanceStatus(o.id);
-                  toast({ title: "یه قدم جلوتر رفت! 🚚", description: "مسیر هدیه به‌روز شد." });
-                }}
-                className="flex h-[52px] flex-1 items-center justify-center gap-1.5 rounded-full bg-[#00ABE7] text-[14.5px] font-extrabold text-[#04202E] transition-transform active:scale-95"
-              >
-                قدم بعدی: {NEXT_LABEL[o.status]}
-                <ForwardIcon size={16} />
-              </button>
-            )}
-            {o.dir === "sent" && o.status === "delivered" && (
-              <button
-                type="button"
-                onClick={() => navigate("pick")}
-                className="flex h-[52px] flex-1 items-center justify-center gap-1.5 rounded-full bg-[#00ABE7] text-[14.5px] font-extrabold text-[#04202E] transition-transform active:scale-95"
-              >
-                یه بغل دیگه بفرست
-                <ForwardIcon size={16} />
-              </button>
-            )}
+          <div className="sticky bottom-0 mt-auto flex flex-col gap-2.5 border-t border-[#D3E8F0] bg-white/95 px-5 pb-[max(14px,env(safe-area-inset-bottom))] pt-3.5">
+            <div className="flex gap-3">
+              {o.dir === "recv" && (
+                <button
+                  type="button"
+                  onClick={() => navigate("gift")}
+                  className="flex h-[52px] flex-1 items-center justify-center gap-1.5 rounded-full bg-[#E3F6FD] text-[14.5px] font-extrabold text-[#006387] transition-transform active:scale-95"
+                >
+                  مشاهده‌ی پیام
+                  <ForwardIcon size={16} stroke="#006387" />
+                </button>
+              )}
+              {o.dir === "sent" && o.status !== "delivered" && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    advanceStatus(o.id);
+                    toast({ title: "یه قدم جلوتر رفت! 🚚", description: "مسیر هدیه به‌روز شد." });
+                  }}
+                  className="flex h-[52px] flex-1 items-center justify-center gap-1.5 rounded-full bg-[#00ABE7] text-[14.5px] font-extrabold text-[#04202E] transition-transform active:scale-95"
+                >
+                  قدم بعدی: {NEXT_LABEL[o.status]}
+                  <ForwardIcon size={16} />
+                </button>
+              )}
+              {o.dir === "sent" && o.status === "delivered" && (
+                <button
+                  type="button"
+                  onClick={() => navigate("pick")}
+                  className="flex h-[52px] flex-1 items-center justify-center gap-1.5 rounded-full bg-[#00ABE7] text-[14.5px] font-extrabold text-[#04202E] transition-transform active:scale-95"
+                >
+                  یه بغل دیگه بفرست
+                  <ForwardIcon size={16} />
+                </button>
+              )}
+            </div>
+            <CopyGiftButton o={o} />
           </div>
         </>
       )}
@@ -477,6 +546,7 @@ export function DesktopTrack() {
               >
                 برگرد به هدیه‌هام
               </button>
+              <CopyGiftButton o={o} dark />
             </div>
           </div>
         </section>

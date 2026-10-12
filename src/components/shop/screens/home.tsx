@@ -15,7 +15,7 @@ import {
   useCharityDone,
 } from "@/lib/pishnam-store";
 import { fa, faPrice, money } from "@/lib/fa";
-import { FavHeart } from "../fav";
+import { FavHeart, FavoritesStrip } from "../fav";
 import {
   PLUSHES,
   BOX_PRICE,
@@ -177,6 +177,9 @@ export function MobileHome() {
           </div>
         ))}
       </div>
+
+      {/* favorites strip */}
+      <FavoritesStrip />
 
       {/* marquee */}
       <Marquee className="mt-[22px] text-base" />
@@ -412,6 +415,7 @@ export function DesktopHome() {
             </div>
           ))}
         </div>
+        <FavoritesStrip desktop />
       </section>
 
       {/* card */}
