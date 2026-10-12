@@ -4,7 +4,7 @@ import { useMemo, useState } from 'react';
 import { CATEGORIES, PAGES, type PageDef } from '@/data/pages';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Search, Gift, Unlock, Smartphone, Monitor, Puzzle, Printer, Heart, Clock } from 'lucide-react';
+import { Search, Gift, Unlock, Smartphone, Monitor, Puzzle, Printer, Heart, Clock, Star, StickyNote } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const CAT_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
@@ -27,12 +27,23 @@ const CAT_COLORS: Record<string, string> = {
 
 interface SidebarProps {
   activeSlug: string | null;
-  onOpen: (slug: string) => void;
+  onOpen: (slug: string, hash?: string | null) => void;
   recent?: string[];
+  favs?: string[];
+  onToggleFav?: (slug: string) => boolean;
+  notes?: Record<string, string>;
   className?: string;
 }
 
-export function Sidebar({ activeSlug, onOpen, recent = [], className }: SidebarProps) {
+export function Sidebar({
+  activeSlug,
+  onOpen,
+  recent = [],
+  favs = [],
+  onToggleFav,
+  notes = {},
+  className,
+}: SidebarProps) {
   const [query, setQuery] = useState('');
 
   const filtered = useMemo(() => {
@@ -58,6 +69,34 @@ export function Sidebar({ activeSlug, onOpen, recent = [], className }: SidebarP
     return map;
   }, [filtered]);
 
+  const favPages = useMemo(
+    () => favs.map((s) => PAGES.find((p) => p.slug === s)).filter((p): p is PageDef => Boolean(p)),
+    [favs],
+  );
+
+  const starBtn = (p: PageDef, active: boolean) =>
+    onToggleFav && !query.trim() ? (
+      <button
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation();
+          onToggleFav(p.slug);
+        }}
+        className={cn(
+          'shrink-0 size-6 grid place-items-center rounded-lg transition-all duration-200 hover:scale-110',
+          favs.includes(p.slug)
+            ? 'text-[#F5B301] hover:text-[#D99A00]'
+            : active
+              ? 'text-white/60 hover:text-white'
+              : 'text-[#4A6572]/30 hover:text-[#F5B301]',
+        )}
+        aria-label={favs.includes(p.slug) ? `حذف ${p.label} از علاقه‌مندی‌ها` : `افزودن ${p.label} به علاقه‌مندی‌ها`}
+        title={favs.includes(p.slug) ? 'حذف از علاقه‌مندی‌ها' : 'افزودن به علاقه‌مندی‌ها'}
+      >
+        <Star className={cn('size-3.5', favs.includes(p.slug) && 'fill-[#F5B301]')} aria-hidden />
+      </button>
+    ) : null;
+
   return (
     <aside
       className={cn('flex flex-col h-full bg-white/85 backdrop-blur border-l border-[#D3E8F0]', className)}
@@ -82,6 +121,45 @@ export function Sidebar({ activeSlug, onOpen, recent = [], className }: SidebarP
 
       <ScrollArea className="flex-1 min-h-0 px-3 pb-4">
         <nav className="space-y-4">
+          {favPages.length > 0 && !query.trim() && (
+            <section aria-label="علاقه‌مندی‌ها">
+              <div className="flex items-center gap-2 px-1 mb-2">
+                <span className="flex items-center justify-center size-6 rounded-lg border bg-[#FFF3C9] text-[#D99A00] border-[#F0DE9A]">
+                  <Star className="size-3.5 fill-[#F5B301] text-[#D99A00]" aria-hidden />
+                </span>
+                <h3 className="text-[12.5px] font-extrabold text-[#04202E]">علاقه‌مندی‌ها</h3>
+                <span className="text-[10.5px] font-bold text-[#4A6572]/70 ms-auto">{favPages.length}</span>
+              </div>
+              <ul className="space-y-1">
+                {favPages.map((p) => {
+                  const active = p.slug === activeSlug;
+                  return (
+                    <li key={`fav-${p.slug}`}>
+                      <button
+                        type="button"
+                        onClick={() => onOpen(p.slug)}
+                        aria-current={active ? 'page' : undefined}
+                        className={cn(
+                          'group w-full text-right rounded-2xl px-3 py-2 transition-all duration-200 border flex items-center gap-2',
+                          active
+                            ? 'bg-[#F5B301]/15 border-[#F0DE9A]'
+                            : 'bg-transparent border-transparent hover:bg-[#FFF9E5] hover:border-[#F0DE9A]/60',
+                        )}
+                      >
+                        <Star className="size-3 fill-[#F5B301] text-[#D99A00] shrink-0" aria-hidden />
+                        <span className="text-[12.5px] font-bold text-[#04202E] truncate">{p.label}</span>
+                        <span className="ms-auto flex items-center gap-1 shrink-0">
+                          {notes[p.slug] && <StickyNote className="size-3 text-[#00ABE7]" aria-label="یادداشت دارد" />}
+                          {starBtn(p, active)}
+                        </span>
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            </section>
+          )}
+
           {recent.length > 0 && !query.trim() && (
             <section aria-label="بازدید اخیر">
               <div className="flex items-center gap-2 px-1 mb-2">
@@ -108,8 +186,11 @@ export function Sidebar({ activeSlug, onOpen, recent = [], className }: SidebarP
                       >
                         <Clock className="size-3 text-[#8A6D1F]/70 shrink-0" aria-hidden />
                         <span className="text-[12.5px] font-bold text-[#04202E] truncate">{p.label}</span>
-                        <span className="ms-auto text-[9.5px] font-bold tabular-nums text-[#4A6572]/50 shrink-0">
-                          {p.w}×{p.h}
+                        <span className="ms-auto flex items-center gap-1 shrink-0">
+                          {notes[p.slug] && <StickyNote className="size-3 text-[#00ABE7]" aria-label="یادداشت دارد" />}
+                          <span className="text-[9.5px] font-bold tabular-nums text-[#4A6572]/50">
+                            {p.w}×{p.h}
+                          </span>
                         </span>
                       </button>
                     </li>
@@ -164,13 +245,22 @@ export function Sidebar({ activeSlug, onOpen, recent = [], className }: SidebarP
                             >
                               {p.label}
                             </span>
-                            <span
-                              className={cn(
-                                'ms-auto text-[10px] font-bold tabular-nums shrink-0',
-                                active ? 'text-white/85' : 'text-[#4A6572]/60',
+                            <span className="ms-auto flex items-center gap-1 shrink-0">
+                              {notes[p.slug] && (
+                                <StickyNote
+                                  className={cn('size-3', active ? 'text-white/85' : 'text-[#00ABE7]')}
+                                  aria-label="یادداشت دارد"
+                                />
                               )}
-                            >
-                              {p.w}×{p.h}
+                              <span
+                                className={cn(
+                                  'text-[10px] font-bold tabular-nums',
+                                  active ? 'text-white/85' : 'text-[#4A6572]/60',
+                                )}
+                              >
+                                {p.w}×{p.h}
+                              </span>
+                              {starBtn(p, active)}
                             </span>
                           </div>
                           <p

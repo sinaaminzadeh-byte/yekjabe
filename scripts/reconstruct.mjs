@@ -86,7 +86,7 @@ const SHIM = `
       if (window.parent && window.parent !== window) {
         window.parent.postMessage({ type: 'pishnam-nav', name: clean, slug: slug, hash: hash }, '*');
       } else if (slug) {
-        window.location.href = '/?page=' + slug + (hash ? '&' + hash : '');
+        window.location.href = '/?page=' + slug + (hash ? '&h=' + encodeURIComponent(hash) : '');
       }
     } catch (err) {}
   }

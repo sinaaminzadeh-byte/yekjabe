@@ -5,9 +5,11 @@ import type { PageDef } from '@/data/pages';
 import { CATEGORIES, PAGES } from '@/data/pages';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Textarea } from '@/components/ui/textarea';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useToast } from '@/hooks/use-toast';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   ChevronRight,
   ChevronLeft,
@@ -22,6 +24,9 @@ import {
   Pause,
   Play,
   Smartphone,
+  Star,
+  StickyNote,
+  Target,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { CAT_COLORS } from './sidebar';
@@ -30,6 +35,11 @@ interface ViewerProps {
   page: PageDef;
   index: number;
   total: number;
+  anchorHash?: string | null;
+  isFav: boolean;
+  onToggleFav: (slug: string) => boolean;
+  note: string;
+  onNoteChange: (text: string) => void;
   onBack: () => void;
   onPrev: () => void;
   onNext: () => void;
@@ -39,13 +49,28 @@ const TOUR_MS = 4500;
 const isMobileCat = (cat: string) => cat === 'flow' || cat === 'receiver' || cat === 'info-m';
 const FLOW_IDS = PAGES.filter((p) => p.cat === 'flow').map((p) => p.slug);
 
-export function Viewer({ page, index, total, onBack, onPrev, onNext }: ViewerProps) {
+export function Viewer({
+  page,
+  index,
+  total,
+  anchorHash,
+  isFav,
+  onToggleFav,
+  note,
+  onNoteChange,
+  onBack,
+  onPrev,
+  onNext,
+}: ViewerProps) {
   const canvasRef = useRef<HTMLDivElement>(null);
   const [zoom, setZoom] = useState<'fit' | number>('fit');
   const [autoScale, setAutoScale] = useState(1);
   const [loadedSlug, setLoadedSlug] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [playing, setPlaying] = useState(false);
+  const [notesOpen, setNotesOpen] = useState(false);
+  const [starPop, setStarPop] = useState(0);
+  const [anchorHit, setAnchorHit] = useState<string | null>(null);
   const loaded = loadedSlug === page.slug;
   const { toast } = useToast();
 
@@ -79,11 +104,14 @@ export function Viewer({ page, index, total, onBack, onPrev, onNext }: ViewerPro
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'ArrowLeft') onNext();
       else if (e.key === 'ArrowRight') onPrev();
-      else if (e.key === 'Escape') onBack();
+      else if (e.key === 'Escape') {
+        if (notesOpen) setNotesOpen(false);
+        else onBack();
+      }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [onNext, onPrev, onBack]);
+  }, [onNext, onPrev, onBack, notesOpen]);
 
   // auto-play tour
   useEffect(() => {
@@ -99,8 +127,59 @@ export function Viewer({ page, index, total, onBack, onPrev, onNext }: ViewerPro
     return () => window.clearTimeout(t);
   }, [playing, index, total, onNext, toast]);
 
+  // ── hash-anchor scrolling inside the design iframe ──
+  useEffect(() => {
+    if (!anchorHash || !loaded) return;
+    let cancelled = false;
+    let attempts = 0;
+    const tryScroll = () => {
+      if (cancelled) return;
+      const frame = canvasRef.current?.querySelector('iframe');
+      try {
+        const doc = frame?.contentDocument;
+        const el = doc?.getElementById(anchorHash) ?? doc?.querySelector(`[name="${anchorHash}"]`);
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          setAnchorHit(anchorHash);
+          // flash highlight ring on the target element
+          const h = el as HTMLElement;
+          h.style.outline = '3px solid #00ABE7';
+          h.style.outlineOffset = '4px';
+          h.style.borderRadius = '10px';
+          h.style.transition = 'outline-color 1.6s ease 1s, outline-offset 1.6s ease 1s';
+          window.setTimeout(() => {
+            h.style.outlineColor = 'transparent';
+            h.style.outlineOffset = '14px';
+          }, 1200);
+          window.setTimeout(() => {
+            h.style.outline = '';
+            h.style.outlineOffset = '';
+            h.style.borderRadius = '';
+            h.style.transition = '';
+          }, 3200);
+          toast({ title: `مستقیم رفتیم به «${anchorHash}» 🎯`, description: `بخش موردنظر در «${page.title}»` });
+          return; // stop polling
+        }
+      } catch {
+        /* cross-origin or doc not ready */
+      }
+      if (attempts++ < 14) window.setTimeout(tryScroll, 280);
+    };
+    const t = window.setTimeout(tryScroll, 350);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(t);
+    };
+  }, [anchorHash, loaded, page.title, toast]);
+
+  // clear anchor banner when page changes
+  useEffect(() => {
+    setAnchorHit(null);
+  }, [page.slug]);
+
   const copyLink = useCallback(async () => {
-    const url = `${window.location.origin}/?page=${page.slug}`;
+    const url =
+      `${window.location.origin}/?page=${page.slug}` + (anchorHash ? `&h=${anchorHash}` : '');
     try {
       if (navigator.clipboard && window.isSecureContext) {
         await navigator.clipboard.writeText(url);
@@ -120,7 +199,15 @@ export function Viewer({ page, index, total, onBack, onPrev, onNext }: ViewerPro
     } catch {
       toast({ title: 'کپی نشد', description: url });
     }
-  }, [page.slug, toast]);
+  }, [page.slug, anchorHash, toast]);
+
+  const handleFav = useCallback(() => {
+    const added = onToggleFav(page.slug);
+    if (added) {
+      setStarPop((n) => n + 1);
+      toast({ title: 'به علاقه‌مندی‌ها اضافه شد ⭐', description: page.label });
+    }
+  }, [onToggleFav, page.slug, page.label, toast]);
 
   const zoomPct = Math.round(scale * 100);
 
@@ -154,6 +241,28 @@ export function Viewer({ page, index, total, onBack, onPrev, onNext }: ViewerPro
           />
         </div>
       )}
+
+      {/* anchor-jump banner */}
+      <AnimatePresence>
+        {anchorHit && (
+          <motion.div
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            className="shrink-0 flex items-center gap-2 px-4 py-1.5 bg-[#00ABE7]/10 border-b border-[#00ABE7]/20 text-[11.5px] font-extrabold text-[#006387]"
+          >
+            <Target className="size-3.5" aria-hidden />
+            پرش مستقیم به بخش «{anchorHit}» انجام شد
+            <button
+              type="button"
+              onClick={() => setAnchorHit(null)}
+              className="ms-auto text-[10px] font-black text-[#4A6572] hover:text-[#04202E] rounded-full px-2 py-0.5 hover:bg-white/70 transition-colors"
+            >
+              بستن ×
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* toolbar */}
       <div className="flex items-center gap-2 px-3 sm:px-4 h-14 shrink-0 border-b border-[#D3E8F0] bg-white/80 backdrop-blur">
@@ -217,6 +326,97 @@ export function Viewer({ page, index, total, onBack, onPrev, onNext }: ViewerPro
           </TooltipProvider>
         </div>
 
+        {/* favorite star */}
+        <TooltipProvider delayDuration={200}>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={handleFav}
+                className={cn(
+                  'size-9 rounded-xl shrink-0 transition-colors',
+                  isFav
+                    ? 'bg-[#FFF3C9] border-[#F0DE9A] hover:bg-[#FFEDB0]'
+                    : 'border-[#D3E8F0] hover:border-[#F0DE9A] hover:bg-[#FFFDF2]',
+                )}
+                aria-label={isFav ? 'حذف از علاقه‌مندی‌ها' : 'افزودن به علاقه‌مندی‌ها'}
+                aria-pressed={isFav}
+                title={isFav ? 'حذف از علاقه‌مندی‌ها' : 'افزودن به علاقه‌مندی‌ها (⭐)'}
+              >
+                <motion.span
+                  key={starPop}
+                  initial={starPop ? { scale: 0.4, rotate: -18 } : false}
+                  animate={{ scale: 1, rotate: 0 }}
+                  transition={{ type: 'spring', stiffness: 500, damping: 15 }}
+                  className="grid place-items-center"
+                >
+                  <Star
+                    className={cn('size-4', isFav ? 'fill-[#F5B301] text-[#D99A00]' : 'text-[#4A6572]')}
+                    aria-hidden
+                  />
+                </motion.span>
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>{isFav ? 'حذف از علاقه‌مندی‌ها' : 'افزودن به علاقه‌مندی‌ها'}</TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+
+        {/* notes popover */}
+        <Popover open={notesOpen} onOpenChange={setNotesOpen}>
+          <TooltipProvider delayDuration={200}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className={cn(
+                      'relative size-9 rounded-xl shrink-0',
+                      note
+                        ? 'bg-[#E7F6FD] border-[#00ABE7]/40 text-[#006387] hover:bg-[#D8F0FA]'
+                        : 'border-[#D3E8F0] hover:border-[#00ABE7]/40',
+                    )}
+                    aria-label="یادداشت این صفحه"
+                    title="یادداشت این صفحه"
+                  >
+                    <StickyNote className="size-4" aria-hidden />
+                    {note && (
+                      <span
+                        className="absolute -top-1 -left-1 size-2.5 rounded-full bg-[#00ABE7] ring-2 ring-white"
+                        aria-hidden
+                      />
+                    )}
+                  </Button>
+                </PopoverTrigger>
+              </TooltipTrigger>
+              <TooltipContent>یادداشت این صفحه</TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+          <PopoverContent side="bottom" align="end" className="w-80 p-3.5 rounded-2xl border-[#D3E8F0]">
+            <div className="flex items-center gap-2 mb-2">
+              <StickyNote className="size-4 text-[#00ABE7]" aria-hidden />
+              <p className="text-[13px] font-black text-[#04202E]">یادداشت روی «{page.label}»</p>
+            </div>
+            <Textarea
+              value={note}
+              onChange={(e) => onNoteChange(e.target.value)}
+              placeholder="هر نکته‌ای درباره‌ی این صفحه… (خودکار ذخیره می‌شود)"
+              className="min-h-28 bg-[#F2FAFD] border-[#D3E8F0] rounded-xl text-[12.5px] leading-6 font-medium resize-none focus-visible:ring-[#00ABE7]/40 placeholder:text-[#4A6572]/50"
+              aria-label="متن یادداشت"
+            />
+            <div className="flex items-center justify-between mt-2">
+              <span className="text-[10px] font-bold text-[#4A6572]/60">
+                {note ? `${note.length} نویسه` : 'خالی'}
+              </span>
+              <span className="text-[10px] font-bold text-[#1F9D55] flex items-center gap-1">
+                <Check className="size-3" aria-hidden />
+                ذخیره‌ی خودکار
+              </span>
+            </div>
+          </PopoverContent>
+        </Popover>
+
         {/* tour play/pause */}
         <TooltipProvider delayDuration={200}>
           <Tooltip>
@@ -244,6 +444,7 @@ export function Viewer({ page, index, total, onBack, onPrev, onNext }: ViewerPro
         <div className="min-w-0 flex-1">
           <h2 className="text-[14px] sm:text-[15px] font-black text-[#04202E] truncate">
             {page.label}
+            {isFav && <Star className="inline size-3.5 fill-[#F5B301] text-[#D99A00] ms-1.5 -mt-0.5" aria-hidden />}
             {playing && <span className="text-[10.5px] font-bold text-[#00ABE7] ms-2">· در حال پخش…</span>}
           </h2>
           <p className="hidden md:block text-[11px] font-medium text-[#4A6572] truncate">{page.desc}</p>

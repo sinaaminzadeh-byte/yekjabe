@@ -21,6 +21,7 @@ import {
   ArrowLeft,
   LayoutGrid,
   Clock,
+  Star,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -36,9 +37,10 @@ const CAT_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
 interface CommandPaletteProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onOpenPage: (slug: string) => void;
+  onOpenPage: (slug: string, hash?: string | null) => void;
   onGallery: () => void;
   recent: string[];
+  favs?: string[];
   activeSlug: string | null;
 }
 
@@ -48,6 +50,7 @@ export function CommandPalette({
   onOpenPage,
   onGallery,
   recent,
+  favs = [],
   activeSlug,
 }: CommandPaletteProps) {
   // ⌘K / Ctrl+K
@@ -71,6 +74,10 @@ export function CommandPalette({
     .map((s) => PAGES.find((p) => p.slug === s))
     .filter((p): p is PageDef => Boolean(p));
 
+  const favPages = favs
+    .map((s) => PAGES.find((p) => p.slug === s))
+    .filter((p): p is PageDef => Boolean(p));
+
   return (
     <CommandDialog
       open={open}
@@ -81,6 +88,25 @@ export function CommandPalette({
       <CommandInput placeholder="برو به صفحه… (نام، شماره یا دسته)" />
       <CommandList className="text-right">
         <CommandEmpty>چیزی پیدا نشد؛ اسم دیگه‌ای امتحان کن 🧸</CommandEmpty>
+
+        {favPages.length > 0 && (
+          <CommandGroup heading="علاقه‌مندی‌ها">
+            {favPages.map((p) => (
+              <CommandItem
+                key={`fav-${p.slug}`}
+                value={`fav star ${p.label} ${p.title} ${p.slug} ${p.dc}`}
+                onSelect={() => run(() => onOpenPage(p.slug))}
+                className="gap-2"
+              >
+                <Star className="size-3.5 fill-[#F5B301] text-[#D99A00]" aria-hidden />
+                <span className="font-bold text-[13px]">{p.label}</span>
+                {p.slug === activeSlug && (
+                  <span className="mr-auto text-[10px] font-black text-[#00ABE7]">فعلی</span>
+                )}
+              </CommandItem>
+            ))}
+          </CommandGroup>
+        )}
 
         {recentPages.length > 0 && (
           <CommandGroup heading="بازدید اخیر">
