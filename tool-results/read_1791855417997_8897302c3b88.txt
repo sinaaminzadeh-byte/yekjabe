@@ -1,0 +1,637 @@
+     1→========== 01-پیشتم، خانه.html ==========
+     2→class Component extends DCLogic {
+     3→  renderVals() {
+     4→    const fa = (n) => String(n).replace(/\d/g, (d) => '۰۱۲۳۴۵۶۷۸۹'[d]);
+     5→    const money = () => '[قیمت]';
+     6→    const price = money(Number(this.props.price ?? 890000));
+     7→    const nextNo = fa(Number(this.props.nextNo ?? 101));
+     8→    return {
+     9→      nextNo,
+    10→      products: [
+    11→        { kind: 'bear', name: 'کِرِمی', traits: 'بغلی · آروم · شیرین', bg: '#FFE8D1', price },
+    12→        { kind: 'bunny', name: 'لپ‌قندی', traits: 'شیطون · بازیگوش', bg: '#FFE0EA', price },
+    13→        { kind: 'cat', name: 'میشی', traits: 'ناز · کم‌حرف · لوس', bg: '#E7E0FA', price },
+    14→        { kind: 'panda', name: 'بامبو', traits: 'خوابالو · مهربون', bg: '#DDF3EA', price },
+    15→        { kind: 'sheep', name: 'ابری', traits: 'نرم · خندون · پفی', bg: '#FFF3C9', price },
+    16→        { kind: 'duck', name: 'قات‌قات', traits: 'شاد · پر‌سروصدا', bg: '#D7F1FB', price },
+    17→      ],
+    18→      steps: [
+    19→        { n: '۱', title: 'دوستت رو انتخاب کن', body: 'از بین شش تا دوست پشمالو یکی رو بردار. همه‌شون یه قیمت دارن، پس فقط به دلت گوش بده.', bg: '#CDEFFB' },
+    20→        { n: '۲', title: 'کارت پستالت رو بنویس', body: 'پیامت رو بنویس، عکس یا ویدیو بذار و یه رمز انتخاب کن. دوستت با اسکن QR کارت، همه‌ش رو می‌بینه.', bg: '#FFE0EA' },
+    21→        { n: '۳', title: 'ما می‌فرستیم، تو لذتشو ببر', body: 'جعبه‌ی کادویی با شماره‌ی هدیه می‌رسه دستش. اگه بخوای، بدون اسم تو می‌رسه.', bg: '#FFF3C9' },
+    22→      ],
+    23→      trust: [
+    24→        { icon: '♥', title: 'یه قیمت برای همه', body: 'مهربونی وزن نداره' },
+    25→        { icon: '✓', title: 'ناشناس هم می‌شه', body: 'اسمت رو ننویسی، نمی‌دونه کی بوده' },
+    26→        { icon: '★', title: 'کارتِ رمزدار', body: 'فقط خودش پیامت رو می‌بینه' },
+    27→      ],
+    28→    };
+    29→  }
+    30→}
+    31→========== 02-انتخاب دوست پشمالو.html ==========
+    32→class Component extends DCLogic {
+    33→  state = { picked: 'bear' };
+    34→  renderVals() {
+    35→    const fa = (n) => String(n).replace(/\d/g, (d) => '۰۱۲۳۴۵۶۷۸۹'[d]);
+    36→    const money = () => '[قیمت]';
+    37→    const price = money(Number(this.props.price ?? 890000));
+    38→    const list = [
+    39→      { kind: 'bear', name: 'کِرِمی', chips: ['بغلی', 'آروم', 'شیرین'], bg: '#FFE8D1', blurb: 'کِرِمی برای روزای دلتنگی ساخته شده؛ یه بغل گرم که هیچ‌وقت خسته نمی‌شه.' },
+    40→      { kind: 'bunny', name: 'لپ‌قندی', chips: ['شیطون', 'بازیگوش', 'پرانرژی'], bg: '#FFE0EA', blurb: 'لپ‌قندی همیشه یه خبر خوب تو گوشش داره و می‌خواد با تو تقسیمش کنه.' },
+    41→      { kind: 'cat', name: 'میشی', chips: ['ناز', 'کم‌حرف', 'لوس'], bg: '#E7E0FA', blurb: 'میشی با یه نگاه می‌فهمه حالت چطوره و بی‌سروصدا کنارت می‌شینه.' },
+    42→      { kind: 'panda', name: 'بامبو', chips: ['خوابالو', 'مهربون', 'آروم'], bg: '#DDF3EA', blurb: 'بامبو استاد چرت‌های وسط روزه؛ برای دوستی که خسته‌ست عالیه.' },
+    43→      { kind: 'sheep', name: 'ابری', chips: ['نرم', 'خندون', 'پفی'], bg: '#FFF3C9', blurb: 'ابری مثل یه تیکه ابره؛ فقط باید محکم بغلش کنی.' },
+    44→      { kind: 'duck', name: 'قات‌قات', chips: ['شاد', 'پرسروصدا', 'سرحال'], bg: '#D7F1FB', blurb: 'قات‌قات حال هر جمعی رو خوب می‌کنه، حتی تو روزای بارونی.' },
+    45→    ];
+    46→    const picked = this.state.picked;
+    47→    const items = list.map((x) => ({
+    48→      ...x,
+    49→      traits: x.chips.join(' · '),
+    50→      isOn: x.kind === picked,
+    51→      border: x.kind === picked ? '#00ABE7' : '#E1EFF5',
+    52→      pick: () => this.setState({ picked: x.kind }),
+    53→    }));
+    54→    return { price, items, sel: list.find((x) => x.kind === picked) || list[0] };
+    55→  }
+    56→}
+    57→========== 03-کارت پستال و پیام.html ==========
+    58→class Component extends DCLogic {
+    59→  state = { occ: 0, len: 0, anon: false };
+    60→  renderVals() {
+    61→    const fa = (n) => String(n).replace(/\d/g, (d) => '۰۱۲۳۴۵۶۷۸۹'[d]);
+    62→    const labels = ['همین‌طوری', 'دلم تنگ شده', 'زودتر خوب شی', 'تولدت مبارک'];
+    63→    const holders = [
+    64→      'مثلاً: همین‌طوری گفتم یه بغل برات بفرستم، چون دوستت دارم…',
+    65→      'مثلاً: دلم برات خیلی تنگ شده، زود بیا ببینمت…',
+    66→      'مثلاً: زودتر خوب شو، بدون تو هیچ‌چی مزه نداره…',
+    67→      'مثلاً: تولدت مبارک عزیزم، امسال بهترین سالِ زندگیته…',
+    68→    ];
+    69→    const occasions = labels.map((label, i) => ({
+    70→      label,
+    71→      isOn: i === this.state.occ,
+    72→      bg: i === this.state.occ ? '#00ABE7' : '#fff',
+    73→      border: i === this.state.occ ? '#04202E' : '#CFE6EF',
+    74→      pick: () => this.setState({ occ: i }),
+    75→    }));
+    76→    const anon = this.state.anon;
+    77→    return {
+    78→      occasions,
+    79→      ph: holders[this.state.occ],
+    80→      len: fa(this.state.len),
+    81→      onType: (e) => this.setState({ len: (e.target.value || '').length }),
+    82→      anon,
+    83→      toggleAnon: () => this.setState({ anon: !anon }),
+    84→      switchBg: anon ? '#00ABE7' : '#C7DCE5',
+    85→      knobStyle: 'position:absolute;top:3px;width:26px;height:26px;border-radius:13px;background:#fff;box-shadow:0 2px 5px rgba(4,32,46,0.28);' + (anon ? 'left:3px' : 'right:3px'),
+    86→      showName: !anon,
+    87→      giftNo: fa(Number(this.props.nextNo ?? 101)),
+    88→    };
+    89→  }
+    90→}
+    91→========== 04-پنجه و قلب.html ==========
+    92→class Component extends DCLogic {
+    93→  state = { h: 5, p: 3 };
+    94→  renderVals() {
+    95→    const fa = (n) => String(n).replace(/\d/g, (d) => '۰۱۲۳۴۵۶۷۸۹'[d]);
+    96→    const money = () => '[قیمت]';
+    97→    const price = Number(this.props.price ?? 890000);
+    98→    const charm = Number(this.props.charm ?? 50000);
+    99→    const done = Number(this.props.charityDone ?? 0);
+   100→    const target = Math.max(1, Number(this.props.charityTarget ?? 30));
+   101→    const { h, p } = this.state;
+   102→    const all = [];
+   103→    let hi = 0, pi = 0;
+   104→    while (hi < h || pi < p) {
+   105→      if (hi < h) { all.push('h'); hi++; }
+   106→      if (pi < p) { all.push('p'); pi++; }
+   107→    }
+   108→    const cap = 26;
+   109→    const shown = all.slice(0, cap).map((k, i) => ({
+   110→      isHeart: k === 'h',
+   111→      isPaw: k === 'p',
+   112→      tr: 'display:inline-flex;transform:rotate(' + (((i * 37) % 28) - 14) + 'deg)',
+   113→    }));
+   114→    const doneNow = done + h + p;
+   115→    return {
+   116→      charm: money(charm),
+   117→      hearts: fa(h),
+   118→      paws: fa(p),
+   119→      heartPlus: () => this.setState({ h: h + 1 }),
+   120→      heartMinus: () => this.setState({ h: Math.max(0, h - 1) }),
+   121→      pawPlus: () => this.setState({ p: p + 1 }),
+   122→      pawMinus: () => this.setState({ p: Math.max(0, p - 1) }),
+   123→      stickers: shown,
+   124→      hasMore: all.length > cap,
+   125→      more: fa(all.length - cap),
+   126→      giftNo: fa(Number(this.props.nextNo ?? 101)),
+   127→      doneNow: fa(doneNow),
+   128→      target: '[هدف]',
+   129→      barPct: Math.min(100, Math.round((doneNow / target) * 100)),
+   130→      total: money(price + (h + p) * charm),
+   131→    };
+   132→  }
+   133→}
+   134→========== 05-سبد و پرداخت.html ==========
+   135→class Component extends DCLogic {
+   136→  renderVals() {
+   137→    const fa = (n) => String(n).replace(/\d/g, (d) => '۰۱۲۳۴۵۶۷۸۹'[d]);
+   138→    const money = () => '[قیمت]';
+   139→    const price = Number(this.props.price ?? 890000);
+   140→    const charm = Number(this.props.charm ?? 50000);
+   141→    const h = Number(this.props.hearts ?? 5);
+   142→    const p = Number(this.props.paws ?? 3);
+   143→    const rows = [];
+   144→    if (h > 0) rows.push({ isHeart: true, isPaw: false, bg: '#FFE9F0', title: 'قلب قرمز × ' + fa(h), sub: 'برای بچه‌های بی‌سرپرست', amount: money(h * charm) });
+   145→    if (p > 0) rows.push({ isHeart: false, isPaw: true, bg: '#E3F6FD', title: 'پنجه × ' + fa(p), sub: 'برای پناهگاه حیوونا', amount: money(p * charm) });
+   146→    return {
+   147→      giftNo: fa(Number(this.props.nextNo ?? 101)),
+   148→      price: money(price),
+   149→      rows,
+   150→      total: money(price + (h + p) * charm),
+   151→    };
+   152→  }
+   153→}
+   154→========== 06-قفل کارت پستال.html ==========
+   155→class Component extends DCLogic {
+   156→  state = { show: false };
+   157→  renderVals() {
+   158→    const fa = (n) => String(n).replace(/\d/g, (d) => '۰۱۲۳۴۵۶۷۸۹'[d]);
+   159→    return {
+   160→      giftNo: fa(Number(this.props.nextNo ?? 101)),
+   161→      ptype: this.state.show ? 'text' : 'password',
+   162→      toggle: () => this.setState({ show: !this.state.show }),
+   163→    };
+   164→  }
+   165→}
+   166→========== 07-پیام تو.html ==========
+   167→class Component extends DCLogic {
+   168→  renderVals() {
+   169→    const fa = (n) => String(n).replace(/\d/g, (d) => '۰۱۲۳۴۵۶۷۸۹'[d]);
+   170→    return {
+   171→      giftNo: fa(Number(this.props.nextNo ?? 101)),
+   172→      sender: this.props.sender ?? 'یه دوست ناشناس',
+   173→      hearts: fa(Number(this.props.hearts ?? 5)),
+   174→      paws: fa(Number(this.props.paws ?? 3)),
+   175→    };
+   176→  }
+   177→}
+   178→========== 08-دفتر مهربونی.html ==========
+   179→class Component extends DCLogic {
+   180→  renderVals() {
+   181→    const fa = (n) => String(n).replace(/\d/g, (d) => '۰۱۲۳۴۵۶۷۸۹'[d]);
+   182→    const done = Number(this.props.charityDone ?? 0);
+   183→    const target = Math.max(1, Number(this.props.charityTarget ?? 30));
+   184→    return {
+   185→      done: fa(done),
+   186→      target: '[هدف]',
+   187→      pct: Math.min(100, Math.round((done / target) * 100)),
+   188→      steps: [
+   189→        { n: '۱', bg: '#FFE9F0', text: 'پولِ قلب‌ها و پنجه‌ها جدا از فروش جعبه‌ها نگه داشته می‌شه.' },
+   190→        { n: '۲', bg: '#D6F1FB', text: 'با پول جمع‌شده هدیه می‌خریم و خودمون به خیریه می‌رسونیم.' },
+   191→        { n: '۳', bg: '#FFF3C9', text: 'رسید، عکس و تأییدیه‌ی تحویل رو همین‌جا برات می‌ذاریم.' },
+   192→      ],
+   193→    };
+   194→  }
+   195→}
+   196→========== 09-دوست پشمالو.html ==========
+   197→class Component extends DCLogic {
+   198→  renderVals() {
+   199→    const kind = this.props.kind ?? 'bear';
+   200→    const px = parseInt(this.props.size ?? 200, 10) || 200;
+   201→    const names = { bear: 'کِرِمی، خرس', bunny: 'لپ‌قندی، خرگوش', cat: 'میشی، گربه', panda: 'بامبو، پاندا', sheep: 'ابری، گوسفند', duck: 'قات‌قات، اردک' };
+   202→    return {
+   203→      px,
+   204→      label: names[kind] || names.bear,
+   205→      isBear: kind === 'bear',
+   206→      isBunny: kind === 'bunny',
+   207→      isCat: kind === 'cat',
+   208→      isPanda: kind === 'panda',
+   209→      isSheep: kind === 'sheep',
+   210→      isDuck: kind === 'duck',
+   211→    };
+   212→  }
+   213→}
+   214→========== 10-لوگوی پیشتم.html ==========
+   215→class Component extends DCLogic {
+   216→  renderVals() {
+   217→    const size = parseInt(this.props.size ?? 48, 10) || 48;
+   218→    const sn = this.props.showName;
+   219→    return {
+   220→      size,
+   221→      wordSize: Math.round(size * 0.62),
+   222→      showName: !(sn === false || sn === 'false'),
+   223→    };
+   224→  }
+   225→}
+   226→========== 11-هویت چاپی پیشتم.html ==========
+   227→class Component extends DCLogic {
+   228→  renderVals() {
+   229→    const fa = (n) => String(n).replace(/\d/g, (d) => '۰۱۲۳۴۵۶۷۸۹'[d]);
+   230→    const s = Number(this.props.startNo ?? 101);
+   231→    return {
+   232→      n1: fa(s),
+   233→      n2: fa(s + 1),
+   234→      family: [
+   235→        { kind: 'bear', name: 'کِرِمی' },
+   236→        { kind: 'bunny', name: 'لپ‌قندی' },
+   237→        { kind: 'cat', name: 'میشی' },
+   238→        { kind: 'panda', name: 'بامبو' },
+   239→        { kind: 'sheep', name: 'ابری' },
+   240→        { kind: 'duck', name: 'قات‌قات' },
+   241→      ],
+   242→    };
+   243→  }
+   244→}
+   245→========== 12-پشت کارت پستال.html ==========
+   246→class Component extends DCLogic {
+   247→  renderVals() {
+   248→    const fa = (n) => String(n).replace(/\d/g, (d) => '۰۱۲۳۴۵۶۷۸۹'[d]);
+   249→    return { giftNo: fa(Number(this.props.nextNo ?? 101)) };
+   250→  }
+   251→}
+   252→========== 13-پیشتم، صفحه‌ی اصلی.html ==========
+   253→class Component extends DCLogic {
+   254→  renderVals() {
+   255→    const fa = (n) => String(n).replace(/\d/g, (d) => '۰۱۲۳۴۵۶۷۸۹'[d]);
+   256→    const money = () => '[قیمت]';
+   257→    const done = Number(this.props.charityDone ?? 0);
+   258→    const target = Math.max(1, Number(this.props.charityTarget ?? 30));
+   259→    return {
+   260→      price: money(Number(this.props.price ?? 890000)),
+   261→      nextNo: fa(Number(this.props.nextNo ?? 101)),
+   262→      done: fa(done),
+   263→      target: '[هدف]',
+   264→      pct: Math.min(100, Math.round((done / target) * 100)),
+   265→      products: [
+   266→        { kind: 'bear', name: 'کِرِمی', traits: 'بغلی · آروم · شیرین', bg: '#FFE8D1' },
+   267→        { kind: 'bunny', name: 'لپ‌قندی', traits: 'شیطون · بازیگوش', bg: '#FFE0EA' },
+   268→        { kind: 'cat', name: 'میشی', traits: 'ناز · کم‌حرف · لوس', bg: '#E7E0FA' },
+   269→        { kind: 'panda', name: 'بامبو', traits: 'خوابالو · مهربون', bg: '#DDF3EA' },
+   270→        { kind: 'sheep', name: 'ابری', traits: 'نرم · خندون · پفی', bg: '#FFF3C9' },
+   271→        { kind: 'duck', name: 'قات‌قات', traits: 'شاد · پرسروصدا', bg: '#D7F1FB' },
+   272→      ],
+   273→      faq: [
+   274→        { q: 'دوستم می‌فهمه کی فرستاده؟', a: 'فقط اگه اسمت رو بنویسی. اگه ناشناس بفرستی، تو جعبه و کارت هیچ اسمی نیست.' },
+   275→        { q: 'چقدر طول می‌کشه برسه؟', a: 'سفارش‌ها آماده و تحویل پست می‌شن. زمان دقیق رو موقع ثبت آدرس گیرنده می‌بینی.' },
+   276→        { q: 'چرا همه‌ی جعبه‌ها یه قیمتن؟', a: 'چون نمی‌خوایم هدیه‌ی گرون‌تر یعنی دوستیِ بیشتر. اینجا مهربونی وزن نداره.' },
+   277→        { q: 'پول قلب و پنجه‌ها کجا می‌ره؟', a: 'کامل برای هدیه به بچه‌های بی‌سرپرست و پناهگاه حیوونا. رسید و عکس تحویل رو تو دفتر مهربونی می‌ذاریم.' },
+   278→      ],
+   279→    };
+   280→  }
+   281→}
+   282→========== 14-ساخت هدیه.html ==========
+   283→class Component extends DCLogic {
+   284→  state = { picked: 'bear', occ: 0, len: 0, anon: false, h: 5, p: 3 };
+   285→  renderVals() {
+   286→    const fa = (n) => String(n).replace(/\d/g, (d) => '۰۱۲۳۴۵۶۷۸۹'[d]);
+   287→    const money = () => '[قیمت]';
+   288→    const price = Number(this.props.price ?? 890000);
+   289→    const charm = Number(this.props.charm ?? 50000);
+   290→    const list = [
+   291→      { kind: 'bear', name: 'کِرِمی', chips: ['بغلی', 'آروم', 'شیرین'], bg: '#FFE8D1' },
+   292→      { kind: 'bunny', name: 'لپ‌قندی', chips: ['شیطون', 'بازیگوش', 'پرانرژی'], bg: '#FFE0EA' },
+   293→      { kind: 'cat', name: 'میشی', chips: ['ناز', 'کم‌حرف', 'لوس'], bg: '#E7E0FA' },
+   294→      { kind: 'panda', name: 'بامبو', chips: ['خوابالو', 'مهربون', 'آروم'], bg: '#DDF3EA' },
+   295→      { kind: 'sheep', name: 'ابری', chips: ['نرم', 'خندون', 'پفی'], bg: '#FFF3C9' },
+   296→      { kind: 'duck', name: 'قات‌قات', chips: ['شاد', 'پرسروصدا', 'سرحال'], bg: '#D7F1FB' },
+   297→    ];
+   298→    const picked = this.state.picked;
+   299→    const items = list.map((x) => ({
+   300→      ...x,
+   301→      traits: x.chips.join(' · '),
+   302→      isOn: x.kind === picked,
+   303→      border: x.kind === picked ? '#00ABE7' : '#E1EFF5',
+   304→      pick: () => this.setState({ picked: x.kind }),
+   305→    }));
+   306→    const labels = ['همین‌طوری', 'دلم تنگ شده', 'زودتر خوب شی', 'تولدت مبارک'];
+   307→    const holders = [
+   308→      'مثلاً: همین‌طوری گفتم یه بغل برات بفرستم، چون دوستت دارم…',
+   309→      'مثلاً: دلم برات خیلی تنگ شده، زود بیا ببینمت…',
+   310→      'مثلاً: زودتر خوب شو، بدون تو هیچ‌چی مزه نداره…',
+   311→      'مثلاً: تولدت مبارک عزیزم، امسال بهترین سالِ زندگیته…',
+   312→    ];
+   313→    const occasions = labels.map((label, i) => ({
+   314→      label,
+   315→      isOn: i === this.state.occ,
+   316→      bg: i === this.state.occ ? '#00ABE7' : '#fff',
+   317→      border: i === this.state.occ ? '#04202E' : '#CFE6EF',
+   318→      pick: () => this.setState({ occ: i }),
+   319→    }));
+   320→    const { h, p, anon } = this.state;
+   321→    const rows = [];
+   322→    if (h > 0) rows.push({ title: 'قلب قرمز × ' + fa(h), sub: 'برای بچه‌های بی‌سرپرست', amount: money(h * charm) });
+   323→    if (p > 0) rows.push({ title: 'پنجه × ' + fa(p), sub: 'برای پناهگاه حیوونا', amount: money(p * charm) });
+   324→    return {
+   325→      price: money(price),
+   326→      charm: money(charm),
+   327→      giftNo: fa(Number(this.props.nextNo ?? 101)),
+   328→      items,
+   329→      sel: list.find((x) => x.kind === picked) || list[0],
+   330→      occasions,
+   331→      ph: holders[this.state.occ],
+   332→      len: fa(this.state.len),
+   333→      onType: (e) => this.setState({ len: (e.target.value || '').length }),
+   334→      anon,
+   335→      showName: !anon,
+   336→      toggleAnon: () => this.setState({ anon: !anon }),
+   337→      switchBg: anon ? '#00ABE7' : '#C7DCE5',
+   338→      knobStyle: 'position:absolute;top:3px;width:26px;height:26px;border-radius:13px;background:#fff;box-shadow:0 2px 5px rgba(4,32,46,0.28);' + (anon ? 'left:3px' : 'right:3px'),
+   339→      hearts: fa(h),
+   340→      paws: fa(p),
+   341→      heartPlus: () => this.setState({ h: h + 1 }),
+   342→      heartMinus: () => this.setState({ h: Math.max(0, h - 1) }),
+   343→      pawPlus: () => this.setState({ p: p + 1 }),
+   344→      pawMinus: () => this.setState({ p: Math.max(0, p - 1) }),
+   345→      rows,
+   346→      total: money(price + (h + p) * charm),
+   347→    };
+   348→  }
+   349→}
+   350→========== 01-سفارش ثبت شد.html ==========
+   351→class Component extends DCLogic {
+   352→  renderVals() {
+   353→    const fa = (n) => String(n).replace(/\d/g, (d) => '۰۱۲۳۴۵۶۷۸۹'[d]);
+   354→    const no = Number(this.props.nextNo ?? 101);
+   355→    const h = Number(this.props.hearts ?? 5);
+   356→    const p = Number(this.props.paws ?? 3);
+   357→    return {
+   358→      giftNo: fa(no),
+   359→      orderNo: fa(1000 + no),
+   360→      charmLine: 'با این سفارش ' + fa(h) + ' قلب و ' + fa(p) + ' پنجه هم برای بچه‌های بی‌سرپرست و حیوونا ثبت شد. رسیدش تو دفتر مهربونی می‌مونه.',
+   361→      steps: [
+   362→        { n: '۱', bg: '#CDEFFB', title: 'پرداخت شد', sub: 'همین حالا' },
+   363→        { n: '۲', bg: '#FFE0EA', title: 'بسته‌بندی', sub: '[مدت بسته‌بندی]' },
+   364→        { n: '۳', bg: '#FFF3C9', title: 'تحویل پست', sub: 'کد رهگیری رو بعداً برات می‌فرستیم' },
+   365→        { n: '۴', bg: '#E7E0FA', title: 'رسیدن به دوستت', sub: 'با کارت QR و شماره‌ی ' + fa(no) },
+   366→      ],
+   367→    };
+   368→  }
+   369→}
+   370→========== 02-هدیه‌هام.html ==========
+   371→class Component extends DCLogic {
+   372→  state = { tab: 'sent' };
+   373→  renderVals() {
+   374→    const fa = (n) => String(n).replace(/\d/g, (d) => '۰۱۲۳۴۵۶۷۸۹'[d]);
+   375→    const tab = this.state.tab;
+   376→    const sent = [
+   377→      { kind: 'bear', bg: '#FFE8D1', who: 'برای نازنین', no: fa(101), date: '۲۰ مهر', extra: 'ناشناس', status: 'در راه', statusBg: '#CDEFFB' },
+   378→      { kind: 'bunny', bg: '#FFE0EA', who: 'برای مریم', no: fa(107), date: '۲۸ مهر', extra: '۲ قلب', status: 'تحویل شد', statusBg: '#D7F5E4' },
+   379→      { kind: 'cat', bg: '#E7E0FA', who: 'برای مامان', no: fa(112), date: '۵ آبان', extra: '۱ پنجه', status: 'بسته‌بندی', statusBg: '#FFF3C9' },
+   380→    ];
+   381→    const recv = [
+   382→      { kind: 'panda', bg: '#DDF3EA', who: 'از یه دوست ناشناس', no: fa(98), date: '۱۲ مهر', extra: 'کارت باز شده', status: 'پیام رو دیدی', statusBg: '#D7F5E4' },
+   383→    ];
+   384→    const items = tab === 'sent' ? sent : recv;
+   385→    return {
+   386→      sentOn: tab === 'sent',
+   387→      recvOn: tab === 'recv',
+   388→      sentBg: tab === 'sent' ? '#fff' : 'transparent',
+   389→      recvBg: tab === 'recv' ? '#fff' : 'transparent',
+   390→      showSent: () => this.setState({ tab: 'sent' }),
+   391→      showRecv: () => this.setState({ tab: 'recv' }),
+   392→      items,
+   393→      count: fa(items.length),
+   394→      charmCount: fa(tab === 'sent' ? 7 : 0),
+   395→    };
+   396→  }
+   397→}
+   398→========== 03-ورود یا ثبت‌نام.html ==========
+   399→class Component extends DCLogic {
+   400→  renderVals() {
+   401→    const signup = (this.props.mode ?? 'login') === 'signup';
+   402→    return {
+   403→      title: signup ? 'بیا عضو شو' : 'خوش اومدی',
+   404→      subtitle: signup ? 'با شماره‌ت حساب بساز تا هدیه‌هات رو همیشه ببینی.' : 'با شماره‌ت وارد شو تا هدیه‌هات رو ببینی.',
+   405→    };
+   406→  }
+   407→}
+   408→========== 04-درباره‌ی پیشتم.html ==========
+   409→class Component extends DCLogic {
+   410→  renderVals() {
+   411→    return {
+   412→      timeline: [
+   413→        { year: '[سال]', bg: '#CDEFFB', title: 'ایده شکل گرفت', body: '[یه خاطره‌ی کوتاه از اولین فکری که به پیشتم منجر شد.]' },
+   414→        { year: '[سال]', bg: '#FFE0EA', title: 'اولین جعبه‌ها', body: '[اولین بسته‌ای که بسته‌بندی شد و چطور رسید دست گیرنده.]' },
+   415→        { year: '[سال]', bg: '#FFF3C9', title: 'اولین بسته‌ی خیریه', body: '[چه تعداد هدیه برای چه خیریه‌ای فرستاده شد.]' },
+   416→        { year: 'امروز', bg: '#E7E0FA', title: 'هنوز داریم یاد می‌گیریم', body: 'هر هدیه‌ای که می‌فرستیم، یه قدم جلوتر از قبله.' },
+   417→      ],
+   418→      stats: [
+   419→        { num: '[عدد]', label: 'هدیه‌ی فرستاده‌شده' },
+   420→        { num: '[عدد]', label: 'قلب و پنجه برای خیریه‌ها' },
+   421→        { num: '[عدد]', label: 'نفر در تیم' },
+   422→        { num: '[عدد]', label: 'کارت پستال با پیام' },
+   423→      ],
+   424→      values: [
+   425→        { n: '۱', bg: '#CDEFFB', title: 'یه قیمت برای همه', body: 'همه‌ی جعبه‌ها یه قیمتن. ما نمی‌خوایم هدیه‌ی گران‌تر یعنی دوستی بیشتر.' },
+   426→        { n: '۲', bg: '#FFE0EA', title: 'شفافیت کامل', body: 'هر قلب و پنجه‌ای که فروخته می‌شه، رسیدش رو تو دفتر مهربونی می‌ذاریم.' },
+   427→        { n: '۳', bg: '#FFF3C9', title: 'مهربونی اول', body: 'هر تصمیمی رو با این سؤال می‌گیریم: این کار یکی رو لبخندی‌تر می‌کنه؟' },
+   428→      ],
+   429→    };
+   430→  }
+   431→}
+   432→========== 05-ماموریت پیشتم.html ==========
+   433→class Component extends DCLogic {
+   434→  renderVals() { return {}; }
+   435→}
+   436→========== 06-تماس با پیشتم.html ==========
+   437→class Component extends DCLogic {
+   438→  renderVals() { return { noop: (e) => { if (e && e.preventDefault) e.preventDefault(); } }; }
+   439→}
+   440→========== 07-نظرها.html ==========
+   441→class Component extends DCLogic {
+   442→  renderVals() {
+   443→    return {
+   444→      bars: [
+   445→        { stars: '۵' }, { stars: '۴' }, { stars: '۳' }, { stars: '۲' }, { stars: '۱' },
+   446→      ],
+   447→      cards: [
+   448→        { stars: '[امتیاز]', kind: 'bear' },
+   449→        { stars: '[امتیاز]', kind: 'bunny' },
+   450→        { stars: '[امتیاز]', kind: 'cat' },
+   451→        { stars: '[امتیاز]', kind: 'panda' },
+   452→        { stars: '[امتیاز]', kind: 'sheep' },
+   453→        { stars: '[امتیاز]', kind: 'duck' },
+   454→      ],
+   455→    };
+   456→  }
+   457→}
+   458→========== 08-ارسال و بازگشت.html ==========
+   459→class Component extends DCLogic {
+   460→  renderVals() {
+   461→    return {
+   462→      sections: [
+   463→        { n: '۱', bg: '#CDEFFB', title: 'زمان ارسال', body: 'سفارش‌ها بعد از پرداخت حدود [تعداد] روز کاری بسته‌بندی می‌شن. بعدش برای دوستت پست می‌شه و زمان رسیدن بستگی به شهرش داره؛ [توضیح تقریبی زمان پست].' },
+   464→        { n: '۲', bg: '#FFE0EA', title: 'هزینه‌ی ارسال', body: '[هزینه‌ی ارسال و اینکه چه موقع حساب می‌شه] رو بنویس. ارسال بعد از ثبت آدرس دوستت محاسبه و نشون داده می‌شه.' },
+   465→        { n: '۳', bg: '#FFF3C9', title: 'کجا می‌فرستیم؟', body: 'فعلاً به [شهرها/کشورها] می‌فرستیم. اگه آدرس دوستت جای دیگه‌ست، از ما بپرس.' },
+   466→        { n: '۴', bg: '#E7E0FA', title: 'اگه جعبه نرسید یا آسیب دید', body: 'اگه جعبه آسیب دیده یا عروسک اشتباهی رسید، فقط کافیه ظرف [تعداد] روز از تاریخ تحویل با ما تماس بگیری و عکس بفرستی. ما جایگزین می‌فرستیم یا پولت رو برمی‌گردونیم.' },
+   467→        { n: '۵', bg: '#DDF3EA', title: 'تغییر آدرس یا لغو سفارش', body: 'تا قبل از بسته‌بندی، می‌تونی آدرس یا متن کارت رو عوض کنی یا سفارش رو لغو کنی. بعد از اون دیگه امکانش نیست، پس زودتر بهمون خبر بده.' },
+   468→      ],
+   469→    };
+   470→  }
+   471→}
+   472→========== 09-درباره‌ی پیشتم.html ==========
+   473→class Component extends DCLogic {
+   474→  renderVals() {
+   475→    return {
+   476→      timeline: [
+   477→        { year: '[سال]', bg: '#CDEFFB', title: 'ایده شکل گرفت', body: '[یه خاطره‌ی کوتاه از اولین فکری که به پیشتم منجر شد.]' },
+   478→        { year: '[سال]', bg: '#FFE0EA', title: 'اولین جعبه‌ها', body: '[اولین بسته‌ای که بسته‌بندی شد و چطور رسید دست گیرنده.]' },
+   479→        { year: '[سال]', bg: '#FFF3C9', title: 'اولین بسته‌ی خیریه', body: '[چه تعداد هدیه برای چه خیریه‌ای فرستاده شد.]' },
+   480→        { year: 'امروز', bg: '#E7E0FA', title: 'هنوز داریم یاد می‌گیریم', body: 'هر هدیه‌ای که می‌فرستیم، یه قدم جلوتر از قبله.' },
+   481→      ],
+   482→      stats: [
+   483→        { num: '[عدد]', label: 'هدیه‌ی فرستاده‌شده' },
+   484→        { num: '[عدد]', label: 'قلب و پنجه برای خیریه‌ها' },
+   485→        { num: '[عدد]', label: 'نفر در تیم' },
+   486→        { num: '[عدد]', label: 'کارت پستال با پیام' },
+   487→      ],
+   488→      values: [
+   489→        { n: '۱', bg: '#CDEFFB', title: 'یه قیمت برای همه', body: 'همه‌ی جعبه‌ها یه قیمتن. ما نمی‌خوایم هدیه‌ی گران‌تر یعنی دوستی بیشتر.' },
+   490→        { n: '۲', bg: '#FFE0EA', title: 'شفافیت کامل', body: 'هر قلب و پنجه‌ای که فروخته می‌شه، رسیدش رو تو دفتر مهربونی می‌ذاریم.' },
+   491→        { n: '۳', bg: '#FFF3C9', title: 'مهربونی اول', body: 'هر تصمیمی رو با این سؤال می‌گیریم: این کار یکی رو لبخندی‌تر می‌کنه؟' },
+   492→      ],
+   493→    };
+   494→  }
+   495→}
+   496→========== 10-ماموریت پیشتم.html ==========
+   497→class Component extends DCLogic {
+   498→  renderVals() {
+   499→    return {};
+   500→  }
+   501→}
+   502→========== 11-تماس با پیشتم.html ==========
+   503→class Component extends DCLogic {
+   504→  renderVals() {
+   505→    return { noop: (e) => { if (e && e.preventDefault) e.preventDefault(); } };
+   506→  }
+   507→}
+   508→========== 12-نظرها.html ==========
+   509→class Component extends DCLogic {
+   510→  renderVals() {
+   511→    return {
+   512→      bars: [
+   513→        { stars: '۵' }, { stars: '۴' }, { stars: '۳' }, { stars: '۲' }, { stars: '۱' },
+   514→      ],
+   515→      cards: [
+   516→        { stars: '★★★★★', kind: 'bear' },
+   517→        { stars: '★★★★★', kind: 'bunny' },
+   518→        { stars: '★★★★★', kind: 'cat' },
+   519→        { stars: '★★★★★', kind: 'panda' },
+   520→        { stars: '★★★★★', kind: 'sheep' },
+   521→        { stars: '★★★★★', kind: 'duck' },
+   522→      ],
+   523→    };
+   524→  }
+   525→}
+   526→========== 13-ارسال و بازگشت.html ==========
+   527→class Component extends DCLogic {
+   528→  renderVals() {
+   529→    return {
+   530→      sections: [
+   531→        { n: '۱', bg: '#CDEFFB', title: 'زمان ارسال', body: 'سفارش‌ها بعد از پرداخت حدود [تعداد] روز کاری بسته‌بندی می‌شن. بعدش برای دوستت پست می‌شه و زمان رسیدن بستگی به شهرش داره؛ [توضیح تقریبی زمان پست].' },
+   532→        { n: '۲', bg: '#FFE0EA', title: 'هزینه‌ی ارسال', body: '[هزینه‌ی ارسال و اینکه چه موقع حساب می‌شه] رو بنویس. ارسال بعد از ثبت آدرس دوستت محاسبه و نشون داده می‌شه.' },
+   533→        { n: '۳', bg: '#FFF3C9', title: 'کجا می‌فرستیم؟', body: 'فعلاً به [شهرها/کشورها] می‌فرستیم. اگه آدرس دوستت جای دیگه‌ست، از ما بپرس.' },
+   534→        { n: '۴', bg: '#E7E0FA', title: 'اگه جعبه نرسید یا آسیب دید', body: 'اگه جعبه آسیب دیده یا عروسک اشتباهی رسید، فقط کافیه ظرف [تعداد] روز از تاریخ تحویل با ما تماس بگیری و عکس بفرستی. ما جایگزین می‌فرستیم یا پولت رو برمی‌گردونیم.' },
+   535→        { n: '۵', bg: '#DDF3EA', title: 'تغییر آدرس یا لغو سفارش', body: 'تا قبل از بسته‌بندی، می‌تونی آدرس یا متن کارت رو عوض کنی یا سفارش رو لغو کنی. بعد از اون دیگه امکانش نیست، پس زودتر بهمون خبر بده.' },
+   536→      ],
+   537→    };
+   538→  }
+   539→}
+   540→========== 14-دفتر مهربونی.html ==========
+   541→class Component extends DCLogic {
+   542→  renderVals() {
+   543→    return {
+   544→      receipts: [
+   545→        { bg: '#D6F1FB', name: 'ارسال هدیه به [نام خیریه ۱]', meta: '[تاریخ] · [تعداد] هدیه', tag: 'رسید و عکس تحویل' },
+   546→        { bg: '#FFE9F0', name: 'ارسال هدیه به [نام خیریه ۲]', meta: '[تاریخ] · [تعداد] هدیه', tag: 'رسید و عکس تحویل' },
+   547→        { bg: '#FFF3C9', name: 'ارسال هدیه به [نام خیریه ۳]', meta: '[تاریخ] · [تعداد] هدیه', tag: 'رسید و عکس تحویل' },
+   548→      ],
+   549→      steps: [
+   550→        { n: '۱', bg: '#FFE9F0', text: 'پولِ قلب‌ها و پنجه‌ها جدا از فروش جعبه‌ها نگه داشته می‌شه.' },
+   551→        { n: '۲', bg: '#D6F1FB', text: 'با پول جمع‌شده هدیه می‌خریم و خودمون به خیریه می‌رسونیم.' },
+   552→        { n: '۳', bg: '#FFF3C9', text: 'رسید، عکس و تأییدیه‌ی تحویل رو همین‌جا برات می‌ذاریم.' },
+   553→      ],
+   554→    };
+   555→  }
+   556→}
+   557→========== 15-ورود یا ثبت‌نام.html ==========
+   558→class Component extends DCLogic {
+   559→  renderVals() {
+   560→    const signup = (this.props.mode ?? 'login') === 'signup';
+   561→    return {
+   562→      title: signup ? 'بیا عضو شو' : 'خوش اومدی',
+   563→      subtitle: signup ? 'با شماره‌ت حساب بساز تا هدیه‌هات رو همیشه ببینی.' : 'با شماره‌ت وارد شو تا هدیه‌هات رو ببینی.',
+   564→    };
+   565→  }
+   566→}
+   567→========== 16-هدیه‌هام.html ==========
+   568→class Component extends DCLogic {
+   569→  state = { tab: 'sent' };
+   570→  renderVals() {
+   571→    const fa = (n) => String(n).replace(/\d/g, (d) => '۰۱۲۳۴۵۶۷۸۹'[d]);
+   572→    const tab = this.state.tab;
+   573→    const sent = [
+   574→      { kind: 'bear', bg: '#FFE8D1', who: 'برای نازنین', no: fa(101), date: '[تاریخ]', extra: 'ناشناس', status: 'در راه', statusBg: '#CDEFFB' },
+   575→      { kind: 'bunny', bg: '#FFE0EA', who: 'برای مریم', no: fa(107), date: '[تاریخ]', extra: '[عدد] قلب', status: 'تحویل شد', statusBg: '#D7F5E4' },
+   576→      { kind: 'cat', bg: '#E7E0FA', who: 'برای مامان', no: fa(112), date: '[تاریخ]', extra: '[عدد] پنجه', status: 'بسته‌بندی', statusBg: '#FFF3C9' },
+   577→    ];
+   578→    const recv = [
+   579→      { kind: 'panda', bg: '#DDF3EA', who: 'از یه دوست ناشناس', no: fa(98), date: '[تاریخ]', extra: 'کارت باز شده', status: 'پیام رو دیدی', statusBg: '#D7F5E4' },
+   580→    ];
+   581→    const items = tab === 'sent' ? sent : recv;
+   582→    return {
+   583→      sentOn: tab === 'sent',
+   584→      recvOn: tab === 'recv',
+   585→      sentBg: tab === 'sent' ? '#fff' : 'transparent',
+   586→      recvBg: tab === 'recv' ? '#fff' : 'transparent',
+   587→      showSent: () => this.setState({ tab: 'sent' }),
+   588→      showRecv: () => this.setState({ tab: 'recv' }),
+   589→      items,
+   590→      count: fa(items.length),
+   591→    };
+   592→  }
+   593→}
+   594→========== 17-سفارش ثبت شد.html ==========
+   595→class Component extends DCLogic {
+   596→  renderVals() {
+   597→    return {
+   598→      steps: [
+   599→        { n: '۱', bg: '#CDEFFB', title: 'پرداخت شد', sub: 'همین حالا' },
+   600→        { n: '۲', bg: '#FFE0EA', title: 'بسته‌بندی', sub: 'حدود [تعداد] روز کاری' },
+   601→        { n: '۳', bg: '#FFF3C9', title: 'تحویل پست', sub: 'کد رهگیری رو بعداً برات می‌فرستیم' },
+   602→        { n: '۴', bg: '#E7E0FA', title: 'رسیدن به دوستت', sub: 'با کارت QR و شماره‌ی [شماره‌ی هدیه]' },
+   603→      ],
+   604→    };
+   605→  }
+   606→}
+   607→========== 18-پیام تو.html ==========
+   608→class Component extends DCLogic {
+   609→  state = { open: false, show: false };
+   610→
+   611→  // [رمز عبور] placeholder: no real password is stored or compared here.
+   612→  // Replace with a real check (server-side) when the recipient flow is wired up.
+   613→  checkPassword(value) {
+   614→    return false;
+   615→  }
+   616→
+   617→  renderVals() {
+   618→    const isOpen = this.state.open || this.props.openPreview === 'open';
+   619→    const unlock = (e) => {
+   620→      if (e && e.preventDefault) e.preventDefault();
+   621→      const el = typeof document !== 'undefined' ? document.getElementById('gp') : null;
+   622→      const value = el ? el.value : '';
+   623→      if (this.checkPassword(value)) this.setState({ open: true });
+   624→    };
+   625→    return {
+   626→      isOpen,
+   627→      leftTitle: isOpen ? 'هدیه‌ت باز شد' : 'یکی برات یه چیزی فرستاده',
+   628→      lockDisp: isOpen ? 'none' : 'flex',
+   629→      lockedCardDisp: isOpen ? 'none' : 'flex',
+   630→      openCardDisp: isOpen ? 'flex' : 'none',
+   631→      ptype: this.state.show ? 'text' : 'password',
+   632→      toggle: () => this.setState({ show: !this.state.show }),
+   633→      unlock,
+   634→      sender: this.props.sender ?? 'یه دوست ناشناس',
+   635→    };
+   636→  }
+   637→}

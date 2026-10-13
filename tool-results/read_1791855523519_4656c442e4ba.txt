@@ -1,0 +1,600 @@
+     1→"use client";
+     2→
+     3→// ── Home screen: mobile (390 design) + desktop (1200 landing) ──
+     4→import { Logo } from "../logo";
+     5→import { Plush } from "../plush";
+     6→import {
+     7→  CartIcon,
+     8→  HeartIcon,
+     9→  HeartSticker,
+    10→  PawIcon,
+    11→} from "../icons";
+    12→import { navigate, type Route } from "@/lib/hash-route";
+    13→import {
+    14→  usePishnam,
+    15→  useCharityDone,
+    16→} from "@/lib/pishnam-store";
+    17→import { fa, faPrice, money } from "@/lib/fa";
+    18→import { FavHeart, FavoritesStrip } from "../fav";
+    19→import {
+    20→  PLUSHES,
+    21→  BOX_PRICE,
+    22→  HOME_STEPS,
+    23→  HOME_TRUST,
+    24→  DESKTOP_FAQ,
+    25→  CHARITY_TARGET,
+    26→} from "@/lib/pishnam-data";
+    27→
+    28→/* ═══════════════ MOBILE HOME ═══════════════ */
+    29→export function MobileHome() {
+    30→  const nextNo = usePishnam((s) => s.nextNo);
+    31→  const done = useCharityDone();
+    32→
+    33→  return (
+    34→    <div className="flex min-h-screen flex-col bg-[#F2FAFD] md:hidden">
+    35→      {/* header */}
+    36→      <div className="flex items-center justify-between px-5 pb-2.5 pt-4">
+    37→        <Logo size={38} />
+    38→        <div className="flex items-center gap-2.5">
+    39→          <button
+    40→            type="button"
+    41→            aria-label="دفتر مهربونی"
+    42→            onClick={() => navigate("impact")}
+    43→            className="flex h-11 w-11 items-center justify-center rounded-full border border-[#D3E8F0] bg-white text-[#04202E]"
+    44→          >
+    45→            <HeartIcon />
+    46→          </button>
+    47→          <button
+    48→            type="button"
+    49→            aria-label="سبد خرید"
+    50→            onClick={() => navigate("checkout")}
+    51→            className="relative flex h-11 w-11 items-center justify-center rounded-full border border-[#D3E8F0] bg-white text-[#04202E]"
+    52→          >
+    53→            <CartIcon />
+    54→            <span className="absolute -left-1 -top-1 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-[#00ABE7] px-1 text-[11px] font-extrabold text-[#04202E]">
+    55→              ۱
+    56→            </span>
+    57→          </button>
+    58→        </div>
+    59→      </div>
+    60→
+    61→      {/* hero */}
+    62→      <div className="relative mx-5 mt-2 min-h-[520px] overflow-hidden rounded-[32px] bg-[#00ABE7] p-6 pb-0 box-border">
+    63→        <div className="absolute -bottom-[50px] -left-10 h-[290px] w-[290px] rounded-full bg-[#66CDF1]" />
+    64→        <div className="absolute left-[22px] top-[18px]">
+    65→          <HeartSticker size={34} fill="#fff" stroke="#04202E" strokeWidth={2.4} />
+    66→        </div>
+    67→        <div className="absolute left-[130px] top-[290px]">
+    68→          <HeartSticker size={22} fill="#F0426B" stroke="#04202E" strokeWidth={3} />
+    69→        </div>
+    70→        <div className="relative flex flex-col items-start gap-3.5">
+    71→          <span className="rounded-[14px] bg-[#04202E] px-3 py-1.5 text-xs font-bold text-white">
+    72→            ویژه‌ی دخترای مهربون
+    73→          </span>
+    74→          <h1 className="m-0 text-[34px] font-black leading-[1.4] text-[#04202E]">
+    75→            می‌خوای یکی رو خوشحال کنی؟
+    76→          </h1>
+    77→          <p className="m-0 max-w-[300px] text-[15px] font-medium leading-[1.9] text-[#04202E]">
+    78→            یه دوست پشمالو، یه کارت پستال با پیام قشنگ خودت و یه عالمه مهربونی؛ درست
+    79→            می‌فرستیمش دم در خونه‌ی دوستت.
+    80→          </p>
+    81→          <div className="mt-1 flex flex-wrap gap-2.5">
+    82→            <button
+    83→              type="button"
+    84→              onClick={() => navigate("pick")}
+    85→              className="flex h-[52px] items-center rounded-full bg-[#04202E] px-[26px] text-base font-extrabold text-white transition-transform active:scale-95"
+    86→            >
+    87→              بساز و بفرست
+    88→            </button>
+    89→            <button
+    90→              type="button"
+    91→              onClick={() => document.getElementById("how")?.scrollIntoView({ behavior: "smooth" })}
+    92→              className="box-border flex h-[52px] items-center rounded-full border-2 border-[#04202E] px-5 text-[15px] font-bold text-[#04202E]"
+    93→            >
+    94→              چطوری کار می‌کنه؟
+    95→            </button>
+    96→          </div>
+    97→        </div>
+    98→        <div className="absolute -bottom-1.5 left-1.5">
+    99→          <Plush kind="bear" size={230} />
+   100→        </div>
+   101→        <div className="absolute bottom-[34px] right-[22px] rotate-[-6deg] rounded-2xl border-[2.5px] border-[#04202E] bg-white px-3.5 pb-1.5 pt-2 text-center">
+   102→          <div className="text-[11px] font-bold text-[#4A6572]">هدیه‌ی شماره</div>
+   103→          <div className="text-[30px] font-black leading-[1.1] text-[#04202E]">{fa(nextNo)}</div>
+   104→        </div>
+   105→      </div>
+   106→
+   107→      {/* next number note */}
+   108→      <div className="mx-5 mt-3.5 flex items-center gap-3.5 rounded-3xl border border-[#DDEEF5] bg-white p-3.5">
+   109→        <div className="flex h-[72px] w-[84px] shrink-0 flex-col items-center justify-center rounded-[18px] border-2 border-dashed border-[#00ABE7] bg-[#E3F6FD]">
+   110→          <span className="text-[11px] font-bold text-[#006387]">شماره‌ی بعدی</span>
+   111→          <span className="text-[28px] font-black leading-[1.15] text-[#04202E]">{fa(nextNo)}</span>
+   112→        </div>
+   113→        <div className="text-[13.5px] font-medium leading-[1.9] text-[#1F3E4D]">
+   114→          هر هدیه یه شماره‌ی مخصوص خودش رو داره؛ همون شماره روی جعبه و کارت پستال می‌شینه.
+   115→          شماره‌ی بعدی مال کیه؟ شاید دوستت!
+   116→        </div>
+   117→      </div>
+   118→
+   119→      {/* how */}
+   120→      <div id="how" className="flex items-baseline justify-between px-5 pb-3 pt-[30px]">
+   121→        <h2 className="m-0 text-[22px] font-extrabold">چطوری کار می‌کنه؟</h2>
+   122→        <span className="text-[13px] font-semibold text-[#4A6572]">سه قدم ساده</span>
+   123→      </div>
+   124→      <div className="no-scrollbar flex gap-3 overflow-x-auto px-5 pb-2 pt-1">
+   125→        {HOME_STEPS.map((s) => (
+   126→          <div
+   127→            key={s.n}
+   128→            className="flex min-h-[190px] flex-[0_0_280px] flex-col gap-2.5 rounded-[26px] p-5 box-border"
+   129→            style={{ background: s.bg }}
+   130→          >
+   131→            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#04202E] text-lg font-black text-white">
+   132→              {s.n}
+   133→            </div>
+   134→            <div className="text-[19px] font-extrabold">{s.title}</div>
+   135→            <div className="text-sm font-medium leading-[1.85] text-[#1F3E4D]">{s.body}</div>
+   136→          </div>
+   137→        ))}
+   138→      </div>
+   139→
+   140→      {/* products */}
+   141→      <div className="flex items-baseline justify-between px-5 pb-3 pt-[26px]">
+   142→        <h2 className="m-0 text-[22px] font-extrabold">دوست‌های پشمالو</h2>
+   143→        <button
+   144→          type="button"
+   145→          onClick={() => navigate("pick")}
+   146→          className="text-sm font-bold text-[#006387]"
+   147→        >
+   148→          همه‌شون ›
+   149→        </button>
+   150→      </div>
+   151→      <div className="no-scrollbar flex gap-3 overflow-x-auto px-5 pb-3 pt-1">
+   152→        {PLUSHES.map((p) => (
+   153→          <div
+   154→            key={p.kind}
+   155→            role="button"
+   156→            tabIndex={0}
+   157→            aria-label={`انتخاب ${p.name}`}
+   158→            onClick={() => navigate("pick")}
+   159→            onKeyDown={(e) => {
+   160→              if (e.key === "Enter" || e.key === " ") {
+   161→                e.preventDefault();
+   162→                navigate("pick");
+   163→              }
+   164→            }}
+   165→            className="relative flex w-40 shrink-0 cursor-pointer flex-col gap-1.5 rounded-3xl border border-[#DDEEF5] bg-white p-2.5 pb-3.5 text-right text-[#04202E] outline-none transition-transform focus-visible:ring-2 focus-visible:ring-[#00ABE7] active:scale-[0.97]"
+   166→          >
+   167→            <FavHeart kind={p.kind} name={p.name} size={20} box={30} className="absolute end-2 top-2 z-10" />
+   168→            <div
+   169→              className="flex h-[140px] items-center justify-center rounded-[18px]"
+   170→              style={{ background: p.bg }}
+   171→            >
+   172→              <Plush kind={p.kind} size={124} />
+   173→            </div>
+   174→            <div className="pt-1 text-base font-extrabold">{p.name}</div>
+   175→            <div className="text-xs font-medium text-[#4A6572]">{p.chips.join(" · ")}</div>
+   176→            <div className="text-[13px] font-extrabold text-[#006387]">{faPrice(BOX_PRICE)}</div>
+   177→          </div>
+   178→        ))}
+   179→      </div>
+   180→
+   181→      {/* favorites strip */}
+   182→      <FavoritesStrip />
+   183→
+   184→      {/* marquee */}
+   185→      <Marquee className="mt-[22px] text-base" />
+   186→
+   187→      {/* impact */}
+   188→      <div className="mx-0 mt-[26px] flex flex-col gap-3.5 rounded-[30px] bg-[#04202E] p-6 text-white mx-5">
+   189→        <div className="flex gap-2.5">
+   190→          <span className="flex h-[52px] w-[52px] items-center justify-center rounded-full bg-[#F0426B]">
+   191→            <HeartSticker size={26} fill="#fff" stroke="none" />
+   192→          </span>
+   193→          <span className="flex h-[52px] w-[52px] items-center justify-center rounded-full bg-[#00ABE7]">
+   194→            <PawIcon size={26} fill="#04202E" stroke="none" />
+   195→          </span>
+   196→        </div>
+   197→        <h2 className="m-0 text-2xl font-black leading-[1.5]">
+   198→          با هر قلب، یه هدیه می‌ره پیش یه بچه
+   199→        </h2>
+   200→        <p className="m-0 text-[14.5px] font-medium leading-[1.95] text-[#D3EEF9]">
+   201→          قلب قرمز و پنجه رو می‌تونی هر چندتا که دلت خواست روی جعبه‌ت بچسبونی. پولش می‌ره
+   202→          برای هدیه به بچه‌های بی‌سرپرست و پناهگاه حیوونا؛ مدارکش رو هم همیشه همین‌جا
+   203→          می‌ذاریم.
+   204→        </p>
+   205→        <button
+   206→          type="button"
+   207→          onClick={() => navigate("impact")}
+   208→          className="flex h-12 items-center self-start rounded-full bg-[#00ABE7] px-[22px] text-[15px] font-extrabold text-[#04202E]"
+   209→        >
+   210→          دفتر مهربونی رو ببین
+   211→        </button>
+   212→      </div>
+   213→
+   214→      {/* trust */}
+   215→      <div className="flex gap-2.5 px-5 pt-[22px]">
+   216→        {HOME_TRUST.map((t) => (
+   217→          <div
+   218→            key={t.title}
+   219→            className="flex flex-1 flex-col items-center gap-2 rounded-[22px] border border-[#DDEEF5] bg-white px-3 py-4 text-center box-border"
+   220→          >
+   221→            <div className="flex h-11 w-11 items-center justify-center rounded-full bg-[#D6F1FB] text-xl font-black text-[#04202E]">
+   222→              {t.icon}
+   223→            </div>
+   224→            <div className="text-sm font-extrabold">{t.title}</div>
+   225→            <div className="text-xs font-medium leading-[1.7] text-[#4A6572]">{t.body}</div>
+   226→          </div>
+   227→        ))}
+   228→      </div>
+   229→
+   230→      <div className="px-5 pt-[26px] pb-6 text-center text-[12.5px] font-medium text-[#4A6572]">
+   231→        پیشتم · یه بغل، تو یه جعبه · تا حالا {fa(done)} قلب و پنجه ثبت شده
+   232→      </div>
+   233→    </div>
+   234→  );
+   235→}
+   236→
+   237→/* ═══════════════ shared marquee ═══════════════ */
+   238→export function Marquee({ className = "" }: { className?: string }) {
+   239→  const line = (
+   240→    <>
+   241→      <span>یه بغل، تو یه جعبه</span>
+   242→      <span className="text-[#F0426B]">♥</span>
+   243→      <span>یه بغل، تو یه جعبه</span>
+   244→      <span className="text-[#00ABE7]">♥</span>
+   245→      <span>یه بغل، تو یه جعبه</span>
+   246→      <span className="text-[#F0426B]">♥</span>
+   247→      <span>یه بغل، تو یه جعبه</span>
+   248→      <span className="text-[#00ABE7]">♥</span>
+   249→    </>
+   250→  );
+   251→  return (
+   252→    <div
+   253→      className={`overflow-hidden whitespace-nowrap bg-[#04202E] font-extrabold text-white ${className}`}
+   254→    >
+   255→      <div className="pishnam-marquee inline-flex items-center gap-7 px-0 py-3">
+   256→        {line}
+   257→        {line}
+   258→      </div>
+   259→    </div>
+   260→  );
+   261→}
+   262→
+   263→/* ═══════════════ DESKTOP HOME ═══════════════ */
+   264→export function DesktopHome() {
+   265→  const nextNo = usePishnam((s) => s.nextNo);
+   266→  const done = useCharityDone();
+   267→  const pct = Math.min(100, Math.round((done / CHARITY_TARGET) * 100));
+   268→
+   269→  return (
+   270→    <div className="hidden bg-[#F2FAFD] md:block">
+   271→      {/* hero */}
+   272→      <section className="mt-1.5 bg-[#00ABE7]">
+   273→        <div className="mx-auto flex w-full max-w-[1200px] flex-wrap items-center gap-10 px-6 pb-16 pt-14 box-border">
+   274→          <div className="flex min-w-0 flex-[1_1_420px] flex-col items-start gap-5">
+   275→            <span className="rounded-2xl bg-[#04202E] px-4 py-2 text-[13.5px] font-bold text-white">
+   276→              ویژه‌ی دخترای مهربون
+   277→            </span>
+   278→            <h1 className="m-0 text-[clamp(38px,5.2vw,68px)] font-black leading-[1.35] text-[#04202E]">
+   279→              می‌خوای یکی رو خوشحال کنی؟
+   280→            </h1>
+   281→            <p className="m-0 max-w-[560px] text-[19px] font-medium leading-[2] text-[#04202E]">
+   282→              یه دوست پشمالو، یه کارت پستال با پیام قشنگ خودت و یه عالمه مهربونی؛ درست
+   283→              می‌فرستیمش دم در خونه‌ی دوستت.
+   284→            </p>
+   285→            <div className="mt-1 flex flex-wrap gap-3">
+   286→              <button
+   287→                type="button"
+   288→                onClick={() => navigate("pick")}
+   289→                className="flex h-[58px] items-center rounded-full bg-[#04202E] px-[34px] text-[17px] font-extrabold text-white transition-transform hover:scale-[1.03]"
+   290→              >
+   291→                بساز و بفرست
+   292→              </button>
+   293→              <button
+   294→                type="button"
+   295→                onClick={() => document.getElementById("how")?.scrollIntoView({ behavior: "smooth" })}
+   296→                className="box-border flex h-[58px] items-center rounded-full border-[2.5px] border-[#04202E] px-7 text-base font-bold text-[#04202E] transition-colors hover:bg-[#04202E] hover:text-white"
+   297→              >
+   298→                چطوری کار می‌کنه؟
+   299→              </button>
+   300→            </div>
+   301→            <div className="mt-2 flex flex-wrap gap-x-[22px] gap-y-2 text-sm font-bold text-[#04202E]">
+   302→              <span>ارسال ناشناس</span>
+   303→              <span>کارت QR رمزدار</span>
+   304→              <span>یه قیمت برای همه</span>
+   305→            </div>
+   306→          </div>
+   307→          <div className="flex min-w-0 flex-[1_1_340px] justify-center">
+   308→            <div className="relative aspect-square w-[min(460px,100%)] overflow-hidden">
+   309→              <div className="absolute inset-0 rounded-full bg-[#66CDF1]" />
+   310→              <div className="absolute left-1/2 top-1/2 -ml-[170px] -mt-[170px]">
+   311→                <Plush kind="bear" size={340} className="pishnam-float" />
+   312→              </div>
+   313→              <div className="absolute right-[6%] top-[10%] rotate-[5deg] rounded-[18px] border-[3px] border-[#04202E] bg-white px-[18px] pb-2 pt-2.5 text-center">
+   314→                <div className="text-xs font-bold text-[#4A6572]">هدیه‌ی شماره</div>
+   315→                <div className="text-[40px] font-black leading-[1.1] text-[#04202E]">{fa(nextNo)}</div>
+   316→              </div>
+   317→              <div className="absolute bottom-[14%] right-[10%]">
+   318→                <HeartSticker size={44} fill="#F0426B" stroke="#04202E" strokeWidth={2.6} />
+   319→              </div>
+   320→              <div className="absolute left-[8%] top-[24%]">
+   321→                <HeartSticker size={34} fill="#fff" stroke="#04202E" strokeWidth={2.6} />
+   322→              </div>
+   323→            </div>
+   324→          </div>
+   325→        </div>
+   326→      </section>
+   327→
+   328→      <Marquee className="text-lg" />
+   329→
+   330→      {/* how */}
+   331→      <section id="how" className="mx-auto w-full max-w-[1200px] px-6 pt-20 box-border">
+   332→        <div className="mb-7 flex flex-col gap-2">
+   333→          <span className="text-sm font-extrabold text-[#006387]">سه قدم ساده</span>
+   334→          <h2 className="m-0 text-[38px] font-black leading-[1.4]">چطوری کار می‌کنه؟</h2>
+   335→        </div>
+   336→        <div className="flex flex-wrap gap-[18px]">
+   337→          <div className="flex min-w-0 flex-[1_1_300px] flex-col gap-3.5 rounded-[32px] bg-[#CFEFFB] p-[26px]">
+   338→            <div className="flex h-[150px] items-end justify-center overflow-hidden">
+   339→              <Plush kind="bunny" size={108} />
+   340→              <Plush kind="bear" size={132} />
+   341→              <Plush kind="cat" size={108} />
+   342→            </div>
+   343→            <div className="flex items-center gap-3">
+   344→              <span className="flex h-10 w-10 items-center justify-center rounded-full bg-[#04202E] text-lg font-black text-white">۱</span>
+   345→              <span className="text-[22px] font-black">دوستت رو انتخاب کن</span>
+   346→            </div>
+   347→            <p className="m-0 text-[15.5px] font-medium leading-[1.95] text-[#1F3E4D]">{HOME_STEPS[0].body}</p>
+   348→          </div>
+   349→          <div className="flex min-w-0 flex-[1_1_300px] flex-col gap-3.5 rounded-[32px] bg-[#FFE0EA] p-[26px]">
+   350→            <div className="flex h-[150px] items-center justify-center">
+   351→              <div className="flex h-[130px] w-[190px] rotate-[-4deg] items-center justify-center rounded-[14px] border-[3px] border-[#04202E] bg-white">
+   352→                <QrGlyph />
+   353→              </div>
+   354→            </div>
+   355→            <div className="flex items-center gap-3">
+   356→              <span className="flex h-10 w-10 items-center justify-center rounded-full bg-[#04202E] text-lg font-black text-white">۲</span>
+   357→              <span className="text-[22px] font-black">کارت پستالت رو بنویس</span>
+   358→            </div>
+   359→            <p className="m-0 text-[15.5px] font-medium leading-[1.95] text-[#1F3E4D]">{HOME_STEPS[1].body}</p>
+   360→          </div>
+   361→          <div className="flex min-w-0 flex-[1_1_300px] flex-col gap-3.5 rounded-[32px] bg-[#FFF3C9] p-[26px]">
+   362→            <div className="flex h-[150px] items-center justify-center">
+   363→              <div className="rotate-[4deg] rounded-[20px] border-[3.5px] border-[#04202E] bg-white px-[26px] pb-2 pt-3 text-center">
+   364→                <div className="text-[13px] font-bold text-[#4A6572]">هدیه‌ی شماره</div>
+   365→                <div className="text-[64px] font-black leading-[1.1]">{fa(nextNo)}</div>
+   366→              </div>
+   367→            </div>
+   368→            <div className="flex items-center gap-3">
+   369→              <span className="flex h-10 w-10 items-center justify-center rounded-full bg-[#04202E] text-lg font-black text-white">۳</span>
+   370→              <span className="text-[22px] font-black">ما می‌فرستیم، تو لذتشو ببر</span>
+   371→            </div>
+   372→            <p className="m-0 text-[15.5px] font-medium leading-[1.95] text-[#1F3E4D]">{HOME_STEPS[2].body}</p>
+   373→          </div>
+   374→        </div>
+   375→      </section>
+   376→
+   377→      {/* friends */}
+   378→      <section id="friends" className="mx-auto w-full max-w-[1200px] px-6 pt-[88px] box-border">
+   379→        <div className="mb-7 flex flex-wrap items-end justify-between gap-4">
+   380→          <div className="flex flex-col gap-2">
+   381→            <span className="text-sm font-extrabold text-[#006387]">یه قیمت برای همه</span>
+   382→            <h2 className="m-0 text-[38px] font-black leading-[1.4]">دوست‌های پشمالو</h2>
+   383→          </div>
+   384→          <div className="rounded-[22px] border border-[#DDEEF5] bg-white px-[22px] py-3.5 text-[15px] font-semibold leading-[1.8] text-[#1F3E4D]">
+   385→            همه‌ی جعبه‌ها <b className="text-[#04202E]">{faPrice(BOX_PRICE)}</b>؛ چون مهربونی وزن
+   386→            نداره.
+   387→          </div>
+   388→        </div>
+   389→        <div className="flex flex-wrap gap-4">
+   390→          {PLUSHES.map((p) => (
+   391→            <div
+   392→              key={p.kind}
+   393→              role="button"
+   394→              tabIndex={0}
+   395→              aria-label={`انتخاب ${p.name}`}
+   396→              onClick={() => navigate("pick")}
+   397→              onKeyDown={(e) => {
+   398→                if (e.key === "Enter" || e.key === " ") {
+   399→                  e.preventDefault();
+   400→                  navigate("pick");
+   401→                }
+   402→              }}
+   403→              className="group relative flex min-w-0 cursor-pointer flex-[1_1_170px] flex-col gap-1.5 rounded-[28px] border border-[#DDEEF5] bg-white p-3 pb-[18px] text-right text-[#04202E] outline-none transition-all focus-visible:ring-2 focus-visible:ring-[#00ABE7] hover:-translate-y-1 hover:shadow-[0_12px_28px_rgba(4,32,46,0.08)]"
+   404→            >
+   405→              <FavHeart kind={p.kind} name={p.name} size={22} box={36} className="absolute end-3 top-3 z-10" />
+   406→              <div
+   407→                className="flex h-[180px] items-center justify-center rounded-[20px] transition-transform group-hover:scale-[1.04]"
+   408→                style={{ background: p.bg }}
+   409→              >
+   410→                <Plush kind={p.kind} size={150} />
+   411→              </div>
+   412→              <div className="pt-2 text-lg font-extrabold">{p.name}</div>
+   413→              <div className="text-[13px] font-medium text-[#4A6572]">{p.chips.join(" · ")}</div>
+   414→              <div className="text-[14.5px] font-extrabold text-[#006387]">{money(BOX_PRICE)} تومان</div>
+   415→            </div>
+   416→          ))}
+   417→        </div>
+   418→        <FavoritesStrip desktop />
+   419→      </section>
+   420→
+   421→      {/* card */}
+   422→      <section id="card" className="mx-auto w-full max-w-[1200px] px-6 pt-[88px] box-border">
+   423→        <div className="flex flex-wrap items-center gap-10 rounded-[40px] bg-[#D6F1FB] px-10 py-12 box-border">
+   424→          <div className="flex min-w-0 flex-[1_1_320px] justify-center">
+   425→            <div className="flex aspect-[10/7] w-[min(380px,100%)] rotate-[-3deg] items-center justify-center rounded-[22px] border-4 border-[#04202E] bg-[#00ABE7] box-border pishnam-tilt">
+   426→              <div className="flex aspect-square w-[58%] items-center justify-center rounded-3xl border-[3px] border-[#04202E] bg-white box-border">
+   427→                <QrGlyph className="h-[72%] w-auto" />
+   428→              </div>
+   429→            </div>
+   430→          </div>
+   431→          <div className="flex min-w-0 flex-[1_1_380px] flex-col gap-3.5">
+   432→            <span className="text-sm font-extrabold text-[#006387]">کارت پستالِ رمزدار</span>
+   433→            <h2 className="m-0 text-[36px] font-black leading-[1.45]">فقط یه QR، یه دنیا حرف</h2>
+   434→            <p className="m-0 text-base font-medium leading-[2] text-[#1F3E4D]">
+   435→              همراه هر جعبه یه کارت پستال می‌فرستیم که فقط یه QR روشه. دوستت اسکنش می‌کنه،
+   436→              رمزی که تو انتخاب کردی رو می‌زنه و صفحه‌ی خودش باز می‌شه؛ با پیام، عکس یا
+   437→              ویدیوی تو.
+   438→            </p>
+   439→            <div className="mt-1 flex flex-wrap gap-2.5">
+   440→              <span className="rounded-2xl border-[1.5px] border-[#CFE6EF] bg-white px-4 py-2 text-sm font-bold">۱. اسکن می‌کنه</span>
+   441→              <span className="rounded-2xl border-[1.5px] border-[#CFE6EF] bg-white px-4 py-2 text-sm font-bold">۲. رمز رو می‌زنه</span>
+   442→              <span className="rounded-2xl border-[1.5px] border-[#CFE6EF] bg-white px-4 py-2 text-sm font-bold">۳. پیامت رو می‌بینه</span>
+   443→            </div>
+   444→            <button
+   445→              type="button"
+   446→              onClick={() => navigate("gift")}
+   447→              className="mt-2 flex h-12 w-fit items-center rounded-full border-2 border-[#04202E] px-5 text-[15px] font-extrabold text-[#04202E] transition-colors hover:bg-[#04202E] hover:text-white"
+   448→            >
+   449→              یه کارت رو آزمایشی باز کن ›
+   450→            </button>
+   451→          </div>
+   452→        </div>
+   453→      </section>
+   454→
+   455→      {/* love */}
+   456→      <section id="love" className="mx-auto w-full max-w-[1200px] px-6 pt-[88px] box-border">
+   457→        <div className="flex flex-wrap items-center gap-9 rounded-[40px] bg-[#04202E] px-11 py-[52px] text-white box-border">
+   458→          <div className="flex min-w-0 flex-[1_1_420px] flex-col items-start gap-4">
+   459→            <div className="flex gap-2.5">
+   460→              <span className="flex h-14 w-14 items-center justify-center rounded-full bg-[#F0426B]">
+   461→                <HeartSticker size={28} fill="#fff" stroke="none" />
+   462→              </span>
+   463→              <span className="flex h-14 w-14 items-center justify-center rounded-full bg-[#00ABE7]">
+   464→                <PawIcon size={28} fill="#04202E" stroke="none" />
+   465→              </span>
+   466→            </div>
+   467→            <h2 className="m-0 text-[38px] font-black leading-[1.5]">
+   468→              با هر قلب، یه هدیه می‌ره پیش یه بچه
+   469→            </h2>
+   470→            <p className="m-0 text-[16.5px] font-medium leading-[2] text-[#D3EEF9]">
+   471→              قلب قرمز و پنجه رو هر چندتا که دلت خواست می‌تونی هنگام سفارش به جعبه اضافه
+   472→              کنی. پولش می‌ره برای هدیه به بچه‌های بی‌سرپرست و پناهگاه حیوونا. رسید و عکس
+   473→              تحویل همه‌ی ارسال‌ها تو دفتر مهربونی ثبت می‌شه.
+   474→            </p>
+   475→            <button
+   476→              type="button"
+   477→              onClick={() => navigate("extras")}
+   478→              className="flex h-[54px] items-center rounded-full bg-[#00ABE7] px-[30px] text-base font-extrabold text-[#04202E] transition-transform hover:scale-[1.03]"
+   479→            >
+   480→              قلب اضافه کن
+   481→            </button>
+   482→          </div>
+   483→          <div className="flex min-w-0 flex-[1_1_320px] flex-col gap-3.5 rounded-[30px] bg-[#0A3146] p-7">
+   484→            <span className="text-sm font-bold text-[#BFE9F8]">اولین بسته‌ی خیریه</span>
+   485→            <div className="flex items-baseline gap-2.5">
+   486→              <span className="text-[64px] font-black leading-[1.1] text-[#00ABE7]">{fa(done)}</span>
+   487→              <span className="text-xl font-bold">از {fa(CHARITY_TARGET)} هدیه</span>
+   488→            </div>
+   489→            <div className="h-3.5 overflow-hidden rounded-full bg-[#0E3C52]">
+   490→              <div className="h-3.5 rounded-full bg-[#00ABE7] transition-all" style={{ width: `${pct}%` }} />
+   491→            </div>
+   492→            <span className="text-[13.5px] font-medium leading-[1.9] text-[#D3EEF9]">
+   493→              وقتی به {fa(CHARITY_TARGET)} تا برسیم، هدیه‌ها رو می‌خریم و می‌فرستیم و مدرکش رو
+   494→              همین‌جا می‌ذاریم.
+   495→            </span>
+   496→          </div>
+   497→        </div>
+   498→      </section>
+   499→
+   500→      {/* faq */}
+   501→      <section id="faq" className="mx-auto w-full max-w-[1200px] px-6 pt-[88px] box-border">
+   502→        <h2 className="m-0 mb-7 text-[38px] font-black leading-[1.4]">سؤال‌های رایج</h2>
+   503→        <div className="flex flex-wrap gap-4">
+   504→          {DESKTOP_FAQ.map((f) => (
+   505→            <div
+   506→              key={f.q}
+   507→              className="box-border flex min-w-0 flex-[1_1_460px] flex-col gap-2.5 rounded-[26px] border border-[#DDEEF5] bg-white px-[26px] py-6"
+   508→            >
+   509→              <div className="text-lg font-extrabold">{f.q}</div>
+   510→              <div className="text-[15px] font-medium leading-[2] text-[#1F3E4D]">{f.a}</div>
+   511→            </div>
+   512→          ))}
+   513→        </div>
+   514→      </section>
+   515→
+   516→      {/* footer */}
+   517→      <footer className="mt-24 bg-[#04202E] text-white">
+   518→        <div className="mx-auto flex w-full max-w-[1200px] flex-wrap justify-between gap-9 px-6 pb-10 pt-14 box-border">
+   519→          <div className="flex flex-[1_1_280px] flex-col gap-3.5">
+   520→            <Logo size={44} />
+   521→            <span className="text-[15px] font-bold text-[#BFE9F8]">یه بغل، تو یه جعبه</span>
+   522→          </div>
+   523→          <div className="flex flex-col gap-2.5 text-[15px] font-semibold">
+   524→            <span className="text-base font-extrabold text-[#00ABE7]">پیشتم</span>
+   525→            <FooterLink label="چطوری کار می‌کنه؟" target="how" />
+   526→            <FooterLink label="دوست‌های پشمالو" target="friends" />
+   527→            <FooterLink label="دفتر مهربونی" target="love" />
+   528→          </div>
+   529→          <div className="flex flex-col gap-2.5 text-[15px] font-semibold">
+   530→            <span className="text-base font-extrabold text-[#00ABE7]">کمک</span>
+   531→            <FooterLink label="سؤال‌های رایج" target="faq" />
+   532→            <FooterLink label="قوانین و شرایط" route="shipping" />
+   533→            <FooterLink label="تماس با ما" route="contact" />
+   534→            <FooterLink label="ورود همکاران" route="admin" />
+   535→          </div>
+   536→          <div className="flex flex-col gap-2.5 text-[15px] font-semibold">
+   537→            <span className="text-base font-extrabold text-[#00ABE7]">ما رو دنبال کن</span>
+   538→            <span>پیشتم@ اینستاگرام</span>
+   539→            <span>پیشتم@ تلگرام</span>
+   540→            <span>نماد اعتماد الکترونیکی</span>
+   541→          </div>
+   542→        </div>
+   543→        <div className="border-t border-[#0E3C52] px-6 py-[18px] text-center text-[13px] font-medium text-[#BFE9F8]">
+   544→          پیشتم · همه‌ی حقوق محفوظ است
+   545→        </div>
+   546→      </footer>
+   547→    </div>
+   548→  );
+   549→}
+   550→
+   551→function FooterLink({ label, target, route }: { label: string; target?: string; route?: Route }) {
+   552→  return (
+   553→    <button
+   554→      type="button"
+   555→      className="text-right transition-colors hover:text-[#00ABE7]"
+   556→      onClick={() => {
+   557→        if (target) document.getElementById(target)?.scrollIntoView({ behavior: "smooth" });
+   558→        else if (route) navigate(route);
+   559→      }}
+   560→    >
+   561→      {label}
+   562→    </button>
+   563→  );
+   564→}
+   565→
+   566→function QrGlyph({ className = "" }: { className?: string }) {
+   567→  return (
+   568→    <svg viewBox="0 0 25 25" className={className} aria-hidden="true">
+   569→      <g fill="#04202E">
+   570→        <path fillRule="evenodd" d="M0 0h7v7H0zM1 1v5h5V1z" />
+   571→        <rect x="2" y="2" width="3" height="3" />
+   572→        <path fillRule="evenodd" transform="translate(18 0)" d="M0 0h7v7H0zM1 1v5h5V1z" />
+   573→        <rect x="20" y="2" width="3" height="3" />
+   574→        <path fillRule="evenodd" transform="translate(0 18)" d="M0 0h7v7H0zM1 1v5h5V1z" />
+   575→        <rect x="2" y="20" width="3" height="3" />
+   576→        <rect x="9" y="0" width="2" height="2" />
+   577→        <rect x="12" y="2" width="2" height="2" />
+   578→        <rect x="9" y="5" width="3" height="2" />
+   579→        <rect x="14" y="6" width="2" height="2" />
+   580→        <rect x="0" y="9" width="2" height="2" />
+   581→        <rect x="4" y="10" width="3" height="2" />
+   582→        <rect x="9" y="9" width="2" height="2" />
+   583→        <rect x="13" y="10" width="3" height="3" />
+   584→        <rect x="18" y="9" width="2" height="2" />
+   585→        <rect x="22" y="11" width="3" height="2" />
+   586→        <rect x="2" y="13" width="2" height="2" />
+   587→        <rect x="7" y="14" width="2" height="3" />
+   588→        <rect x="11" y="14" width="2" height="2" />
+   589→        <rect x="16" y="15" width="3" height="2" />
+   590→        <rect x="21" y="15" width="2" height="2" />
+   591→        <rect x="9" y="18" width="3" height="2" />
+   592→        <rect x="14" y="19" width="2" height="3" />
+   593→        <rect x="18" y="20" width="2" height="2" />
+   594→        <rect x="22" y="21" width="3" height="2" />
+   595→        <rect x="10" y="22" width="2" height="3" />
+   596→      </g>
+   597→    </svg>
+   598→  );
+   599→}
+   600→

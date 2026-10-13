@@ -1,0 +1,700 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>پیشنام — سند معماری و پرسش‌نامه‌ی تصمیم‌گیری</title>
+<style>
+  @font-face{font-family:'Vazirmatn';src:url('/fonts/vazirmatn-arabic.woff2') format('woff2');font-weight:100 900;font-display:swap;unicode-range:U+0600-06FF,U+0750-077F,U+FB8A,U+067E,U+0686,U+06AF,U+200C-200F,U+2010-2011,U+25CC;}
+  @font-face{font-family:'Vazirmatn';src:url('/fonts/vazirmatn-latin.woff2') format('woff2');font-weight:100 900;font-display:swap;unicode-range:U+0000-00FF,U+0131,U+2000-206F;}
+  :root{
+    --cyan:#00ABE7; --cyan-d:#0087b8; --ink:#04202E; --ink-2:#33505f; --ink-3:#6b8493;
+    --bg:#F4FBFE; --card:#ffffff; --line:#d7e9f2; --amber:#B45309; --amber-bg:#FFF7E8;
+    --crit:#C0392B; --crit-bg:#FDEDEB; --ok:#0E9F6E; --ok-bg:#E9F9F2; --violet:#7C5CBF; --violet-bg:#F3EEFC;
+    --radius:16px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  body{
+    font-family:'Vazirmatn',Tahoma,'Segoe UI',sans-serif;background:var(--bg);color:var(--ink);
+    min-height:100vh;display:flex;flex-direction:column;line-height:1.85;font-size:15px;
+    background-image:radial-gradient(var(--line) 1px,transparent 1px);background-size:26px 26px;
+  }
+  .wrap{max-width:1060px;margin:0 auto;padding:0 20px;width:100%;min-width:0}
+  /* ── topbar ── */
+  .topbar{position:sticky;top:0;z-index:50;background:rgba(255,255,255,.92);backdrop-filter:blur(8px);border-bottom:1.5px solid var(--line)}
+  .topbar .wrap{display:flex;align-items:center;gap:14px;padding:10px 20px}
+  .topbar .brand{display:flex;align-items:center;gap:10px;font-weight:800;color:var(--ink)}
+  .topbar .brand .dot{width:34px;height:34px;border-radius:10px;background:var(--cyan);color:#fff;display:grid;place-items:center;font-size:17px;flex:none}
+  .topbar .brand small{display:block;font-weight:500;color:var(--ink-3);font-size:11.5px;line-height:1.4}
+  .progress-zone{flex:1;display:flex;align-items:center;gap:10px;min-width:0}
+  .pbar{flex:1;height:9px;background:#e4eff6;border-radius:99px;overflow:hidden;min-width:60px}
+  .pbar>i{display:block;height:100%;width:0%;background:linear-gradient(90deg,var(--cyan),#5bd0b0);border-radius:99px;transition:width .35s}
+  .pnum{font-size:12.5px;font-weight:700;color:var(--cyan-d);white-space:nowrap}
+  .btn{border:none;cursor:pointer;font-family:inherit;font-weight:700;border-radius:11px;padding:9px 16px;font-size:13.5px;transition:.18s;display:inline-flex;align-items:center;gap:7px;line-height:1.5}
+  .btn-cyan{background:var(--cyan);color:#fff;box-shadow:0 3px 10px rgba(0,171,231,.3)}
+  .btn-cyan:hover{background:var(--cyan-d);transform:translateY(-1px)}
+  .btn-ghost{background:#fff;color:var(--ink-2);border:1.5px solid var(--line)}
+  .btn-ghost:hover{border-color:var(--cyan);color:var(--cyan-d)}
+  .btn-danger{background:#fff;color:var(--crit);border:1.5px solid #f2c6c0}
+  .btn-danger:hover{background:var(--crit-bg)}
+  .btn-lg{padding:14px 28px;font-size:15.5px;border-radius:14px}
+  /* ── hero ── */
+  .hero{padding:44px 0 10px;text-align:center}
+  .hero h1{font-size:clamp(23px,4vw,34px);font-weight:900;line-height:1.6}
+  .hero h1 b{color:var(--cyan-d)}
+  .hero .sub{color:var(--ink-2);max-width:760px;margin:14px auto 0;font-size:15.5px}
+  .meta-chips{display:flex;flex-wrap:wrap;gap:9px;justify-content:center;margin-top:20px}
+  .mchip{background:#fff;border:1.5px solid var(--line);border-radius:99px;padding:6px 15px;font-size:13px;font-weight:700;color:var(--ink-2)}
+  .mchip b{color:var(--cyan-d)}
+  /* ── toc ── */
+  .toc{position:sticky;top:57px;z-index:40;background:rgba(244,251,254,.95);backdrop-filter:blur(6px);padding:10px 0;border-bottom:1px solid var(--line)}
+  .toc .wrap{display:flex;gap:8px;overflow-x:auto;scrollbar-width:none}
+  .toc .wrap::-webkit-scrollbar{display:none}
+  .toc a{flex:none;text-decoration:none;color:var(--ink-2);background:#fff;border:1.5px solid var(--line);border-radius:99px;padding:6px 14px;font-size:12.5px;font-weight:700;transition:.15s}
+  .toc a:hover,.toc a.on{border-color:var(--cyan);color:var(--cyan-d);background:#EAF7FD}
+  /* ── sections ── */
+  main{flex:1;padding:30px 0 20px}
+  section{margin-bottom:34px;min-width:0}
+  .card{background:var(--card);border:1.5px solid var(--line);border-radius:var(--radius);padding:26px 28px;box-shadow:0 2px 12px rgba(4,32,46,.04);min-width:0}
+  .sec-head{display:flex;align-items:center;gap:12px;margin-bottom:16px;flex-wrap:wrap}
+  .sec-ico{width:42px;height:42px;border-radius:12px;display:grid;place-items:center;font-size:20px;background:#EAF7FD;flex:none}
+  .sec-head h2{font-size:20px;font-weight:900}
+  .sec-head .tag{font-size:11.5px;font-weight:800;padding:3px 11px;border-radius:99px;background:var(--ok-bg);color:var(--ok)}
+  .sec-head .tag.warn{background:var(--crit-bg);color:var(--crit)}
+  .sec-head .tag.note{background:var(--violet-bg);color:var(--violet)}
+  p.lead{color:var(--ink-2);margin-bottom:12px}
+  .callout{border-radius:12px;padding:14px 18px;margin:14px 0;font-size:14px;border:1.5px solid}
+  .callout.c-cyan{background:#EAF7FD;border-color:#bfe4f4;color:#075a7a}
+  .callout.c-amber{background:var(--amber-bg);border-color:#f2ddb8;color:var(--amber)}
+  .callout.c-crit{background:var(--crit-bg);border-color:#f0c5bf;color:#96271b}
+  .callout b{font-weight:800}
+  /* tables */
+  .tbl-scroll{overflow-x:auto;border:1.5px solid var(--line);border-radius:12px;-webkit-overflow-scrolling:touch}
+  table{width:100%;border-collapse:collapse;font-size:13.5px;min-width:640px}
+  th{background:#F0F8FC;color:var(--ink);font-weight:800;padding:10px 14px;text-align:right;border-bottom:1.5px solid var(--line);white-space:nowrap}
+  td{padding:10px 14px;border-bottom:1px solid #ecf4f8;vertical-align:top;color:var(--ink-2)}
+  tr:last-child td{border-bottom:none}
+  tr:hover td{background:#fafdfe}
+  td b{color:var(--ink)}
+  .sev{display:inline-block;font-size:11px;font-weight:800;padding:2px 10px;border-radius:99px;white-space:nowrap}
+  .sev.crit{background:var(--crit-bg);color:var(--crit)}
+  .sev.high{background:var(--amber-bg);color:var(--amber)}
+  .sev.med{background:var(--violet-bg);color:var(--violet)}
+  .sev.ok{background:var(--ok-bg);color:var(--ok)}
+  code.k{background:#eef6fa;border:1px solid var(--line);border-radius:6px;padding:1px 7px;font-size:12px;color:#075a7a;font-family:ui-monospace,Consolas,monospace;direction:ltr;display:inline-block}
+  /* diagram */
+  .diagram{display:flex;flex-direction:column;gap:0;align-items:stretch;margin:8px 0}
+  .drow{display:flex;gap:12px;justify-content:center;flex-wrap:wrap}
+  .dnode{background:#fff;border:2px solid var(--cyan);border-radius:12px;padding:9px 16px;font-size:13px;font-weight:700;color:var(--ink);text-align:center;box-shadow:0 2px 8px rgba(0,171,231,.1)}
+  .dnode small{display:block;font-weight:500;color:var(--ink-3);font-size:11px}
+  .dnode.ext{border-style:dashed;border-color:var(--violet);background:var(--violet-bg)}
+  .dnode.store{border-color:var(--ok);background:var(--ok-bg)}
+  .darr{text-align:center;color:var(--cyan);font-size:18px;line-height:1.4;padding:2px 0;font-weight:900}
+  /* state machine */
+  .flowline{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:10px 0}
+  .fchip{background:#fff;border:2px solid var(--cyan);color:var(--cyan-d);border-radius:99px;padding:5px 15px;font-size:13px;font-weight:800}
+  .fchip.bad{border-color:var(--crit);color:var(--crit);border-style:dashed}
+  .fchip.admin{border-color:var(--ok);color:var(--ok)}
+  .farr{color:var(--ink-3);font-weight:900}
+  /* decision table tags */
+  .dtag{display:inline-block;font-size:10.5px;font-weight:900;border-radius:6px;padding:1px 8px;margin-inline-start:6px}
+  .dtag.d{background:var(--ok-bg);color:var(--ok)}
+  .dtag.q{background:var(--amber-bg);color:var(--amber)}
+  /* ── quiz ── */
+  .quiz-tools{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:18px;align-items:center}
+  .qsec{margin-bottom:26px}
+  .qsec>h3{display:flex;align-items:center;gap:10px;font-size:16.5px;font-weight:900;margin-bottom:4px}
+  .qsec>h3 .cnt{font-size:11.5px;font-weight:800;color:var(--cyan-d);background:#EAF7FD;border-radius:99px;padding:2px 11px}
+  .qsec>.qdesc{color:var(--ink-3);font-size:13px;margin-bottom:14px}
+  .q{background:#FBFDFE;border:1.5px solid var(--line);border-radius:13px;padding:16px 18px;margin-bottom:12px}
+  .q.answered{border-color:#bfe4f4;background:#F7FCFF}
+  .q .qh{display:flex;gap:10px;align-items:flex-start}
+  .q .qno{flex:none;width:26px;height:26px;border-radius:8px;background:var(--ink);color:#fff;font-size:12px;font-weight:800;display:grid;place-items:center;margin-top:2px}
+  .q h4{font-size:14.5px;font-weight:800;line-height:1.7;flex:1}
+  .q .hint{color:var(--ink-3);font-size:12.5px;margin:8px 2px 0;line-height:1.9}
+  .q .hint b{color:var(--amber)}
+  .opts{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+  .opt{position:relative;border:1.5px solid var(--line);background:#fff;border-radius:99px;padding:7px 16px;font-size:13px;font-weight:600;cursor:pointer;transition:.15s;color:var(--ink-2);user-select:none}
+  .opt:hover{border-color:var(--cyan)}
+  .opt.sel{background:var(--cyan);border-color:var(--cyan);color:#fff;font-weight:800;box-shadow:0 2px 8px rgba(0,171,231,.35)}
+  .opt .recb{display:none;position:absolute;top:-9px;inset-inline-end:10px;background:var(--amber);color:#fff;font-size:9.5px;font-weight:900;border-radius:99px;padding:0 7px;line-height:1.6}
+  .opt.rec{border-style:dashed;border-color:#e5c48f}
+  .opt.rec .recb{display:block}
+  .opt.rec.sel{background:var(--amber);border-color:var(--amber)}
+  .tin{margin-top:10px}
+  .tin input[type=text],.tin input[type=number]{width:100%;border:1.5px solid var(--line);border-radius:10px;padding:10px 14px;font-family:inherit;font-size:13.5px;color:var(--ink);background:#fff}
+  .tin input:focus{outline:none;border-color:var(--cyan);box-shadow:0 0 0 3px rgba(0,171,231,.12)}
+  .saved-note{font-size:12px;color:var(--ok);font-weight:700}
+  /* export zone */
+  .export-zone{background:linear-gradient(135deg,#04202E,#073a52);border-radius:var(--radius);color:#fff;padding:34px 30px;text-align:center}
+  .export-zone h2{font-size:21px;font-weight:900;margin-bottom:8px}
+  .export-zone p{color:#b9d7e6;max-width:620px;margin:0 auto 20px;font-size:14px}
+  .export-zone .steps{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-bottom:22px}
+  .estep{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);border-radius:12px;padding:10px 16px;font-size:12.5px;color:#dff2fb}
+  .estep b{color:#5bd0b0}
+  footer{margin-top:auto;background:var(--ink);color:#8fb4c6;font-size:12.5px;padding:22px 0 26px;text-align:center}
+  footer b{color:#fff}
+  @media (max-width:768px){
+    .card{padding:18px 16px}
+    .topbar .brand small{display:none}
+    .topbar .wrap{gap:8px}
+    #btnFillAll{display:none}
+    .topbar .brand{min-width:0}
+    .topbar .brand>span{font-size:13px}
+    .pnum{font-size:11px}
+    .btn{padding:8px 12px;font-size:12.5px}
+    .hero{padding:30px 0 6px}
+    .toc{top:56px}
+    table{min-width:560px}
+    .opt{padding:8px 14px}
+  }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="wrap">
+    <div class="brand">
+      <span class="dot">🐾</span>
+      <span>پیشنام<small>سند معماری و پرسش‌نامه‌ی تصمیم‌گیری — نسخه‌ی ۱</small></span>
+    </div>
+    <div class="progress-zone">
+      <div class="pbar"><i id="pbarFill"></i></div>
+      <span class="pnum" id="pnum">۰٪</span>
+      <button class="btn btn-ghost" id="btnFillAll" title="پر کردن همه‌ی سوال‌ها با پیشنهادهای من">✨ پیشنهادهای من</button>
+      <button class="btn btn-cyan" id="btnDownloadTop">⬇️ دانلود JSON</button>
+    </div>
+  </div>
+</div>
+
+<header class="hero wrap">
+  <h1>از نمونه‌ی اولیه تا فروشگاه آماده‌ی <b>۱۰٬۰۰۰ دوست پشمالو در روز</b></h1>
+  <p class="sub">این سند حاصل بررسی حرفه‌ای کد، اسناد و معماری پروژه با <b>دو ایجنت کارشناس + یک ایجنت منتقد</b> است. ابتدا وضعیت امروز و معماری هدف را می‌بینی، بعد به <b>۴۶ پرسش</b> پاسخ می‌دهی و در پایان فایل <b>JSON</b> را دانلود می‌کنی تا معماری نهایی، دیتابیس و ساختار کد بر اساس جواب‌های خودت قفل شود.</p>
+  <div class="meta-chips">
+    <span class="mchip">📅 <b id="faToday"></b></span>
+    <span class="mchip">🧭 <b>۱۶ تصمیم کلیدی</b> استخراج شد</span>
+    <span class="mchip">📋 <b>۴۶ پرسش</b> در ۱۱ بخش</span>
+    <span class="mchip">🔍 <b>۱۲ ریسک بحرانی</b> شناسایی شد</span>
+    <span class="mchip">🛡️ پاسخ‌ها فقط در مرورگر خودت ذخیره می‌شود</span>
+  </div>
+</header>
+
+<nav class="toc"><div class="wrap" id="tocNav">
+  <a href="#s-status">۱. وضعیت امروز</a>
+  <a href="#s-risks">۲. ریسک‌های بحرانی</a>
+  <a href="#s-arch">۳. معماری هدف</a>
+  <a href="#s-routes">۴. نقشه‌ی مسیرها و سئو</a>
+  <a href="#s-data">۵. داده و چرخه‌ی سفارش</a>
+  <a href="#s-road">۶. نقشه‌ی راه</a>
+  <a href="#s-decisions">۷. ۱۶ تصمیم کلیدی</a>
+  <a href="#s-quiz">۸. پرسش‌نامه</a>
+  <a href="#s-export">۹. خروجی JSON</a>
+</div></nav>
+
+<main>
+<div class="wrap">
+
+  <!-- ═══ 1. وضعیت امروز ═══ -->
+  <section id="s-status">
+    <div class="card">
+      <div class="sec-head"><span class="sec-ico">📍</span><h2>۱. وضعیت امروز در یک نگاه</h2><span class="tag ok">۱۲ دور توسعه انجام شده</span></div>
+      <p class="lead">پیشنام امروز یک <b>وب‌اپ کامل و زنده</b> است: ۱۷ صفحه‌ی فعال (جریان ساخت هدیه، پیگیری، ورود OTP، پنل مدیریت، نظرهای واقعی، علاقه‌مندی‌های سمت سرور)، ۹ اندپوینت API، ۷ مدل داده، و یک موتور کارت پستال با Canvas. تجربه‌ی کاربری و هویت بصری — مطابق طرح اصلی ۳۲ صفحه‌ای — قوی و کامل است.</p>
+      <p class="lead">اما ارزیابی فنی صادقانه این است: <b>بک‌اند فعلی «دمو-گرید» است، نه «لانچ-گرید»</b>. سه ایجنت بررسی‌کننده اتفاق‌نظر دارند که فرانت‌اند و معماری ذخیره‌سازی محلی (offline-first) عالی ساخته شده، ولی برای پذیرش پول واقعی و مقیاس هدف، <b>۶ اندپوینت باید بازسازی و حدود ۱۰ شکاف امنیتی/صحتی بسته شود</b> — بازنویسی کل پروژه نیست، یک لایه‌ی «هسته‌ی تجاری» است که به یک بدنه‌ی سالم اضافه می‌شود.</p>
+      <div class="tbl-scroll"><table>
+        <thead><tr><th>بخش</th><th>وضعیت</th><th>توضیح</th></tr></thead>
+        <tbody>
+          <tr><td><b>تجربه‌ی کاربری (۱۷ صفحه)</b></td><td><span class="sev ok">قوی</span></td><td>دو بریک‌پوینت کامل (۳۹۰/۱۴۴۰)، کارت Canvas، OTP واقعی، سینک دوسویه و خودترمیم، پنل ادمین، نظرهای زنده</td></tr>
+          <tr><td><b>هسته‌ی تجاری (سفارش/پرداخت)</b></td><td><span class="sev crit">دمو</span></td><td>پرداخت شبیه‌سازی‌شده، قیمت از سمت کلاینت، بدون نشست کاربر و بدون idempotency — قابل استفاده برای نمایش، نه فروش واقعی</td></tr>
+          <tr><td><b>امنیت</b></td><td><span class="sev crit">شکاف‌های جدی</span></td><td>خواندن همه‌ی سفارش‌ها بدون احراز هویت، رمز OTP در پاسخ سرور، رمز ادمین داخل باندل JS — قبل از لانچ باید بسته شود</td></tr>
+          <tr><td><b>سئو</b></td><td><span class="sev crit">تقریباً صفر</span></td><td>مسیریابی hash یعنی گوگل فقط یک صفحه‌ی splash می‌بیند؛ بدون sitemap، بدون OG، بدون داده‌ی ساخت‌یافته — با اینکه محتوای سئو-پسند فراوان است</td></tr>
+          <tr><td><b>دیتابیس</b></td><td><span class="sev high">SQLite دمو</span></td><td>بدون WAL، با داده‌های آزمایشی واقعی (سفارش‌های ۱۰۰۰/۱۰۴/۱۰۲)، بدون پشتیبان‌گیری — تصمیم نهایی به هاست و حجم واقعی وابسته است (پرسش ۷ و ۹)</td></tr>
+          <tr><td><b>محتوا برای سئو</b></td><td><span class="sev med">موجود، غیرقابل ایندکس</span></td><td>FAQ، ۵ صفحه‌ی اطلاعات، آمار نظرها، معرفی محصول‌ها — همه هست ولی در دسترس خزنده‌ها نیست</td></tr>
+          <tr><td><b>بلاگ و تجربه‌ی مخاطب</b></td><td><span class="sev med">هنوز ساخته نشده</span></td><td>صفر در طرح اولیه و صفر در پیاده‌سازی — برنامه‌ی ساخت در بخش‌های ۴ و ۶ این سند</td></tr>
+        </tbody>
+      </table></div>
+    </div>
+  </section>
+
+  <!-- ═══ 2. ریسک‌ها ═══ -->
+  <section id="s-risks">
+    <div class="card">
+      <div class="sec-head"><span class="sec-ico">🚨</span><h2>۲. ریسک‌های بحرانی شناسایی‌شده</h2><span class="tag warn">اولویت اصلاح: قبل از هر کاربر واقعی</span></div>
+      <p class="lead">این جدول خروجی «بازبینی کد» است — هر ردیف در کد واقعی بررسی و تأیید شده (نه حدس). ستون آخر نشان می‌دهد هر مورد در کدام فازِ نقشه‌ی راه (بخش ۶) بسته می‌شود.</p>
+      <div class="tbl-scroll"><table>
+        <thead><tr><th>#</th><th>ریسک</th><th>شدت</th><th>شرح فنی</th><th>فاز</th></tr></thead>
+        <tbody>
+          <tr><td>۱</td><td><b>افشای داده‌ی خصوصی مشتریان</b></td><td><span class="sev crit">بحرانی</span></td><td><code class="k">GET /api/orders</code> بدون احراز هویت، تا ۲۰۰ سفارش شامل <b>پیام خصوصی هدیه، آدرس، شماره تلفن و رمز کارت</b> را به هر بازدیدکننده می‌دهد — و صفحه‌ی اصلی همین الان آن را صدا می‌زند</td><td>۰</td></tr>
+          <tr><td>۲</td><td><b>هیچ نشست/جلسه‌ای وجود ندارد (IDOR)</b></td><td><span class="sev crit">بحرانی</span></td><td>هر اندپوینتی که <code class="k">phone</code> می‌گیرد به آن اعتماد می‌کند — با curl می‌شود سفارش‌ها/علاقه‌مندی‌های دیگران را دید یا نامشان را عوض کرد</td><td>۰</td></tr>
+          <tr><td>۳</td><td><b>قیمت از سمت کلاینت</b></td><td><span class="sev crit">بحرانی</span></td><td>فیلد <code class="k">total</code> از مرورگر پذیرفته می‌شود — یک درخواست دستکاری‌شده سفارش «پرداخت‌شده» با مبلغ ۱ تومان می‌سازد؛ هزینه‌ی ارسال نمایش داده می‌شود ولی اخذ نمی‌شود</td><td>۱</td></tr>
+          <tr><td>۴</td><td><b>رقابت شماره‌ی سفارش → سفارشِ گم‌شده</b></td><td><span class="sev crit">بحرانی</span></td><td>شماره‌ی سفارش در دستگاه هر کاربر تولید می‌شود؛ در هم‌زمانی، ردیف دوم با خطای unique می‌سوزد و کاربر «پرداخت موفق» می‌بیند ولی سفارش در سرور ثبت نشده</td><td>۱</td></tr>
+          <tr><td>۵</td><td><b>OTP بدون محافظت</b></td><td><span class="sev crit">بحرانی</span></td><td>کد ۴ رقمی بدون سقف تلاش، بدون محدودیت نرخ، <code class="k">Math.random</code> و — بدتر — خودِ کد در پاسخ سرور برگردانده می‌شود؛ پوشش SMS هم یعنی سوخت‌وسوز پول واقعی</td><td>۰</td></tr>
+          <tr><td>۶</td><td><b>پرداخت شبیه‌سازی‌شده</b></td><td><span class="sev crit">بحرانی</span></td><td>پرداخت با تایمر ۱٫۸ ثانیه‌ای تمام می‌شود؛ هیچ درگاهی، هیچ verify سمت سرور، هیچ وضعیت «در انتظار پرداخت» وجود ندارد</td><td>۱</td></tr>
+          <tr><td>۷</td><td><b>سئو ≈ صفر</b></td><td><span class="sev crit">بحرانی برای هدف سئو</span></td><td>همه‌ی ۱۷ صفحه پشت <code class="k">#</code> هستند؛ HTML سرور فقط یک splash است؛ بدون canonical، sitemap، OG و JSON-LD — ناوبری هم با دکمه است نه لینک <code class="k">&lt;a&gt;</code></td><td>۰+۱</td></tr>
+          <tr><td>۸</td><td><b>رمز ادمین در باندل JS</b></td><td><span class="sev high">مهم</span></td><td>PIN «۱۳۹۸» داخل جاوااسکریپت تحویل مرورگر می‌شود؛ سرور هیچ نقش ادمینی نمی‌شناسد</td><td>۱</td></tr>
+          <tr><td>۹</td><td><b>نظر بدون مدیریت (مودریشن)</b></td><td><span class="sev high">مهم</span></td><td>هر POST بلافاصله عمومی می‌شود؛ هیچ فیلد تأیید و صف مدیریتی وجود ندارد — برای UGC (تجربه‌ی مخاطب) این باید از روز اول درست باشد</td><td>۰</td></tr>
+          <tr><td>۱۰</td><td><b>SQLite بدون تنظیم + داده‌ی دمو</b></td><td><span class="sev high">مهم</span></td><td>بدون WAL و busy_timeout؛ سفارش‌های نمایشی ۱۰۰۰/۱۰۴/۱۰۲ و کاربر آزمایشی در همان دیتابیسی هستند که به تولید می‌رود؛ <code class="k">db:push</code> بدون migration و بدون پشتیبان</td><td>۰+۱</td></tr>
+          <tr><td>۱۱</td><td><b>درهای پشتی نمایشی</b></td><td><span class="sev high">مهم</span></td><td>رمز پیش‌فرض «بهار» هر کارت را باز می‌کند، fallback آفلاین «۱۲۳۴» ورود را می‌سازد، شمارنده‌ی خیریه و ۳۱۸ نظر ثابت در آمار قفل شده</td><td>۰</td></tr>
+          <tr><td>۱۲</td><td><b>بهداشت ساخت</b></td><td><span class="sev med">بهداشتی</span></td><td><code class="k">ignoreBuildErrors:true</code> خطاهای تایپ را خاموش می‌کند، لاگ کوئری SQL در تولید روشن است، مدل‌های مرده (User/Post) و ~۳۰ وابستگی بلااستفاده</td><td>۰</td></tr>
+        </tbody>
+      </table></div>
+      <div class="callout c-cyan">💡 <b>نکته‌ی ارشد:</b> هیچ‌کدام از این‌ها «بازنویسی پروژه» نیست. ردیف‌های ۱ و ۲ و ۵ مجموعاً چند روز کارند و بزرگ‌ترین ریسک‌ها را حذف می‌کنند. بقیه در فازبندی بخش ۶ جای گرفته‌اند.</div>
+    </div>
+  </section>
+
+  <!-- ═══ 3. معماری هدف ═══ -->
+  <section id="s-arch">
+    <div class="card">
+      <div class="sec-head"><span class="sec-ico">🏛️</span><h2>۳. معماری هدف — حقیقتِ مقیاس</h2><span class="tag note">تصمیم ارشد: مونولیت ماژولار، نه مایکروسرویس</span></div>
+      <p class="lead">عدد را حساب کنیم: <b>۱۰٬۰۰۰ بازدیدکننده در روز</b> یعنی به‌طور میانگین فقط <b>۲ تا ۳ درخواست در ثانیه</b>؛ پیک کمپین اینستاگرامی حدود <b>۸۰ rps</b>. «۵۰۰ نفر همزمان در حال ثبت سفارش» یعنی حدود <b>۱۰ تا ۳۰ تراکنش نوشتن در ثانیه</b> — عددی که یک PostgreSQL تنظیم‌شده روی یک سرور خوب، ده‌ها برابر از آن را حمل می‌کند.</p>
+      <div class="callout c-amber">⚠️ <b>پس ریسک واقعی کجاست؟</b> نه در «توان عملیاتی بزرگ»، بلکه در <b>درستی تراکنش‌ها</b>: قیمت که سرور محاسبه کند، شماره‌ی سفارش که اتمی تولید شود، پرداخت که سمت سرور verify شود، و نوشتن‌ها که با صف و idempotency امانت‌دار باشند. پروژه‌هایی در این اندازه به مایکروسرویس و Kubernetes نیاز ندارند — پیچیدگی بی‌مورد، خودش ریسک است. (همچنین: «۱۰هزار خریدار در روز» با سبد ~۸۹۰ هزار تومان یعنی درآمد میلیاردی روزانه — سؤال ۴ و ۵ پرسش‌نامه واقع‌بینانه‌بودن این عدد را برای سال اول می‌سنجد و معماری را متناسب می‌کنیم.)</div>
+      <div class="diagram">
+        <div class="drow"><div class="dnode">مرورگر / موبایل<small>کاربر + دریافت‌کننده‌ی هدیه</small></div></div>
+        <div class="darr">↓</div>
+        <div class="drow"><div class="dnode">CDN ایران (آروان) + WAF<small>کش صفحات محتوایی · TLS · تصاویر</small></div></div>
+        <div class="darr">↓</div>
+        <div class="drow"><div class="dnode">Next.js — لایه‌ی نمایش<small>SSR/ISR برای محتوا و سئو · SPA سمت کلاینت برای جریان ساخت هدیه</small></div></div>
+        <div class="darr">↓</div>
+        <div class="drow"><div class="dnode">لایه‌ی API (Route Handlers)<small>نشست HttpOnly · محدودیت نرخ درون‌فرآیندی · اعتبارسنجی zod</small></div></div>
+        <div class="darr">↓</div>
+        <div class="drow">
+          <div class="dnode">سرویس سفارش و پرداخت<small>قیمت سرورمحور · شماره اتمی · state machine</small></div>
+          <div class="dnode">سرویس محتوا<small>نظر · تجربه‌ها · بلاگ · کاتالوگ</small></div>
+          <div class="dnode">سرویس اعلان<small>صف درون‌فرآیندی → SMS</small></div>
+        </div>
+        <div class="darr">↓</div>
+        <div class="drow">
+          <div class="dnode store">PostgreSQL (یا SQLite+WAL — پرسش ۷)<small>تراکنش‌ها · پشتیبان روزانه</small></div>
+          <div class="dnode store">Redis — فقط از فاز ۳<small>کش · سقف نرخ چندنمونه‌ای</small></div>
+        </div>
+        <div class="darr">↓</div>
+        <div class="drow"><div class="dnode ext">درگاه پرداخت (زرین‌پال/زیبال)</div><div class="dnode ext">پنل پیامک (کاوه‌نگار/…)</div><div class="dnode ext">Object Storage تصاویر</div></div>
+      </div>
+      <p class="lead" style="margin-top:14px">چرا این شکل؟ چون همه‌ی پیچیدگی در <b>لایه‌ی درستی</b> گذاشته شده: محتوای سئو-محور سریع و ایستا served می‌شود، جریان تعاملی هدیه همان تجربه‌ی روان فعلی را نگه می‌دارد، و هر سرویس با مرز مشخص می‌تواند بعداً جدا شود — بدون اینکه امروز هزینه‌ی توزیع‌شده‌بودن را بپردازیم.</p>
+    </div>
+  </section>
+
+  <!-- ═══ 4. مسیرها و سئو ═══ -->
+  <section id="s-routes">
+    <div class="card">
+      <div class="sec-head"><span class="sec-ico">🗺️</span><h2>۴. نقشه‌ی مسیرهای واقعی و برنامه‌ی سئو</h2><span class="tag warn">امروز: ۰ صفحه ایندکس‌پذیر</span></div>
+      <p class="lead">سئوی حیاتی یعنی هر سطح محتوایی یک <b>URL واقعی، رندر سمت سرور، عنوان/توضیح اختصاصی، canonical، تصویر OG و داده‌ی ساخت‌یافته</b> داشته باشد. استراتژی سه‌موجی (با توجه به محدودیت پیش‌نمایش تک‌مسیره‌ی محیط فعلی):</p>
+      <div class="callout c-cyan"><b>موج ۰ (همین‌جا، درون سندباکس):</b> ساخت ماژول‌های «route-ready» — سطوح محتوایی (محصول، نظر، تجربه‌ها، بلاگ) به‌صورت کامپوننت‌های مستقل از مسیر + هلپرهای مشترک metadata/JSON-LD نوشته می‌شوند؛ داخل سندباکس پشت مسیر hash پیش‌نمایش می‌شوند، و به‌محض استقرار روی هاست واقعی، بدون تغییر به App Router سوار می‌شوند. <b>موج ۱ (استقرار):</b> مسیرهای واقعی + sitemap.ts + robots.ts + ۳۰۱ از لینک‌های قدیمی. <b>موج ۲:</b> بلاگ و تجربه‌ها با ISR و تصاویر OG خودکار.</p>
+      <div class="tbl-scroll"><table>
+        <thead><tr><th>مسیر هدف</th><th>از کجای امروز</th><th>رندر</th><th>سئو</th></tr></thead>
+        <tbody>
+          <tr><td><code class="k">/</code></td><td>صفحه‌ی اصلی</td><td>ISR</td><td>Organization + WebSite JSON-LD، OG خودکار</td></tr>
+          <tr><td><code class="k">/product/[kind]</code> ×۶</td><td><b>وجود ندارد</b> — فقط کارت‌های صفحه‌ی اصلی</td><td>SSG</td><td>Product + Offer (قیمت با IRR صحیح) + AggregateRating — <b>بزرگ‌ترین فرصت ازدست‌رفته‌ی سئو</b></td></tr>
+          <tr><td><code class="k">/stories</code> و <code class="k">/stories/[slug]</code></td><td><b>جدید — «تجربه‌ی مخاطب»</b></td><td>ISR پس از تأیید</td><td>Article JSON-LD · فقط رکوردهای تأییدشده هرگز و هرگز سرو نمی‌شوند</td></tr>
+          <tr><td><code class="k">/blog</code> و <code class="k">/blog/[slug]</code></td><td><b>جدید — بلاگ</b></td><td>ISR</td><td>BlogPosting JSON-LD · فقط اگر تعهد نوشتن داشته باشی (پرسش ۲۸)</td></tr>
+          <tr><td><code class="k">/reviews</code> · <code class="k">/about</code> · <code class="k">/mission</code> · <code class="k">/contact</code> · <code class="k">/shipping</code></td><td>صفحات hash فعلی</td><td>SSG/ISR</td><td>FAQPage از FAQ موجود · ContactPage · لینک‌های <code class="k">&lt;a&gt;</code> واقعی</td></tr>
+          <tr><td><code class="k">/g/[no]</code></td><td><code class="k">#/gift?no=…</code></td><td>کلاینت</td><td>noindex + <b>کارت OG «یه هدیه برات اومده!»</b> — حلقه‌ی وایرال دریافت‌کننده که امروز اصلاً شیرشدنی نیست</td></tr>
+          <tr><td><code class="k">/pick</code> · <code class="k">/card</code> · <code class="k">/extras</code> · <code class="k">/checkout</code> · <code class="k">/success</code> · <code class="k">/track</code> · <code class="k">/my-gifts</code> · <code class="k">/login</code> · <code class="k">/admin</code></td><td>جریان ساخت هدیه</td><td>کلاینت (همان SPA)</td><td>noindex — به store و Canvas و پرداخت وابسته‌اند</td></tr>
+        </tbody>
+      </table></div>
+      <div class="callout c-amber">📐 <b>اسلاگ‌ها:</b> محصولات و تجربه‌ها با اسلاگ لاتین خوانا (<code class="k">/product/bear</code>) و عنوان فارسی — پایدارترین انتخاب فنی. سؤال ۲۷ نظرت را درباره‌ی زبان مشتری می‌پرسد تا کلمات کلیدی را همان‌طور که مردم جستجو می‌کنند هدف بگیریم.</div>
+    </div>
+  </section>
+
+  <!-- ═══ 5. داده و چرخه سفارش ═══ -->
+  <section id="s-data">
+    <div class="card">
+      <div class="sec-head"><span class="sec-ico">🗄️</span><h2>۵. مدل داده‌ی هدف و چرخه‌ی سفارش واقعی</h2><span class="tag">پایه‌ی طراحی Prisma فاز ۱</span></div>
+      <p class="lead">چرخه‌ی وضعیت فعلی از «paid» شروع می‌شود — در دنیای واقعی درگاه پرداخت اول می‌آید. چرخه‌ی هدف:</p>
+      <div class="flowline">
+        <span class="fchip">pending_payment</span><span class="farr">←</span>
+        <span class="fchip admin">paid</span><span class="farr">←</span>
+        <span class="fchip admin">packing</span><span class="farr">←</span>
+        <span class="fchip admin">shipped</span><span class="farr">←</span>
+        <span class="fchip admin">delivered</span>
+      </div>
+      <div class="flowline">
+        <span class="fchip bad">failed</span>
+        <span class="fchip bad">canceled</span>
+        <span class="fchip bad">refunded</span>
+        <span style="font-size:12.5px;color:var(--ink-3)">— مسیرهای خطا، هرگز به عقب (تغییر وضعیت فقط رو به جلو و فقط از پنل/سرور)</span>
+      </div>
+      <p class="lead" style="margin-top:16px">گروه‌بندی جداول هدف (تغییرات نسبت به امروز با <b>+</b>):</p>
+      <div class="tbl-scroll"><table>
+        <thead><tr><th>گروه</th><th>جداول</th><th>نکته‌ی کلیدی</th></tr></thead>
+        <tbody>
+          <tr><td><b>فروش</b></td><td>GiftOrder، <b>+Payment</b> (authority/refId/amount/verify)، <b>+IdempotencyKey</b>، <b>+OrderEvent</b> (لاگ تغییر وضعیت)، <b>+Coupon</b></td><td>شماره‌ی سفارش اتمی در تراکنش · مبلغ همیشه ریال و سمت سرور · کلید idempotency برای اطمینان از عدم تکرار با retry</td></tr>
+          <tr><td><b>هویت</b></td><td>AppUser <b>+role</b>، <b>+Session</b>، AuthCode <b>+attempts +hashed</b></td><td>کوکی HttpOnly پس از OTP · ادمین = نقش سمت سرور، نه PIN باندل</td></tr>
+          <tr><td><b>کاتالوگ</b></td><td><b>+Product</b>، <b>+Variant</b> (سایز/رنگ — پرسش ۲۲)، <b>+InventoryLedger</b></td><td>قیمت فقط اینجا زندگی می‌کند؛ تخفیف/کوپن هم همین‌جا محاسبه می‌شود</td></tr>
+          <tr><td><b>محتوا</b></td><td>Review <b>+approved</b>، <b>+Story</b> (تجربه‌ی مخاطب: slug/status/publishedAt)، <b>+Post</b> (بلاگ: فعال‌سازی مدل موجود)</td><td>هر سه یک ماشین وضعیت مشترک: پیش‌نویس ← تأییدشده/منتشرشده · چیزی تأییدنشده هرگز عمومی نمی‌شود</td></tr>
+          <tr><td><b>زیرساخت</b></td><td><b>+Media</b>، <b>+Setting</b>، <b>+AuditLog</b>، <b>+NewsletterSubscriber</b></td><td>تصاویر روی Object Storage با لینک امضاشده · پاک‌سازی دوره‌ای AuthCode</td></tr>
+        </tbody>
+      </table></div>
+    </div>
+  </section>
+
+  <!-- ═══ 6. نقشه راه ═══ -->
+  <section id="s-road">
+    <div class="card">
+      <div class="sec-head"><span class="sec-ico">🧱</span><h2>۶. نقشه‌ی راه فازبندی‌شده</h2><span class="tag">هر فاز معیار پذیرش دارد</span></div>
+      <div class="tbl-scroll"><table>
+        <thead><tr><th>فاز</th><th>دامنه‌ی کار</th><th>معیار پذیرش</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><b>فاز ۰</b><br><small>امن‌سازی و آماده‌سازی<br>(درون سندباکس)</small></td>
+            <td>بستن ریسک‌های ۱،۲،۵،۹،۱۱،۱۲ (نشست + فیلتر مالکیت + سقف تلاش OTP + مودریشن نظر + جداسازی داده‌ی دمو + بهداشت ساخت) · ماژول‌های route-ready محتوا + metadata/JSON-LD صفحه‌ی اصلی · بازطراحی API به الگوی سرویس‌محور</td>
+            <td>با curl هیچ داده‌ی دیگری خوانده نشود · OTP بدون سقف تلاش بشکند · نظر تأییدنشده نمایش نیاید · ۱۷ صفحه بدون رگرسیون</td>
+          </tr>
+          <tr>
+            <td><b>فاز ۱</b><br><small>لانچ تجاری<br>(۶–۸ هفته · روی هاست واقعی)</small></td>
+            <td>استقرار + مسیرهای واقعی موج ۱ (محصول/اطلاعات/پیگیری) + sitemap/robots/OG · درگاه پرداخت با verify سمت سرور و چرخه‌ی کامل وضعیت · سقف/هزینه‌ی واقعی ارسال در checkout · اینماد و صفحات قانونی · پیامک واقعی OTP و اعلان‌ها · Postgres اگر هاست آن را بخواهد (پرسش ۷) · پنل ادمین کامل (سفارش/محصول/مودریشن)</td>
+            <td>اولین سفارش واقعی پرداخت‌شده با تأیید سرور · sitemap در Search Console · مرجوعی ۷ روزه در checkout · اعلان SMS سفارش جدید به ادمین</td>
+          </tr>
+          <tr>
+            <td><b>فاز ۲</b><br><small>رشد محتوا<br>(+۱–۲ ماه)</small></td>
+            <td>تجربه‌ی مخاطب (فرم + صف تأیید + صفحات /stories) · بلاگ (اگر تعهد نویسنده — پرسش ۲۸) · کوپن واقعی سمت سرور · آمارگیر حریم‌محور سلف‌هاست · خبرنامه‌ی پیامکی</td>
+            <td>اولین تجربه‌ی منتشرشده با Article schema · اولین پست بلاگ ایندکس‌شده · گزارش هفتگی فروش در پنل</td>
+          </tr>
+          <tr>
+            <td><b>فاز ۳</b><br><small>مقیاس هدف</small></td>
+            <td>لود تست k6 روی مسیر checkout · Redis (کش + سقف نرخ) در صورت چندنمونه‌ای‌شدن · CDN کامل تصاویر · مانیتورینگ/هشدار · پشتیبان‌گیری PITR</td>
+            <td><b>۵۰۰ کاربر همزمانِ در حال پرداخت: p95 زیر ۸۰۰ms، صفر سفارش گم‌شده</b> — عدد اندازه‌گیری‌شده، نه ادعا</td>
+          </tr>
+        </tbody>
+      </table></div>
+    </div>
+  </section>
+
+  <!-- ═══ 7. ۱۶ تصمیم ═══ -->
+  <section id="s-decisions">
+    <div class="card">
+      <div class="sec-head"><span class="sec-ico">⚖️</span><h2>۷. شانزده تصمیم کلیدی معماری</h2><span class="tag note">D = تصمیم فنیِ من (نیازی به سؤال نیست) · Q = از تو می‌پرسم</span></div>
+      <div class="tbl-scroll"><table>
+        <thead><tr><th>#</th><th>تصمیم</th><th>نوع</th></tr></thead>
+        <tbody>
+          <tr><td>۱</td><td><b>یک اپ Next.js می‌ماند</b> — سطوح محتوایی به مسیرهای واقعی می‌روند، جریان ساخت هدیه SPA سمت کلاینت می‌ماند</td><td><span class="dtag d">D</span></td></tr>
+          <tr><td>۲</td><td><b>مهاجرت سه‌موجی با موج ۰</b> — ماژول‌های route-ready در سندباکس؛ مسیر واقعی + sitemap در استقرار</td><td><span class="dtag d">D</span></td></tr>
+          <tr><td>۳</td><td><b>دیتابیس از هاست پیروی می‌کند</b> — VPS ایران: SQLite+WAL تا اثبات حجم؛ هاست مدیریت‌شده/حجم بالا: PostgreSQL از روز اول</td><td><span class="dtag q">Q</span></td></tr>
+          <tr><td>۴</td><td><b>نشست واقعی</b> — کوکی HttpOnly پس از OTP؛ همه‌ی اندپوینت‌ها کاربر را سمت سرور می‌شناسند؛ افشای سفارش‌ها فوراً بسته می‌شود</td><td><span class="dtag d">D</span></td></tr>
+          <tr><td>۵</td><td><b>checkout سرورمحور</b> — قیمت/تخفیف/ارسال همه سمت سرور محاسبه می‌شوند؛ شماره سفارش اتمی؛ کلاینت فقط نمایش می‌دهد</td><td><span class="dtag d">D</span></td></tr>
+          <tr><td>۶</td><td><b>idempotency واقعی</b> — کلید یکتا + صف retry کلاینت با همان کلید + صفحه‌ی موفقیت منتظر تأیید سرور می‌ماند</td><td><span class="dtag d">D</span></td></tr>
+          <tr><td>۷</td><td><b>درگاه واقعی با لایه‌ی آداپتور</b> — وضعیت pending_payment/failed/canceled/refunded + verify سمت سرور با تطبیق مبلغ</td><td><span class="dtag q">Q</span></td></tr>
+          <tr><td>۸</td><td><b>سخت‌سازی OTP</b> — crypto-random، هش کد، شمارنده‌ی تلاش، سقف نرخ؛ حذف کامل درهای پشتی نمایشی از تولید</td><td><span class="dtag d">D</span></td></tr>
+          <tr><td>۹</td><td><b>محدودیت نرخ درون‌فرآیندی از روز اول</b> — Redis فقط وقتی چندنمونه‌ای شدیم</td><td><span class="dtag d">D</span></td></tr>
+          <tr><td>۱۰</td><td><b>ادمین = نقش سمت سرور</b> — PIN از باندل حذف؛ مودریشن نظر/تجربه سمت سرور اجباری</td><td><span class="dtag d">D</span></td></tr>
+          <tr><td>۱۱</td><td><b>کف سئو برای هر مسیر محتوایی</b> — generateMetadata + canonical + OG + JSON-LD + sitemap + ناوبری با <code class="k">&lt;a&gt;</code></td><td><span class="dtag d">D</span></td></tr>
+          <tr><td>۱۲</td><td><b>اسلاگ لاتین پایدار</b> برای محصول/تجربه‌ها، عنوان فارسی؛ قیمت در Schema همیشه IRR (ریال) صحیح</td><td><span class="dtag d">D</span></td></tr>
+          <tr><td>۱۳</td><td><b>مسیر /g/[no] برای حلقه‌ی وایرال دریافت هدیه</b> — کارت OG اختصاصی؛ دریافت‌کننده = بازاریاب رایگان</td><td><span class="dtag d">D</span></td></tr>
+          <tr><td>۱۴</td><td><b>بلاگ فقط با تعهد نویسنده</b> — وگرنه اول صفحات محصول + تجربه‌ها را می‌سازیم (بلاگ بی‌محتوا به سئو ضربه می‌زند)</td><td><span class="dtag q">Q</span></td></tr>
+          <tr><td>۱۵</td><td><b>تجربه‌ی مخاطب فقط داوطلبانه</b> — هیچ‌گاه از پیام‌های خصوصی هدیه خودکار ساخته نمی‌شود؛ صف تأیید اجباری</td><td><span class="dtag d">D</span></td></tr>
+          <tr><td>۱۶</td><td><b>بهداشت لانچ</b> — صفحات قانونی/اینماد، پاک‌سازی داده‌ی دمو، آمارگیر سلف‌هاست، پشتیبان‌گیری، 404/500 اختصاصی، لود تست</td><td><span class="dtag q">Q</span></td></tr>
+        </tbody>
+      </table></div>
+    </div>
+  </section>
+
+  <!-- ═══ 8. پرسش‌نامه ═══ -->
+  <section id="s-quiz">
+    <div class="card">
+      <div class="sec-head"><span class="sec-ico">📋</span><h2>۸. پرسش‌نامه‌ی تصمیم‌گیری</h2><span class="tag" id="quizCount">۴۶ پرسش</span></div>
+      <p class="lead">به هر سؤال پاسخ بده — گزینه‌های «✨ پیشنهاد من» با نوار طلایی مشخص‌اند و می‌توانی با یک کلیک همه را بپذیری. پاسخ‌ها خودکار در همین مرورگر ذخیره می‌شوند؛ هر وقت خواستی برو بخش ۹ و JSON را بگیر.</p>
+      <div class="quiz-tools">
+        <button class="btn btn-ghost" id="btnFillAll2">✨ پر کردن با پیشنهادهای من</button>
+        <button class="btn btn-danger" id="btnReset">🗑️ پاک کردن پاسخ‌ها</button>
+        <span class="saved-note" id="savedNote"></span>
+      </div>
+      <div id="quizRoot"></div>
+    </div>
+  </section>
+
+  <!-- ═══ 9. خروجی ═══ -->
+  <section id="s-export">
+    <div class="export-zone">
+      <h2>📦 خروجی نهایی — فایل JSON</h2>
+      <p>وقتی پاسخ‌ها آماده شد، فایل را دانلود کن و <b>در همین چت برای من بفرست</b>. بر اساس آن، معماری نهایی، اسکیمای دقیق دیتابیس، ساختار کد و اولویت فازها را قفل می‌کنم و اجرا را شروع می‌کنیم.</p>
+      <div class="steps">
+        <span class="estep"><b>۱.</b> به سؤال‌ها جواب بده (یا «پیشنهادهای من» را بپذیر)</span>
+        <span class="estep"><b>۲.</b> دکمه‌ی دانلود JSON</span>
+        <span class="estep"><b>۳.</b> فایل را در چت بفرست</span>
+        <span class="estep"><b>۴.</b> من معماری را نهایی و اجرا می‌کنم</span>
+      </div>
+      <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap">
+        <button class="btn btn-cyan btn-lg" id="btnDownload">⬇️ دانلود فایل JSON</button>
+        <button class="btn btn-lg" id="btnCopy" style="background:rgba(255,255,255,.12);color:#fff;border:1.5px solid rgba(255,255,255,.25)">📋 کپی در کلیپ‌بورد</button>
+      </div>
+      <p id="copyMsg" style="margin-top:14px;font-size:13px;color:#5bd0b0;font-weight:700;min-height:20px"></p>
+    </div>
+  </section>
+
+</div>
+</main>
+
+<footer>
+  <div class="wrap">
+    <b>پیشنام</b> — سند معماری و پرسش‌نامه‌ی تصمیم‌گیری · نسخه‌ی ۱ · دور ۱۳ توسعه<br>
+    منبع: بازبینی کد (ایجنت ۱۳-a) + بازبینی PRD/سئو (ایجنت ۱۳-b) + بررسی انتقادی (ایجنت منتقد ۱۳-c) · تصمیم نهایی: ارکستراتور پروژه
+  </div>
+</footer>
+
+<script>
+(function(){
+"use strict";
+
+/* ─────────── پرسش‌نامه ───────────
+   t: single | multi | text
+   o: [value, label, isRecommended]
+   rec: متن پیشنهاد برای سؤال‌های متنی */
+var QUIZ=[
+ {id:'brand',icon:'🎨',title:'پایه و برند',desc:'هویت و چارچوب پروژه — این‌ها برای سئو، مدل رسانه و زمان‌بندی پایه می‌سازند.',qs:[
+  {id:'domain',t:'text',q:'دامنه‌ی سایت چیست؟ ثبتش کرده‌ای؟',h:'مسیر سئو، ایمیل رسمی، SSL و اتصال درگاه همگی به دامنه گره می‌خورند. اگر هنوز ثبت نشده، دامنه‌ی <b>.ir</b> ارزان‌تر و برای مخاطب ایرانی معتبرتر است.',rec:'پیشنام — pishnam.ir (در صورت آزاد بودن)'},
+  {id:'langs',t:'single',q:'سایت به چه زبان(هایی) ارائه شود؟',o:[['fa','فقط فارسی',1],['fa-en','فارسی + انگلیسی',0],['fa-en-ar','فارسی + انگلیسی + عربی',0]],h:'هر زبان اضافه یعنی دو برابر شدن کار محتوا، ساختار hreflang و ترجمه‌ی همیشگی — برای سال اول توصیه‌ی من تک‌زبانه ماندن است.'},
+  {id:'photos',t:'single',q:'عکس واقعی محصول (عروسک‌ها و جعبه) داری؟',o:[['yes','بله، عکس حرفه‌ای داریم',0],['soon','به‌زودی می‌گیریم',1],['no','فعلاً فقط گرافیک SVG',0]],h:'خرید هدیه با <b>عکس واقعی</b> تبدیل چند برابری دارد و سئوی تصویری هم از آن می‌آید؛ این جواب مدل ذخیره‌سازی رسانه (Object Storage) را هم تعیین می‌کند.'},
+  {id:'launch',t:'single',q:'لانچ تجاری (پرداخت واقعی) کی هدف است؟',o:[['m1','تا ۱ ماه دیگر',0],['m23','۲ تا ۳ ماه دیگر',1],['m36','۳ تا ۶ ماه دیگر',0],['flex','انعطاف‌پذیر — هر وقت آماده شد',0]],h:'اینماد + درگاه + پیامک واقعی هر کدام ۲ تا ۶ هفته بوروکراسی دارند؛ زیر ۲ ماه ریسک لانچ نیمه‌کاره است.'},
+  {id:'team',t:'single',q:'بعد از تحویل، نگه‌داری فنی با کیست؟',o:[['owner','خودم (غیرفنی)',1],['dev1','یک توسعه‌دهنده',0],['team','تیم کوچک ۲–۳ نفره',0],['ai','همین دستیار هوشمند ادامه می‌دهد',0]],h:'اگر خودت هستی، پنل ادمین باید بدون یک خط کد قابل‌استفاده باشد — این اولویت ساخت پنل را بالا می‌برد.'}
+ ]},
+ {id:'scale',icon:'📊',title:'مقیاس واقع‌بینانه',desc:'معماری به «عدد واقعی» وابسته است نه شعار — این بخش کل هزینه‌ی زیرساخت را تعیین می‌کند.',qs:[
+  {id:'orders_d1',t:'single',q:'روز اول لانچ واقعاً چند سفارش انتظار داری؟',o:[['lt10','تا ۱۰ سفارش',0],['10-50','۱۰ تا ۵۰ سفارش',1],['50-200','۵۰ تا ۲۰۰ سفارش',0],['200+','بیش از ۲۰۰ سفارش',0]],h:'هدف بلندمدت ۱۰هزار کاربر عالی است؛ اما معماری فاز ۱ باید روی عدد واقعی ۳ ماه اول ساخته شود تا بودجه هدر نرود.'},
+  {id:'orders_y1',t:'single',q:'در بهترین حالتِ سال اول، چند سفارش در روز؟',o:[['lt50','تا ۵۰',0],['50-200','۵۰ تا ۲۰۰',1],['200-500','۲۰۰ تا ۵۰۰',0],['500-1500','۵۰۰ تا ۱۵۰۰',0],['1500+','بالای ۱۵۰۰ (سناریوی کامل ۱۰هزار خریدار)',0]],h:'زیر ~۲۰۰ سفارش/روز، SQLite+WAL هم کفاف می‌دهد؛ بالاتر، PostgreSQL توصیه‌ی قطعی من است.'},
+  {id:'visitors',t:'single',q:'بازدیدکننده‌ی روزانه در سال اول؟',o:[['lt500','زیر ۵۰۰',0],['500-2k','۵۰۰ تا ۲ هزار',0],['2k-10k','۲ تا ۱۰ هزار',1],['10k+','بالای ۱۰ هزار',0]],h:'«۱۰هزار کاربر در روز خرید کند» با «۱۰هزار بازدید» فرق بزرگی دارد — این سؤال مرزشان را روشن می‌کند.'},
+  {id:'spike',t:'multi',q:'برنامه‌ی کمپین/پیک بازدید داری؟',o:[['insta','کمپین تبلیغات اینستاگرام',0],['influencer','اینفلوئنسر / لایو',0],['seasonal','یلدا / ولنتاین / تولد پرفروش',1],['none','فعلاً برنامه‌ای ندارم',0]],h:'پیک لحظه‌ای (مثلاً لایو همزمان) همان سناریوی «۵۰۰ نفر در حال ثبت سفارش» است — برایش صف و idempotency از روز اول لازم است.'}
+ ]},
+ {id:'infra',icon:'🖥️',title:'زیرساخت و بودجه',desc:'تصمیم دیتابیس (Postgres یا SQLite) مستقیم از این بخش بیرون می‌آید — لزوماً گران‌ترین گزینه بهترین نیست.',qs:[
+  {id:'hosting',t:'single',q:'میزبانی (هاست) را چطور می‌خواهی؟',o:[['vps-ir','سرور مجازی داخل ایران (آروان/پارس‌پک/…)',1],['managed','هاست ابری مدیریت‌شده',0],['own','سروری از قبل دارم',0],['you','با تو هستم — پیشنهاد بده',0]],h:'داخل ایران = تأخیر عالی برای کاربر و سازگاری کامل با درگاه/پیامک؛ مدیریت‌شده = عملیات کمتر ولی معمولاً PostgreSQL از روز اول لازم است.'},
+  {id:'specs',t:'text',q:'اگر سرور داری: مشخصاتش (CPU / RAM / دیسک)؟',h:'مثال: «۲ هسته، ۴ گیگ RAM، ۸۰ گیگ SSD». اگر نداری خالی بگذار — پیشنهاد من برای شروع: ۲ هسته / ۴ گیگ / SSD.',rec:'ندارم — پیشنهاد: ۲ هسته، ۴ گیگ RAM، SSD'},
+  {id:'residency',t:'single',q:'داده‌ی مشتریان باید داخل ایران بماند؟',o:[['must','بله، الزام دارم',1],['no','مهم نیست',0],['dontknow','نمی‌دانم — تو تصمیم بگیر',0]],h:'برای اعتماد مشتری ایرانی و سازگاری با درگاه پرداخت، ماندن داده داخل ایران توصیه می‌شود.'},
+  {id:'budget',t:'single',q:'بودجه‌ی ماهانه‌ی زیرساخت (سرور + پیامک + دامنه)؟',o:[['lt2m','زیر ۲ میلیون تومان',1],['2-5m','۲ تا ۵ میلیون',0],['5-15m','۵ تا ۱۵ میلیون',0],['15m+','بالای ۱۵ میلیون',0]],h:'برای فاز ۱ واقعاً زیر ۲ میلیون کافی است؛ بیش از آن را باید صرف محتوا و تبلیغ کرد نه سرور.'}
+ ]},
+ {id:'legal',icon:'⚖️',title:'قانونی و اعتماد',desc:'اینماد واقعی‌ترین «دروازه‌ی لانچ» است — بدون آن اکثر درگاه‌ها هم فعال نمی‌شوند. از همین هفته باید شروع شود.',qs:[
+  {id:'enamad',t:'single',q:'وضعیت اینماد (نماد اعتماد الکترونیکی)؟',o:[['have','دارم',0],['wip','در حال دریافت',0],['help','ندارم — فرایندش را برایم باز کن',1],['later','بعداً',0]],h:'برای درگاه مستقیم بانکی و اعتماد خریدار تقریباً اجباری است: نیازمند صفحه‌ی حریم خصوصی، قوانین، شرایط مرجوعی و اطلاعات تماس واقعی — نیازمندی‌ها را خودم آماده می‌کنم.'},
+  {id:'license',t:'single',q:'پروانه‌ی کسب (برای درگاه و اینماد)؟',o:[['have','دارم',0],['wip','در حال پیگیری',1],['none','ندارم',0]],h:'پیش‌نیاز اینماد است؛ دریافتش زمان‌برترین سند معمولاً همین است.'},
+  {id:'moadian',t:'single',q:'ثبت‌نام سامانه‌ی مودیان (مالیات)؟',o:[['done','ثبت شده',0],['later','بعداً انجام می‌دهم',1],['dontknow','نمی‌دانم چیست',0]],h:'برای لانچ اختیاری است؛ فاکتور رسمی را در فاز ۲ اضافه می‌کنیم ولی بدانیم مسیر چه هست.'},
+  {id:'legal_pages',t:'multi',q:'کدام صفحات قانونی را لازم دارم بنویسم؟',o:[['privacy','حریم خصوصی',1],['terms','قوانین و مقررات',1],['refund','شرایط مرجوعی ۷ روزه',1],['none','فعلاً هیچ',0]],h:'این سه، هم پیش‌نیاز اینماد هستند و هم الزام قانون تجارت الکترونیکی — متن‌ها را با لحن پیشنام می‌نویسم.'},
+  {id:'refund_gift',t:'single',q:'سیاست مرجوعی هدیه‌ی شخصی‌سازی‌شده؟',o:[['law7','طبق قانون: ۷ روز بدون قید',1],['damage','فقط در صورت آسیب‌دیدگی/اشتباه ما',0],['other','سایر — در یادداشت می‌گویم',0]],h:'هدیه‌ی با پیام و بسته‌بندی اختصاصی معمولاً از مرجوعیِ کامل مستثنی می‌شود؛ ولی این باید شفاف در checkout نوشته شود تا بعداً اختلاف پیش نیاید.'}
+ ]},
+ {id:'pay',icon:'💳',title:'پرداخت',desc:'پرداخت فعلی شبیه‌سازی است. با جواب این بخش، درگاه واقعی با verify سمت سرور و چرخه‌ی وضعیت کامل ساخته می‌شود.',qs:[
+  {id:'psp',t:'multi',q:'کدام درگاه پرداخت؟',o:[['zarinpal','زرین‌پال',1],['zibal','زیبال',0],['idpay','آیدی‌پی',0],['saman','سامان / بانکی مستقیم',0],['mellat','به‌پرداخت ملت',0],['have','درگاه از قبل دارم — اسمش را می‌نویسم',0]],h:'زرین‌پال سریع‌ترین فعال‌سازی را دارد و برای شروع عالی است؛ درگاه بانکی مستقیم نرخ کمی بهتر دارد ولی فعال‌سازیش نیاز به اینماد و پرونده دارد. لایه‌ی آداپتور می‌سازم تا بعداً بدون تغییر کد، درگاه عوض شود.'},
+  {id:'psp_owner',t:'text',q:'درگاه به نام چه کسی/شرکتی فعال می‌شود؟',h:'نام صاحب شبا و پیکربندی (اگر از قبل درگاه داری، شماره‌ی پذیرندگی را ننویس — فقط نام). خالی = هنوز نداریم.',rec:'فعلاً ندارم — به نام خودم/برند پیشنام فعال می‌کنیم'},
+  {id:'cod',t:'single',q:'پرداخت در محل؟',o:[['no','خیر — فقط آنلاین',1],['all','بله، سراسری',0],['tehran','فقط تهران',0]],h:'برای کالای هدیه با پیش‌پرداخت صفر، ریسک مرجوعی بالا می‌رود؛ توصیه‌ی من شروع بدون پرداخت در محل است.'},
+  {id:'coupons',t:'single',q:'کد تخفیف واقعی از فاز ۱ لازم است؟',o:[['later','بعداً — فاز ۲',1],['f1','بله، از روز لانچ',0],['no','نه اصلاً',0]],h:'امروز کد تخفیف فقط ظاهری است و هیچ عددی عوض نمی‌کند. نسخه‌ی واقعی یعنی جدول کوپن سمت سرور با سقف استفاده — اگر فوری لازم نیست، فاز ۱ سبک‌تر می‌شود.'}
+ ]},
+ {id:'product',icon:'🧸',title:'محصول و انبار',desc:'مدل Product/Variant و منطق موجودی از جواب‌های این بخش ساخته می‌شود.',qs:[
+  {id:'stock',t:'single',q:'موجودی واقعی عروسک‌ها چطور مدیریت می‌شود؟',o:[['count','شمارش دقیق انبار — وقتی تمام شد، تمام',1],['made','ساخت به سفارش — همیشه موجود',0],['mix','ترکیبی (پرفروش‌ها انبار، بقیه به سفارش)',0]],h:'اگر شمارش دقیق است، از فاز ۱ «دفتر موجودی» می‌سازم تا هیچ‌وقت سفارشِ ناموجود نگیریم.'},
+  {id:'variants',t:'single',q:'واریانت (سایز / رنگ) لازم است؟',o:[['simple','تکی و ساده — هر طرح یک محصول',1],['size','سایز دارد (کوچک/بزرگ)',0],['full','سایز + رنگ',0]],h:'فعلاً همه‌چیز یک قیمت (۸۹۰ هزار تومان) است. واریانت یعنی ساختار داده و صفحه‌ی محصول متفاوت — بهتر است زود معلوم شود.'},
+  {id:'personal',t:'multi',q:'لایه‌های شخصی‌سازی هدیه کدام‌ها باشند؟',o:[['card','کارت چاپی با پیام مشتری',1],['box','جعبه‌ی نفیس',0],['photo','عکس مشتری روی کارت',0],['voice','پیام صوتی با QR',0]],h:'هر لایه یعنی یک مرحله‌ی واقعی در سطر سفارش و در پنل بسته‌بندی. عکس و صدا نیاز به آپلود واقعی فایل هم اضافه می‌کند.'},
+  {id:'catalog',t:'text',q:'در لانچ چند محصول (تعداد SKU) می‌فروشی؟',h:'مثال: «۶ خانواده (خرس/خرگوش/گربه/اردک/پاندا/پشمک) × ۲ سایز = ۱۲». این عدد صفحه‌های محصول و sitemap را تعیین می‌کند.',rec:'۶ خانواده × ۲ سایز = ۱۲ محصول'}
+ ]},
+ {id:'ship',icon:'📦',title:'ارسال',desc:'نکته‌ی مهم: هزینه‌ی ارسال امروز «نمایش داده» می‌شود ولی اصلاً اخذ نمی‌شود! با جواب‌های این بخش checkout واقعی می‌شود.',qs:[
+  {id:'carrier',t:'multi',q:'با کدام شرکت حمل کار می‌کنی؟',o:[['post','پست (پیشتاز/سفارشی)',1],['tipax','تیپاکس',0],['mahex','ماهکس',0],['bike','پیک موتوری تهران',0]],h:'پست برای سراسر کشور ارزان‌ترین و پوشش‌دارترین است؛ می‌توانم محاسبه‌ی هزینه را روی کدپستی بچینم.'},
+  {id:'ship_charge',t:'single',q:'هزینه‌ی ارسال از مشتری اخذ شود؟',o:[['yes','بله — از لانچ واقعی اخذ می‌شود',1],['free','نه، همیشه رایگان (به حساب من)',0],['later','الان تصمیم نمی‌گیرم',0]],h:'امروز ۴۹/۶۹ هزار تومان نمایش داده می‌شود ولی در جمع کل نیست — این یکی از پرتکرارترین باگ‌های تجاری فروشگاه‌های تازه است.'},
+  {id:'free_thr',t:'single',q:'ارسال رایگان از چه مبلغی؟',o:[['700k','از ۷۰۰ هزار تومان',1],['500k','از ۵۰۰ هزار تومان',0],['always','همیشه رایگان',0],['never','هیچ‌وقت',0]],h:'آستانه‌ی رایگان، ابزار افزایش سبد خرید است؛ ۷۰۰ هزار یعنی مبلغی نزدیک خود محصول که مشتری را به افزودن آیتم دوم تشویق می‌کند.'},
+  {id:'promise',t:'single',q:'زمان تحویل اعلامی به مشتری؟',o:[['24','تهران ۱ روز / شهرستان ۲–۴ روز کاری',1],['2-4','سراسر ۲–۴ روز کاری',0],['other','سایر — می‌نویسم',0]],h:'این عدد باید در checkout، در پیامک تأیید و در صفحه‌ی ارسال یکی باشد — وعده‌ی قابل‌اتکا، بخشی از اعتماد هدیه است.'}
+ ]},
+ {id:'seo',icon:'🔍',title:'سئو و محتوا',desc:'سئو سه‌گانه است: فنی (من می‌سازم) + محتوایی (تو می‌نویسی یا نویسنده می‌گیری) + اعتبار (اینماد/برند).',qs:[
+  {id:'seo_prio',t:'single',q:'سئو در استراتژی فروش چه جایگاهی دارد؟',o:[['core','ستون اصلی رشد — سرمایه‌گذاری جدی',1],['important','مهم ولی کنار اینستاگرام',0],['later','فعلاً مکمل',0]],h:'«ستون اصلی» یعنی فاز ۱ کامل اجرا شود: صفحات محصول، FAQ، اسکیما، سرعت، و هفته‌ای یک ساعت کار محتوایی از تو.'},
+  {id:'keywords',t:'text',q:'مشتری‌ها با چه عبارتی دنبال این هدیه می‌گردند؟',h:'به زبان خودت بنویس — مثال‌های حدس من: «خرید عروسک پولیشی»، «جعبه هدیه عروسک»، «هدیه ولنتاین»، «هدیه تولد دوست دخترم».',rec:'خرید عروسک پولیشی، جعبه هدیه عروسک، هدیه تولد دوست، هدیه ولنتاین'},
+  {id:'writer',t:'single',q:'چه کسی و چند بار در ماه محتوا می‌نویسد؟',o:[['me','خودم — ۲ تا ۴ پست در ماه',1],['writer','نویسنده دارم یا می‌گیرم',0],['none','فعلاً هیچ‌کس',0]],h:'جواب این سؤال تعیین می‌کند بلاگ در فاز ۲ ساخته شود یا عقب بیفتد. بلاگِ خالی از محتوا به سئو ضربه می‌زند — صادق باش!'},
+  {id:'seo_order',t:'single',q:'ترتیب ساخت سطوح محتوایی؟',o:[['product-first','اول صفحات محصول + تجربه‌ی مخاطب، بعد بلاگ',1],['all','همه با هم',0]],h:'صفحات محصول آماده‌ترین محتوای سئویی هستند (مشخصات و قیمت موجود است)؛ تجربه‌ی مخاطب هم محتوای مجانی و باورپذیر از مشتری‌های واقعی است.'}
+ ]},
+ {id:'ugc',icon:'💬',title:'تجربه‌ی مخاطب (UGC)',desc:'می‌خواهی مثل بلاگ باشد — می‌سازمش: فرم داوطلبانه ← صف تأیید تو ← صفحه‌ی اختصاصی ایندکس‌شدنی با ساختار Article.',qs:[
+  {id:'ugc_form',t:'single',q:'ثبت تجربه چه‌جورلی باشد؟',o:[['public','فرم عمومی + تأیید من قبل از انتشار',1],['invited','فقط دعوتی — بعد از تحویل سفارش',0]],h:'هر دو را می‌توان داشت؛ فرم عمومی محتوای بیشتر می‌آورد ولی صف تأیید اجباری است — هیچ تجربه‌ای بدون تأیید منتشر نمی‌شود.'},
+  {id:'ugc_review',t:'single',q:'تأیید تجربه‌ها را خودت انجام می‌دهی؟',o:[['weekly','بله، هفتگی و سریع',1],['sometimes','هر وقت وقت شد',0]],h:'اگر هفتگی باشه، تجربه‌های تازه در ۷ روز داخل گوگل می‌روند — برای سئو و اعتماد هر دو عالی.'},
+  {id:'ugc_incentive',t:'single',q:'مشوقی برای ارسال تجربه؟',o:[['none','بدون مشوق — فقط فرصت دیده‌شدن',1],['lottery','قرعه‌کشی فصلی بین تجربه‌ها',0],['coupon','کد تخفیف برای تجربه‌ی منتشرشده',0]],h:'کد تخفیف با کوپن سمت سرور هماهنگ می‌شود؛ اگر فعالش کنیم، کوپن باید قبلش آماده باشد.'}
+ ]},
+ {id:'auth',icon:'🔐',title:'حساب، ورود و پیامک',desc:'OTP فعلی دمو است (کد در پاسخ سرور!). ورود واقعی با پنل پیامک تو ساخته می‌شود.',qs:[
+  {id:'guest',t:'single',q:'خرید مهمان (بدون ثبت‌نام) مجاز باشد؟',o:[['yes','بله — با شماره موبایل، بدون رمز',1],['no','فقط عضوها بخرند',0]],h:'برای هدیه، کاهش هر قدم در checkout یعنی افزایش فروش. پیشنهاد من: خرید مهمان + دعوت به ثبت‌نام بعد از خرید.'},
+  {id:'sms_panel',t:'single',q:'پنل پیامک و خط خدماتی؟',o:[['kavenegar','کاوه‌نگار',1],['melli','ملی‌پیام',0],['ghasedak','قاصدک',0],['have','دارم — اسمش را می‌نویسم',0],['none','ندارم — ثبتش کن',0]],h:'OTP واقعی و اعلان‌های سفارش از همین پنل می‌روند. خط خدماتی (کد پیامکی بدون نیاز به ثبت نام مخاطب) را هم باید فعال کنی.'},
+  {id:'sms_line',t:'single',q:'خط خدماتی پیامک داری؟',o:[['have','دارم',0],['wip','در حال ثبت',1],['dontknow','نمی‌دانم چیست — توضیح بده',0]],h:'بدون خط خدماتی، OTP با شماره‌ی عمومی می‌رود و محدودیت روزانه دارد — برای فروشگاه واقعی خط خدماتی لازم است.'},
+  {id:'sms_notify',t:'multi',q:'کدام اعلان‌های پیامکی فعال شود؟',o:[['confirm','تأیید سفارش به فرستنده',1],['tracking','کد رهگیری پس از ارسال',1],['admin','اعلان «سفارش جدید» به من',1],['abandon','یادآوری سبد رهاشده',0]],h:'سه تای اول حداقلِ حرفه‌ای‌اند؛ یادآوری سبد رهاشده پرآب‌ترین منبع فروش دوم است ولی برایش زمان‌بندی و قواعد لازم داریم.'}
+ ]},
+ {id:'ops',icon:'🛎️',title:'پشتیبانی، عملیات و رشد',desc:'چطور مشتری سؤال می‌پرسد، کی سفارش می‌بندد و موفقیت را با چه عددی می‌سنجیم.',qs:[
+  {id:'support',t:'multi',q:'کانال پشتیبانی مشتری؟',o:[['telegram','تلگرام',1],['whatsapp','واتساپ',0],['chat','چت آنلاین (گفتینو/راچت)',0],['form','فقط فرم تماس صفحه‌ی تماس',0]],h:'برای هدیه، سؤال قبل از خرید بالاست — یک کانال زنده (تلگرام حداقل) نرخ تبدیل را واقعاً بالا می‌برد.'},
+  {id:'admins',t:'single',q:'چند نفر به پنل ادمین دسترسی دارند؟',o:[['one','فقط خودم',1],['two','۲ نفر (من + یکی دیگر)',0],['more','۳ نفر یا بیشتر با نقش‌های جدا',0]],h:'بیش از یک نفر یعنی نقش‌ها (مدیر/اپراتور سفارش/نویسنده) و ثبت لاگ تغییرات لازم می‌شود.'},
+  {id:'analytics',t:'single',q:'آمارگیر بازدید؟',o:[['selfhost','سلف‌هاست حریم‌محور (Umami/Matomo)',1],['yektanet','یکتانت/سرویس ایرانی',0],['ga','گوگل‌آنالیتیکس',0],['none','فعلاً هیچ',0]],h:'گوگل‌آنالیتیکس برای کاربر ایرانی ناخوشایند و گاهی فیلتر است؛ سلف‌هاست روی همان سرور، سبک و بدون نگرانی حریم خصوصی کار می‌کند.'},
+  {id:'kpi',t:'multi',q:'معیار موفقیت (KPI) چیست؟',o:[['conv','نرخ تبدیل بازدید → سفارش',1],['aov','میانگین مبلغ سبد',0],['repeat','تکرار خرید',0],['nps','رضایت و معرفی (NPS)',0]],h:'KPI تعیین می‌کند پنل گزارش چه چیزی را جلوی چشمت بگذارد — گزارشِ درست، تصمیم درست می‌سازد.'},
+  {id:'newsletter',t:'single',q:'خبرنامه؟',o:[['sms','پیامکی (مناسب ایران)',1],['email','ایمیلی',0],['none','نه فعلاً',0]],h:'تحویل ایمیل در ایران ضعیف است؛ خبرنامه‌ی پیامکی روی پنل پیامکی موجود سوار می‌شود و هزینه‌ی اضافه ندارد.'}
+ ]}
+];
+
+/* ─────────── state ─────────── */
+var S_KEY='pishnam-arch-answers-v1';
+var state={answers:{}};
+try{var raw=localStorage.getItem(S_KEY);if(raw){var p=JSON.parse(raw);if(p&&p.answers)state=p;}}catch(e){}
+function save(){try{localStorage.setItem(S_KEY,JSON.stringify(state));}catch(e){}}
+function faNum(n){return String(n).replace(/\d/g,function(d){return '۰۱۲۳۴۵۶۷۸۹'[+d];});}
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+
+/* ─────────── render ─────────── */
+function render(){
+  var root=document.getElementById('quizRoot');root.innerHTML='';
+  var qNo=0;
+  QUIZ.forEach(function(sec,si){
+    var secEl=document.createElement('div');secEl.className='qsec';secEl.id='qsec-'+sec.id;
+    var secQ=sec.qs.length;var secAns=sec.qs.filter(function(q){return isAnswered(sec.id,q);}).length;
+    var h='<h3>'+sec.icon+' '+faNum(si+1)+'. '+esc(sec.title)+' <span class="cnt" data-sec-cnt="'+sec.id+'">'+faNum(secAns)+'/'+faNum(secQ)+'</span></h3>';
+    h+='<p class="qdesc">'+esc(sec.desc)+'</p>';
+    h+='<div style="margin-bottom:12px"><button class="btn btn-ghost" style="font-size:12px;padding:6px 13px" data-fill="'+sec.id+'">✨ پیشنهادهای من برای این بخش</button></div>';
+    secEl.innerHTML=h;
+    sec.qs.forEach(function(q){
+      qNo++;
+      var qid=sec.id+'.'+q.id;
+      var el=document.createElement('div');el.className='q';el.id='q-'+q.id;el.dataset.qid=qid;
+      var head='<div class="qh"><span class="qno">'+faNum(qNo)+'</span><h4>'+esc(q.q)+'</h4></div>';
+      if(q.h)head+='<p class="hint">'+q.h+'</p>';
+      var body=head;
+      if(q.t==='single'||q.t==='multi'){
+        body+='<div class="opts">';
+        q.o.forEach(function(opt){
+          var isRec=!!opt[2];
+          body+='<span class="opt'+(isRec?' rec':'')+'"'+(isRec?' title="پیشنهاد من"':'')+' data-qid="'+qid+'" data-val="'+esc(opt[0])+'" data-type="'+q.t+'" role="button" tabindex="0">'+(isRec?'<span class="recb">✨ پیشنهاد من</span>':'')+esc(opt[1])+'</span>';
+        });
+        body+='</div>';
+      }else{
+        body+='<div class="tin"><input type="text" data-textqid="'+qid+'" placeholder="'+esc(q.rec||'پاسخ خودت را بنویس…')+'" value="'+esc(state.answers[qid]||'')+'"></div>';
+      }
+      el.innerHTML=body;
+      secEl.appendChild(el);
+    });
+    root.appendChild(secEl);
+  });
+  document.getElementById('quizCount').textContent=faNum(qNo)+' پرسش در '+faNum(QUIZ.length)+' بخش';
+  refreshUI();
+}
+
+/* ─────────── answers ─────────── */
+function qDef(qid){var p=qid.split('.');var s=QUIZ.filter(function(x){return x.id===p[0];})[0];if(!s)return null;return s.qs.filter(function(x){return x.id===p[1];})[0]||null;}
+function has2(secId,q){var a=state.answers[secId+'.'+q.id];if(a==null)return false;if(Array.isArray(a))return a.length>0;if(typeof a==='string')return a.trim()!=='';return a!==null&&a!==undefined;}
+function isAnswered(secId,q){return has2(secId,q);}
+function refreshUI(){
+  var total=0,ans=0;
+  QUIZ.forEach(function(sec){
+    var s=0;
+    sec.qs.forEach(function(q){total++;if(isAnswered(sec.id,q)){ans++;s++;}});
+    var cnt=document.querySelector('[data-sec-cnt="'+sec.id+'"]');
+    if(cnt){cnt.textContent=faNum(s)+'/'+faNum(sec.qs.length);cnt.style.background=s===sec.qs.length?'var(--ok-bg)':'';cnt.style.color=s===sec.qs.length?'var(--ok)':'';}
+  });
+  var pct=total?Math.round(ans*100/total):0;
+  document.getElementById('pbarFill').style.width=pct+'%';
+  document.getElementById('pnum').textContent=faNum(pct)+'٪ ('+faNum(ans)+'/'+faNum(total)+')';
+  document.querySelectorAll('.q').forEach(function(el){
+    var qid=el.dataset.qid;
+    el.classList.toggle('answered',!!state.answers[qid]&&(!Array.isArray(state.answers[qid])||state.answers[qid].length>0));
+  });
+  document.getElementById('savedNote').textContent='✓ پاسخ‌ها ذخیره شد — '+new Date().toLocaleTimeString('fa-IR');
+}
+function setAnswer(qid,val){
+  if(val==null||(Array.isArray(val)&&!val.length)||(typeof val==='string'&&!val.trim()))delete state.answers[qid];else state.answers[qid]=val;
+  save();refreshUI();
+}
+function fillRecs(secId){
+  QUIZ.forEach(function(sec){
+    if(secId&&sec.id!==secId)return;
+    sec.qs.forEach(function(q){
+      var qid=sec.id+'.'+q.id;
+      if(q.t==='single'){var r=q.o.filter(function(o){return o[2];})[0];if(r)setAnswer(qid,r[0]);}
+      else if(q.t==='multi'){var rs=q.o.filter(function(o){return o[2];}).map(function(o){return o[0];});if(rs.length)setAnswer(qid,rs);}
+    });
+  });
+  document.querySelectorAll('.q').forEach(syncQDom);save();refreshUI();
+}
+function syncQDom(el){
+  var qid=el.dataset.qid,q=qDef(qid),a=state.answers[qid];
+  el.querySelectorAll('.opt').forEach(function(opt){
+    var v=opt.dataset.val;
+    var sel=Array.isArray(a)?a.indexOf(v)>-1:a===v;
+    opt.classList.toggle('sel',sel);
+  });
+}
+
+/* ─────────── events ─────────── */
+document.getElementById('quizRoot').addEventListener('click',function(e){
+  var opt=e.target.closest('.opt');if(!opt)return;
+  var qid=opt.dataset.qid,type=opt.dataset.type,v=opt.dataset.val,q=qDef(qid);
+  var a=state.answers[qid];
+  if(type==='single'){setAnswer(qid,a===v?null:v);}
+  else{
+    var arr=Array.isArray(a)?a.slice():[];
+    var i=arr.indexOf(v);
+    if(i>-1)arr.splice(i,1);else arr.push(v);
+    setAnswer(qid,arr);
+  }
+  syncQDom(opt.closest('.q'));
+});
+document.getElementById('quizRoot').addEventListener('keydown',function(e){
+  if(e.key==='Enter'||e.key===' '){var opt=e.target.closest('.opt');if(opt){e.preventDefault();opt.click();}}
+});
+var tTimer=null;
+document.getElementById('quizRoot').addEventListener('input',function(e){
+  var inp=e.target.closest('input[data-textqid]');if(!inp)return;
+  var qid=inp.dataset.textqid;
+  clearTimeout(tTimer);
+  tTimer=setTimeout(function(){setAnswer(qid,inp.value.trim()||null);},250);
+});
+document.getElementById('btnFillAll').addEventListener('click',function(){fillRecs(null);});
+document.getElementById('btnFillAll2').addEventListener('click',function(){fillRecs(null);});
+document.getElementById('quizRoot').addEventListener('click',function(e){
+  var b=e.target.closest('[data-fill]');if(b)fillRecs(b.dataset.fill);
+});
+document.getElementById('btnReset').addEventListener('click',function(){
+  if(confirm('همه‌ی پاسخ‌ها پاک شود؟')){state={answers:{}};save();render();}
+});
+
+/* ─────────── export ─────────── */
+function buildExport(){
+  var answered=0,total=0;
+  var sections=QUIZ.map(function(sec){
+    return {
+      id:sec.id,title:sec.title,
+      questions:sec.qs.map(function(q){
+        var qid=sec.id+'.'+q.id;total++;
+        var a=state.answers[qid];
+        var hasA=(a!=null)&&(!Array.isArray(a)?String(a).trim()!=='':a.length>0);
+        if(hasA)answered++;
+        return {id:q.id,question:q.q,type:q.t,
+          recommendation:q.t==='text'?(q.rec||null):(q.o?q.o.filter(function(o){return o[2];}).map(function(o){return o[1];}).join(' + ')||null:null),
+          answer:hasA?a:null};
+      })
+    };
+  });
+  var now=new Date();
+  return {
+    schema:'pishnam-arch-answers/v1',
+    project:'Pishnam (پیشنام) — plush gift shop',
+    doc:'architecture-decision-questionnaire',
+    version:'v1',
+    generatedAt:now.toISOString(),
+    generatedAtFa:now.toLocaleDateString('fa-IR',{year:'numeric',month:'long',day:'numeric'}),
+    progress:{answered:answered,total:total,percent:total?Math.round(answered*100/total):0},
+    sections:sections
+  };
+}
+function downloadJSON(){
+  var data=buildExport();
+  var low=data.progress.percent;
+  if(low<50&&!confirm('فقط '+low+'٪ سؤال‌ها پاسخ داده شده. همین JSON ناقص دانلود شود؟'))return;
+  var blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json;charset=utf-8'});
+  var url=URL.createObjectURL(blob);
+  var a=document.createElement('a');
+  a.href=url;a.download='pishnam-architecture-answers.json';
+  document.body.appendChild(a);a.click();a.remove();
+  setTimeout(function(){URL.revokeObjectURL(url);},2000);
+}
+function copyJSON(){
+  var txt=JSON.stringify(buildExport(),null,2);
+  function done(){var m=document.getElementById('copyMsg');m.textContent='✓ JSON کپی شد — می‌توانی همین‌جا در چت پیستش کنی.';setTimeout(function(){m.textContent='';},4000);}
+  if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(txt).then(done).catch(function(){fallback();});}
+  else fallback();
+  function fallback(){var ta=document.createElement('textarea');ta.value=txt;document.body.appendChild(ta);ta.select();try{document.execCommand('copy');done();}catch(e){}ta.remove();}
+}
+document.getElementById('btnDownload').addEventListener('click',downloadJSON);
+document.getElementById('btnDownloadTop').addEventListener('click',downloadJSON);
+document.getElementById('btnCopy').addEventListener('click',copyJSON);
+
+/* test hooks */
+window.__pishnamExport=buildExport;
+window.__fillAll=function(){fillRecs(null);};
+window.__setAnswer=function(sec,qid,val){setAnswer(sec+'.'+qid,val);};
+
+/* init */
+document.getElementById('faToday').textContent=new Date().toLocaleDateString('fa-IR',{year:'numeric',month:'long',day:'numeric'});
+render();
+document.querySelectorAll('.q').forEach(syncQDom);
+})();
+</script>
+</body>
+</html>

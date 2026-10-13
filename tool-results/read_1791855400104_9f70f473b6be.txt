@@ -1,0 +1,702 @@
+    34→    34→}
+    35→    35→
+    36→    36→### BODY:
+    37→    37→
+    38→    38→<div style="width: 390px; min-height: 2200px; box-sizing: border-box; background: #F2FAFD; color: #04202E; font-family: 'Vazirmatn', system-ui, sans-serif; direction: rtl; display: flex; flex-direction: column; overflow: hidden">
+    39→    39→
+    40→    40→<div style="display: flex; align-items: center; justify-content: space-between; padding: 16px 20px 10px">
+    41→    41→<dc-import name="Logo" size="38" hint-size="130px,38px"></dc-import>
+    42→    42→<div style="display: flex; gap: 10px; align-items: center">
+    43→    43→<a href="M-Impact.dc.html" aria-label="دفتر مهربونی" style="width: 44px; height: 44px; border-radius: 22px; background: #fff; border: 1px solid #D3E8F0; display: flex; align-items: center; justify-content: center; color: #04202E">
+    44→    44→<svg width="22" height="22" sc-camel-view-box="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20C5 15 3 11.5 3 8.7A4.7 4.7 0 0 1 12 7a4.7 4.7 0 0 1 9 1.7C21 11.5 19 15 12 20z"></path></svg>
+    45→    45→</a>
+    46→    46→<a href="M-Checkout.dc.html" aria-label="سبد خرید" style="position: relative; width: 44px; height: 44px; border-radius: 22px; background: #fff; border: 1px solid #D3E8F0; display: flex; align-items: center; justify-content: center; color: #04202E">
+    47→    47→<svg width="22" height="22" sc-camel-view-box="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 4h2l2.4 11.2a1.5 1.5 0 0 0 1.5 1.2h8.2a1.5 1.5 0 0 0 1.5-1.1L20 8H6"></path><circle cx="9.5" cy="20" r="1.3"></circle><circle cx="17" cy="20" r="1.3"></circle></svg>
+    48→    48→<span style="position: absolute; top: -3px; left: -3px; min-width: 18px; height: 18px; border-radius: 9px; background: #00ABE7; color: #04202E; font-size: 11px; font-weight: 800; display: flex; align-items: center; justify-content: center">۱</span>
+    49→    49→</a>
+    50→    50→</div>
+    51→    51→</div>
+    52→    52→
+    53→    53→<div style="margin: 8px 20px 0; position: relative; overflow: hidden; border-radius: 32px; background: #00ABE7; padding: 24px 22px 0; min-height: 520px; box-sizing: border-box">
+    54→    54→<div style="position: absolute; left: -40px; bottom: -50px; width: 290px; height: 290px; border-radius: 145px; background: #66CDF1"></div>
+    55→    55→<svg style="position: absolute; top: 18px; left: 22px" width="34" height="34" sc-camel-view-box="-17 -17 34 34" aria-hidden="true"><path d="M0 12C-10 5-15 0-15-5a7.5 7.5 0 0 1 15-2 7.5 7.5 0 0 1 15 2c0 5-5 10-15 17z" fill="#fff" stroke="#04202E" stroke-width="2.4" stroke-linejoin="round" transform="rotate(-12)"></path></svg>
+    56→    56→<svg style="position: absolute; top: 290px; left: 130px" width="22" height="22" sc-camel-view-box="-17 -17 34 34" aria-hidden="true"><path d="M0 12C-10 5-15 0-15-5a7.5 7.5 0 0 1 15-2 7.5 7.5 0 0 1 15 2c0 5-5 10-15 17z" fill="#F0426B" stroke="#04202E" stroke-width="3" stroke-linejoin="round" transform="rotate(14)"></path></svg>
+    57→    57→<div style="position: relative; display: flex; flex-direction: column; gap: 14px; align-items: flex-start">
+    58→    58→<span style="background: #04202E; color: #fff; font-size: 12px; font-weight: 700; padding: 6px 12px; border-radius: 14px">ویژه‌ی دخترای مهربون</span>
+    59→    59→<h1 style="margin: 0; font-size: 36px; line-height: 1.4; font-weight: 900; color: #04202E">می‌خوای یکی رو خوشحال کنی؟</h1>
+    60→    60→<p style="margin: 0; font-size: 15px; line-height: 1.9; font-weight: 500; color: #04202E; max-width: 300px">یه دوست پشمالو، یه کارت پستال با پیام قشنگ خودت و یه عالمه مهربونی؛ درست می‌فرستیمش دم در خونه‌ی دوستت.</p>
+    61→    61→<div style="display: flex; gap: 10px; flex-wrap: wrap; margin-top: 4px">
+    62→    62→<a href="M-Pick.dc.html" style="text-decoration: none; background: #04202E; color: #fff; font-size: 16px; font-weight: 800; height: 52px; padding: 0 26px; border-radius: 26px; display: flex; align-items: center">بساز و بفرست</a>
+    63→    63→<a href="#how" style="text-decoration: none; border: 2px solid #04202E; color: #04202E; font-size: 15px; font-weight: 700; height: 52px; box-sizing: border-box; padding: 0 20px; border-radius: 26px; display: flex; align-items: center">چطوری کار می‌کنه؟</a>
+    64→    64→</div>
+    65→    65→</div>
+    66→    66→<div style="position: absolute; left: 6px; bottom: -6px">
+    67→    67→<dc-import name="Plush" kind="bear" size="230" hint-size="230px,230px"></dc-import>
+    68→    68→</div>
+    69→    69→<div style="position: absolute; right: 22px; bottom: 34px; transform: rotate(-6deg); background: #fff; border: 2.5px solid #04202E; border-radius: 16px; padding: 8px 14px 6px; text-align: center">
+    70→    70→<div style="font-size: 11px; font-weight: 700; color: #4A6572">هدیه‌ی شماره</div>
+    71→    71→<div style="font-size: 30px; font-weight: 900; line-height: 1.1; color: #04202E">{{nextNo}}</div>
+    72→    72→</div>
+    73→    73→</div>
+    74→    74→
+    75→    75→<div style="margin: 14px 20px 0; background: #fff; border: 1px solid #DDEEF5; border-radius: 24px; padding: 14px 16px; display: flex; align-items: center; gap: 14px">
+    76→    76→<div style="flex: 0 0 auto; width: 84px; height: 72px; border-radius: 18px; background: #E3F6FD; border: 2px dashed #00ABE7; display: flex; flex-direction: column; align-items: center; justify-content: center">
+    77→    77→<span style="font-size: 11px; font-weight: 700; color: #006387">شماره‌ی بعدی</span>
+    78→    78→<span style="font-size: 28px; font-weight: 900; color: #04202E; line-height: 1.15">{{nextNo}}</span>
+    79→    79→</div>
+    80→    80→<div style="font-size: 13.5px; line-height: 1.9; font-weight: 500; color: #1F3E4D">هر هدیه یه شماره‌ی مخصوص خودش رو داره؛ همون شماره روی جعبه و کارت پستال می‌شینه. شماره‌ی بعدی مال کیه؟ شاید دوستت!</div>
+    81→    81→</div>
+    82→    82→
+    83→    83→<div id="how" style="display: flex; align-items: baseline; justify-content: space-between; padding: 30px 20px 12px">
+    84→    84→<h2 style="margin: 0; font-size: 22px; font-weight: 800">چطوری کار می‌کنه؟</h2>
+    85→    85→<span style="font-size: 13px; font-weight: 600; color: #4A6572">سه قدم ساده</span>
+    86→    86→</div>
+    87→    87→<div style="display: flex; gap: 12px; overflow-x: auto; padding: 4px 20px 8px">
+    88→    88→<sc-for list="{{steps}}" as="s" hint-placeholder-count="3">
+    89→    89→<div style="flex: 0 0 280px; box-sizing: border-box; min-height: 190px; border-radius: 26px; padding: 20px; background: {{s.bg}}; display: flex; flex-direction: column; gap: 10px">
+    90→    90→<div style="width: 40px; height: 40px; border-radius: 20px; background: #04202E; color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 18px">{{s.n}}</div>
+    91→    91→<div style="font-size: 19px; font-weight: 800">{{s.title}}</div>
+    92→    92→<div style="font-size: 14px; line-height: 1.85; font-weight: 500; color: #1F3E4D">{{s.body}}</div>
+    93→    93→</div>
+    94→    94→</sc-for>
+    95→    95→</div>
+    96→    96→
+    97→    97→<div style="display: flex; align-items: baseline; justify-content: space-between; padding: 26px 20px 12px">
+    98→    98→<h2 style="margin: 0; font-size: 22px; font-weight: 800">دوست‌های پشمالو</h2>
+    99→    99→<a href="M-Pick.dc.html" style="font-size: 14px; font-weight: 700; color: #006387; text-decoration: none">همه‌شون ›</a>
+   100→   100→</div>
+   101→   101→<div style="display: flex; gap: 12px; overflow-x: auto; padding: 4px 20px 12px">
+   102→   102→<sc-for list="{{products}}" as="p" hint-placeholder-count="6">
+   103→   103→<a href="M-Pick.dc.html" style="flex: 0 0 160px; box-sizing: border-box; text-decoration: none; color: #04202E; background: #fff; border-radius: 24px; padding: 10px 10px 14px; border: 1px solid #DDEEF5; display: flex; flex-direction: column; gap: 6px">
+   104→   104→<div style="height: 140px; border-radius: 18px; background: {{p.bg}}; display: flex; align-items: center; justify-content: center">
+   105→   105→<dc-import name="Plush" kind="{{p.kind}}" size="124" hint-size="124px,124px"></dc-import>
+   106→   106→</div>
+   107→   107→<div style="font-size: 16px; font-weight: 800; padding-top: 4px">{{p.name}}</div>
+   108→   108→<div style="font-size: 12px; color: #4A6572; font-weight: 500">{{p.traits}}</div>
+   109→   109→<div style="font-size: 13px; font-weight: 800; color: #006387">{{p.price}} تومان</div>
+   110→   110→</a>
+   111→   111→</sc-for>
+   112→   112→</div>
+   113→   113→
+   114→   114→<div style="margin: 22px 0 0; background: #04202E; color: #fff; padding: 12px 0; overflow: hidden; white-space: nowrap; font-size: 16px; font-weight: 800; display: flex; gap: 22px; align-items: center">
+   115→   115→<span>یه بغل، تو یه جعبه</span><span style="color: #F0426B">♥</span><span>یه بغل، تو یه جعبه</span><span style="color: #00ABE7">♥</span><span>یه بغل، تو یه جعبه</span><span style="color: #F0426B">♥</span><span>یه بغل، تو یه جعبه</span>
+   116→   116→</div>
+   117→   117→
+   118→   118→<div style="margin: 26px 20px 0; border-radius: 30px; background: #04202E; color: #fff; padding: 26px 22px; display: flex; flex-direction: column; gap: 14px">
+   119→   119→<div style="display: flex; gap: 10px">
+   120→   120→<span style="width: 52px; height: 52px; border-radius: 26px; background: #F0426B; display: flex; align-items: center; justify-content: center">
+   121→   121→<svg width="26" height="26" sc-camel-view-box="-17 -17 34 34" aria-hidden="true"><path d="M0 12C-10 5-15 0-15-5a7.5 7.5 0 0 1 15-2 7.5 7.5 0 0 1 15 2c0 5-5 10-15 17z" fill="#fff"></path></svg>
+   122→   122→</span>
+   123→   123→<span style="width: 52px; height: 52px; border-radius: 26px; background: #00ABE7; display: flex; align-items: center; justify-content: center">
+   124→   124→<svg width="26" height="26" sc-camel-view-box="0 0 24 24" fill="#04202E" aria-hidden="true"><ellipse cx="12" cy="16" rx="5.5" ry="4.2"></ellipse><circle cx="5.5" cy="11" r="2.3"></circle><circle cx="9.5" cy="6.5" r="2.3"></circle><circle cx="14.5" cy="6.5" r="2.3"></circle><circle cx="18.5" cy="11" r="2.3"></circle></svg>
+   125→   125→</span>
+   126→   126→</div>
+   127→   127→<h2 style="margin: 0; font-size: 24px; line-height: 1.5; font-weight: 900">با هر قلب، یه هدیه می‌ره پیش یه بچه</h2>
+   128→   128→<p style="margin: 0; font-size: 14.5px; line-height: 1.95; font-weight: 500; color: #D3EEF9">قلب قرمز و پنجه رو می‌تونی هر چندتا که دلت خواست روی جعبه‌ت بچسبونی. پولش می‌ره برای هدیه به بچه‌های بی‌سرپرست و پناهگاه حیوونا؛ مدارکش رو هم همیشه همین‌جا می‌ذاریم.</p>
+   129→   129→<a href="M-Impact.dc.html" style="text-decoration: none; align-self: flex-start; background: #00ABE7; color: #04202E; font-weight: 800; font-size: 15px; height: 48px; padding: 0 22px; border-radius: 24px; display: flex; align-items: center">دفتر مهربونی رو ببین</a>
+   130→   130→</div>
+   131→   131→
+   132→   132→<div style="display: flex; gap: 10px; padding: 22px 20px 0">
+   133→   133→<sc-for list="{{trust}}" as="t" hint-placeholder-count="3">
+   134→   134→<div style="flex: 1; box-sizing: border-box; background: #fff; border: 1px solid #DDEEF5; border-radius: 22px; padding: 16px 12px; display: flex; flex-direction: column; align-items: center; gap: 8px; text-align: center">
+   135→   135→<div style="width: 44px; height: 44px; border-radius: 22px; background: #D6F1FB; display: flex; align-items: center; justify-content: center; font-size: 20px; font-weight: 900; color: #04202E">{{t.icon}}</div>
+   136→   136→<div style="font-size: 14px; font-weight: 800">{{t.title}}</div>
+   137→   137→<div style="font-size: 12px; line-height: 1.7; color: #4A6572; font-weight: 500">{{t.body}}</div>
+   138→   138→</div>
+   139→   139→</sc-for>
+   140→   140→</div>
+   141→   141→
+   142→   142→<div style="padding: 26px 20px 0; text-align: center; font-size: 12.5px; color: #4A6572; font-weight: 500">پیشتم · یه بغل، تو یه جعبه</div>
+   143→   143→
+   144→   144→<nav aria-label="ناوبری اصلی" style="margin-top: auto; background: rgba(255,255,255,0.94); border-top: 1px solid #D3E8F0; padding: 8px 12px 26px; display: flex; justify-content: space-between; align-items: flex-end">
+   145→   145→<a href="Main.dc.html" style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px; text-decoration: none; color: #006387; font-size: 11px; font-weight: 800">
+   146→   146→<svg width="26" height="26" sc-camel-view-box="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 11l8-7 8 7v8a1 1 0 0 1-1 1h-4v-5h-6v5H5a1 1 0 0 1-1-1z"></path></svg>خانه</a>
+   147→   147→<a href="M-Pick.dc.html" style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px; text-decoration: none; color: #5B7482; font-size: 11px; font-weight: 700">
+   148→   148→<svg width="26" height="26" sc-camel-view-box="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="10" width="16" height="10" rx="2"></rect><path d="M12 10v10M3 7h18v3H3zM12 7c-3 0-5-1-4.5-2.5S11 4 12 7zm0 0c3 0 5-1 4.5-2.5S13 4 12 7z"></path></svg>دوست‌ها</a>
+   149→   149→<a href="M-Pick.dc.html" aria-label="ساخت هدیه" style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px; text-decoration: none; color: #04202E; font-size: 11px; font-weight: 800; margin-top: -30px">
+   150→   150→<span style="width: 58px; height: 58px; border-radius: 29px; background: #00ABE7; border: 4px solid #fff; box-shadow: 0 6px 16px rgba(0,171,231,0.35); display: flex; align-items: center; justify-content: center">
+   151→   151→<svg width="26" height="26" sc-camel-view-box="0 0 24 24" fill="none" stroke="#04202E" stroke-width="2.6" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg></span>بساز</a>
+   152→   152→<a href="M-MyGifts.dc.html" style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px; text-decoration: none; color: #5B7482; font-size: 11px; font-weight: 700">
+   153→   153→<svg width="26" height="26" sc-camel-view-box="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="3"></rect><path d="M4 7l8 6 8-6"></path></svg>هدیه‌هام</a>
+   154→   154→<a href="M-Impact.dc.html" style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px; text-decoration: none; color: #5B7482; font-size: 11px; font-weight: 700">
+   155→   155→<svg width="26" height="26" sc-camel-view-box="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20C5 15 3 11.5 3 8.7A4.7 4.7 0 0 1 12 7a4.7 4.7 0 0 1 9 1.7C21 11.5 19 15 12 20z"></path></svg>مهربونی</a>
+   156→   156→</nav>
+   157→   157→
+   158→   158→</div>
+   159→   159→
+   160→   160→==========================================
+   161→   161→### FILE: 02-انتخاب دوست پشمالو.html
+   162→   162→### TITLE: انتخاب دوست پشمالو
+   163→   163→### SCRIPT:
+   164→   164→
+   165→   165→class Component extends DCLogic {
+   166→   166→  state = { picked: 'bear' };
+   167→   167→  renderVals() {
+   168→   168→    const fa = (n) => String(n).replace(/\d/g, (d) => '۰۱۲۳۴۵۶۷۸۹'[d]);
+   169→   169→    const money = () => '[قیمت]';
+   170→   170→    const price = money(Number(this.props.price ?? 890000));
+   171→   171→    const list = [
+   172→   172→      { kind: 'bear', name: 'کِرِمی', chips: ['بغلی', 'آروم', 'شیرین'], bg: '#FFE8D1', blurb: 'کِرِمی برای روزای دلتنگی ساخته شده؛ یه بغل گرم که هیچ‌وقت خسته نمی‌شه.' },
+   173→   173→      { kind: 'bunny', name: 'لپ‌قندی', chips: ['شیطون', 'بازیگوش', 'پرانرژی'], bg: '#FFE0EA', blurb: 'لپ‌قندی همیشه یه خبر خوب تو گوشش داره و می‌خواد با تو تقسیمش کنه.' },
+   174→   174→      { kind: 'cat', name: 'میشی', chips: ['ناز', 'کم‌حرف', 'لوس'], bg: '#E7E0FA', blurb: 'میشی با یه نگاه می‌فهمه حالت چطوره و بی‌سروصدا کنارت می‌شینه.' },
+   175→   175→      { kind: 'panda', name: 'بامبو', chips: ['خوابالو', 'مهربون', 'آروم'], bg: '#DDF3EA', blurb: 'بامبو استاد چرت‌های وسط روزه؛ برای دوستی که خسته‌ست عالیه.' },
+   176→   176→      { kind: 'sheep', name: 'ابری', chips: ['نرم', 'خندون', 'پفی'], bg: '#FFF3C9', blurb: 'ابری مثل یه تیکه ابره؛ فقط باید محکم بغلش کنی.' },
+   177→   177→      { kind: 'duck', name: 'قات‌قات', chips: ['شاد', 'پرسروصدا', 'سرحال'], bg: '#D7F1FB', blurb: 'قات‌قات حال هر جمعی رو خوب می‌کنه، حتی تو روزای بارونی.' },
+   178→   178→    ];
+   179→   179→    const picked = this.state.picked;
+   180→   180→    const items = list.map((x) => ({
+   181→   181→      ...x,
+   182→   182→      traits: x.chips.join(' · '),
+   183→   183→      isOn: x.kind === picked,
+   184→   184→      border: x.kind === picked ? '#00ABE7' : '#E1EFF5',
+   185→   185→      pick: () => this.setState({ picked: x.kind }),
+   186→   186→    }));
+   187→   187→    return { price, items, sel: list.find((x) => x.kind === picked) || list[0] };
+   188→   188→  }
+   189→   189→}
+   190→   190→
+   191→   191→### BODY:
+   192→   192→
+   193→   193→<div style="width: 390px; min-height: 1280px; box-sizing: border-box; background: #F2FAFD; color: #04202E; font-family: 'Vazirmatn', system-ui, sans-serif; direction: rtl; display: flex; flex-direction: column; overflow: hidden">
+   194→   194→
+   195→   195→<div style="display: flex; align-items: center; justify-content: space-between; padding: 16px 20px 6px">
+   196→   196→<a href="Main.dc.html" aria-label="برگشت" style="width: 44px; height: 44px; border-radius: 22px; background: #fff; border: 1px solid #D3E8F0; display: flex; align-items: center; justify-content: center; color: #04202E">
+   197→   197→<svg width="22" height="22" sc-camel-view-box="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 5l7 7-7 7"></path></svg>
+   198→   198→</a>
+   199→   199→<span style="font-size: 14px; font-weight: 700; color: #4A6572">قدم ۱ از ۴</span>
+   200→   200→</div>
+   201→   201→<div style="display: flex; gap: 6px; padding: 8px 20px 0">
+   202→   202→<div style="flex: 1; height: 5px; border-radius: 3px; background: #00ABE7"></div>
+   203→   203→<div style="flex: 1; height: 5px; border-radius: 3px; background: #CFE6EF"></div>
+   204→   204→<div style="flex: 1; height: 5px; border-radius: 3px; background: #CFE6EF"></div>
+   205→   205→<div style="flex: 1; height: 5px; border-radius: 3px; background: #CFE6EF"></div>
+   206→   206→</div>
+   207→   207→
+   208→   208→<div style="padding: 22px 20px 4px">
+   209→   209→<h1 style="margin: 0; font-size: 32px; line-height: 1.4; font-weight: 900">دوستت رو انتخاب کن</h1>
+   210→   210→<p style="margin: 8px 0 0; font-size: 15px; line-height: 1.9; font-weight: 500; color: #1F3E4D">همه‌شون یه قیمتن، <b style="color: #006387">{{price}} تومان</b>؛ پس فقط به دلت گوش بده.</p>
+   211→   211→</div>
+   212→   212→
+   213→   213→<div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; padding: 14px 20px 0">
+   214→   214→<sc-for list="{{items}}" as="p" hint-placeholder-count="6">
+   215→   215→<button type="button" sc-camel-on-click="{{p.pick}}" aria-pressed="{{p.isOn}}" style="position: relative; text-align: right; cursor: pointer; background: #fff; border-radius: 24px; padding: 10px 10px 12px; border: 3px solid {{p.border}}; display: flex; flex-direction: column; gap: 4px; color: #04202E">
+   216→   216→<div style="height: 142px; border-radius: 16px; background: {{p.bg}}; display: flex; align-items: center; justify-content: center">
+   217→   217→<dc-import name="Plush" kind="{{p.kind}}" size="128" hint-size="128px,128px"></dc-import>
+   218→   218→</div>
+   219→   219→<div style="font-size: 17px; font-weight: 800; padding-top: 6px">{{p.name}}</div>
+   220→   220→<div style="font-size: 12px; font-weight: 500; color: #4A6572">{{p.traits}}</div>
+   221→   221→<sc-if value="{{p.isOn}}" hint-placeholder-val="{{ false }}">
+   222→   222→<span style="position: absolute; top: 16px; left: 16px; width: 30px; height: 30px; border-radius: 15px; background: #00ABE7; border: 2.5px solid #04202E; display: flex; align-items: center; justify-content: center">
+   223→   223→<svg width="16" height="16" sc-camel-view-box="0 0 24 24" fill="none" stroke="#04202E" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7"></path></svg>
+   224→   224→</span>
+   225→   225→</sc-if>
+   226→   226→</button>
+   227→   227→</sc-for>
+   228→   228→</div>
+   229→   229→
+   230→   230→<div style="margin: 16px 20px 0; background: #fff; border: 1px solid #DDEEF5; border-radius: 24px; padding: 16px 18px; display: flex; flex-direction: column; gap: 10px">
+   231→   231→<div style="display: flex; align-items: center; justify-content: space-between">
+   232→   232→<span style="font-size: 18px; font-weight: 800">{{sel.name}}</span>
+   233→   233→<span style="font-size: 12px; font-weight: 700; color: #006387">انتخاب تو</span>
+   234→   234→</div>
+   235→   235→<div style="display: flex; gap: 8px">
+   236→   236→<sc-for list="{{sel.chips}}" as="c" hint-placeholder-count="3">
+   237→   237→<span style="background: #D6F1FB; color: #04202E; font-size: 12.5px; font-weight: 700; padding: 6px 12px; border-radius: 14px">{{c}}</span>
+   238→   238→</sc-for>
+   239→   239→</div>
+   240→   240→<p style="margin: 0; font-size: 14px; line-height: 1.9; font-weight: 500; color: #1F3E4D">{{sel.blurb}}</p>
+   241→   241→</div>
+   242→   242→
+   243→   243→<div style="margin-top: auto; background: rgba(255,255,255,0.96); border-top: 1px solid #D3E8F0; padding: 14px 20px 30px; display: flex; align-items: center; gap: 14px">
+   244→   244→<div style="flex: 1; display: flex; flex-direction: column">
+   245→   245→<span style="font-size: 13px; font-weight: 600; color: #4A6572">{{sel.name}}</span>
+   246→   246→<span style="font-size: 17px; font-weight: 900">{{price}} تومان</span>
+   247→   247→</div>
+   248→   248→<a href="M-Card.dc.html" style="text-decoration: none; background: #00ABE7; color: #04202E; font-size: 16px; font-weight: 800; height: 54px; padding: 0 26px; border-radius: 27px; display: flex; align-items: center; gap: 8px">ادامه، کارت پستال
+   249→   249→<svg width="18" height="18" sc-camel-view-box="0 0 24 24" fill="none" stroke="#04202E" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"></path></svg></a>
+   250→   250→</div>
+   251→   251→
+   252→   252→</div>
+   253→   253→
+   254→   254→==========================================
+   255→   255→### FILE: 03-کارت پستال و پیام.html
+   256→   256→### TITLE: کارت پستال و پیام
+   257→   257→### SCRIPT:
+   258→   258→
+   259→   259→class Component extends DCLogic {
+   260→   260→  state = { occ: 0, len: 0, anon: false };
+   261→   261→  renderVals() {
+   262→   262→    const fa = (n) => String(n).replace(/\d/g, (d) => '۰۱۲۳۴۵۶۷۸۹'[d]);
+   263→   263→    const labels = ['همین‌طوری', 'دلم تنگ شده', 'زودتر خوب شی', 'تولدت مبارک'];
+   264→   264→    const holders = [
+   265→   265→      'مثلاً: همین‌طوری گفتم یه بغل برات بفرستم، چون دوستت دارم…',
+   266→   266→      'مثلاً: دلم برات خیلی تنگ شده، زود بیا ببینمت…',
+   267→   267→      'مثلاً: زودتر خوب شو، بدون تو هیچ‌چی مزه نداره…',
+   268→   268→      'مثلاً: تولدت مبارک عزیزم، امسال بهترین سالِ زندگیته…',
+   269→   269→    ];
+   270→   270→    const occasions = labels.map((label, i) => ({
+   271→   271→      label,
+   272→   272→      isOn: i === this.state.occ,
+   273→   273→      bg: i === this.state.occ ? '#00ABE7' : '#fff',
+   274→   274→      border: i === this.state.occ ? '#04202E' : '#CFE6EF',
+   275→   275→      pick: () => this.setState({ occ: i }),
+   276→   276→    }));
+   277→   277→    const anon = this.state.anon;
+   278→   278→    return {
+   279→   279→      occasions,
+   280→   280→      ph: holders[this.state.occ],
+   281→   281→      len: fa(this.state.len),
+   282→   282→      onType: (e) => this.setState({ len: (e.target.value || '').length }),
+   283→   283→      anon,
+   284→   284→      toggleAnon: () => this.setState({ anon: !anon }),
+   285→   285→      switchBg: anon ? '#00ABE7' : '#C7DCE5',
+   286→   286→      knobStyle: 'position:absolute;top:3px;width:26px;height:26px;border-radius:13px;background:#fff;box-shadow:0 2px 5px rgba(4,32,46,0.28);' + (anon ? 'left:3px' : 'right:3px'),
+   287→   287→      showName: !anon,
+   288→   288→      giftNo: fa(Number(this.props.nextNo ?? 101)),
+   289→   289→    };
+   290→   290→  }
+   291→   291→}
+   292→   292→
+   293→   293→### BODY:
+   294→   294→
+   295→   295→<div style="width: 390px; min-height: 1560px; box-sizing: border-box; background: #F2FAFD; color: #04202E; font-family: 'Vazirmatn', system-ui, sans-serif; direction: rtl; display: flex; flex-direction: column; overflow: hidden">
+   296→   296→
+   297→   297→<div style="display: flex; align-items: center; justify-content: space-between; padding: 16px 20px 6px">
+   298→   298→<a href="M-Pick.dc.html" aria-label="برگشت" style="width: 44px; height: 44px; border-radius: 22px; background: #fff; border: 1px solid #D3E8F0; display: flex; align-items: center; justify-content: center; color: #04202E">
+   299→   299→<svg width="22" height="22" sc-camel-view-box="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 5l7 7-7 7"></path></svg>
+   300→   300→</a>
+   301→   301→<span style="font-size: 14px; font-weight: 700; color: #4A6572">قدم ۲ از ۴</span>
+   302→   302→</div>
+   303→   303→<div style="display: flex; gap: 6px; padding: 8px 20px 0">
+   304→   304→<div style="flex: 1; height: 5px; border-radius: 3px; background: #00ABE7"></div>
+   305→   305→<div style="flex: 1; height: 5px; border-radius: 3px; background: #00ABE7"></div>
+   306→   306→<div style="flex: 1; height: 5px; border-radius: 3px; background: #CFE6EF"></div>
+   307→   307→<div style="flex: 1; height: 5px; border-radius: 3px; background: #CFE6EF"></div>
+   308→   308→</div>
+   309→   309→
+   310→   310→<div style="padding: 22px 20px 4px">
+   311→   311→<h1 style="margin: 0; font-size: 32px; line-height: 1.4; font-weight: 900">کارت پستالت رو بنویس</h1>
+   312→   312→<p style="margin: 8px 0 0; font-size: 15px; line-height: 1.9; font-weight: 500; color: #1F3E4D">یه کارت پستال فقط با یه QR همراه جعبه می‌رسه. دوستت اسکنش می‌کنه، رمز رو می‌زنه و پیامت رو می‌بینه.</p>
+   313→   313→</div>
+   314→   314→
+   315→   315→<div style="display: flex; gap: 8px; overflow-x: auto; padding: 14px 20px 4px">
+   316→   316→<sc-for list="{{occasions}}" as="o" hint-placeholder-count="4">
+   317→   317→<button type="button" sc-camel-on-click="{{o.pick}}" aria-pressed="{{o.isOn}}" style="flex: 0 0 auto; height: 44px; padding: 0 18px; border-radius: 22px; font-size: 14.5px; font-weight: 700; cursor: pointer; background: {{o.bg}}; color: #04202E; border: 1.5px solid {{o.border}}">{{o.label}}</button>
+   318→   318→</sc-for>
+   319→   319→</div>
+   320→   320→
+   321→   321→<div style="margin: 12px 20px 0; background: #fff; border: 1.5px solid #CFE6EF; border-radius: 24px; padding: 14px 16px 12px; display: flex; flex-direction: column; gap: 8px">
+   322→   322→<label for="msg" style="font-size: 14px; font-weight: 800">پیامت</label>
+   323→   323→<textarea id="msg" rows="5" sc-camel-max-length="400" sc-camel-on-input="{{onType}}" placeholder="{{ph}}" style="border: none; outline: none; resize: none; background: transparent; font-size: 16px; line-height: 1.9; color: #04202E; min-height: 130px; direction: rtl"></textarea>
+   324→   324→<div style="display: flex; justify-content: space-between; font-size: 12.5px; font-weight: 600; color: #4A6572">
+   325→   325→<span>متن، عکس یا ویدیو؛ هر چی دلت خواست</span>
+   326→   326→<span>{{len}} / ۴۰۰</span>
+   327→   327→</div>
+   328→   328→</div>
+   329→   329→
+   330→   330→<div style="display: flex; gap: 12px; padding: 12px 20px 0">
+   331→   331→<button type="button" style="flex: 1; height: 112px; border-radius: 22px; background: #E3F6FD; border: 2px dashed #00ABE7; color: #04202E; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; font-size: 14px; font-weight: 700; cursor: pointer">
+   332→   332→<svg width="28" height="28" sc-camel-view-box="0 0 24 24" fill="none" stroke="#04202E" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="3"></rect><circle cx="9" cy="11" r="1.8"></circle><path d="M4 17l5-4 4 3 3-2 4 3"></path></svg>
+   333→   333→افزودن عکس</button>
+   334→   334→<button type="button" style="flex: 1; height: 112px; border-radius: 22px; background: #FFE9F0; border: 2px dashed #F0426B; color: #04202E; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; font-size: 14px; font-weight: 700; cursor: pointer">
+   335→   335→<svg width="28" height="28" sc-camel-view-box="0 0 24 24" fill="none" stroke="#04202E" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="6" width="13" height="12" rx="3"></rect><path d="M16 11l5-3v8l-5-3"></path></svg>
+   336→   336→افزودن ویدیو</button>
+   337→   337→</div>
+   338→   338→
+   339→   339→<div style="margin: 18px 20px 0; display: flex; flex-direction: column; gap: 8px">
+   340→   340→<label for="pw" style="font-size: 14px; font-weight: 800">رمز کارت</label>
+   341→   341→<input id="pw" type="text" placeholder="مثلاً اسم اولین جایی که با هم رفتید" style="height: 54px; box-sizing: border-box; border-radius: 18px; border: 1.5px solid #CFE6EF; background: #fff; padding: 0 16px; font-size: 16px; color: #04202E; outline: none; direction: rtl">
+   342→   342→<span style="font-size: 12.5px; line-height: 1.8; font-weight: 500; color: #4A6572">فقط کسی که این رمز رو بدونه می‌تونه پیامت رو ببینه. رمز رو بهش بگو یا یه سرنخ بهش بده.</span>
+   343→   343→</div>
+   344→   344→
+   345→   345→<div style="margin: 18px 20px 0; background: #fff; border: 1px solid #DDEEF5; border-radius: 24px; padding: 6px 16px">
+   346→   346→<div style="display: flex; align-items: center; justify-content: space-between; padding: 12px 0; gap: 12px">
+   347→   347→<div style="display: flex; flex-direction: column; gap: 2px">
+   348→   348→<span style="font-size: 15px; font-weight: 800">ناشناس بفرست</span>
+   349→   349→<span style="font-size: 12.5px; font-weight: 500; color: #4A6572">توی جعبه هیچ اسمی نمی‌ذاریم</span>
+   350→   350→</div>
+   351→   351→<button type="button" role="switch" aria-checked="{{anon}}" aria-label="ارسال ناشناس" sc-camel-on-click="{{toggleAnon}}" style="position: relative; flex: 0 0 auto; width: 54px; height: 32px; border-radius: 16px; border: none; padding: 0; cursor: pointer; background: {{switchBg}}">
+   352→   352→<span style="{{knobStyle}}"></span>
+   353→   353→</button>
+   354→   354→</div>
+   355→   355→<sc-if value="{{showName}}" hint-placeholder-val="{{ true }}">
+   356→   356→<div style="border-top: 1px solid #E3F0F5; padding: 12px 0 14px; display: flex; flex-direction: column; gap: 8px">
+   357→   357→<label for="nm" style="font-size: 14px; font-weight: 800">اسم تو</label>
+   358→   358→<input id="nm" type="text" placeholder="اسمت چیه؟" style="height: 50px; box-sizing: border-box; border-radius: 16px; border: 1.5px solid #CFE6EF; background: #F8FDFF; padding: 0 16px; font-size: 16px; color: #04202E; outline: none; direction: rtl">
+   359→   359→</div>
+   360→   360→</sc-if>
+   361→   361→</div>
+   362→   362→
+   363→   363→<div style="margin: 18px 20px 0; border-radius: 26px; background: #D6F1FB; padding: 18px; display: flex; align-items: center; gap: 16px">
+   364→   364→<div style="flex: 0 0 auto; width: 128px; height: 98px; background: #fff; border: 2.5px solid #04202E; border-radius: 12px; transform: rotate(-3deg); display: flex; align-items: center; justify-content: center">
+   365→   365→<svg width="72" height="72" sc-camel-view-box="0 0 25 25" aria-hidden="true"><g fill="#04202E"><path fill-rule="evenodd" d="M0 0h7v7H0zM1 1v5h5V1z"></path><rect x="2" y="2" width="3" height="3"></rect><path fill-rule="evenodd" transform="translate(18 0)" d="M0 0h7v7H0zM1 1v5h5V1z"></path><rect x="20" y="2" width="3" height="3"></rect><path fill-rule="evenodd" transform="translate(0 18)" d="M0 0h7v7H0zM1 1v5h5V1z"></path><rect x="2" y="20" width="3" height="3"></rect><rect x="9" y="0" width="2" height="2"></rect><rect x="12" y="2" width="2" height="2"></rect><rect x="9" y="5" width="3" height="2"></rect><rect x="14" y="6" width="2" height="2"></rect><rect x="0" y="9" width="2" height="2"></rect><rect x="4" y="10" width="3" height="2"></rect><rect x="9" y="9" width="2" height="2"></rect><rect x="13" y="10" width="3" height="3"></rect><rect x="18" y="9" width="2" height="2"></rect><rect x="22" y="11" width="3" height="2"></rect><rect x="2" y="13" width="2" height="2"></rect><rect x="7" y="14" width="2" height="3"></rect><rect x="11" y="14" width="2" height="2"></rect><rect x="16" y="15" width="3" height="2"></rect><rect x="21" y="15" width="2" height="2"></rect><rect x="9" y="18" width="3" height="2"></rect><rect x="14" y="19" width="2" height="3"></rect><rect x="18" y="20" width="2" height="2"></rect><rect x="22" y="21" width="3" height="2"></rect><rect x="10" y="22" width="2" height="3"></rect></g></svg>
+   366→   366→</div>
+   367→   367→<div style="display: flex; flex-direction: column; gap: 6px">
+   368→   368→<span style="font-size: 16px; font-weight: 800">کارت پستالِ تو</span>
+   369→   369→<span style="font-size: 13px; line-height: 1.85; font-weight: 500; color: #1F3E4D">روی کارت فقط همین QR هست. شماره‌ی هدیه‌ی تو، <b>{{giftNo}}</b>، روی خود جعبه می‌شینه.</span>
+   370→   370→</div>
+   371→   371→</div>
+   372→   372→
+   373→   373→<div style="margin-top: auto; background: rgba(255,255,255,0.96); border-top: 1px solid #D3E8F0; padding: 14px 20px 30px; display: flex; align-items: center; gap: 14px">
+   374→   374→<a href="M-Extras.dc.html" style="flex: 1; text-decoration: none; background: #00ABE7; color: #04202E; font-size: 16px; font-weight: 800; height: 54px; border-radius: 27px; display: flex; align-items: center; justify-content: center; gap: 8px">ادامه، پنجه و قلب
+   375→   375→<svg width="18" height="18" sc-camel-view-box="0 0 24 24" fill="none" stroke="#04202E" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"></path></svg></a>
+   376→   376→</div>
+   377→   377→
+   378→   378→</div>
+   379→   379→
+   380→   380→==========================================
+   381→   381→### FILE: 04-پنجه و قلب.html
+   382→   382→### TITLE: پنجه و قلب
+   383→   383→### SCRIPT:
+   384→   384→
+   385→   385→class Component extends DCLogic {
+   386→   386→  state = { h: 5, p: 3 };
+   387→   387→  renderVals() {
+   388→   388→    const fa = (n) => String(n).replace(/\d/g, (d) => '۰۱۲۳۴۵۶۷۸۹'[d]);
+   389→   389→    const money = () => '[قیمت]';
+   390→   390→    const price = Number(this.props.price ?? 890000);
+   391→   391→    const charm = Number(this.props.charm ?? 50000);
+   392→   392→    const done = Number(this.props.charityDone ?? 0);
+   393→   393→    const target = Math.max(1, Number(this.props.charityTarget ?? 30));
+   394→   394→    const { h, p } = this.state;
+   395→   395→    const all = [];
+   396→   396→    let hi = 0, pi = 0;
+   397→   397→    while (hi < h || pi < p) {
+   398→   398→      if (hi < h) { all.push('h'); hi++; }
+   399→   399→      if (pi < p) { all.push('p'); pi++; }
+   400→   400→    }
+   401→   401→    const cap = 26;
+   402→   402→    const shown = all.slice(0, cap).map((k, i) => ({
+   403→   403→      isHeart: k === 'h',
+   404→   404→      isPaw: k === 'p',
+   405→   405→      tr: 'display:inline-flex;transform:rotate(' + (((i * 37) % 28) - 14) + 'deg)',
+   406→   406→    }));
+   407→   407→    const doneNow = done + h + p;
+   408→   408→    return {
+   409→   409→      charm: money(charm),
+   410→   410→      hearts: fa(h),
+   411→   411→      paws: fa(p),
+   412→   412→      heartPlus: () => this.setState({ h: h + 1 }),
+   413→   413→      heartMinus: () => this.setState({ h: Math.max(0, h - 1) }),
+   414→   414→      pawPlus: () => this.setState({ p: p + 1 }),
+   415→   415→      pawMinus: () => this.setState({ p: Math.max(0, p - 1) }),
+   416→   416→      stickers: shown,
+   417→   417→      hasMore: all.length > cap,
+   418→   418→      more: fa(all.length - cap),
+   419→   419→      giftNo: fa(Number(this.props.nextNo ?? 101)),
+   420→   420→      doneNow: fa(doneNow),
+   421→   421→      target: '[هدف]',
+   422→   422→      barPct: Math.min(100, Math.round((doneNow / target) * 100)),
+   423→   423→      total: money(price + (h + p) * charm),
+   424→   424→    };
+   425→   425→  }
+   426→   426→}
+   427→   427→
+   428→   428→### BODY:
+   429→   429→
+   430→   430→<div style="width: 390px; min-height: 1360px; box-sizing: border-box; background: #F2FAFD; color: #04202E; font-family: 'Vazirmatn', system-ui, sans-serif; direction: rtl; display: flex; flex-direction: column; overflow: hidden">
+   431→   431→
+   432→   432→<div style="display: flex; align-items: center; justify-content: space-between; padding: 16px 20px 6px">
+   433→   433→<a href="M-Card.dc.html" aria-label="برگشت" style="width: 44px; height: 44px; border-radius: 22px; background: #fff; border: 1px solid #D3E8F0; display: flex; align-items: center; justify-content: center; color: #04202E">
+   434→   434→<svg width="22" height="22" sc-camel-view-box="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 5l7 7-7 7"></path></svg>
+   435→   435→</a>
+   436→   436→<span style="font-size: 14px; font-weight: 700; color: #4A6572">قدم ۳ از ۴</span>
+   437→   437→</div>
+   438→   438→<div style="display: flex; gap: 6px; padding: 8px 20px 0">
+   439→   439→<div style="flex: 1; height: 5px; border-radius: 3px; background: #00ABE7"></div>
+   440→   440→<div style="flex: 1; height: 5px; border-radius: 3px; background: #00ABE7"></div>
+   441→   441→<div style="flex: 1; height: 5px; border-radius: 3px; background: #00ABE7"></div>
+   442→   442→<div style="flex: 1; height: 5px; border-radius: 3px; background: #CFE6EF"></div>
+   443→   443→</div>
+   444→   444→
+   445→   445→<div style="padding: 22px 20px 4px">
+   446→   446→<h1 style="margin: 0; font-size: 32px; line-height: 1.4; font-weight: 900">یه ذره مهربونی اضافه کن</h1>
+   447→   447→<p style="margin: 8px 0 0; font-size: 15px; line-height: 1.9; font-weight: 500; color: #1F3E4D">قلب قرمز و پنجه، استیکرای کوچیکی‌ان که روی جعبه می‌چسبن. پولشون می‌ره برای هدیه به بچه‌های بی‌سرپرست و پناهگاه حیوونا. هر چندتا که دلت خواست.</p>
+   448→   448→</div>
+   449→   449→
+   450→   450→<div style="display: flex; flex-direction: column; gap: 12px; padding: 14px 20px 0">
+   451→   451→
+   452→   452→<div style="background: #FFE9F0; border: 1.5px solid #F7C5D3; border-radius: 28px; padding: 16px; display: flex; flex-direction: column; gap: 14px">
+   453→   453→<div style="display: flex; align-items: center; gap: 14px">
+   454→   454→<div style="flex: 0 0 auto; width: 68px; height: 68px; border-radius: 34px; background: #fff; display: flex; align-items: center; justify-content: center">
+   455→   455→<svg width="40" height="40" sc-camel-view-box="-17 -17 34 34" aria-hidden="true"><path d="M0 12C-10 5-15 0-15-5a7.5 7.5 0 0 1 15-2 7.5 7.5 0 0 1 15 2c0 5-5 10-15 17z" fill="#F0426B" stroke="#04202E" stroke-width="2.4" stroke-linejoin="round"></path></svg>
+   456→   456→</div>
+   457→   457→<div style="display: flex; flex-direction: column; gap: 3px">
+   458→   458→<span style="font-size: 18px; font-weight: 900">قلب قرمز</span>
+   459→   459→<span style="font-size: 13px; font-weight: 500; color: #1F3E4D">برای هدیه به بچه‌های بی‌سرپرست</span>
+   460→   460→</div>
+   461→   461→</div>
+   462→   462→<div style="display: flex; align-items: center; justify-content: space-between">
+   463→   463→<span style="font-size: 14px; font-weight: 700">هر کدوم {{charm}} تومان</span>
+   464→   464→<div style="display: flex; align-items: center; gap: 4px; background: #fff; border-radius: 26px; padding: 4px">
+   465→   465→<button type="button" aria-label="یکی کم کن" sc-camel-on-click="{{heartMinus}}" style="width: 44px; height: 44px; border-radius: 22px; border: none; background: #F2FAFD; cursor: pointer; display: flex; align-items: center; justify-content: center"><svg width="20" height="20" sc-camel-view-box="0 0 24 24" fill="none" stroke="#04202E" stroke-width="2.8" stroke-linecap="round" aria-hidden="true"><path d="M6 12h12"></path></svg></button>
+   466→   466→<span style="min-width: 38px; text-align: center; font-size: 20px; font-weight: 900">{{hearts}}</span>
+   467→   467→<button type="button" aria-label="یکی زیاد کن" sc-camel-on-click="{{heartPlus}}" style="width: 44px; height: 44px; border-radius: 22px; border: none; background: #F0426B; cursor: pointer; display: flex; align-items: center; justify-content: center"><svg width="20" height="20" sc-camel-view-box="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.8" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg></button>
+   468→   468→</div>
+   469→   469→</div>
+   470→   470→</div>
+   471→   471→
+   472→   472→<div style="background: #E3F6FD; border: 1.5px solid #B5E3F5; border-radius: 28px; padding: 16px; display: flex; flex-direction: column; gap: 14px">
+   473→   473→<div style="display: flex; align-items: center; gap: 14px">
+   474→   474→<div style="flex: 0 0 auto; width: 68px; height: 68px; border-radius: 34px; background: #fff; display: flex; align-items: center; justify-content: center">
+   475→   475→<svg width="38" height="38" sc-camel-view-box="0 0 24 24" fill="#00ABE7" stroke="#04202E" stroke-width="1.4" aria-hidden="true"><ellipse cx="12" cy="16" rx="5.5" ry="4.2"></ellipse><circle cx="5.5" cy="11" r="2.3"></circle><circle cx="9.5" cy="6.5" r="2.3"></circle><circle cx="14.5" cy="6.5" r="2.3"></circle><circle cx="18.5" cy="11" r="2.3"></circle></svg>
+   476→   476→</div>
+   477→   477→<div style="display: flex; flex-direction: column; gap: 3px">
+   478→   478→<span style="font-size: 18px; font-weight: 900">پنجه</span>
+   479→   479→<span style="font-size: 13px; font-weight: 500; color: #1F3E4D">برای هدیه به پناهگاه حیوونا</span>
+   480→   480→</div>
+   481→   481→</div>
+   482→   482→<div style="display: flex; align-items: center; justify-content: space-between">
+   483→   483→<span style="font-size: 14px; font-weight: 700">هر کدوم {{charm}} تومان</span>
+   484→   484→<div style="display: flex; align-items: center; gap: 4px; background: #fff; border-radius: 26px; padding: 4px">
+   485→   485→<button type="button" aria-label="یکی کم کن" sc-camel-on-click="{{pawMinus}}" style="width: 44px; height: 44px; border-radius: 22px; border: none; background: #F2FAFD; cursor: pointer; display: flex; align-items: center; justify-content: center"><svg width="20" height="20" sc-camel-view-box="0 0 24 24" fill="none" stroke="#04202E" stroke-width="2.8" stroke-linecap="round" aria-hidden="true"><path d="M6 12h12"></path></svg></button>
+   486→   486→<span style="min-width: 38px; text-align: center; font-size: 20px; font-weight: 900">{{paws}}</span>
+   487→   487→<button type="button" aria-label="یکی زیاد کن" sc-camel-on-click="{{pawPlus}}" style="width: 44px; height: 44px; border-radius: 22px; border: none; background: #00ABE7; cursor: pointer; display: flex; align-items: center; justify-content: center"><svg width="20" height="20" sc-camel-view-box="0 0 24 24" fill="none" stroke="#04202E" stroke-width="2.8" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg></button>
+   488→   488→</div>
+   489→   489→</div>
+   490→   490→</div>
+   491→   491→
+   492→   492→</div>
+   493→   493→
+   494→   494→<div style="margin: 18px 20px 0">
+   495→   495→<div style="font-size: 15px; font-weight: 800; padding-bottom: 10px">روی جعبه‌ت این‌جوری می‌شینه</div>
+   496→   496→<div style="position: relative; background: #00ABE7; border: 2.5px solid #04202E; border-radius: 26px; padding: 18px 16px 16px; min-height: 150px; box-sizing: border-box">
+   497→   497→<div style="position: absolute; top: -2px; left: 22px; width: 18px; height: 44px; background: #04202E; border-radius: 0 0 6px 6px"></div>
+   498→   498→<div style="display: inline-flex; flex-direction: column; align-items: center; background: #fff; border: 2.5px solid #04202E; border-radius: 14px; padding: 6px 14px 4px; transform: rotate(-3deg)">
+   499→   499→<span style="font-size: 10.5px; font-weight: 700; color: #4A6572">هدیه‌ی شماره</span>
+   500→   500→<span style="font-size: 26px; font-weight: 900; line-height: 1.1">{{giftNo}}</span>
+   501→   501→</div>
+   502→   502→<div style="display: flex; flex-wrap: wrap; gap: 4px; padding-top: 12px; align-items: center">
+   503→   503→<sc-for list="{{stickers}}" as="s" hint-placeholder-count="8">
+   504→   504→<span style="{{s.tr}}">
+   505→   505→<sc-if value="{{s.isHeart}}" hint-placeholder-val="{{ true }}">
+   506→   506→<svg width="34" height="34" sc-camel-view-box="-17 -17 34 34" aria-hidden="true"><path d="M0 12C-10 5-15 0-15-5a7.5 7.5 0 0 1 15-2 7.5 7.5 0 0 1 15 2c0 5-5 10-15 17z" fill="#F0426B" stroke="#fff" stroke-width="3.6" stroke-linejoin="round"></path></svg>
+   507→   507→</sc-if>
+   508→   508→<sc-if value="{{s.isPaw}}" hint-placeholder-val="{{ false }}">
+   509→   509→<svg width="34" height="34" sc-camel-view-box="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="11.5" fill="#fff"></circle><g fill="#04202E" transform="translate(12 12) scale(.62) translate(-12 -12)"><ellipse cx="12" cy="16" rx="5.5" ry="4.2"></ellipse><circle cx="5.5" cy="11" r="2.3"></circle><circle cx="9.5" cy="6.5" r="2.3"></circle><circle cx="14.5" cy="6.5" r="2.3"></circle><circle cx="18.5" cy="11" r="2.3"></circle></g></svg>
+   510→   510→</sc-if>
+   511→   511→</span>
+   512→   512→</sc-for>
+   513→   513→<sc-if value="{{hasMore}}" hint-placeholder-val="{{ false }}">
+   514→   514→<span style="background: #04202E; color: #fff; font-size: 13px; font-weight: 800; padding: 6px 10px; border-radius: 14px">+{{more}}</span>
+   515→   515→</sc-if>
+   516→   516→</div>
+   517→   517→</div>
+   518→   518→</div>
+   519→   519→
+   520→   520→<div style="margin: 16px 20px 0; background: #fff; border: 1px solid #DDEEF5; border-radius: 24px; padding: 16px 18px; display: flex; flex-direction: column; gap: 10px">
+   521→   521→<div style="display: flex; align-items: center; justify-content: space-between">
+   522→   522→<span style="font-size: 15px; font-weight: 800">اولین بسته‌ی خیریه</span>
+   523→   523→<span style="font-size: 13px; font-weight: 700; color: #006387">{{doneNow}} از {{target}}</span>
+   524→   524→</div>
+   525→   525→<div style="height: 12px; border-radius: 6px; background: #E3F0F5; overflow: hidden">
+   526→   526→<div style="height: 12px; border-radius: 6px; background: #00ABE7; width: {{barPct}}%"></div>
+   527→   527→</div>
+   528→   528→<span style="font-size: 12.5px; line-height: 1.85; font-weight: 500; color: #4A6572">وقتی تعداد قلب و پنجه‌ها به هدفمون برسه، هدیه‌ها رو می‌خریم، می‌فرستیم و مدرکش رو تو «دفتر مهربونی» می‌ذاریم.</span>
+   529→   529→</div>
+   530→   530→
+   531→   531→<div style="margin-top: auto; background: rgba(255,255,255,0.96); border-top: 1px solid #D3E8F0; padding: 14px 20px 30px; display: flex; align-items: center; gap: 14px">
+   532→   532→<div style="flex: 1; display: flex; flex-direction: column">
+   533→   533→<span style="font-size: 13px; font-weight: 600; color: #4A6572">جمع (جعبه + قلب و پنجه)</span>
+   534→   534→<span style="font-size: 18px; font-weight: 900">{{total}} تومان</span>
+   535→   535→</div>
+   536→   536→<a href="M-Checkout.dc.html" style="text-decoration: none; background: #00ABE7; color: #04202E; font-size: 16px; font-weight: 800; height: 54px; padding: 0 26px; border-radius: 27px; display: flex; align-items: center; gap: 8px">برو به سبد
+   537→   537→<svg width="18" height="18" sc-camel-view-box="0 0 24 24" fill="none" stroke="#04202E" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"></path></svg></a>
+   538→   538→</div>
+   539→   539→
+   540→   540→</div>
+   541→   541→
+   542→   542→==========================================
+   543→   543→### FILE: 05-سبد و پرداخت.html
+   544→   544→### TITLE: سبد و پرداخت
+   545→   545→### SCRIPT:
+   546→   546→
+   547→   547→class Component extends DCLogic {
+   548→   548→  renderVals() {
+   549→   549→    const fa = (n) => String(n).replace(/\d/g, (d) => '۰۱۲۳۴۵۶۷۸۹'[d]);
+   550→   550→    const money = () => '[قیمت]';
+   551→   551→    const price = Number(this.props.price ?? 890000);
+   552→   552→    const charm = Number(this.props.charm ?? 50000);
+   553→   553→    const h = Number(this.props.hearts ?? 5);
+   554→   554→    const p = Number(this.props.paws ?? 3);
+   555→   555→    const rows = [];
+   556→   556→    if (h > 0) rows.push({ isHeart: true, isPaw: false, bg: '#FFE9F0', title: 'قلب قرمز × ' + fa(h), sub: 'برای بچه‌های بی‌سرپرست', amount: money(h * charm) });
+   557→   557→    if (p > 0) rows.push({ isHeart: false, isPaw: true, bg: '#E3F6FD', title: 'پنجه × ' + fa(p), sub: 'برای پناهگاه حیوونا', amount: money(p * charm) });
+   558→   558→    return {
+   559→   559→      giftNo: fa(Number(this.props.nextNo ?? 101)),
+   560→   560→      price: money(price),
+   561→   561→      rows,
+   562→   562→      total: money(price + (h + p) * charm),
+   563→   563→    };
+   564→   564→  }
+   565→   565→}
+   566→   566→
+   567→   567→### BODY:
+   568→   568→
+   569→   569→<div style="width: 390px; min-height: 1700px; box-sizing: border-box; background: #F2FAFD; color: #04202E; font-family: 'Vazirmatn', system-ui, sans-serif; direction: rtl; display: flex; flex-direction: column; overflow: hidden">
+   570→   570→
+   571→   571→<div style="display: flex; align-items: center; justify-content: space-between; padding: 16px 20px 6px">
+   572→   572→<a href="M-Extras.dc.html" aria-label="برگشت" style="width: 44px; height: 44px; border-radius: 22px; background: #fff; border: 1px solid #D3E8F0; display: flex; align-items: center; justify-content: center; color: #04202E">
+   573→   573→<svg width="22" height="22" sc-camel-view-box="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 5l7 7-7 7"></path></svg>
+   574→   574→</a>
+   575→   575→<span style="font-size: 14px; font-weight: 700; color: #4A6572">قدم ۴ از ۴</span>
+   576→   576→</div>
+   577→   577→<div style="display: flex; gap: 6px; padding: 8px 20px 0">
+   578→   578→<div style="flex: 1; height: 5px; border-radius: 3px; background: #00ABE7"></div>
+   579→   579→<div style="flex: 1; height: 5px; border-radius: 3px; background: #00ABE7"></div>
+   580→   580→<div style="flex: 1; height: 5px; border-radius: 3px; background: #00ABE7"></div>
+   581→   581→<div style="flex: 1; height: 5px; border-radius: 3px; background: #00ABE7"></div>
+   582→   582→</div>
+   583→   583→
+   584→   584→<div style="padding: 22px 20px 4px">
+   585→   585→<h1 style="margin: 0; font-size: 32px; line-height: 1.4; font-weight: 900">سبد و پرداخت</h1>
+   586→   586→</div>
+   587→   587→
+   588→   588→<div style="margin: 12px 20px 0; position: relative; background: #00ABE7; border-radius: 26px; display: flex; align-items: stretch; overflow: hidden">
+   589→   589→<div style="flex: 0 0 118px; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 18px 0">
+   590→   590→<span style="font-size: 12px; font-weight: 700">هدیه‌ی شماره</span>
+   591→   591→<span style="font-size: 44px; font-weight: 900; line-height: 1.15">{{giftNo}}</span>
+   592→   592→</div>
+   593→   593→<div style="width: 0; margin: 14px 0; border-right: 2.5px dashed #04202E"></div>
+   594→   594→<div style="flex: 1; padding: 18px 16px; display: flex; flex-direction: column; justify-content: center; gap: 4px">
+   595→   595→<span style="font-size: 16px; font-weight: 900">این شماره مال هدیه‌ی توئه</span>
+   596→   596→<span style="font-size: 12.5px; line-height: 1.8; font-weight: 500">روی جعبه و کارت پستال می‌شینه و اسمش تو دفتر ما ثبت می‌شه.</span>
+   597→   597→</div>
+   598→   598→<div style="position: absolute; top: -12px; right: 106px; width: 24px; height: 24px; border-radius: 12px; background: #F2FAFD"></div>
+   599→   599→<div style="position: absolute; bottom: -12px; right: 106px; width: 24px; height: 24px; border-radius: 12px; background: #F2FAFD"></div>
+   600→   600→</div>
+   601→   601→
+   602→   602→<div style="margin: 16px 20px 0; background: #fff; border: 1px solid #DDEEF5; border-radius: 26px; padding: 8px 16px">
+   603→   603→<div style="display: flex; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px solid #E3F0F5">
+   604→   604→<div style="flex: 0 0 auto; width: 64px; height: 64px; border-radius: 18px; background: #FFE8D1; display: flex; align-items: center; justify-content: center">
+   605→   605→<dc-import name="Plush" kind="bear" size="54" hint-size="54px,54px"></dc-import>
+   606→   606→</div>
+   607→   607→<div style="flex: 1; display: flex; flex-direction: column; gap: 2px">
+   608→   608→<span style="font-size: 15px; font-weight: 800">کِرِمی، دوست پشمالو</span>
+   609→   609→<span style="font-size: 12.5px; font-weight: 500; color: #4A6572">جعبه‌ی کادویی + کارت پستال QR</span>
+   610→   610→</div>
+   611→   611→<span style="font-size: 14px; font-weight: 800">{{price}}</span>
+   612→   612→</div>
+   613→   613→<sc-for list="{{rows}}" as="r" hint-placeholder-count="2">
+   614→   614→<div style="display: flex; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px solid #E3F0F5">
+   615→   615→<div style="flex: 0 0 auto; width: 40px; height: 40px; border-radius: 20px; background: {{r.bg}}; display: flex; align-items: center; justify-content: center">
+   616→   616→<sc-if value="{{r.isHeart}}" hint-placeholder-val="{{ true }}">
+   617→   617→<svg width="22" height="22" sc-camel-view-box="-17 -17 34 34" aria-hidden="true"><path d="M0 12C-10 5-15 0-15-5a7.5 7.5 0 0 1 15-2 7.5 7.5 0 0 1 15 2c0 5-5 10-15 17z" fill="#F0426B" stroke="#04202E" stroke-width="2.6" stroke-linejoin="round"></path></svg>
+   618→   618→</sc-if>
+   619→   619→<sc-if value="{{r.isPaw}}" hint-placeholder-val="{{ false }}">
+   620→   620→<svg width="22" height="22" sc-camel-view-box="0 0 24 24" fill="#00ABE7" stroke="#04202E" stroke-width="1.4" aria-hidden="true"><ellipse cx="12" cy="16" rx="5.5" ry="4.2"></ellipse><circle cx="5.5" cy="11" r="2.3"></circle><circle cx="9.5" cy="6.5" r="2.3"></circle><circle cx="14.5" cy="6.5" r="2.3"></circle><circle cx="18.5" cy="11" r="2.3"></circle></svg>
+   621→   621→</sc-if>
+   622→   622→</div>
+   623→   623→<div style="flex: 1; display: flex; flex-direction: column; gap: 2px">
+   624→   624→<span style="font-size: 15px; font-weight: 800">{{r.title}}</span>
+   625→   625→<span style="font-size: 12.5px; font-weight: 500; color: #4A6572">{{r.sub}}</span>
+   626→   626→</div>
+   627→   627→<span style="font-size: 14px; font-weight: 800">{{r.amount}}</span>
+   628→   628→</div>
+   629→   629→</sc-for>
+   630→   630→<div style="display: flex; justify-content: space-between; padding: 12px 0 6px; font-size: 14px; font-weight: 600; color: #4A6572">
+   631→   631→<span>هزینه‌ی ارسال</span><span>بعد از ثبت آدرس حساب می‌شه</span>
+   632→   632→</div>
+   633→   633→<div style="display: flex; justify-content: space-between; align-items: center; padding: 8px 0 12px; font-size: 17px; font-weight: 900">
+   634→   634→<span>جمع کل</span><span>{{total}} تومان</span>
+   635→   635→</div>
+   636→   636→</div>
+   637→   637→
+   638→   638→<div style="padding: 22px 20px 8px; font-size: 18px; font-weight: 800">گیرنده‌ی هدیه</div>
+   639→   639→<div style="margin: 0 20px; background: #fff; border: 1px solid #DDEEF5; border-radius: 26px; padding: 4px 16px">
+   640→   640→<div style="display: flex; flex-direction: column; gap: 4px; padding: 12px 0; border-bottom: 1px solid #E3F0F5">
+   641→   641→<label for="rn" style="font-size: 12.5px; font-weight: 700; color: #4A6572">اسم گیرنده</label>
+   642→   642→<input id="rn" type="text" placeholder="اسم دوستت" style="border: none; outline: none; background: transparent; font-size: 16px; color: #04202E; height: 30px; direction: rtl">
+   643→   643→</div>
+   644→   644→<div style="display: flex; flex-direction: column; gap: 4px; padding: 12px 0; border-bottom: 1px solid #E3F0F5">
+   645→   645→<label for="rp" style="font-size: 12.5px; font-weight: 700; color: #4A6572">شماره‌ی موبایل گیرنده</label>
+   646→   646→<input id="rp" type="tel" inputmode="numeric" placeholder="۰۹۱۲ ۱۲۳ ۴۵۶۷" style="border: none; outline: none; background: transparent; font-size: 16px; color: #04202E; height: 30px; direction: rtl">
+   647→   647→</div>
+   648→   648→<div style="display: flex; flex-direction: column; gap: 4px; padding: 12px 0; border-bottom: 1px solid #E3F0F5">
+   649→   649→<label for="rc" style="font-size: 12.5px; font-weight: 700; color: #4A6572">استان و شهر</label>
+   650→   650→<input id="rc" type="text" placeholder="مثلاً تهران، تهران" style="border: none; outline: none; background: transparent; font-size: 16px; color: #04202E; height: 30px; direction: rtl">
+   651→   651→</div>
+   652→   652→<div style="display: flex; flex-direction: column; gap: 4px; padding: 12px 0; border-bottom: 1px solid #E3F0F5">
+   653→   653→<label for="ra" style="font-size: 12.5px; font-weight: 700; color: #4A6572">آدرس کامل</label>
+   654→   654→<textarea id="ra" rows="2" placeholder="خیابان، کوچه، پلاک، واحد" style="border: none; outline: none; resize: none; background: transparent; font-size: 16px; line-height: 1.8; color: #04202E; direction: rtl"></textarea>
+   655→   655→</div>
+   656→   656→<div style="display: flex; flex-direction: column; gap: 4px; padding: 12px 0">
+   657→   657→<label for="rz" style="font-size: 12.5px; font-weight: 700; color: #4A6572">کدپستی</label>
+   658→   658→<input id="rz" type="text" inputmode="numeric" placeholder="کدپستی ده رقمی" style="border: none; outline: none; background: transparent; font-size: 16px; color: #04202E; height: 30px; direction: rtl">
+   659→   659→</div>
+   660→   660→</div>
+   661→   661→
+   662→   662→<div style="margin: 14px 20px 0; background: #fff; border: 1px solid #DDEEF5; border-radius: 22px; padding: 6px 6px 6px 16px; display: flex; align-items: center; gap: 10px">
+   663→   663→<label for="cp" style="position: absolute; left: -9999px">کد تخفیف</label>
+   664→   664→<input id="cp" type="text" placeholder="کد تخفیف داری؟" style="flex: 1; border: none; outline: none; background: transparent; font-size: 16px; color: #04202E; height: 44px; direction: rtl">
+   665→   665→<button type="button" style="height: 44px; padding: 0 20px; border-radius: 16px; border: none; background: #D6F1FB; color: #04202E; font-size: 14.5px; font-weight: 800; cursor: pointer">اعمال</button>
+   666→   666→</div>
+   667→   667→
+   668→   668→<div style="padding: 22px 20px 8px; font-size: 18px; font-weight: 800">روش پرداخت</div>
+   669→   669→<div style="margin: 0 20px; background: #fff; border: 2px solid #00ABE7; border-radius: 22px; padding: 14px 16px; display: flex; align-items: center; gap: 12px">
+   670→   670→<span style="flex: 0 0 auto; width: 26px; height: 26px; border-radius: 13px; background: #00ABE7; border: 2px solid #04202E; display: flex; align-items: center; justify-content: center">
+   671→   671→<svg width="14" height="14" sc-camel-view-box="0 0 24 24" fill="none" stroke="#04202E" stroke-width="3.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7"></path></svg>
+   672→   672→</span>
+   673→   673→<div style="flex: 1; display: flex; flex-direction: column; gap: 2px">
+   674→   674→<span style="font-size: 15px; font-weight: 800">پرداخت آنلاین</span>
+   675→   675→<span style="font-size: 12.5px; font-weight: 500; color: #4A6572">با همه‌ی کارت‌های عضو شتاب، از درگاه امن بانکی</span>
+   676→   676→</div>
+   677→   677→<svg width="26" height="26" sc-camel-view-box="0 0 24 24" fill="none" stroke="#04202E" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="6" width="18" height="13" rx="3"></rect><path d="M3 10.5h18M7 15h4"></path></svg>
+   678→   678→</div>
+   679→   679→
+   680→   680→<div style="padding: 14px 24px 0; font-size: 12.5px; line-height: 1.9; font-weight: 500; color: #4A6572; text-align: center">با پرداخت، قوانین و شرایط پیشتم رو قبول می‌کنی. رسید قلب‌ها و پنجه‌ها بعد از ارسال هدیه‌ها تو دفتر مهربونی ثبت می‌شه.</div>
+   681→   681→
+   682→   682→<div style="margin-top: auto; background: rgba(255,255,255,0.96); border-top: 1px solid #D3E8F0; padding: 14px 20px 30px; display: flex; align-items: center; gap: 14px">
+   683→   683→<div style="display: flex; flex-direction: column">
+   684→   684→<span style="font-size: 13px; font-weight: 600; color: #4A6572">جمع کل</span>
+   685→   685→<span style="font-size: 18px; font-weight: 900">{{total}} تومان</span>
+   686→   686→</div>
+   687→   687→<a href="M-Success.dc.html" style="flex: 1; text-decoration: none; background: #00ABE7; color: #04202E; font-size: 16px; font-weight: 800; height: 54px; border-radius: 27px; display: flex; align-items: center; justify-content: center; gap: 8px">پرداخت و فرستادن
+   688→   688→<svg width="20" height="20" sc-camel-view-box="-17 -17 34 34" aria-hidden="true"><path d="M0 12C-10 5-15 0-15-5a7.5 7.5 0 0 1 15-2 7.5 7.5 0 0 1 15 2c0 5-5 10-15 17z" fill="#04202E"></path></svg></a>
+   689→   689→</div>
+   690→   690→
+   691→   691→</div>
+   692→   692→
+   693→   693→==========================================
+   694→   694→### FILE: 06-قفل کارت پستال.html
+   695→   695→### TITLE: قفل کارت پستال
+   696→   696→### SCRIPT:
+   697→   697→
+   698→   698→class Component extends DCLogic {
+   699→   699→  state = { show: false };
+   700→   700→  renderVals() {
+   701→   701→    const fa = (n) => String(n).replace(/\d/g, (d) => '۰۱۲۳۴۵۶۷۸۹'[d]);
+   702→   702→    return {
+   703→   703→      giftNo: fa(Number(this.props.nextNo ?? 101)),
+   704→   704→      ptype: this.state.show ? 'text' : 'password',
+   705→   705→      toggle: () => this.setState({ show: !this.state.show }),
+   706→   706→    };
+   707→   707→  }
+   708→   708→}
+   709→   709→
+   710→   710→### BODY:
+   711→   711→
+   712→   712→<div style="width: 390px; min-height: 844px; box-sizing: border-box; background: #00ABE7; color: #04202E; font-family: 'Vazirmatn', system-ui, sans-serif; direction: rtl; display: flex; flex-direction: column; overflow: hidden; position: relative">
+   713→   713→
+   714→   714→<div style="display: flex; align-items: center; justify-content: space-between; padding: 22px 24px 0">
+   715→   715→<dc-import name="Logo" size="34" hint-size="120px,34px"></dc-import>
+   716→   716→<div style="background: #fff; border: 2.5px solid #04202E; border-radius: 14px; padding: 5px 12px 3px; text-align: center; transform: rotate(3deg)">
+   717→   717→<div style="font-size: 10px; font-weight: 700; color: #4A6572">هدیه‌ی شماره</div>
+   718→   718→<div style="font-size: 22px; font-weight: 900; line-height: 1.1">{{giftNo}}</div>
+   719→   719→</div>
+   720→   720→</div>
+   721→   721→
+   722→   722→<div style="position: relative; width: 290px; height: 290px; margin: 26px auto 0; flex: 0 0 auto">
+   723→   723→<div style="position: absolute; inset: 0; border-radius: 145px; background: #66CDF1"></div>
+   724→   724→<div style="position: absolute; left: 35px; top: 40px">
+   725→   725→<dc-import name="Plush" kind="bunny" size="220" hint-size="220px,220px"></dc-import>
+   726→   726→</div>
+   727→   727→<svg style="position: absolute; top: 18px; right: 28px" width="30" height="30" sc-camel-view-box="-17 -17 34 34" aria-hidden="true"><path d="M0 12C-10 5-15 0-15-5a7.5 7.5 0 0 1 15-2 7.5 7.5 0 0 1 15 2c0 5-5 10-15 17z" fill="#fff" stroke="#04202E" stroke-width="2.4" stroke-linejoin="round" transform="rotate(12)"></path></svg>
+   728→   728→<svg style="position: absolute; top: 80px; left: 8px" width="20" height="20" sc-camel-view-box="-17 -17 34 34" aria-hidden="true"><path d="M0 12C-10 5-15 0-15-5a7.5 7.5 0 0 1 15-2 7.5 7.5 0 0 1 15 2c0 5-5 10-15 17z" fill="#F0426B" stroke="#04202E" stroke-width="3" stroke-linejoin="round" transform="rotate(-14)"></path></svg>
+   729→   729→<div style="position: absolute; bottom: 12px; right: 18px; width: 70px; height: 70px; border-radius: 35px; background: #04202E; border: 4px solid #fff; display: flex; align-items: center; justify-content: center">
+   730→   730→<svg width="30" height="30" sc-camel-view-box="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2.5"></rect><path d="M8 11V8a4 4 0 0 1 8 0v3"></path></svg>
+   731→   731→</div>
+   732→   732→</div>
+   733→   733→
+
+[showing lines 34-733 of 952; use offset=734 with limit to continue reading]
