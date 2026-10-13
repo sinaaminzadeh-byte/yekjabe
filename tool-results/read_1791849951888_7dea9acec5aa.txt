@@ -1,0 +1,182 @@
+    14→- `scripts/reconstruct.mjs` — copied all 32 pages to `public/pages/<slug>.html` and injected a nav shim (`scripts/reconstruct.mjs`): intercepts clicks on `a[href*=".dc.html"]` (capture phase, survives the bundle's document swap), resolves via embedded name→slug map, postMessages `{type:'pishnam-nav', name, slug}` to parent; standalone mode adds a floating «فهرست صفحات/قبلی/بعدی» pill. Generated `src/data/pages.ts` registry (slug, dc, title, label, w, h, cat, desc, src) + CATEGORIES + LINK_NAME_TO_SLUG.
+    15→- Extracted self-hosted Vazirmatn variable font (3 woff2: arabic/latin-ext/latin) from manifest → `public/fonts/`, wired `@font-face` in `globals.css`; layout switched to `lang="fa" dir="rtl"`.
+    16→- Built the shell (single route `/`):
+    17→  - `src/components/pishnam/header.tsx` — brand header + mobile drawer (Sheet) trigger.
+    18→  - `src/components/pishnam/sidebar.tsx` — search + 6 category groups with icons/colors, active highlight, size badges.
+    19→  - `src/components/pishnam/viewer.tsx` — iframe runner: phone frame for mobile pages, auto-fit zoom (ResizeObserver) + manual zoom, prev/next + counter, category/size badges, open-in-new-tab, live status bar, keyboard ←/→/Esc, canvas scroll reset per page.
+    20→  - `src/components/pishnam/gallery.tsx` — hero + per-category grids with LIVE scaled iframe previews (lazy), hover overlays, stats.
+    21→  - `src/app/page.tsx` — orchestration: view state, URL deep-link `?page=slug` (+ hash), history.replaceState sync, postMessage listener → cross-page navigation, mobile drawer state.
+    22→- Custom dotted canvas background + cyan scrollbar styling in `globals.css`.
+    23→- Verified with agent-browser: gallery renders live previews; sidebar opens pages; viewer frames 390px designs; **clicked links inside designs (بساز و بفرست → M-Pick → ادامه، کارت پستال → M-Card)** — shell navigated 1→2→3 with sidebar highlight sync; design-internal state (plush selection) works in iframe; desktop page auto-scales (65%); deep link `/?page=desktop-home` works; mobile viewport (390×844): hamburger drawer + scaled viewer OK. Console clean; `bun run lint` passes (0 errors).
+    24→
+    25→Stage Summary:
+    26→- 32/32 pages extracted, self-contained, offline-capable at `public/pages/<slug>.html`.
+    27→- Whole design system browsable at `/` with real cross-page linking (the user's core ask).
+    28→- Key artifacts: `public/pages/*` (32 files), `src/data/pages.ts`, `src/components/pishnam/{header,sidebar,viewer,gallery}.tsx`, `scripts/{extract-bundle,extract-inner,reconstruct}.mjs`, `public/fonts/*`.
+    29→- Source-of-truth metadata (labels/sizes/link-graph) lives in `scripts/reconstruct.mjs`; re-run it after changing mappings.
+    30→- Known minor notes: gallery mounts ~32 lazy iframes (heavy but lazy); unknown dc-link targets only log a warning; Esc closes viewer to gallery.
+    31→
+    32→---
+    33→Task ID: 2
+    34→Agent: cron web-dev-review (round 2)
+    35→Task: QA pass + new features (command palette, recently-viewed, auto-play tour, copy-link, a11y & styling polish).
+    36→
+    37→Work Log:
+    38→- QA via agent-browser: app loads clean, gallery/viewer/nav all functional, no runtime errors. Found 1 Radix a11y console warning.
+    39→- Fixed a11y warnings: moved DialogHeader (Title+Description) inside DialogContent in `src/components/ui/command.tsx`; added sr-only SheetDescription in header Sheet; passed Persian title/description to CommandDialog. Console now 100% clean (verified via console --clear + reload + interactions).
+    40→- NEW: Command palette (`src/components/pishnam/command-palette.tsx`) — Ctrl/⌘+K, Persian search over labels/titles/slugs/dc-names/categories, "بازدید اخیر" group, numbered items with sizes, actions (گالری، ادامه‌ی آخرین صفحه), footer key hints, header trigger button with Ctrl K kbd chip.
+    41→- NEW: Recently viewed (`src/hooks/use-recent-pages.ts`, localStorage `pishnam:recent`, max 6, validated) — sidebar section + horizontal chips row in gallery under hint bar.
+    42→- NEW: Auto-play tour in viewer — play/pause button (cyan filled when playing), 4.5s per page auto-advance, animated gradient progress bar (`.pishnam-tour-bar` keyframes in globals.css), "در حال پخش…" title indicator, pink pulsing status dot, completion toast, auto-stop at last page; any manual prev/next/back pauses it.
+    43→- NEW: Copy-link button in viewer toolbar with clipboard API + execCommand fallback and success/failure toasts; unknown dc-link targets now show a Persian toast instead of console-only warning.
+    44→- Styling polish: framer-motion fade/slide page transition on viewer canvas (key=slug), flow stepper bar (9 segments, «مسیر N از 9») for flow pages, gallery card hover lift (-translate-y-1 + deeper shadow), recent chips hover micro-lift.
+    45→- Verified with agent-browser: palette opens with Ctrl+K and jumps via typed search + Enter (پرداخت → page 5/32); tour auto-advanced across multiple pages incl. crossing category boundaries; recent sections update in sidebar + gallery; copy toast appears (headless blocks clipboard → fallback path exercised); console clean after fixes; `bun run lint` 0 errors.
+    46→
+    47→Stage Summary:
+    48→- Studio upgraded from "viewer" to a real design-system workspace: ⌘K palette, history, tour playback, shareable copy-link, toast system.
+    49→- Remaining ideas for next rounds: hash-scroll support for links like `Desktop-Home.dc.html#friends`, per-page notes/annotations, favorites (pinned) beyond recents, export a single self-contained index.html of the whole studio, light perf audit of 32 gallery iframes (option: static thumbnails).
+    50→---
+    51→Task ID: 3-a
+    52→Agent: general-purpose (dashboards)
+    53→Task: Replace the dashboards.tsx placeholder with full implementations of 6 screens — MobileMyGifts/DesktopMyGifts, MobileImpact/DesktopImpact, MobileLogin/DesktopLogin — ported 1:1 from design files 02/16-هدیه‌هام, 08/14-دفتر مهربونی, 03/15-ورود یا ثبت‌نام, wired to the real Zustand store.
+    54→
+    55→Work Log:
+    56→- Read worklog + foundation files (pishnam-data, pishnam-store, fa, hash-route, plush, icons, nav, flow, success, page.tsx shell) and extracted the 6 design sections from design-ref/all-pages.md (lines 1946/3409, 850/3184, 2043/3326).
+    57→- Rewrote src/components/shop/screens/dashboards.tsx (~900 lines) preserving exact export signatures; skipped design-internal header (app shell renders DesktopHeader) and mobile bottom nav (app shell renders MobileNav); added a shared desktop footer matching home.tsx's footer for MyGifts/Impact (compact variant for Login).
+    58→- MyGifts (mobile+desktop): sent/recv tab pill from design; REAL orders from usePishnam(s=>s.orders) filtered by dir — no static lists. Card = Plush thumbnail on PLUSH_MAP[kind].bg tile, «برای …»/«از …», gift no chip fa(o.no), o.date, extra (ناشناس / N قلب / N پنجه / کارت باز شده), status chip with design colors (paid/packing→بسته‌بندی #FFF3C9, shipped→در راه #CDEFFB, delivered→تحویل شد #D7F5E4; recv: پیام منتظرته/پیام رو دیدی). Recv orders get «مشاهده‌ی پیام» → navigate("gift"); sent orders with status!=='delivered' get a «قدم بعدی» simulate button calling advanceStatus(o.id) (verified paid→packing→shipped live). Stats cards (تعداد/قلب و پنجه‌ی تو per tab) + charm summary chips row (hearts/paws/anonymous counts). Friendly Persian empty states with CTA → navigate("pick"). Dashed info box with heart sticker.
+    59→- Impact (mobile+desktop): big counter from REAL useCharityDone() vs CHARITY_TARGET with animated progress bar (transition-[width]); «تو هم قلب اضافه کن» → extras, «ارسال و بازگشت» → shipping (desktop hero per design). «مدارک ارسال» receipts derived from real sent orders («ارسال هدیه برای X» + o.date + charm counts + «سهم تو» chip), padded with the 3 design placeholder charity receipts when fewer than 3, plus «ارسال بعدی» dashed box. 3 transparency steps from design script. NEW «نشان‌های مهربونی» badges row computed from real data (اولین قدم/قلب‌بارون≥5 hearts/پنجه‌ی مهربون≥3 paws/ناشناسِ خوش‌نیت/بغل‌گیرنده) with locked state styling. Desktop adds 4 stat cards (هدیه‌ها/قلب‌ها/پنجه‌ها/خیریه‌ها) per design.
+    60→- Login (mobile+desktop): REAL OTP flow via shared useOtpFlow hook — phone step (11-digit, /^09\d{9}$/, Persian+Latin digits accepted & normalized, inline error), OTP step (4 digits, hint «برای نمایش: هر چهار رقم رو بزن», 30s resend countdown with دوباره‌فرستاد toast, تغییر شماره), name step (optional) → login(phone,name) → navigate("my-gifts") + toast; «ورود به‌عنوان مهمان» → navigate("home"); logged-in state card (avatar/name/fa(phone)) with «هدیه‌هام رو ببین» and logout() + toast. Desktop keeps the design's cyan brand panel (decorative shapes + bunny/panda plushes) + white form panel, shared field/button styles per design (h-58 inputs, border-2 #04202E, ltr/right-aligned).
+    61→- Persian digits everywhere via fa(); tasteful CSS transitions (active:scale-95, hover lifts, progress bar) without breaking RTL; logical properties (ps-/pe-/ms-auto) where directional.
+    62→- Verified with agent-browser at 390px and 1440px: mobile/desktop visibility toggling correct; sent/recv tabs, status simulation, recv «مشاهده‌ی پیام», impact real counter (۲۳/۳۰، ۷۷٪), receipts derivation+padding, badges lock/unlock, full OTP login (Persian digits) ending on #/my-gifts with header user chip, logout returning to form; no console errors from these screens (only pre-existing Next devtools ScrollArea button-nesting notice).
+    63→
+    64→Stage Summary:
+    65→- dashboards.tsx is now a real, store-driven implementation of all 6 dashboard screens (design-faithful + interactive); placeholders removed.
+    66→- Wired state: orders (sent/recv), advanceStatus tracking simulation, useCharityDone/CHARITY_TARGET progress, login/logout/auth-gated UI, hash-route navigation (pick/gift/extras/shipping/impact/home/my-gifts), toasts.
+    67→- Shared primitives kept local to the file (TabsPill, PlushThumb, EmptyPanel, ReceiptCard, CharityProgressCard, BadgesRow, useOtpFlow, LoginFlowBlock, DesktopFooter) so no other files were touched.
+    68→- `bun run lint` passes with 0 errors; `bunx tsc --noEmit` reports 0 errors for dashboards.tsx (pre-existing errors in flow.tsx/examples/skills remain, untouched).
+    69→---
+    70→Task ID: 3-b
+    71→Agent: general-purpose (gift-experience + info)
+    72→Task: Replace the two remaining placeholder screen files — gift-experience.tsx (receiver/QR experience, locked→opened) and info.tsx (About/Mission/Contact/Reviews/Shipping) — as faithful responsive React ports of the design pages, wired to the real Zustand store.
+    73→
+    74→Work Log:
+    75→- Read worklog + all foundation files (pishnam-data/store/fa/hash-route, plush, icons, nav, flow.tsx, success.tsx) and ported source ranges of design-ref/all-pages.md: 06-قفل کارت پستال (L694), 07-پیام تو (L757), 18-پیام تو desktop (L3642), plus all 10 info pages — desktop 04–08 (L2092–2620) and mobile 09–13 (L2623–3181). (Note: in the bundle the lower-numbered info files are the desktop 1200px variants and 09–13 the 390px ones; ported each variant to its responsive slot accordingly.)
+    76→- globals.css: added `pishnam-shake` keyframe (wrong-password shake, reused by both breakpoints).
+    77→- gift-experience.tsx → `GiftExperience()`: standalone route (shell hides header/nav). Mobile locked = cyan page per design 06 (logo row + small «خانه» pill + rotated gift chip, 290px circle stage with order plush + heart stickers + dark lock badge, «یکی برات یه چیزی فرستاده», password input with eye show/hide toggle, dark «باز کن» button, hint line). Desktop = two-panel design 18: own header (Logo 46 + «برو به خانه»), cyan left panel (stage + title switching to «هدیه‌ت باز شد» + labeled form), right dashed «پیامت بعد از باز کردن رمز اینجا میاد» placeholder that swaps to the opened column (dark hero «یه بغل برات رسید» + sender chip, message card with occasion chip, photo/video cards, pink hearts/paws card, 3 CTAs) with `pishnam-reveal`. Logic: latest `orders.find(dir==='recv')` (fallback built-in demo order: panda/بهار/seed message), accepts order password OR GIFT_OPEN_DEFAULT_PASSWORD, wrong → shake (keyed remount) + Persian error card, success → `markOpened(id)` + opened state (persists via store, so re-entry shows opened directly). Mobile opened = design 07 (cyan rounded-b header with 6 deco elements, X close → home, sender chip, panda, message card, photo+video cards, hearts/paws summary, CTAs «تو هم برای یکی بفرست»→pick, «پیامت رو ذخیره کن»+«یه قلب برای فرستنده بفرست»→toasts).
+    78→- info.tsx: shared internals (InfoShell mobile root + back/logo top bar, InfoFooter mobile, InfoFooterDesktop, BrandOnDark, SectionHead, InlineLink cross-links, Stars SVG, useBarsOn mount animation) then 5 pages, each mobile `md:hidden` + desktop `hidden md:flex`:
+    79→  - About: cyan hero + sheep stage + CTAs (both breakpoints), founder letter with dashed P.S. note, ABOUT_TIMELINE cards, ABOUT_STATS dark band, ABOUT_VALUES colored cards, پشت صحنه + 2×2 plush team grid, CTA band.
+    80→  - Mission: rounded cyan hero + duck, 3 بخش cards (white/pink/green), dark «ما با هم کار می‌کنیم» → contact, white CTA card.
+    81→  - Contact: info rows (email/phone/hours) mobile+desktop variants (@/☎/۸ glyphs on desktop), and a WORKING form (shared `ContactForm`, unique id prefixes per breakpoint): controlled name/email/subject/order-no/message, Persian validation errors, 1s spinner «در حال ارسال…», success card (check circle + «فرم جدید») + useToast notification.
+    82→  - Reviews: computed average ۴٫۸ from REVIEWS_BARS weights, «از ۳۱۸ نظر», animated cyan rating bars (mount transition) with per-bar counts, 6 REVIEWS_CARDS with filled/empty star rows, dates/titles, Plush avatars + names, CTA → pick.
+    83→  - Shipping: 5 SHIPPING_SECTIONS numbered cards + filled pink note using faPrice(49/69k), cross-link to contact.
+    84→- Verified via agent-browser: mobile 390px & desktop 1440px across all 6 routes — no console errors, no horizontal overflow (scrollWidth===innerWidth everywhere); gift flow tested end-to-end (wrong password → error+shake; «بهار» → reveal; desktop two-panel unlock; heart/save/video toasts); contact form validation → spinner → success card + toast; footer links navigate.
+    85→
+    86→Stage Summary:
+    87→- All 15 routes of the app now have real screens; `#/gift` is a fully working standalone receiver experience (state persists through the store), and all 5 info routes render complete mobile+desktop designs with real data constants.
+    88→- Files changed: src/components/shop/screens/gift-experience.tsx, src/components/shop/screens/info.tsx, src/app/globals.css (+pishnam-shake), worklog.md.
+    89→- bun run lint: 0 errors; tsc: no errors in my files (pre-existing flow.tsx/examples/skills errors untouched).
+    90→- Notes for next agents: contact form is demo-only (no backend); gift photo/video are decorative with toasts; REVIEW_META dates/titles and review count 318 are plausible demo values defined locally in info.tsx.
+    91→
+    92→---
+    93→Task ID: 4
+    94→Agent: main (Z.ai Code)
+    95→Task: Full completion verification after user reported "the task seemed unfinished" — confirm all 15 routes render at both breakpoints, golden-path order flow works end-to-end, login/OTP works, console clean.
+    96→
+    97→Work Log:
+    98→- Investigated dev.log: the repeated `Module not found: '@/components/shop/screens/info'` + "Fast Refresh full reload" entries were HISTORICAL (captured mid-write while Task 3-b agents created info.tsx). File exists (1353 lines); server now compiles and serves 200.
+    99→- `bunx tsc --noEmit`: 0 errors in src/ (only pre-existing errors in examples/ and skills/ folders, unrelated).
+   100→- agent-browser desktop 1440px sweep, all routes render with real content: home, pick (plush grid + cart rail), card, extras (heart/paw counters + charity bar), checkout (form + coupon), success (order tracking + QR), my-gifts (orders), impact, login, gift (receiver two-panel), about, mission, contact, reviews, shipping.
+   101→- agent-browser mobile 390px sweep: home hero + bottom nav, pick carousel, checkout, my-gifts, gift receiver — all render correctly.
+   102→- GOLDEN PATH E2E at 390px: pick بامبو (panda) → ادامه → card: «دلم تنگ شده» + message + password «بهار» + sender «سارا» → extras (5 قلب/3 پنجه، ۱٬۲۹۰٬۰۰۰) → برو به سبد → checkout: filled نیلا/۰۹۱۲۱۲۳۴۵۶۷/تهران/address + coupon «مهربونی» (applied, 1 heart free) → پرداخت و فرستادن → card modal (prefilled demo card) → پرداخت → toast «پرداخت موفق بود 🎉» → #/success → my-gifts shows NEW order «برای نیلا ۱۰۳» with بسته‌بندی status. Store persistence works.
+   103→- LOGIN E2E: خروج از حساب → phone ۰۹۱۲۳۴۵۶۷۸۹ → OTP ۱۲۳۴ → optional name → ورود → #/my-gifts logged-in. Console after --clear + full flow: 0 errors.
+   104→- No code changes were needed this round; app was already complete after Tasks 1–3.
+   105→
+   106→Stage Summary:
+   107→- ALL 15 routes are real, interactive, store-driven, responsive (mobile/desktop) — the Pishnam web-app UI is COMPLETE per the user's ask: mobile shows mobile UI, desktop shows desktop UI, flows/buttons/dashboards all work. Backend intentionally deferred (per user: UI first).
+   108→- Root cause of user's "unfinished" impression: they likely previewed during the file-write window (module-not-found flash). Everything compiles and works now.
+   109→- Next-round ideas remain: hash-scroll anchors, favorites/pins beyond recents, per-page notes, self-contained export, backend wiring (real orders/auth), perf audit of gallery iframes.
+   110→
+   111→---
+   112→Task ID: 5
+   113→Agent: main (Z.ai Code) — cron web dev review round
+   114→Task: New features round — order tracking timeline route (#/track) + plush favorites (hearts) + wire my-gifts cards to tracker.
+   115→
+   116→Work Log:
+   117→- Store (src/lib/pishnam-store.ts): added `selectedId` + `selectOrder()`, `favorites: PlushKind[]` + `toggleFavorite()` (persisted), `TRACK_STEPS` (paid/packing/shipped/delivered labels+bodies), `statusToStep()`, selectors `useSelectedOrder()` (falls back to first sent order) and `useIsFavorite()`.
+   118→- Router (src/lib/hash-route.ts): added "track" route. page.tsx: case "track" renders MobileTrack + DesktopTrack.
+   119→- NEW FILE src/components/shop/screens/track.tsx (~460 lines): رهگیری هدیه screens. Mobile: top bar back→my-gifts, header (plush tile, who, gift-no chip, status chip, date), mini progress bar «N از ۴ قدم», vertical timeline (done=cyan filled check, current=pulsing ring pishnam-pulse-ring, future=dashed numbered; per-step note «انجام شد ✓ / الان اینجاییم / هنوز نه»; shipped step shows fake postal tracking code, delivered shows password hint), details card (گیرنده/شهر/آدرس/قلب و پنجه/مبلغ), postcard card (message + occasion chip + رمز chip + ناشناس chip + QR), sticky actions (قدم بعدی simulate with toast / مشاهده‌ی پیام→gift / یه بغل دیگه بفرست→pick), empty state. Desktop: breadcrumb «هدیه‌هام / رهگیری هدیه‌ی N», big title + status chip, horizontal 4-step stepper with animated fill line, two-column layout (vertical timeline + details | plush card + postcard + actions). Fixed Tailwind bg-white/bg-[#00ABE7] conflict that hid the done-step check icon in the horizontal stepper.
+   120→- dashboards.tsx: MobileOrderCard + DesktopOrderCard now clickable (role=button, tabIndex, Enter/Space keys) → selectOrder(o.id)+navigate("track"); inner buttons (قدم بعدی / مشاهده‌ی پیام) stopPropagation; desktop card got a «رهگیری ›» link; hover border/shadow + focus-visible ring for a11y.
+   121→- NEW FILE src/components/shop/fav.tsx — FavHeart toggle (HeartSticker filled pink #F0426B when fav / white outline when not, aria-pressed, pishnam-heart-pop animation on click, stopPropagation, works inside role=button cards).
+   122→- globals.css: added pishnam-pulse-ring + pishnam-heart-pop keyframes.
+   123→- Favorites wired into: flow.tsx MobilePick (heart on big stage + 6 mini cards, cards converted button→div role=button), builder.tsx DesktopBuilder step-1 grid (6 hearts, check badge moved no conflict), home.tsx mobile friends row + desktop friends grid (hearts on all cards). All persisted via store (verified localStorage pishnam-app state.favorites updated).
+   124→- QA via agent-browser: mobile 390px — my-gifts shows 6 clickable order cards, click→#/track renders full timeline (برای نیلا ۱۰۳), قدم بعدی simulates paid→packing with toast; home/pick hearts toggle + persist. Desktop 1440px — track page breadcrumb/stepper/columns correct after fix; favorites hearts show filled state for panda+bear; heart click in builder does NOT navigate (stopPropagation verified, favorites [panda,bear,duck]). Console clean after --clear + 5-route sweep; bun run lint 0 errors; tsc 0 errors in src/.
+   125→
+   126→Stage Summary:
+   127→- App now has 16 routes. New capabilities: full order-journey tracking page (mobile+desktop) reachable by clicking any order card, and persistent plush favorites across home/pick/builder.
+   128→- All store additions are backward-compatible with persisted localStorage (version 1, new fields merge with defaults).
+   129→- Next-round ideas: favorites strip/filter on home, share/gift-card download, confetti on success upgrade, backend wiring (Prisma), hash-scroll anchors, self-contained export.
+   130→
+   131→---
+   132→Task ID: 6
+   133→Agent: main (Z.ai Code) — cron web dev review round
+   134→Task: Polish + feature round — success→track CTA, home favorites strip (محبوب‌های تو), track share/copy button, Persian-digit fix.
+   135→
+   136→Work Log:
+   137→- QA first: app stable, console clean; investigated a suspected `pb-ax(...)` typo in success.tsx — FALSE ALARM (grep output had swallowed `[m` as an ANSI reset sequence; file was already correct `pb-[max(16px,env(safe-area-inset-bottom))]`).
+   138→- success.tsx: added «رهگیری سفارش» primary CTA on MobileSuccess (top of the 3-button stack, cyan) and DesktopSuccess (3rd button in CTA row) — selectOrder(last sent)+navigate("track"); reordered mobile buttons (رهگیری cyan / هدیه‌هام dark / خانه outline); added active:scale + hover feedback; imported ForwardIcon.
+   139→- fav.tsx: NEW `FavoritesStrip({desktop})` — pink panel (border #F7C5D3, bg #FFF7FA) shown only when favorites exist: heart sticker + «محبوب‌های تو» + «N تا رفیق پشمالو تو قلبت مونده», removable chips (mini plush on bg tile + name + × button), CTA «برای محبوبت بفرست ♥»→pick. Mounted on home mobile (after friends row, before marquee) and desktop (inside friends section after grid). Fixed Persian-digit bug: count now uses fa() (was showing Latin "3").
+   140→- track.tsx: NEW `CopyGiftButton({o,dark})` — copies «یه بغل از پیشتم ♥ / هدیه‌ی شماره‌ی N برای X / رمز کارت: Y / link(#/gift)» via clipboard helper `copyText()` (navigator.clipboard → textarea+execCommand fallback with selection save/restore). Success toast «کپی شد ✓» or fallback toast that shows gift no+receiver+password for manual copying (headless browsers block clipboard — verified fallback path). Added to mobile sticky actions (second row) and desktop actions column (dark variant). SVG copy icon inline.
+   141→- QA via agent-browser: mobile 390px — strip visible with 4 chips, × removed duck → store [panda,bear,bunny] + count text updated with Persian digits; success page shows 3 CTAs (mobile) and clicking رهگیری سفارش → #/track; copy button click → fallback info toast. Desktop 1440px — strip renders after friends grid with chips+CTA, hearts on cards match favorites; copy toast fallback verified. Console clean across home/track/my-gifts/pick/success sweep; lint 0 errors; tsc 0 errors in src/.
+   142→
+   143→Stage Summary:
+   144→- Navigation loop closed: success → رهگیری سفارش → track (order pre-selected); favorites now surface on home (strip) not just hearts; gift info shareable via copy button.
+   145→- All new store reads are read-only (no migration needed); strip auto-hides when favorites empty.
+   146→- Next-round ideas: confetti burst on successful copy, favorites filter chip on pick, Prisma backend wiring, gift-card image download, hash-scroll anchors, self-contained export.
+   147→
+   148→---
+   149→Task ID: 7
+   150→Agent: main (Z.ai Code) — cron web dev review round
+   151→Task: QA sweep + new features round — pick-page favorites filter (mobile+desktop), «سورپرایزم کن» random plush picker, copy-success micro-confetti burst on track page.
+   152→
+   153→Work Log:
+   154→- QA first: desktop 1440px sweep of all 15 routes → 0 console errors; mobile 390px sweep → no horizontal overflow (scrollWidth===innerWidth), 0 errors. Note: `agent-browser set viewport 390 844` is the correct way to switch viewports (the `--viewport` flag on `open` did not stick in this version).
+   155→- NEW shared components in src/components/shop/fav.tsx:
+   156→  - `FavFilterChips({favOnly,onToggle,desktop})` — «همه / محبوب‌هام ♥ (N)» pill pair; active chip goes dark (#04202E) with shadow; fav count badge in pink bubble; role=group + aria-pressed.
+   157→  - `SurpriseButton({desktop,onPick})` — dice icon + «سورپرایزم کن»; picks a random plush ≠ current, setKind + dice-roll animation (pishnam-dice-roll) + toast «{name} رسید! 🎲».
+   158→- MobilePick (flow.tsx): filter row (FavFilterChips + SurpriseButton) above the 6-card grid; grid maps the filtered list; favorites-only empty state (dashed pink box, «هنوز کسی رو به قلبت اضافه نکردی!» + «نشون بده همه رو»); big stage plush wrapped in key={stageKey} span that replays pishnam-pop-in when surprise fires.
+   159→- DesktopBuilder step 1 (builder.tsx): same filter row (desktop sizing) + SurpriseButton under the section header; same filtered grid + empty state; `useState` import added.
+   160→- CopyGiftButton (track.tsx): on successful copy, renders 12-piece micro-confetti burst around the button (pishnam-burst-piece with --bx/--by/--br CSS vars, radial layout, pishnam-burst-fly 0.75s); success-only (fallback path unchanged). Added useState/CSSProperties imports.
+   161→- globals.css: added pishnam-pop-in (stage pop), pishnam-burst-piece/pishnam-burst-fly (micro-confetti), pishnam-dice-roll (dice wiggle).
+   162→- Verified via agent-browser:
+   163→  - Mobile 390: chips render (همه/محبوب‌هام ۳/سورپرایزم کن); fav filter click → grid 6→3 (کِرِمی/لپ‌قندی/بامبو); surprise → stage لپ‌قندی + toast; unfavorite-all → empty state shows → «نشون بده همه رو» works; favorites restored to [bear,bunny,panda].
+   164→  - Desktop 1440: #dstep-1 has group + surprise; fav filter → 3 cards + aria-pressed; surprise → stage قات‌قات + toast; golden-path regression pick→card OK.
+   165→  - Copy burst: headless clipboard is blocked (fallback toast, correct behavior); stubbed navigator.clipboard.writeText → burst renders exactly 12 pieces + «کپی شد ✓» toast.
+   166→- Debugging note for future rounds: while verifying, stale Fast-Refresh module state made the new desktop chips invisible; a genuinely fresh navigation (about:blank → URL with ?cb= query) fixed it. Also re-confirmed the known terminal artifact: `pb-[max(` displays as `pb-ax(` in some grep/console outputs (ANSI `[m` swallowing) — files are correct on disk; don't "fix" it blindly.
+   167→- bun run lint: 0 errors; bunx tsc --noEmit: 0 errors in src/.
+   168→
+   169→Stage Summary:
+   170→- Pick experience upgraded on both breakpoints: you can now filter plushes by favorites and let chance pick for you; stage pops on surprise; copy-success rewards with micro-confetti.
+   171→- Store untouched (read-only use of favorites); all additions are additive and backward-compatible.
+   172→- Next-round ideas: Prisma backend wiring (persist orders server-side via /api routes), gift-card image download (canvas → PNG), hash-scroll anchors, self-contained studio export, occasion-based message suggestions on card step.
+   173→
+   174→---
+   175→Task ID: 8
+   176→Agent: main (Z.ai Code) — cron web dev review round
+   177→Task: QA sweep + three features: (A) occasion-based message ideas on card step, (B) gift-card PNG download on track page, (C) Prisma/SQLite backend wiring (orders + contact form).
+   178→
+   179→Work Log:
+   180→- QA first: dev.log clean (all 200), tsc 0 errors in src/, desktop 1440px sweep of all 15 routes → 0 console errors, mobile 390px sweep → no horizontal overflow, 0 errors. No bugs found; app stable.
+   181→- A) Message ideas: `OCCASION_IDEAS` (4 occasions × 3 Persian tap-to-fill messages) added to pishnam-data.ts; NEW `src/components/shop/ideas.tsx` — `MessageIdeas({occ,onPick,desktop})` collapsible panel («نمی‌دونی چی بنویسی؟ یه ایده بردار») with sparkle icon, rotate chevron, pishnam-reveal animation, idea chips with hover border/shadow + active scale, «ایده اضافه شد ✨» toast on pick. Mounted in MobileCard (after textarea, flow.tsx) and DesktopBuilder step 2 (builder.tsx, desktop sizing). Ideas react to the selected occasion.
+   182→- B) Gift-card PNG: NEW `src/lib/gift-card.ts` — `downloadGiftCard(o, plushSvg)` draws a 1080×1350 card on canvas: cyan gradient + bubbles, white card + dashed inner frame, brand «پیشتم ♥» + gift-no chip, plush medallion (live SVG serialized from `[data-giftcard-plush]`), receiver/title/meta, occasion chip, RTL word-wrapped message (ctx.direction='rtl', Vazirmatn via document.fonts.load), dashed divider, password chip + sender, footer; toBlob → a[download]=pishnam-gift-<no>.png. track.tsx: PlushTile got `data-giftcard-plush`, NEW `DownloadGiftButton({o,dark})` with busy spinner («در حال ساختن کارت…») + success/error toasts; added to mobile sticky actions row (beside copy) and desktop actions column. Verified: click → toast «کارت هدیه ساخته شد 🖼» fires first frame, PNG generated.
+   183→  - Debugging note: earlier "async buttons dead" was a FALSE alarm — toasts were missed due to check timing (toast lives ~2-4s, `[data-radix-toast-viewport]` selector doesn't exist in this shadcn build; detect by scanning leaf elements for text). Hidden mobile (md:hidden) buttons are first in DOM — for eval clicks, always filter `getBoundingClientRect().width>0`.
+   184→- C) Backend wiring: prisma/schema.prisma + `GiftOrder` (client-id PK, no unique, status/opened/dir strings, all order fields) + `ContactMessage`; `bun run db:push` OK. API routes (App Router, all validated/clamped): `src/app/api/orders/route.ts` (GET list / POST upsert by id), `src/app/api/orders/[id]/route.ts` (GET single / PATCH status+opened, Next 16 async params), `src/app/api/contact/route.ts` (POST with email validation). Store: placeOrder → direct upsert POST; advanceStatus/markOpened → `syncOrderPatch()` helper that PATCHes and, if the server doesn't know the row (pre-sync local-only orders), SELF-HEALS by POSTing the full order (verified: g-102 paid→packing appeared in DB). NEW `src/lib/pishnam-sync.ts` — `pullOrders()` merges server orders into the persisted store on boot (union by id, more-advanced status wins, opened = local||server, nextNo kept ahead), called once from page.tsx useEffect; offline/API-down = silent local-only mode. ContactForm (info.tsx) now POSTs /api/contact with min-0.9s spinner; failure shows «ارسال نشد!» toast (demo fallback preserved).
+   185→- E2E verified via agent-browser (mobile golden path): pick لپ‌قندی → card (filled msg+password) → extras → checkout (filled receiver + coupon مهربونی) → pay modal پرداخت → #/success → **curl /api/orders shows g-104 (bunny, نیلا, paid)**; قدم بعدی on track → DB status updates; contact form → success card + row in DB (test row deleted after). tsc 0 errors in src/, lint 0 errors, final desktop sweep of 15 routes 0 console errors.
+   186→- API quick-tests via curl: POST/GET/PATCH orders + POST contact all 200/201; 400 paths (bad fields, unknown id) handled.
+   187→
+   188→Stage Summary:
+   189→- The app now has a real persistence layer: orders created in the UI land in SQLite, status changes sync both ways (pull-on-boot + push-on-action), and the contact form is stored server-side — all with graceful offline fallback (UI never blocks on the API).
+   190→- Self-healing sync means pre-backend local orders get adopted by the server the first time they're touched.
+   191→- New UX: postcard writer has per-occasion idea chips on both breakpoints; any order's gift card can be downloaded as a shareable branded PNG.
+   192→- Next-round ideas: login/auth API (real OTP), favorites + user identity server-side, impact page receipts from DB, admin mini-view of orders, hash-scroll anchors, self-contained studio export, gift-card image also on success page.
+   193→
+
+[showing lines 14-193 of 271; use offset=194 with limit to continue reading]

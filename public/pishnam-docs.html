@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>پیشتم — مستندات کامل پروژه</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.003/Vazirmatn-font-face.css" />
+<style>
+  :root{
+    --ink:#04202E; --cyan:#00ABE7; --cyan-deep:#006387; --cyan-soft:#00779F;
+    --bg:#F2FAFD; --card:#FFFFFF; --line:#DDEEF5; --muted:#4A6572;
+    --pink:#F0426B; --amber-bg:#FFF3C9; --amber-tx:#8A6D1F; --green-bg:#DDF3EA; --green-tx:#007A5C;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{
+    margin:0; background:var(--bg); color:var(--ink);
+    font-family:"Vazirmatn","Vazirmatn FD",Tahoma,"Segoe UI",sans-serif;
+    line-height:1.9; font-size:15px;
+    background-image:radial-gradient(rgba(0,171,231,.10) 1.1px, transparent 1.1px);
+    background-size:22px 22px;
+  }
+  .wrap{max-width:1060px; margin:0 auto; padding:0 20px}
+  header.top{
+    background:linear-gradient(135deg,var(--cyan) 0%, #66CDF1 100%);
+    color:var(--ink); padding:44px 0 38px; border-bottom:4px solid var(--ink);
+  }
+  .brandrow{display:flex; align-items:center; gap:14px; flex-wrap:wrap}
+  .logo-badge{
+    display:inline-flex; align-items:center; justify-content:center;
+    width:64px; height:64px; border-radius:22px; background:var(--ink); color:#fff;
+    font-size:30px; font-weight:900; box-shadow:0 8px 20px rgba(4,32,46,.25);
+  }
+  h1.brand{margin:0; font-size:34px; font-weight:900}
+  .sub{margin:10px 0 0; font-size:16px; font-weight:600; max-width:640px}
+  .stats{display:flex; gap:12px; flex-wrap:wrap; margin-top:22px}
+  .stat{
+    background:rgba(255,255,255,.92); border:2px solid var(--ink); border-radius:18px;
+    padding:10px 18px; text-align:center; min-width:120px;
+  }
+  .stat b{display:block; font-size:24px; font-weight:900}
+  .stat span{font-size:12.5px; font-weight:700; color:var(--muted)}
+  main.wrap{padding:34px 20px 20px; display:flex; flex-direction:column; gap:26px; min-width:0; width:100%}
+  section.card{
+    background:var(--card); border:2px solid var(--line); border-radius:26px;
+    padding:26px 24px; box-shadow:0 10px 28px rgba(4,32,46,.05);
+    min-width:0; max-width:100%;
+  }
+  .kicker{font-size:13px; font-weight:800; color:var(--cyan-soft); margin:0 0 4px}
+  h2{margin:0 0 14px; font-size:23px; font-weight:900}
+  h3{margin:18px 0 8px; font-size:16.5px; font-weight:800}
+  p{margin:0 0 10px}
+  ul.clean{margin:6px 0 0; padding:0; list-style:none; display:flex; flex-direction:column; gap:7px}
+  ul.clean li{padding-right:24px; position:relative}
+  ul.clean li::before{content:"♥"; position:absolute; right:0; top:0; color:var(--pink); font-size:13px}
+  table{width:100%; border-collapse:collapse; font-size:13.5px; min-width:640px}
+  .tbl-scroll{overflow-x:auto; border:1.5px solid var(--line); border-radius:18px; max-width:100%}
+  th{background:#EAF6FB; font-weight:800; text-align:right; padding:10px 12px; white-space:nowrap}
+  td{padding:9px 12px; border-top:1.5px solid var(--line); vertical-align:top}
+  tr:hover td{background:#F7FCFE}
+  code, .mono{
+    font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:12.5px;
+    background:#EEF8FC; border:1px solid #CFE6EF; border-radius:8px; padding:1.5px 7px;
+    direction:ltr; display:inline-block; unicode-bidi:embed;
+  }
+  .pill{display:inline-block; border-radius:999px; padding:2px 11px; font-size:11.5px; font-weight:800; white-space:nowrap}
+  .pill.cyan{background:#DDF3EA; color:var(--green-tx)}
+  .pill.pink{background:#FFE9F0; color:#B02A52}
+  .pill.amber{background:var(--amber-bg); color:var(--amber-tx)}
+  .pill.dark{background:var(--ink); color:#fff}
+  .pill.blue{background:#DDF0FB; color:var(--cyan-deep)}
+  .grid{display:grid; gap:14px; grid-template-columns:repeat(auto-fit,minmax(215px,1fr)); margin-top:12px}
+  .mini{border:1.5px solid var(--line); border-radius:18px; padding:14px 16px; background:#FBFEFF}
+  .mini b{display:block; font-size:14px; margin-bottom:4px}
+  .mini p{margin:0; font-size:12.8px; color:var(--muted)}
+  .timeline{position:relative; margin:14px 0 0; padding-right:26px; border-right:2.5px dashed #BFE0EE; display:flex; flex-direction:column; gap:14px}
+  .tstep{position:relative}
+  .tstep::before{
+    content:""; position:absolute; right:-33.5px; top:8px; width:13px; height:13px;
+    background:var(--cyan); border:2.5px solid var(--ink); border-radius:50%;
+  }
+  .tstep b{font-size:14px}
+  .tstep p{margin:2px 0 0; font-size:13px; color:var(--muted)}
+  .todo{display:flex; flex-direction:column; gap:9px; margin-top:8px}
+  .todo .row{display:flex; align-items:flex-start; gap:10px; border:1.5px dashed #E4B9C6; background:#FFF8FA; border-radius:14px; padding:10px 14px}
+  .todo .box{width:19px; height:19px; flex:none; border:2px solid var(--pink); border-radius:6px; margin-top:3px}
+  .todo b{font-size:13.5px}
+  .todo p{margin:0; font-size:12.8px; color:var(--muted)}
+  .done .row{border-color:#BFE7F5; background:#F4FBFE}
+  .done .box{background:var(--cyan); border-color:var(--ink); position:relative}
+  .done .box::after{content:"✓"; position:absolute; inset:0; display:flex; align-items:center; justify-content:center; color:var(--ink); font-size:12px; font-weight:900}
+  .note{
+    background:var(--amber-bg); border:1.5px solid #EAD28E; border-radius:16px;
+    padding:12px 16px; font-size:13px; font-weight:600; color:#5C4A12; margin-top:12px;
+  }
+  .model{border:1.5px solid var(--line); border-radius:18px; padding:14px 16px; background:#FBFEFF}
+  .model h4{margin:0 0 6px; font-family:ui-monospace,Menlo,Consolas,monospace; font-size:14px; direction:ltr; text-align:left; color:var(--cyan-deep)}
+  .model ul{margin:0; padding-right:18px; font-size:12.5px; color:var(--muted)}
+  footer.bottom{
+    margin-top:auto; background:var(--ink); color:#BFE0EE; padding:18px 0 calc(18px + env(safe-area-inset-bottom));
+    text-align:center; font-size:13px; font-weight:600;
+  }
+  .page{min-height:100vh; display:flex; flex-direction:column}
+  @media (max-width:640px){
+    h1.brand{font-size:26px}
+    header.top{padding:32px 0 28px}
+    section.card{padding:20px 16px; border-radius:20px}
+    table{min-width:560px}
+  }
+  @media print{
+    body{background:#fff}
+    section.card{box-shadow:none; break-inside:avoid}
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+<header class="top">
+  <div class="wrap">
+    <div class="brandrow">
+      <span class="logo-badge">پ</span>
+      <div>
+        <h1 class="brand">پیشتم — مستندات کامل پروژه</h1>
+        <p class="sub">وب‌اپ فروش هدیه‌ی عروسکی «یه بغل، تو یه جعبه» — از استخراج دیزاین‌سیستم تا فروشگاه کامل با بک‌اند واقعی؛ سند زنده‌ی پیشرفت کار.</p>
+      </div>
+    </div>
+    <div class="stats">
+      <div class="stat"><b>۱۷</b><span>صفحه / مسیر</span></div>
+      <div class="stat"><b>۸</b><span>اندپوینت API</span></div>
+      <div class="stat"><b>۶</b><span>مدل دیتابیس</span></div>
+      <div class="stat"><b>۱۲</b><span>دور توسعه</span></div>
+      <div class="stat"><b>۲</b><span>نسخه موبایل + دسکتاپ</span></div>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <!-- ═══ خلاصه پروژه ═══ -->
+  <section class="card">
+    <p class="kicker">پیشتم چیه؟</p>
+    <h2>خلاصه‌ی پروژه</h2>
+    <p>
+      پیشتم (پیشتم) یه فروشگاه آنلاین هدیه‌ست: کاربر یه «دوست پشمالو» (عروسک پولیشی) انتخاب می‌کنه، روی کارت پستال یه پیام قشنگ می‌نویسه، با قلب و پنجه و عکس و ویدیو پکش رو کامل می‌کنه و سفارش می‌ده؛ جعبه در خونه‌ی گیرنده می‌رسه و اون با رمز روی کارت، پیام رو باز می‌کنه. کنارش یه «دفتر مهربونی» برای شفافیت خیریه، سیستم ورود با کد یکبارمصرف، پیگیری سفارش و پنل همکاران وجود داره.
+    </p>
+    <p>
+      همه‌چیز از دو فایل HTML دیزاین‌سیستم (طرح‌های ۳۹۰ پیکسل موبایل و ۱۴۴۰ پیکسل دسکتاپ) شروع شد؛ اول ۳۲ صفحه‌ی طراحی استخراج و مرور شد، بعد تک‌تک صفحات به‌صورت وفادار به React پیاده شد و در ادامه، لایه‌ی بک‌اند واقعی (دیتابیس + API) و قابلیت‌های پیشرفته‌تر دور به دور اضافه شدن.
+    </p>
+  </section>
+
+  <!-- ═══ صفحات ساخته‌شده ═══ -->
+  <section class="card">
+    <p class="kicker">۱۷ مسیر</p>
+    <h2>صفحات و مسیرهایی که ساخته شد</h2>
+    <p>هر مسیر دو نسخه‌ی کامل داره: موبایل (۳۹۰px) و دسکتاپ (۱۴۴۰px) — نه ریسپانسیو ساده، بلکه دو طراحی متمایز مطابق فایل‌های دیزاین.</p>
+    <div class="tbl-scroll">
+      <table>
+        <thead><tr><th>مسیر</th><th>صفحه</th><th>توضیح</th><th>وضعیت</th></tr></thead>
+        <tbody>
+          <tr><td><code>#/home</code></td><td>خانه</td><td>هیرو، داستان ۳ مرحله‌ای، معرفی ۶ دوست پشمالو، نوار «محبوب‌های تو»، فوتر کامل با لینک ورود همکاران</td><td><span class="pill cyan">کامل + بک‌اند</span></td></tr>
+          <tr><td><code>#/pick</code></td><td>انتخاب عروسک</td><td>شش دوست پشمالو با فیلتر «محبوب‌هام»، دکمه‌ی «سورپرایزم کن» (انتخاب تصادفی)، قلب علاقه‌مندی</td><td><span class="pill cyan">کامل</span></td></tr>
+          <tr><td><code>#/card</code></td><td>نوشتن کارت پستال</td><td>متن پیام، انتخاب مناسبت، رمز کارت، ارسال ناشناس، ایده‌های آماره‌ی پیام بر اساس مناسبت، آپلود عکس/ویدیو (نمایشی)</td><td><span class="pill cyan">کامل</span></td></tr>
+          <tr><td><code>#/extras</code></td><td>قلب و پنجه</td><td>افزودن چارم‌ها با شمارنده و محاسبه‌ی زنده‌ی قیمت + کادر خیریه</td><td><span class="pill cyan">کامل</span></td></tr>
+          <tr><td><code>#/checkout</code></td><td>پرداخت</td><td>فرم گیرنده (نام، شهر، آدرس، موبایل)، کد تخفیف «مهربونی»، خلاصه سفارش، مودال پرداخت</td><td><span class="pill cyan">کامل</span></td></tr>
+          <tr><td><code>#/success</code></td><td>سفارش موفق</td><td>کارت تبریک با شماره هدیه، QR، دکمه‌ی رهگیری و دانلود کارت هدیه PNG</td><td><span class="pill cyan">کامل</span></td></tr>
+          <tr><td><code>#/my-gifts</code></td><td>هدیه‌هام</td><td>لیست هدیه‌های فرستاده/گرفته‌شده، تب‌ها، همگام‌سازی دستی با سرور، نیاز به ورود</td><td><span class="pill cyan">کامل + همگام‌سازی</span></td></tr>
+          <tr><td><code>#/gift-open</code></td><td>باز کردن هدیه</td><td>تجربه‌ی گیرنده: ورود رمز کارت → انیمیشن باز شدن → نمایش پیام + مشخصات هدیه</td><td><span class="pill cyan">کامل</span></td></tr>
+          <tr><td><code>#/track</code></td><td>رهگیری سفارش</td><td>تایم‌لاین ۴ مرحله‌ای (پرداخت ← بسته‌بندی ← در راه ← تحویل)، پیش‌نمایش عروسک، دکمه‌ی اشتراک/کپی + کانفتی، دانلود کارت هدیه PNG</td><td><span class="pill cyan">کامل + بک‌اند</span></td></tr>
+          <tr><td><code>#/login</code></td><td>ورود / ثبت‌نام</td><td>ورود با شماره موبایل + کد یکبارمصرف واقعی (سرساخت)، مرحله‌ی نام، حالت نمایشی آفلاین</td><td><span class="pill cyan">کامل + OTP واقعی</span></td></tr>
+          <tr><td><code>#/impact</code></td><td>دفتر مهربونی</td><td>آمار خیریه با نوار پیشرفت، رسیدهای کمک‌ها با نشان «داده‌ی زنده» از سرور</td><td><span class="pill cyan">کامل + داده‌ی زنده</span></td></tr>
+          <tr><td><code>#/about</code></td><td>درباره‌ی پیشتم</td><td>داستان برند، آمار، تیم، ارزش‌ها</td><td><span class="pill cyan">کامل</span></td></tr>
+          <tr><td><code>#/mission</code></td><td>ماموریت</td><td>بیانیه‌ی ماموریت و تایم‌لاین مسیر برند</td><td><span class="pill cyan">کامل</span></td></tr>
+          <tr><td><code>#/contact</code></td><td>تماس با ما</td><td>فرم تماس واقعی با اعتبارسنجی و ذخیره در دیتابیس</td><td><span class="pill cyan">کامل + بک‌اند</span></td></tr>
+          <tr><td><code>#/reviews</code></td><td>نظرها</td><td>میانگین و نمودار امتیاز (بازمحاسبه‌ی صادقانه)، نظرهای واقعی دیتابیس با نشان «واقعی»، فرم ثبت نظر با ستاره‌ی تعاملی و انتخاب عروسک</td><td><span class="pill cyan">کامل + بک‌اند</span></td></tr>
+          <tr><td><code>#/shipping</code></td><td>ارسال و بازگشت</td><td>قوانین ارسال، بسته‌بندی، تغییر/لغو سفارش</td><td><span class="pill cyan">کامل</span></td></tr>
+          <tr><td><code>#/admin</code></td><td>پنل همکاران</td><td>گیت رمز (۱۳۹۸)، ۴ کارت آماری، فیلتر وضعیت، جست‌وجو، جدول سفارش‌ها + جلو بردن وضعیت با نوشتن در دیتابیس</td><td><span class="pill cyan">کامل + بک‌اند</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="note">🔒 مسیر <code>#/admin</code> پنل داخلی است و از فوتر صفحه‌ی خانه در دسترس است؛ رمز نمایشی: <b>۱۳۹۸</b>.</div>
+  </section>
+
+  <!-- ═══ پشته فناوری ═══ -->
+  <section class="card">
+    <p class="kicker">با چه زبان و ابزارهایی؟</p>
+    <h2>پشته‌ی فناوری</h2>
+    <div class="grid">
+      <div class="mini"><b>Next.js 16 (App Router)</b><p>فریم‌ورک اصلی؛ تک‌مسیر <code>/</code> با SPA داخلی + Route Handler برای APIها</p></div>
+      <div class="mini"><b>TypeScript 5</b><p>کل پروژه با تایپ سخت‌گیرانه (strict)؛ صفر خطای tsc در سورس</p></div>
+      <div class="mini"><b>Tailwind CSS 4</b><p>استایل‌دهی کامل؛ بدون فایل CSS جدا برای کامپوننت‌ها + انیمیشن‌های سفارشی (reveal، shake، pop، confetti، row-flash)</p></div>
+      <div class="mini"><b>shadcn/ui + Lucide</b><p>کامپوننت‌های آماده (Toast، Sheet و…) با سبک New York</p></div>
+      <div class="mini"><b>Prisma 6 + SQLite</b><p>ORM و دیتابیس فایل‌س؛ مایگریشن با <code>db:push</code></p></div>
+      <div class="mini"><b>Zustand + persist</b><p>مدیریت state سراسری با ذخیره در localStorage (کلید <code>pishnam-app</code>)</p></div>
+      <div class="mini"><b>Canvas 2D API</b><p>تولید کارت هدیه PNG (۱۰۸۰×۱۳۵۰) با متن RTL، فونت وب و امبد SVG عروسک</p></div>
+      <div class="mini"><b>Intl / fa-IR</b><p>تاریخ شمسی و اعداد فارسی به‌صورت بومی مرورگر</p></div>
+      <div class="mini"><b>Hash Router سفارشی</b><p>روتینگ سبک با سابقه‌ی مرورگر + انکر داخلی صفحه (<code>#/home@faq</code>)</p></div>
+      <div class="mini"><b>Vazirmatn</b><p>فونت فارسی متغیر، سلف‌هاست‌شده در <code>public/fonts</code></p></div>
+      <div class="mini"><b>agent-browser</b><p>اتوماسیون مرورگر برای تست E2E هر دور توسعه (کلیک، فرم، toast، کنسول)</p></div>
+      <div class="mini"><b>ESLint</b><p>کنترل کیفیت در پایان هر دور؛ خروجی همیشه سبز</p></div>
+    </div>
+  </section>
+
+  <!-- ═══ معماری و روش کار ═══ -->
+  <section class="card">
+    <p class="kicker">از نظر فنی چطور جلو رفتیم؟</p>
+    <h2>معماری و روش توسعه</h2>
+
+    <h3>۱) استخراج دیزاین‌سیستم</h3>
+    <p>دو فایل HTML باندل‌شده‌ی طراحی (۳۲ صفحه: ۳۹۰px و ۱۴۴۰px) با اسکریپت‌های Node استخراج شد؛ فونت‌ها سلف‌هاست و گراف لینک بین صفحات بازسازی شد تا همیشه به‌عنوان مرجع وفاداری بصری استفاده شود.</p>
+
+    <h3>۲) SPA با روتر هش سفارشی</h3>
+    <p>کل اپ روی یک مسیر Next.js سوار است؛ ماژول <code>hash-route</code> روتر داخلی می‌سازد: پشتیبانی از دکمه‌ی Back، اسکرول به بالا، انکرهای درون‌صفحه‌ای و تابع <code>navigate(route, query, anchor)</code>. مزیت: بدون رفرش، بدون پیچیدگی SSR برای اپ فروشگاهی کوچک.</p>
+
+    <h3>۳) دو نسخه‌ی موبایل و دسکتاپ</h3>
+    <p>هر صفحه دو زیردرخت موازی دارد: <code>md:hidden</code> برای موبایل و <code>hidden md:flex</code> برای دسکتاپ؛ دقیقاً مطابق دو فایل طراحی اصلی — نه فشرده‌سازی یک طرح.</p>
+
+    <h3>۴) State سراسری و آفلاین‌فرست</h3>
+    <p>یک استور Zustand با persist همه‌چیز را نگه می‌دارد: عروسک انتخابی، متن کارت، سبد، سفارش‌ها، کاربر، علاقه‌مندی‌ها. هیچ اکشنی هرگز روی پاسخ سرور «بلاک» نمی‌شود؛ سرور یک لایه‌ی تقویتی است، نه پیش‌نیاز.</p>
+
+    <h3>۵) همگام‌سازی دوسویه با سرور (Self-Healing)</h3>
+    <ul class="clean">
+      <li><b>روشن شدن اپ:</b> <code>bootSync()</code> سفارش‌ها و علاقه‌مندی‌های سرور را می‌کشد و با سیاست «وضعیت پیشرفته‌تر برنده است» ادغام می‌کند.</li>
+      <li><b>انجام اکشن:</b> ثبت سفارش/تغییر وضعیت/قلب زدن بلافاصله در UI می‌نشیند و در پس‌زمینه به API پوش می‌شود (fire-and-forget).</li>
+      <li><b>خودترمیمی:</b> اگر PATCH سفارشی که سرور نمی‌شناسد شکست بخورد، کل سفارش با POST upsert می‌شود — سفارش‌های قدیمی آفلاین هم به مرور «به فرزندی» سرور پذیرفته می‌شوند.</li>
+      <li><b>بین‌دستگاهی:</b> با ورود به حساب، سفارش‌های متصل به آن شماره (<code>?phone=</code>) و علاقه‌مندی‌ها از هر دستگاه دیگری به این دستگاه می‌آیند + توست صادقانه‌ی «چند ردیف رسید».</li>
+    </ul>
+
+    <h3>۶) احراز هویت با کد یکبارمصرف واقعی</h3>
+    <p>کد ۴ رقمی سمت سرور ساخته می‌شود (۵ دقیقه اعتبار، مصرف‌شدنی، کدهای قبلی باطل)، کاربر در <code>AppUser</code> ماندگار می‌شود و نام نمایشی قابل ویرایش است. اگر API در دسترس نباشد، فلو به حالت نمایشی (کد ۱۲۳۴) برمی‌گردد تا UI هیچ‌وقت بن‌بست نشود.</p>
+
+    <h3>۷) کارت هدیه‌ی تصویری (Canvas)</h3>
+    <p>تابع <code>downloadGiftCard</code> روی Canvas یک کارت ۱۰۸۰×۱۳۵۰ می‌کشد: گرادیان + حباب، قاب خط‌چین، برند، شماره هدیه، مدالیون عروسک (سریال‌شده از SVG زنده‌ی صفحه)، پیام با شکستن سطر راست‌به‌چپ (<code>ctx.direction='rtl'</code> + measureText)، چیپ رمز و دانلود به‌صورت PNG.</p>
+
+    <h3>۸) پنل همکاران (ادمین)</h3>
+    <p>گیت رمز (sessionStorage)، آمار زنده از دیتابیس، فیلتر وضعیت و جست‌وجوی فارسی‌دیجیت، و «جلو بردن» وضعیت سفارش با آپدیت خوش‌بینانه + هایلایت ردیف + نوشتن در دیتابیس (در خطا، بازخوانی حقیقت سرور).</p>
+
+    <h3>۹) QA در هر دور</h3>
+    <p>پس از هر دور توسعه: بازبینی ۱۷ مسیر در دسکتاپ (صفر خطای کنسول)، چک سرریز افقی در ۳۹۰px، تست E2E مسیر طلایی (انتخاب ← کارت ← اکسترا ← پرداخت ← موفقیت ← رهگیری) با اتوماسیون مرورگر، تست curl همه‌ی APIها، و در انتها ESLint + tsc.</p>
+  </section>
+
+  <!-- ═══ API ═══ -->
+  <section class="card">
+    <p class="kicker">۶ فایل Route Handler</p>
+    <h2>اندپوینت‌های API</h2>
+    <div class="tbl-scroll">
+      <table>
+        <thead><tr><th>اندپوینت</th><th>متد</th><th>کار</th><th>اعتبارسنجی</th></tr></thead>
+        <tbody>
+          <tr><td><code>/api/orders</code></td><td><span class="pill blue">GET</span></td><td>لیست سفارش‌ها (اختیاری <code>?phone=</code> برای سفارش‌های یک حساب)</td><td>حداکثر ۲۰۰ ردیف</td></tr>
+          <tr><td><code>/api/orders</code></td><td><span class="pill cyan">POST</span></td><td>ثبت/به‌روزرسانی سفارش (upsert با شناسه‌ی کلاینت)</td><td>clamp همه‌ی اعداد و رشته‌ها</td></tr>
+          <tr><td><code>/api/orders/[id]</code></td><td><span class="pill blue">GET</span> <span class="pill amber">PATCH</span></td><td>خواندن/تغییر وضعیت و وضعیت «باز شده»</td><td>وضعیت‌های مجاز (whitelist)</td></tr>
+          <tr><td><code>/api/contact</code></td><td><span class="pill cyan">POST</span></td><td>ذخیره‌ی پیام فرم تماس</td><td>فیلدهای اجباری + regex ایمیل</td></tr>
+          <tr><td><code>/api/auth/request</code></td><td><span class="pill cyan">POST</span></td><td>صدور کد یکبارمصرف (حالت نمایشی: کد در پاسخ)</td><td>نرمال‌سازی ارقام فارسی</td></tr>
+          <tr><td><code>/api/auth/verify</code></td><td><span class="pill cyan">POST</span></td><td>بررسی کد + ساخت/ورود کاربر</td><td>کد یکبارمصرف، ۵ دقیقه اعتبار</td></tr>
+          <tr><td><code>/api/auth/profile</code></td><td><span class="pill cyan">POST</span></td><td>ثبت نام نمایشی کاربر</td><td>—</td></tr>
+          <tr><td><code>/api/favorites</code></td><td><span class="pill blue">GET</span> <span class="pill amber">PUT</span></td><td>علاقه‌مندی‌های هر حساب؛ PUT = جایگزینی کامل (تراکنش اتمیک)</td><td>نرمال‌سازی شماره + فیلتر kind معتبر + حذف تکراری</td></tr>
+          <tr><td><code>/api/reviews</code></td><td><span class="pill blue">GET</span> <span class="pill cyan">POST</span></td><td>نظرهای واقعی مشتری‌ها (۶۰ تای آخر) + ثبت نظر جدید</td><td>نام ≥۲ حرف، متن ≥۵ حرف، ستاره ۱..۵</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ═══ دیتابیس ═══ -->
+  <section class="card">
+    <p class="kicker">Prisma + SQLite</p>
+    <h2>مدل‌های دیتابیس</h2>
+    <div class="grid">
+      <div class="model"><h4>GiftOrder</h4><ul><li>شناسه‌ی سمت کلاینت (هویت یکسان محلی/سروری)</li><li>شماره هدیه unique، عروسک، گیرنده، پیام، رمز، قلب/پنجه، مبلغ</li><li>status، opened، dir (sent/recv)، userPhone (ایندکس)</li></ul></div>
+      <div class="model"><h4>AppUser</h4><ul><li>شماره موبایل unique</li><li>نام نمایشی</li><li>lastLoginAt</li></ul></div>
+      <div class="model"><h4>AuthCode</h4><ul><li>کد ۴ رقمی + expiresAt (۵ دقیقه)</li><li>used (یکبارمصرف)</li><li>ایندکس [phone, createdAt]</li></ul></div>
+      <div class="model"><h4>Favorite</h4><ul><li>userPhone + kind</li><li>unique دوتایی + ایندکس</li><li>مبنای همگام‌سازی بین‌دستگاهی قلب‌ها</li></ul></div>
+      <div class="model"><h4>Review</h4><ul><li>who، role (فرستنده/گیرنده)</li><li>stars 1..5، kind عروسک</li><li>title، text، createdAt</li></ul></div>
+      <div class="model"><h4>ContactMessage</h4><ul><li>name، email، subject</li><li>orderNo اختیاری، message</li></ul></div>
+    </div>
+  </section>
+
+  <!-- ═══ تایم‌لاین ۱۲ دور ═══ -->
+  <section class="card">
+    <p class="kicker">دور به دور با ایجنت‌های زمان‌بندی‌شده</p>
+    <h2>مسیر توسعه در ۱۲ دور</h2>
+    <div class="timeline">
+      <div class="tstep"><b>دور ۱ — استخراج دیزاین‌سیستم</b><p>۳۲ صفحه از دو فایل HTML باندل استخراج شد، گراف لینک بازسازی و شل مرور طراحی (سایدبار + گالری + ویوور iframe) ساخته شد.</p></div>
+      <div class="tstep"><b>دور ۲ — استودیو</b><p>پالت فرمان ⌘K، تاریخچه‌ی مشاهده، تور خودکار، کپی لینک، سیستم Toast و بهبود دسترس‌پذیری.</p></div>
+      <div class="tstep"><b>دور ۳ — پورت صفحات اصلی</b><p>پیاده‌سازی وفادار ۶ صفحه‌ی داشبوردی (هدیه‌هام، دفتر مهربونی، ورود) + تجربه‌ی گیرنده (باز کردن هدیه) + ۵ صفحه‌ی اطلاعاتی؛ اتصال کامل به استور.</p></div>
+      <div class="tstep"><b>دور ۴ — تکمیل ۱۵ مسیر</b><p>راستی‌آزمایی کامل: همه‌ی مسیرها در دو بریک‌پوینت، مسیر طلایی سفارش E2E، کنسول تمیز. UI اپ کامل شد.</p></div>
+      <div class="tstep"><b>دور ۵ — رهگیری و علاقه‌مندی</b><p>مسیر <code>#/track</code> با تایم‌لاین سفارش + قلب علاقه‌مندی مشترک بین خانه/انتخاب/بیلدر (مسیر شانزدهم).</p></div>
+      <div class="tstep"><b>دور ۶ — حلقه‌ی ناوبری</b><p>دکمه‌ی success ← رهگیری، نوار «محبوب‌های تو» در خانه، دکمه‌ی اشتراک کپی با اعداد فارسی درست.</p></div>
+      <div class="tstep"><b>دور ۷ — جزئیات تجربه</b><p>فیلتر محبوب‌هام در انتخاب عروسک، «سورپرایزم کن»، کانفتی کپی موفق.</p></div>
+      <div class="tstep"><b>دور ۸ — بک‌اند + کارت PNG + ایده‌ها</b><p>Prisma و API سفارش‌ها/تماس، همگام‌سازی دوسویه با خودترمیمی، دانلود کارت هدیه PNG، ایده‌های پیام بر اساس مناسبت.</p></div>
+      <div class="tstep"><b>دور ۹ — ورود واقعی</b><p>OTP سمت سرور (یکبارمصرف، انقضا دار) + کاربر ماندگار؛ دانلود کارت هدیه در صفحه‌ی موفقیت؛ کشف نکات اجرای سرور توسعه.</p></div>
+      <div class="tstep"><b>دور ۱۰ — پنل همکاران و انکرها</b><p>اتصال سفارش به حساب کاربر (userPhone)، مسیر <code>#/admin</code> با آمار/فیلتر/جست‌وجو، انکر داخلی هش (<code>#/home@faq</code>).</p></div>
+      <div class="tstep"><b>دور ۱۱ — همگام‌سازی بین‌دستگاهی</b><p>«هدیه‌هام» سمت سرور (کشیدن سفارش‌های حساب بعد از ورود)، دکمه‌ی همگام‌سازی با توست صادقانه، گیت رمز و جلو بردن وضعیت در ادمین، داده‌ی زنده در دفتر مهربونی.</p></div>
+      <div class="tstep"><b>دور ۱۲ — قلب‌ها و نظرهای واقعی</b><p>علاقه‌مندی‌های متصل به حساب (between-device) + صفحه‌ی نظرها با دیتابیس واقعی، بازمحاسبه‌ی صادقانه‌ی آمار و فرم ثبت نظر.</p></div>
+    </div>
+  </section>
+
+  <!-- ═══ چیا مونده ═══ -->
+  <section class="card">
+    <p class="kicker">نقشه‌ی راه</p>
+    <h2>چه چیزهایی مانده؟</h2>
+    <div class="todo">
+      <div class="row"><span class="box"></span><div><b>درگاه پرداخت واقعی</b><p>مودال پرداخت فعلی نمایشی است؛ اتصال به درگاه (زرین‌پال و…) با تأیید سمت سرور مانده.</p></div></div>
+      <div class="row"><span class="box"></span><div><b>SMS واقعی برای کد ورود</b><p>کد OTP سمت سرور صادر می‌شود اما به‌جای پیامک، در همان پاسخ برمی‌گردد (حالت نمایشی)؛ اتصال به سرویس پیامک مانده.</p></div></div>
+      <div class="row"><span class="box"></span><div><b>آپلود واقعی عکس/ویدیو</b><p>در مرحله‌ی کارت پستال فعلاً فقط فلگ «اضافه شد» ثبت می‌شود؛ ذخیره‌ی فایل و نمایش در تجربه‌ی گیرنده مانده.</p></div></div>
+      <div class="row"><span class="box"></span><div><b>میانه‌سازی (Moderation) نظرها</b><p>فیلد approved + صف تأیید در پنل ادمین تا نظرها پیش از انتشار عمومی بررسی شوند.</p></div></div>
+      <div class="row"><span class="box"></span><div><b>ادمین پیشرفته‌تر</b><p>کشوی جزئیات سفارش، لاگ تغییر وضعیت‌ها (audit log)، خروجی CSV و اعلان سفارش جدید.</p></div></div>
+      <div class="row"><span class="box"></span><div><b>خروجی خودکفای استودیو</b><p>اکسپورت تک‌فایل HTML از کل مرورگر دیزاین‌سیستم (۳۲ صفحه‌ی استخراج‌شده).</p></div></div>
+      <div class="row"><span class="box"></span><div><b>یادداشت روی صفحات دیزاین</b><p>قابلیت کامنت‌گذاری/حاشیه‌نویسی برای هر صفحه‌ی طراحی (ابزار تیمی).</p></div></div>
+      <div class="row"><span class="box"></span><div><b>بهینه‌سازی گالری</b><p>۳۲ iframe تنبل گالری در دیزاین‌استودیو سنگین است؛ جایگزینی با تصویر بندانگشتی ایستا.</p></div></div>
+    </div>
+  </section>
+
+  <!-- ═══ اجرا ═══ -->
+  <section class="card">
+    <p class="kicker">برای ادامه‌ی کار</p>
+    <h2>نحوه‌ی اجرا و فایل‌های کلیدی</h2>
+    <ul class="clean">
+      <li><b>اجرا:</b> <code>bun run dev</code> (پورت ۳۰۰۰) — فقط مسیر <code>/</code> سرو می‌شود؛ دیتابیس با <code>bun run db:push</code> به‌روز می‌شود؛ کیفیت با <code>bun run lint</code> و <code>bunx tsc --noEmit</code>.</li>
+      <li><b>استور و نوع‌ها:</b> <code>src/lib/pishnam-store.ts</code> (کل state اپ) · <code>src/lib/pishnam-data.ts</code> (داده‌های ثابت برند)</li>
+      <li><b>همگام‌سازی:</b> <code>src/lib/pishnam-sync.ts</code> (bootSync / pullOrders / pullFavorites / syncStatus)</li>
+      <li><b>روتر و کارت هدیه:</b> <code>src/lib/hash-route.ts</code> · <code>src/lib/gift-card.ts</code></li>
+      <li><b>صفحات اپ:</b> <code>src/components/shop/screens/*.tsx</code> (flow، builder، dashboards، gift-experience، info، pay-modal، success، track، admin)</li>
+      <li><b>API:</b> <code>src/app/api/</code> (orders، favorites، reviews، auth، contact) · <b>اسکیمای دیتابیس:</b> <code>prisma/schema.prisma</code></li>
+      <li><b>سند پیشرفت (Worklog):</b> <code>worklog.md</code> — ۱۲ دور کامل با جزئیات فنی، نکات دیباگ و ایده‌های دور بعد</li>
+    </ul>
+    <div class="note">🧸 این سند مستقل است و به شبکه نیاز ندارد؛ برای به‌روزرسانی، همان ۱۲ دورِ بعدی ادامه‌ی همین فایل خواهند بود.</div>
+  </section>
+
+</main>
+
+<footer class="bottom">
+  پیشتم — یه بغل، تو یه جعبه ♥ · مستندات پروژه · نسخه‌ی ۱ (پس از دور ۱۲ توسعه)
+</footer>
+
+</div>
+</body>
+</html>

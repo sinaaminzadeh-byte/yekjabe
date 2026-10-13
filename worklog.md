@@ -268,3 +268,16 @@ Stage Summary:
 - The reviews page is now a living surface: real DB reviews with a «واقعی» badge, honest recomputed stats/bars/average, «داده‌ی زنده» chip, and a polished submission form on both breakpoints with optimistic UI and offline-tolerant errors.
 - DB holds: orders 1000/104/102 + AppUser نیلا + Favorite rows (5 kinds for 09123456789); reviews table empty after test cleanup (first real review will seed it).
 - Next-round ideas: admin shows the real-reviews feed (approve/hide), review moderation flag (approved boolean) before public display, per-page design notes, self-contained studio export, real SMS OTP provider, gift-open page QR share polish.
+
+---
+Task ID: 12-b
+Agent: main (Z.ai Code)
+Task: User request — standalone Persian HTML documentation file of everything done so far (pages, remaining items, technical approach).
+
+Work Log:
+- Created `public/pishnam-docs.html` — self-contained RTL Persian doc (Vazirmatn via CDN + system fallback, Pishnam brand tokens: cyan #00ABE7 / ink #04202E / dotted bg). 9 sections: hero stats (۱۷ مسیر · ۸ API · ۶ مدل · ۱۲ دور · دو بریک‌پوینت), project summary, full 17-route table with status pills, tech-stack grid (Next 16 / TS5 / Tailwind 4 / shadcn / Prisma+SQLite / Zustand / Canvas 2D / Intl fa-IR / hash-router), architecture & method (design extraction → SPA hash router → dual layouts → offline-first store → two-way self-healing sync → real OTP → canvas gift card → admin → per-round QA), 9 API endpoints table, 6 DB models, 12-round development timeline, remaining-work checklist (payment gateway, real SMS, real media upload, review moderation, admin extras, studio export, notes, gallery perf), run/key-files guide.
+- agent-browser verified: HTTP 200, all sections render, desktop 1440 + mobile 390 screenshots clean; fixed a mobile horizontal overflow (248px) — root cause: `main` as flex item of `div.page` inherited the tables' min-content width via min-width:auto → `main.wrap{min-width:0}` + `section.card{min-width:0}`; tables scroll inside `.tbl-scroll`.
+- Doc is served by the dev server at `/pishnam-docs.html` (static public file, not an app route).
+
+Stage Summary:
+- The project now has a shareable, printable Persian documentation page summarizing 12 rounds of work; next rounds should append their summaries to it (or keep worklog.md as source of truth and regenerate).
