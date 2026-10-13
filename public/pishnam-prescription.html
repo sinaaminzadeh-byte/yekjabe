@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>پیشنام — پرسکریپت نهایی معماری (تصمیم‌های قفل‌شده)</title>
+<style>
+  @font-face{font-family:'Vazirmatn';src:url('/fonts/vazirmatn-arabic.woff2') format('woff2');font-weight:100 900;font-display:swap;unicode-range:U+0600-06FF,U+0750-077F,U+FB8A,U+067E,U+0686,U+06AF,U+200C-200F,U+2010-2011,U+25CC;}
+  @font-face{font-family:'Vazirmatn';src:url('/fonts/vazirmatn-latin.woff2') format('woff2');font-weight:100 900;font-display:swap;}
+  :root{--ink:#12262b;--teal:#0FA3A8;--teal-d:#0B7C80;--teal-soft:#E4F6F6;--amber:#D98A0B;--amber-soft:#FCF3E2;--rose:#D6455D;--rose-soft:#FBEAED;--violet:#7B5EA7;--violet-soft:#F1ECF8;--paper:#FBFCFC;--line:#DDE7E8;--mut:#5B7076;}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'Vazirmatn',Tahoma,sans-serif;background:var(--paper) ;background-image:radial-gradient(#0FA3A811 1px,transparent 1px);background-size:22px 22px;color:var(--ink);line-height:1.9;padding-bottom:60px}
+  .wrap{max-width:960px;margin:0 auto;padding:0 16px}
+  header.hero{background:linear-gradient(135deg,#0B7C80,#0FA3A8 60%,#12b8b0);color:#fff;padding:34px 0 26px;border-bottom:4px solid #0B7C80}
+  .hero h1{font-size:1.55rem;font-weight:800}
+  .hero p.sub{opacity:.95;margin-top:4px;font-size:.95rem}
+  .chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
+  .chip{background:#ffffff26;border:1px solid #ffffff55;border-radius:99px;padding:2px 12px;font-size:.78rem}
+  .chip b{font-weight:700}
+  section.card{background:#fff;border:1px solid var(--line);border-radius:14px;padding:20px 22px;margin-top:22px;box-shadow:0 1px 3px #12262b0d}
+  h2{font-size:1.12rem;font-weight:800;color:var(--teal-d);display:flex;align-items:center;gap:10px;margin-bottom:12px}
+  h2 .no{background:var(--teal);color:#fff;width:30px;height:30px;border-radius:9px;display:inline-flex;align-items:center;justify-content:center;font-size:.9rem;flex-shrink:0}
+  h3{font-size:.98rem;font-weight:700;margin:14px 0 6px}
+  p,li{font-size:.92rem}
+  .muted{color:var(--mut);font-size:.85rem}
+  table{width:100%;border-collapse:collapse;font-size:.86rem;margin:8px 0}
+  th{background:var(--teal-soft);color:var(--teal-d);text-align:right;padding:7px 10px;border:1px solid var(--line);font-weight:700}
+  td{padding:7px 10px;border:1px solid var(--line);vertical-align:top}
+  tr:nth-child(even) td{background:#FAFCFC}
+  .tscroll{overflow-x:auto;border-radius:8px}
+  .grid{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(270px,1fr))}
+  .mini{border:1px solid var(--line);border-radius:11px;padding:12px 14px;background:#FDFFFE}
+  .mini b.t{color:var(--teal-d);display:block;margin-bottom:3px;font-size:.9rem}
+  .mini p{font-size:.83rem;color:#33565c}
+  .tag{display:inline-block;border-radius:99px;padding:0 10px;font-size:.74rem;font-weight:700;margin-left:4px}
+  .tag.ok{background:var(--teal-soft);color:var(--teal-d)}
+  .tag.warn{background:var(--amber-soft);color:#9A6206}
+  .tag.bad{background:var(--rose-soft);color:var(--rose)}
+  .tag.info{background:var(--violet-soft);color:var(--violet)}
+  .flow{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:8px 0}
+  .flow .st{background:#fff;border:1.5px solid var(--teal);color:var(--teal-d);border-radius:9px;padding:3px 10px;font-size:.8rem;font-weight:600}
+  .flow .ar{color:var(--mut);font-size:.85rem}
+  .flow .st.man{border-color:var(--amber);color:#9A6206}
+  .flow .st.sys{border-color:#B9C8CB;color:var(--mut)}
+  .callout{border-radius:11px;padding:11px 14px;margin:10px 0;font-size:.87rem;border:1px solid}
+  .callout.warn{background:var(--amber-soft);border-color:#F0DDB4;color:#7A5105}
+  .callout.bad{background:var(--rose-soft);border-color:#F2C7CE;color:#8F2E42}
+  .callout.ok{background:var(--teal-soft);border-color:#BFE5E6;color:#0B6367}
+  .callout.info{background:var(--violet-soft);border-color:#DCD0EE;color:#5B3E86}
+  .states{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0}
+  .states .s{font-size:.75rem;background:var(--teal-soft);color:var(--teal-d);border-radius:99px;padding:1px 10px;direction:ltr;font-weight:600}
+  .states .s.p{background:var(--amber-soft);color:#9A6206}
+  .states .s.r{background:var(--rose-soft);color:var(--rose)}
+  code,.code{font-family:'Vazirmatn',monospace;background:#F0F6F6;border:1px solid var(--line);border-radius:6px;padding:0 6px;font-size:.8rem;direction:ltr;unicode-bidi:embed}
+  .diagram{display:flex;flex-direction:column;gap:10px;margin:12px 0}
+  .layer{display:flex;flex-wrap:wrap;gap:8px;align-items:stretch;justify-content:center}
+  .node{border:1.5px solid var(--teal);border-radius:11px;background:#fff;padding:8px 14px;text-align:center;font-size:.82rem;min-width:110px}
+  .node b{display:block;color:var(--teal-d);font-size:.86rem}
+  .node small{color:var(--mut)}
+  .node.ext{border-style:dashed;border-color:var(--amber)}
+  .node.ext b{color:var(--amber)}
+  .node.store{border-color:var(--violet)}
+  .node.store b{color:var(--violet)}
+  .dl{background:var(--ink);color:#fff;border-radius:14px;padding:20px 22px;margin-top:22px;text-align:center}
+  .dl h2{color:#fff;justify-content:center}
+  .dl p{opacity:.9;font-size:.88rem}
+  .btn{display:inline-flex;align-items:center;gap:8px;background:var(--teal);color:#fff;border:none;border-radius:12px;padding:12px 26px;font-family:inherit;font-size:.95rem;font-weight:700;cursor:pointer;margin-top:12px;transition:transform .15s,box-shadow .15s}
+  .btn:hover{transform:translateY(-2px);box-shadow:0 6px 16px #0fa3a855}
+  .btn.ghost{background:transparent;border:1.5px solid #ffffff66}
+  footer{margin-top:26px;text-align:center;color:var(--mut);font-size:.8rem}
+  .kbd{font-size:.75rem;color:var(--mut)}
+  @media(max-width:640px){section.card{padding:15px 14px}header.hero{padding:24px 0 18px}.hero h1{font-size:1.2rem}}
+</style>
+</head>
+<body>
+<header class="hero">
+  <div class="wrap">
+    <h1>پیشنام — پرسکریپت نهایی معماری</h1>
+    <p class="sub">۴۶ پاسخ شما + ۴ معمار متخصص + ۱ نقاد منتقد → تصمیم‌های قفل‌شده برای ساخت لانچ</p>
+    <div class="chips">
+      <span class="chip">✅ پرسش‌نامه: <b>۴۶/۴۶</b> پاسخ</span>
+      <span class="chip">📅 <b>۲۱ مهر ۱۴۰۵</b></span>
+      <span class="chip">🗂 نسخه <b>۱.۰ — نهایی</b></span>
+      <span class="chip">🎼 ارکستراتور + ایجنت‌های <b>13-d / 13-e / 13-f / 13-g / 13-h</b></span>
+    </div>
+  </div>
+</header>
+<div class="wrap">
+
+<section class="card">
+  <h2><span class="no">۱</span> خلاصه اجرایی — یک نگاه</h2>
+  <div class="grid">
+    <div class="mini"><b class="t">🎯 نقطه طراحی</b><p><b>۵۰۰ سفارش/روز پایدار + پیک فصلی ۵×، ۱۰ هزار بازدید/روز</b> — روی همان سرور فعلی شما (۲ هسته / ۲ گیگ / ۴۰ گیگ). پرش به «۱۰ هزار خریدار در روز» فقط با تریگرِ داده، نه با هزینه از امروز.</p></div>
+    <div class="mini"><b class="t">🧱 پلتفرم</b><p>مونولیت ماژولار Next.js + <b>SQLite (WAL)</b> + Caddy + systemd روی VPS ایران. بدون Docker، بدون Redis، بدون میکروسرویس — چون نگه‌داری بعدی را AI انجام می‌دهد و باید «خسته‌کننده و قابل‌اعتماد» باشد.</p></div>
+    <div class="mini"><b class="t">💳 پرداخت</b><p>دو مسیر از روز اول: <b>زرین‌پال</b> (تأیید خودکار) + <b>کارت‌به‌کارت/بله‌پی</b> با آپلود رسید و تأیید دستی شما در پنل. بدون پرداخت در محل.</p></div>
+    <div class="mini"><b class="t">🔎 سئو</b><p>ستون رشد: مهاجرت از <code>#</code> به <b>روت‌های واقعی + sitemap + JSON-LD</b> در موج دیپلوی؛ ترتیب محتوا: صفحات محصول ← تجربه مخاطب ← بلاگ.</p></div>
+    <div class="mini"><b class="t">🛡 امنیت P0</b><p>سشن httpOnly، اسکوپ همه کوئری‌ها به شماره کاربر (حذف dump کامل سفارش‌ها)، حذف PIN هاردکد <code>1398</code>، سخت‌سازی OTP و محدودسازی نرخ.</p></div>
+    <div class="mini"><b class="t">💰 هزینه</b><p>لانچ: <b>~۲۵۰ تا ۹۵۰ هزار تومان/ماه</b> ✓ داخل بودجه. هشدار: پیامک از ~۱۵۰ سفارش/روز گران‌ترین قلم می‌شود — قانون هزینه و تریگر بازبینی در سند هست.</p></div>
+  </div>
+</section>
+
+<section class="card">
+  <h2><span class="no">۲</span> پاسخ‌های الزام‌آور شما → ۱۲ قید سخت</h2>
+  <div class="tscroll"><table>
+    <tr><th>قید</th><th>مقدار (پاسخ شما)</th><th>اثر معماری</th></tr>
+    <tr><td>لانچ تجاری</td><td>۲–۳ ماه دیگر</td><td>نقشه راه ۸ هفته‌ای + فازبندی زیر</td></tr>
+    <tr><td>سفارش سال اول</td><td>۲۰۰–۵۰۰ در روز</td><td>نقطه طراحی؛ SQLite کافی است، PG تریگر دارد</td></tr>
+    <tr><td>بازدید روزانه</td><td>۲–۱۰ هزار</td><td>CDN آروان + ISR؛ رزایز = اولین اهرم</td></tr>
+    <tr><td>سرور</td><td>۲ هسته / ۲ گیگ RAM / ۴۰ گیگ (داری)</td><td>بودجه حافظه دقیق شد؛ بدون Postgres روز اول</td></tr>
+    <tr><td>ماندگاری داده</td><td>الزام داخل ایران</td><td>VPS ایران + آروان (S3/CDN) — هیچ داده‌ای خارج نمی‌رود</td></tr>
+    <tr><td>بودجه ماهانه</td><td>&lt; ۲ میلیون تومان</td><td>جدول هزینه با سناریوها + هشدار پیامک</td></tr>
+    <tr><td>اینماد / کسب / مودیان</td><td>هر سه ✓ دارید</td><td>صفحات قانونی = تنها کار باقی‌مانده در این مسیر</td></tr>
+    <tr><td>مرجوعی هدیه</td><td>فقط آسیب فیزیکی</td><td>جریان refund_requested به‌جای ۷ روز بی‌قید؛ هزینه ارسالِ آسیبِ حمل‌ونقل با ما</td></tr>
+    <tr><td>پرداخت</td><td>زرین‌پال ✓ + کارت‌به‌کارت/بله‌پی با رسید</td><td>آداپتور دومسیره + صف تأیید دستی در ادمین</td></tr>
+    <tr><td>موجودی</td><td>شمارش دقیق — تمام شد، تمام</td><td>کاهش اتمیک شرطی stock≥qty؛ ضد فروش اضافه</td></tr>
+    <tr><td>کاتالوگ</td><td>۶ خانواده × ۲ سایز = ۱۲ SKU</td><td>مدل Product + ProductVariant با اسلاگ لاتین</td></tr>
+    <tr><td>پیامک</td><td>کاوه‌نگار + خط خدماتی ✓ — ۴ اعلان انتخابی</td><td>SmsOutbox با retry؛ قالب‌های تک‌سگمنت؛ هشدار هزینه</td></tr>
+  </table></div>
+</section>
+
+<section class="card">
+  <h2><span class="no">۳</span> معماری نهایی انتخاب‌شده</h2>
+  <div class="diagram">
+    <div class="layer"><div class="node"><b>مشتری / ادمین</b><small>موبایل و دسکتاپ</small></div></div>
+    <div class="layer"><div class="ar">↓</div></div>
+    <div class="layer"><div class="node ext"><b>آروان CDN</b><small>استاتیک + عکس</small></div><div class="node"><b>Caddy</b><small>TLS / zstd / هدرها</small></div></div>
+    <div class="layer"><div class="ar">↓</div></div>
+    <div class="layer"><div class="node"><b>Next.js standalone</b><small>مونولیت ماژولار — سرور محتوا + API + ادمین</small></div></div>
+    <div class="layer"><div class="ar">↓</div></div>
+    <div class="layer">
+      <div class="node store"><b>SQLite (WAL)</b><small>+ Litestream → آروان S3</small></div>
+      <div class="node ext"><b>آروان S3</b><small>رسید / صدا / عکس (presigned)</small></div>
+      <div class="node ext"><b>کاوه‌نگار</b><small>OTP + اعلان‌ها</small></div>
+      <div class="node ext"><b>زرین‌پال</b><small>درگاه آنلاین</small></div>
+      <div class="node store"><b>systemd timers</b><small>کارهای زمان‌بندی</small></div>
+    </div>
+  </div>
+  <div class="callout ok">چرا این معماری؟ بار نوشتنِ ۵۰۰ سفارش/روز ≈ <b>۰٫۰۲۵ تراکنش/ثانیه</b> است — هیچ. گلوگاه واقعی، <b>حافظه ۲ گیگ</b> و تعداد نویسنده‌های همزمان در پیک کمپین است؛ هر دو با SQLite WAL + صفِ retry حل می‌شوند و PostgreSQL فقط با تریگر داده شروع می‌شود (بخش ۱۲).</div>
+</section>
+
+<section class="card">
+  <h2><span class="no">۴</span> جدول تصمیم‌های قفل‌شده (۲۲ تصمیم)</h2>
+  <div class="tscroll"><table>
+    <tr><th>#</th><th>حوزه</th><th>تصمیم نهایی</th><th>چرا</th></tr>
+    <tr><td>۱</td><td>معماری</td><td>مونولیت ماژولار در Next.js — یک باکس، بدون میکروسرویس</td><td>نگه‌داری AI + تیم ۲ نفره + مقیاس واقعی</td></tr>
+    <tr><td>۲</td><td>دیتابیس لانچ</td><td>SQLite با WAL + <code>busy_timeout=5000</code> + wrapper بازنویسی <code>withWriteRetry()</code> (۳ تلاش، jitter ۲۵–۷۵ms، فقط روی SQLITE_BUSY)</td><td>PG یعنی ~۱۰۰–۱۵۰MB RAM اضافه روی ۲ گیگ؛ نوشتنِ ما ناچیز است</td></tr>
+    <tr><td>۳</td><td>تریگر PostgreSQL</td><td><b>&gt;۵۰۰ سفارش/روز پایدار (۲+ هفته) + علامت مشاهده‌شده</b> (خطای BUSY بعد از retry، یا سرویس نیازمند PG) — اول رزایز ۴GB، بعد مهاجرت با رانبوک</td><td>عدد واحد به‌جای ۳۰۰/۸۰۰ متناقض بین اسناد</td></tr>
+    <tr><td>۴</td><td>سشن</td><td>جدول <code>Session</code> در DB — کوکی <code>pn_session</code> (مشتری، ۳۰ روز) و <code>pn_admin</code> (۸ ساعت)، جدا از هم</td><td>لغو/خروج/kill ادمین با JWT بی‌حالت ممکن نیست</td></tr>
+    <tr><td>۵</td><td>اسکوپ داده (P0)</td><td>حذف <code>bootSync()</code> کامل؛ همه کوئری‌ها با <code>sessionPhone</code>؛ جایگزین: <code>/api/me/bootstrap</code> — مهمان هیچ‌چیز نمی‌گیرد</td><td>باگ امنیتی فعلی: کل dump سفارش‌ها در هر بارگذاری</td></tr>
+    <tr><td>۶</td><td>ادمین</td><td>جدول <code>AdminUser</code> — ۲ نفر، نقش <code>owner|operator</code>، ورود با OTP؛ حذف PIN <code>1398</code> هاردکد</td><td>پاسخ شما: ۲ ادمین؛ سطح دسترسی متفاوت</td></tr>
+    <tr><td>۷</td><td>مدل سفارش</td><td><b>مدل جدید <code>Order</code></b> با ۱۱ وضعیت forward-only (حروف کوچک)؛ <code>GiftOrder</code> دمو فقط تا کات‌آور و بعد پاک‌سازی کامل</td><td>شروع از «paid» یعنی ندیدن پولِ تأییدنشده — غلط بود</td></tr>
+    <tr><td>۸</td><td>کد سفارش</td><td><code>PN-YYMMDD-####</code> — شمارنده روزانه در Setting، در همان تراکنش، با تست تاریخ جلالی روی ساعت تهران</td><td>بدون نشت تعداد کل سفارش‌ها؛ بدون ادعای کلاینت</td></tr>
+    <tr><td>۹</td><td>idempotency</td><td>کلید یکتا روی سفارش + ذخیره سفارش pending در کلاینت + retry روی اتصال مجدد + صفحه موفقیت تا ACK صبر می‌کند؛ fallback همیشه <code>/track</code></td><td>اینترنت ایران قطع‌ووصل دارد؛ جلوگیری از سفارش تکراری</td></tr>
+    <tr><td>۱۰</td><td>موجودی</td><td>کاهش اتمیک: <code>updateMany where stock≥qty</code> داخل تراکنش؛ <code>count==0 → 409</code>؛ آزادسازی فقط از cancelled/expired</td><td>ضد فروش اضافه — قید «تمام شد، تمام»</td></tr>
+    <tr><td>۱۱</td><td>پرداخت — زرین‌پال</td><td>آداپتور: request → redirect → callback → verify با تطبیق مبلغ از DB؛ ثبت <code>authority</code> قبل از ریدایرکت؛ <b>reconcile ساعتی</b> برای verify-های برنگشته + دکمه «بررسی مجدد»</td><td>×10 ریال/تومان فقط داخل آداپتور؛ مسیر timeout بسته شد</td></tr>
+    <tr><td>۱۲</td><td>پرداخت — دستی</td><td>کارت/شبا/نام از Setting با دکمه کپی ← آپلود رسید (≤۵MB، sniff بایت‌ها، S3 خصوصی) ← هش SHA-256 ضد رسید تکراری ← ۳ تلاش + reopen فقط ادمین ← صف تأیید با SLA «تا ۱۲ ساعت» نمایشی / هدف عملیاتی ۲ ساعت</td><td>واقعیت فعلی شما (بله‌پی + کارت‌به‌کارت) بدون قطع‌شدن فروش</td></tr>
+    <tr><td>۱۳</td><td>مدیا</td><td><b>آروان Object Storage خصوصی + presigned PUT</b> از روز اول — رسید، صدای هدیه، عکس UGC، عکس محصول</td><td>صدای هدیه در پیکِ ۵۰۰/روز = ~۲۲ گیگ/ماه؛ دیسک ۴۰ گیگ دو ماه دوام دارد!</td></tr>
+    <tr><td>۱۴</td><td>SMS</td><td><code>SmsOutbox</code> (صف + ۳× retry + audit) + قالب‌های تک‌سگمنت ≤۷۰ کاراکتر + سیاست <b>۲ پیامک/سفارش از ~۱۵۰ سفارش/روز</b></td><td>پیامک = بزرگ‌ترین قلم هزینه؛ قانون هزینه پایین‌تر</td></tr>
+    <tr><td>۱۵</td><td>OTP</td><td>۶ رقمی crypto (نه Math.random)، ذخیره هش‌شده، شمارنده تلاش، IP ثبت‌شده، حذف <code>devCode</code> از پاسخ در prod</td><td>OTP فعلی حدس‌زدنی و بدون سقف است</td></tr>
+    <tr><td>۱۶</td><td>Rate limit</td><td>توکن‌باکت درون‌پردازشی (بدون Redis، تک‌نود): OTP ۳/ساعت+cooldown ۶۰s+۱۰/روز/IP؛ چک‌اوت ۵/۱۰دقیقه؛ نظر ۲/ساعت؛ <b><code>gift_open</code> ۵/۱۵دقیقه + قفل سفارش بعد از ۱۰ تلاش</b></td><td>سوختن اعتبار SMS + بروت‌فورس رمز بازکردن هدیه بسته شد</td></tr>
+    <tr><td>۱۷</td><td>کارهای زمان‌بندی</td><td>systemd timers → <code>/api/jobs/*</code> با هدر <code>x-cron-secret</code>؛ همه با <code>TZ=Asia/Tehran</code>: بکاپ ۰۳:۳۰، purge ۰۴:۰۰، انقضای سفارش هر ۱۵ دقیقه، رها‌شدن سبد ~۶h، موجودی کم، reconcile ساعتی</td><td>cron درون-پردازشی با هر دیپلوی می‌میرد</td></tr>
+    <tr><td>۱۸</td><td>آمارگیر</td><td><b>Fathom Lite</b> (Go+SQLite، ~۱۵MB، بدون کوکی ⇒ بدون نیاز به بنر رضایت)؛ Umami فقط در روزِ PG</td><td>پاسخ شما «سلف‌هاست حریم‌محور» بود؛ Umami یعنی +۲۵۰MB RAM — نمی‌گذرد</td></tr>
+    <tr><td>۱۹</td><td>روت‌ها و سئو</td><td>موج ۰: ماژول‌های route-ready در سندباکس (همین‌جا) ← موج دیپلوی: روت واقعی + <code>sitemap.ts</code> + <code>robots.ts</code> + JSON-LD؛ <code>#</code> بدون 301 (فرگمنت اصلاً به سرور نمی‌رسد)</td><td>سئو ستون رشد است ولی سندباکس فقط «/» را پیش‌نمایش می‌دهد</td></tr>
+    <tr><td>۲۰</td><td>محصول</td><td>۱۲ SKU: ۶ خانواده (bear/bunny/cat/duck/panda/sheep) × سایز S/L؛ اسلاگ لاتین تغییرناپذیر (مثلاً <code>/product/bear-s</code>)؛ قیمت Int تومان؛ IRR×10 فقط در لایه JSON-LD</td><td>پاسخ شما: ۶ خانواده ۲ سایز؛ URLها ابدی‌اند</td></tr>
+    <tr><td>۲۱</td><td>UGC و بلاگ</td><td>تجربه مخاطب: فرم عمومی + رضایت صریح + تأیید هفتگی شما + صفحه اختصاصی؛ بلاگ: پست در DB + ادیتور مارک‌داون ادمین + ISR — هر دو فقط روت واقعی، هرگز <code>#</code></td><td>دقیقاً ترتیب پاسخ شما: محصول ← تجربه مخاطب ← بلاگ</td></tr>
+    <tr><td>۲۲</td><td>هدیه بازکردنی <code>/g/[no]</code></td><td>noindex,follow + کارت OG فارسی (اشتراک وایرال) + رمز با argon2 و قفل بعد از ۱۰ تلاش؛ از robots.txt مستثنی (واتساپ/تلگرام OG می‌خواهند)</td><td>لوپ وایرال برند — الان اشتراک‌گذاری واقعی ندارد</td></tr>
+  </table></div>
+  <div class="callout info"><b>خروجی نقاد (13-h):</b> ۱۰ MUST-FIX همه بالا اعمال شد — مدل جدید Order (نه توسعه GiftOrder)، سشن DB به‌جای JWT، قفل بروت‌فورس <code>/g/</code>، wrapper بازنویسی + گیت تست ۵۰ همزمان، مدیا→آروان، عدد واحد تریگر PG، Fathom به‌جای Umami، مدل Payment واحد، reconcile زرین‌پال، تقویم واحد تهران. حذف‌های ضدپیچیدگی: جدول AdminLog و StockMove → ادغام در OrderEvent؛ Uptime-Kuma حذف.</div>
+</section>
+
+<section class="card">
+  <h2><span class="no">۵</span> مدل داده نهایی (۱۸ مدل Prisma)</h2>
+  <p class="muted">پیش‌نویس کامل با <code>prisma validate</code> ✓ در <code>docs/13-e-schema-draft.prisma</code> — SQLite دوست (بدون enum/Json)، آماده مهاجرت به PG با جدول نگاشت.</p>
+  <div class="tscroll"><table>
+    <tr><th>گروه</th><th>مدل‌ها</th><th>نکته کلیدی</th></tr>
+    <tr><td>کاتالوگ</td><td><code>Product</code>، <code>ProductVariant</code></td><td>sku یکتا (<code>bear-S</code>)، موجودی و قیمت روی واریانت</td></tr>
+    <tr><td>سفارش</td><td><code>Order</code>، <code>OrderItem</code> (اسنپ‌شات)، <code>OrderEvent</code> (ستون ممیزی واحد: سیستم/ادمین/مشتری/درگاه + رویداد موجودی)</td><td>کد یکتا، idempotencyKey یکتا، ایندکس status+createdAt</td></tr>
+    <tr><td>پرداخت</td><td><code>Payment</code></td><td>authority یکتا، receiptHash ضد رسید تکراری، reviewedBy/At</td></tr>
+    <tr><td>پیامک</td><td><code>SmsOutbox</code></td><td>صف + attempts + sendAfter — ایندکس status+sendAfter</td></tr>
+    <tr><td>هویت</td><td><code>AppUser</code>، <code>AuthCode</code> (سخت‌سازی‌شده)، <code>Session</code>، <code>AdminUser</code></td><td>codeHash + attempts + ip؛ سشن DB-backed</td></tr>
+    <tr><td>محتوا</td><td><code>Experience</code> (UGC)، <code>Post</code> (ارتقایافته: slug/excerpt/bodyMd/SEO)</td><td>وضعیت moderation؛ PublishedAt برای ISR</td></tr>
+    <tr><td>هدیه</td><td><code>VoiceNote</code> (فاز ۲ — فقط کلید S3)، <code>Favorite</code>، <code>Review</code> (حفظ کامل)</td><td>صدا در S3، نه در DB</td></tr>
+    <tr><td>تنظیمات</td><td><code>Setting</code>، <code>ContactMessage</code></td><td>کارت/شبا، هزینه ارسال، آستانه موجودی، لینک‌های پشتیبانی</td></tr>
+  </table></div>
+  <h3>چرخه وضعیت سفارش (۱۱ وضعیت)</h3>
+  <div class="states">
+    <span class="s">awaiting_payment</span><span class="s p">payment_under_review</span><span class="s">paid</span><span class="s">preparing</span><span class="s">shipped</span><span class="s">delivered</span><span class="s">failed</span><span class="s">cancelled</span><span class="s r">expired</span><span class="s r">refund_requested</span><span class="s r">refunded</span>
+  </div>
+  <p class="muted">نقشه مشتری در /track فقط ۵ قدم فارسی می‌بیند: ثبت شد ← در انتظار پرداخت ← آماده‌سازی ← ارسال شد ← تحویل شد (+ شاخه مرجوعی). وضعیت‌های داخلی هرگز به مشتری لو نمی‌رود.</p>
+</section>
+
+<section class="card">
+  <h2><span class="no">۶</span> جریان خرید و پرداخت (هر دو مسیر)</h2>
+  <h3>مسیر الف — زرین‌پال (اتوماتیک)</h3>
+  <div class="flow">
+    <span class="st">چک‌اوت</span><span class="ar">←</span><span class="st sys">POST /api/checkout — مبلغ از سرور</span><span class="ar">←</span><span class="st">redirect زرین‌پال</span><span class="ar">←</span><span class="st sys">callback</span><span class="ar">←</span><span class="st sys">verify مبلغ با DB</span><span class="ar">←</span><span class="st">paid + پیامک</span>
+  </div>
+  <h3>مسیر ب — کارت‌به‌کارت / بله‌پی (رسید + تأیید شما)</h3>
+  <div class="flow">
+    <span class="st man">awaiting_payment</span><span class="ar">←</span><span class="st man">نمایش کارت/شبا/نام + کپی</span><span class="ar">←</span><span class="st man">آپلود رسید (≤۵MB)</span><span class="ar">←</span><span class="st man">payment_under_review</span><span class="ar">←</span><span class="st">تأیید شما در ادمین → paid + پیامک</span>
+  </div>
+  <ul class="muted" style="margin-top:6px">
+    <li>رد رسید ← برگشت به awaiting_payment (تا ۳ تلاش؛ بعدش فقط شما با «بازکردن» می‌توانید ادامه دهید).</li>
+    <li>پرداخت‌نشده بعد از ۲۴ ساعت ← <code>expired</code> + آزادسازی خودکار موجودی.</li>
+    <li>مرجوعی فقط «آسیب فیزیکی» (طبق پاسخ شما): درخواست از /track ← بررسی شما ← پیامک نتیجه؛ آسیبِ حمل‌ونقل = بازگشت هزینه ارسال هم.</li>
+  </ul>
+</section>
+
+<section class="card">
+  <h2><span class="no">۷</span> سئو، محتوا و تجربه مخاطب</h2>
+  <div class="tscroll"><table>
+    <tr><th>روت</th><th>رندر</th><th>ایندکس</th><th>موج</th></tr>
+    <tr><td><code>/</code> خانه</td><td>ISR</td><td>✓ + Organization/WebSite/FAQ</td><td>دیپلوی</td></tr>
+    <tr><td><code>/product/[slug]</code> ×۱۲</td><td>SSG+ISR</td><td>✓ + Product/Offer/AggregateRating*</td><td>دیپلوی</td></tr>
+    <tr><td><code>/build</code> جعبه‌ساز (۵ قدم فعلی)</td><td>CSR</td><td>noindex</td><td>دیپلوی</td></tr>
+    <tr><td><code>/g/[no]</code> بازکردن هدیه</td><td>SSR</td><td>noindex + OG فارسی (وایرال)</td><td>دیپلوی</td></tr>
+    <tr><td><code>/stories</code> + <code>/stories/[slug]</code></td><td>ISR</td><td>✓ + Article — در انتظار تأیید: ایندکس‌ناپذیر</td><td>فاز ۲</td></tr>
+    <tr><td><code>/blog</code> + <code>/blog/[slug]</code></td><td>ISR</td><td>✓ + Article/Breadcrumb</td><td>فاز ۲</td></tr>
+    <tr><td><code>/legal/privacy|terms|refund</code></td><td>استاتیک</td><td>✓ — گate اینماد</td><td>فاز ۱</td></tr>
+    <tr><td><code>/admin</code></td><td>CSR</td><td>noindex + سشن</td><td>فاز ۱</td></tr>
+  </table></div>
+  <p class="muted">*AggregateRating فقط بعد از <b>≥۵ نظر واقعی</b> در JSON-LD می‌نشیند؛ عدد ۳۱۸ نمایشی هرگز وارد schema نمی‌شود. توضیح تله: «۸۹۰٬۰۰۰ تومان» در JSON-LD یعنی <code>price:"8900000" + priceCurrency:"IRR"</code> — ضریب ×۱۰ فقط داخل builder انجام می‌شود.</p>
+  <div class="callout warn"><b>قانون طلایی:</b> noindex ≠ Disallow. <code>/g/</code> هرگز وارد robots.txt نمی‌شود وگرنه واتساپ/تلگرام پیش‌نمایش هدیه را از دست می‌دهند.</div>
+  <h3>استراتژی کلیدواژه — دم‌بلند کم‌رقابت (طبق خواسته شما)</h3>
+  <p class="muted">هرگز فعلاً سراغ سرها نمی‌رویم («عروسک»، «خرید عروسک پولیشی» به‌تنهایی). ۸ نمونه از ۲۰ کلیدواژه: <b>جعبه هدیه عروسک پولیشی · عروسک با پیام صوتی · هدیه تولد بهترین دوست دختر · جعبه هدیه ولنتاین · هدیه یلدا دخترانه · عروسک هدیه با کارت چاپی · متن کارت هدیه عروسک · عروسک پولیشی چیست</b> — نقشه کامل کلیدواژه→URL→اولویت در <code>docs/13-f-seo-content.md</code>.</p>
+  <h3>تجربه مخاطب (UGC)</h3>
+  <p class="muted">فرم عمومی (نام، شهر اختیاری، مناسبت، متن ≤۱۵۰۰، عکس اختیاری) + <b>چک‌باکس رضایت صریح</b> — هرگز از پیام خصوصی هدیه‌ها استخراج نمی‌شود. تأیید هفتگی توسط شما. بدون مشوق — فقط فرصت دیده‌شدن (دقیقاً پاسخ شما).</p>
+</section>
+
+<section class="card">
+  <h2><span class="no">۸</span> پیامک، اتوماسیون و قانون هزینه</h2>
+  <div class="tscroll"><table>
+    <tr><th>قالب</th><th>گیرنده</th><th>لحظه ارسال</th></tr>
+    <tr><td>کد ورود OTP</td><td>کاربر</td><td>درخواست ورود</td></tr>
+    <tr><td>تأیید سفارش + کد رهگیری داخلی</td><td>فرستنده</td><td>paid (مسیر دستی؛ در زرین‌پال از ~۱۵۰/روز حذف)</td></tr>
+    <tr><td>«سفارش جدید» </td><td>شما (ادمین)</td><td>سفارش تازه — بعداً به تلگرام ارزان‌تر</td></tr>
+    <tr><td>ارسال شد + کد رهگیری شرکت حمل</td><td>فرستنده</td><td>ثبت trackingCode توسط شما</td></tr>
+    <tr><td>یادآوری سبد رهاشده (فقط یک‌بار)</td><td>فرستنده با شماره</td><td>~۶ ساعت از awaiting_payment</td></tr>
+    <tr><td>موجودی کم (≤۳)</td><td>شما</td><td>اسکن روزانه</td></tr>
+    <tr><td>نتیجه مرجوعی</td><td>مشتری</td><td>تصمیم شما روی refund</td></tr>
+  </table></div>
+  <div class="callout bad"><b>قانون هزینه پیامک:</b> هزینه ≈ (سفارش/روز) × ۳٫۵ پیامک × ~۱۲۵ تومان × ۳۰ روز. در ۵۰۰ سفارش/روز ≈ <b>۶٫۶ میلیون/ماه — ۳ برابر بودجه!</b> ← راه‌حل قفل‌شده: قالب تک‌سگمنت + سیاست ۲ پیامک/سفارش از ~۱۵۰ سفارش/روز + هشدار ادمین به تلگرام. این «مسئله خوبی» است — یعنی فروش گرفته‌ای.</div>
+  <div class="callout warn"><b>خبرنامه پیامکی (پاسخ شما):</b> فقط با چک‌باکس رضایت صریح در تسویه + ارسال ماهانه از پنل ادمین. متن رضایت قانونی در فاز ۱ نوشته می‌شود (سؤال مالکی پایین).</div>
+</section>
+
+<section class="card">
+  <h2><span class="no">۹</span> زیرساخت، بکاپ و بودجه ماهانه</h2>
+  <h3>بودجه حافظه (۲ گیگ) — صادقانه</h3>
+  <div class="tscroll"><table>
+    <tr><th>مصرف‌کننده</th><th>RAM</th></tr>
+    <tr><td>OS + systemd</td><td>~۲۵۰MB</td></tr>
+    <tr><td>Caddy</td><td>~۳۰MB</td></tr>
+    <tr><td>Next.js standalone (سقف سخت ۷۶۸M)</td><td>~۳۵۰–۴۵۰MB</td></tr>
+    <tr><td>SQLite</td><td>~۰ (درون‌پردازشی)</td></tr>
+    <tr><td>Fathom Lite</td><td>~۱۵MB</td></tr>
+    <tr><td>SWAP</td><td>۲ گیگ (swappiness=10)</td></tr>
+  </table></div>
+  <p class="muted">جمع: ~۶۶۵–۸۴۵MB → <b>۱۵–۲۵٪ حاشیه واقعی</b> ✓. <code>next build</code> هرگز روی سرور لانچ اجرا نمی‌شود — بیلد در باکس توسعه (اینجا) و rsync.</p>
+  <h3>داده امن است چطور؟</h3>
+  <p class="muted">Litestream (تکثیر پیوسته WAL → آروان S3، RPO≤۵ ثانیه، RTO≤۲ ساعت) + فول بکاپ شبانه ۰۳:۳۰ + purge ۰۴:۰۰ — همه با <code>TZ=Asia/Tehran</code> + حفظ نسخه (versioning) روی باکت آروان + <b>هر ماه یک‌بار تست بازگردانی واقعی</b> (قابل اجرا توسط AI).</p>
+  <h3>هزینه ماهانه — سه سناریو</h3>
+  <div class="tscroll"><table>
+    <tr><th>سناریو</th><th>سرور</th><th>آروان CDN+S3</th><th>پیامک</th><th>جمع</th><th>حکم</th></tr>
+    <tr><td>لانچ (۱۰–۵۰ سفارش/روز)</td><td>۰ (خودت داری)</td><td>۱۰۰–۲۵۰K</td><td>~۱۵۰–۷۰۰K</td><td><b>~۲۵۰–۹۵۰K</b></td><td><span class="tag ok">✓ داخل بودجه</span></td></tr>
+    <tr><td>میانه سال اول (۲۰۰/روز)</td><td>۰</td><td>۱۰۰–۲۵۰K</td><td>~۲٫۶M ← با سیاست ۲ پیامکی ~۱٫۴M</td><td><b>~۱٫۷–۱٫۹M</b></td><td><span class="tag warn">✓ فشرده</span></td></tr>
+    <tr><td>پیک سال اول (۵۰۰/روز)</td><td>۰ (یا رزایز ۴c/8G)</td><td>~۳۰۰K</td><td>~۶٫۶M ← باید بازطراحی شود</td><td><b>~۷M</b></td><td><span class="tag bad">✗ بازبینی — یعنی کسب‌وکار جواب داده</span></td></tr>
+  </table></div>
+  <div class="callout info"><b>تریگر بازبینی بودجه: ~۱۵۰ سفارش/روز.</b> دامنه pishnam.ir (~۱۵۰K/سال) باید همین هفته ثبت شود — اینماد، درگاه، SSL و نقشه سایت همه پشت آن بلاک‌اند.</div>
+</section>
+
+<section class="card">
+  <h2><span class="no">۱۰</span> نقشه راه ۸ هفته‌ای (۴ فاز)</h2>
+  <div class="tscroll"><table>
+    <tr><th>فاز</th><th>چه چیزهایی</th><th>معیار پذیرش</th></tr>
+    <tr><td><b>فاز ۰ — امنیت + آمادگی روت</b><br><span class="muted">هفته ۱</span></td><td>سشن DB + اسکوپ کوئری‌ها + حذف dump کامل، حذف PIN 1398، سخت‌سازی OTP، rate-limitها (شامل gift_open)، wrapper بازنویسی، استخراج ماژول‌های route-ready</td><td>تست curl با ۵۰ درخواست همزمان = صفر خطای BUSY؛ هیچ API بدون سشن داده کاربر برنمی‌گرداند</td></tr>
+    <tr><td><b>فاز ۱ — هسته تجارت</b><br><span class="muted">هفته ۲–۵</span></td><td>اسکیمای جدید (Order/Variant/Payment/…)، چک‌اوت سرورمحور با idempotency، چرخه ۱۱ وضعیتی، هر دو مسیر پرداخت + صف تأیید، موجودی اتمیک، SMS واقعی کاوه‌نگار، ادمین v2 (سفارش/رسید/موجودی/۲ نقش)، صفحات قانونی، سید ۱۲ SKU</td><td>خرید E2E هر دو مسیر + ضد فروش اضافه + پیامک واقعی سر و کله می‌کشد</td></tr>
+    <tr><td><b>فاز ۲ — رشد و محتوا</b><br><span class="muted">هفته ۵–۷</span></td><td>تجربه مخاطب + تأیید هفتگی، بلاگ + ادیتور، صدای هدیه (MediaRecorder ≤۹۰s → S3)، /g/[no] با OG، سبدهای رهاشده، محتوای ۱۲ محصول + ۸ پست اول + نقشه کلیدواژه اجرا</td><td>گردش محتوایی کامل بدون توسعه‌دهنده + Lighthouse SEO > ۹۰ روی پیش‌نمایش</td></tr>
+    <tr><td><b>فاز ۳ — دیپلوی و لانچ</b><br><span class="muted">هفته ۷–۸</span></td><td>Provisioning VPS (systemd/Caddy/CDN/S3/Litestream)، روت‌های واقعی + sitemap + JSON-LD، تست بار k6 (روی ماشین دیگر!)، پاک‌سازی داده دمو (۱۰۰۰/۱۰۴/۱۰۲ و نیلا)، badge اینماد، دامنه، drill بکاپ</td><td>چک‌لیست لانچ پایین کامل + p95&lt;۸۰۰ms در ۵۰ همزمانِ چک‌اوت</td></tr>
+  </table></div>
+  <h3>چک‌لیست لانچ تجاری</h3>
+  <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(240px,1fr))">
+    <div class="mini"><p>☐ دامنه ثبت + DNS</p><p>☐ عکس واقعی ۱۲ محصول</p></div>
+    <div class="mini"><p>☐ پاک‌سازی کامل داده دمو</p><p>☐ OTP واقعی کاوه‌نگار end-to-end</p></div>
+    <div class="mini"><p>☐ زرین‌پال sandbox→live</p><p>☐ تست بکاپ/بازگردانی انجام‌شده</p></div>
+    <div class="mini"><p>☐ ۳ صفحه قانونی منتشر</p><p>☐ badge اینماد در فوتر</p></div>
+    <div class="mini"><p>☐ sitemap + Search Console</p><p>☐ کلمات کلیدی ۱۲ صفحه تنظیم</p></div>
+    <div class="mini"><p>☐ آماده‌سازی پیک یلدا/ولنتاین</p><p>☐ Fathom Lite فعال</p></div>
+  </div>
+  <h3>تریگرهای مقیاس (فقط با داده، نه با هیجان)</h3>
+  <div class="tscroll"><table>
+    <tr><th>نشانه</th><th>اقدام (به‌ترتیب ارجحیت)</th></tr>
+    <tr><td>&gt;۵۰۰ سفارش/روز پایدار ۲+ هفته یا خطای BUSY پس از retry</td><td>۱) رزایز ۴GB ۲) مهاجرت PostgreSQL 16 (رانبوک آماده، ~۱ روز)</td></tr>
+    <tr><td>&gt;۱۰K بازدید/روز پایدار یا آخر هفته کمپین</td><td>رزایز ۴c/8G — ارزان‌ترین اهرم (~۱٫۵M/ماه)</td></tr>
+    <tr><td>واقعاً ۱۰K خریدار/روز (سناریوی رؤیایی اولیه)</td><td>چند-نود + Redis + pgBouncer + PG اختصاصی (~۸–۱۵M/ماه) — خارج از اسکوپ سال اول</td></tr>
+  </table></div>
+</section>
+
+<section class="card">
+  <h2><span class="no">۱۱</span> ۵ تصمیم که فقط خودت می‌توانی بدهی</h2>
+  <div class="tscroll"><table>
+    <tr><th>#</th><th>سؤال</th><th>پیشنهاد من (پیش‌فرض تا بگویی)</th></tr>
+    <tr><td>۱</td><td>قیمت سایز بزرگ (L) هر خانواده چقدر است؟</td><td>L = ۱٫۴ تا ۱٫۵ × قیمت S — قبل از سید دیتابیس لازم است</td></tr>
+    <tr><td>۲</td><td>دامنه pishnam.ir همین هفته ثبت می‌شود؟</td><td>همین امروز — ~۱۵۰K/سال؛ همه‌چیز پشت آن بلاک است</td></tr>
+    <tr><td>۳</td><td>وعده تأیید کارت‌به‌کارت به مشتری؟</td><td>«تا ۱۲ ساعت» نمایشی + هدف عملیاتی ۲ ساعت در ساعت کاری</td></tr>
+    <tr><td>۴</td><td>رسیدهای پرداخت برای مودیان چند وقت بمانند؟</td><td>۱۲ ماه در آروان + خروجی CSV برای حسابدار</td></tr>
+    <tr><td>۵</td><td>خبرنامه پیامکی داوطلبانه + ارسال ماهانه از پنل؟</td><td>بله — با چک‌باکس رضایت صریح در تسویه</td></tr>
+  </table></div>
+  <p class="muted">با جواب دادن به همین ۵ مورد در چت، فاز ۰ از همین امشب بدون معطلی ادامه می‌یابد — تا آن موقع پیش‌فرض‌ها معتبرند.</p>
+</section>
+
+<section class="card">
+  <h2><span class="no">۱۲</span> ریسک‌های اصلی و پادزهر</h2>
+  <div class="tscroll"><table>
+    <tr><th>ریسک</th><th>پادزهر قفل‌شده</th></tr>
+    <tr><td>سقف حافظه ۲ گیگ</td><td>بودجه دقیق + سقف سخت systemd + بیلد بیرون سرور + رزایز = اهرم اول</td></tr>
+    <tr><td>تک‌باکس بودن (SPOF)</td><td>Litestream RPO≤۵s → بازسازی ≤۲ ساعت + drill ماهانه</td></tr>
+    <tr><td>هزینه پیامک</td><td>قانون هزینه شفاف + سیاست ۲ پیامکی از ۱۵۰/روز + تک‌سگمنت</td></tr>
+    <tr><td>تسویه زرین‌پال / تایم‌اوت verify</td><td>reconcile ساعتی + دکمه بررسی مجدد + ثبت authority قبل از ریدایرکت</td></tr>
+    <tr><td>صف رسید دستی خوابیدن شما</td><td>SLA صادقانه ۱۲ ساعت + صف با «قدیمی‌ترین» + پیامک ادمین</td></tr>
+    <tr><td>پیک یلدا/ولنتاین</td><td>تست بار قبل از پیک + موجودی اتمیک + رزایز موقت</td></tr>
+    <tr><td>دامنه ثبت‌نشده</td><td>اقدام مالکی — همین هفته (سؤال ۲)</td></tr>
+    <tr><td>عکس واقعی محصول هنوز نیست</td><td>اسکلت با placeholder شیشه‌ای؛ محتوا آماده عکس می‌ماند (پاسخ شما: soon)</td></tr>
+  </table></div>
+</section>
+
+<section class="dl">
+  <h2>⬇️ خروجی نهایی معماری</h2>
+  <p>این فایل JSON تمام تصمیم‌های قفل‌شده، فازها، هزینه‌ها و تریگرهای مقیاس را به‌صورت ماشین‌خوان نگه می‌دارد — نگهش دار؛ هر جلسه توسعه بعدی با آن سینک می‌شود.</p>
+  <button class="btn" id="btnDl" onclick="dl()">📦 دانلود pishnam-architecture-decision.json</button>
+  <button class="btn ghost" id="btnCp" onclick="cp()">📋 کپی خلاصه به کلیپ‌بورد</button>
+  <p style="margin-top:14px"><a href="/pishnam-architecture.html" style="color:#9EE7E9;font-size:.85rem">← بازگشت به سند معماری + پرسش‌نامه (نسخه ۱)</a></p>
+  <p class="muted" style="color:#ffffff88;margin-top:10px">مسیر توسعه: از این لحظه هر ~۱۵ دقیقه یک دور خودکار توسعه/QA طبق همین پرسکریپت اجرا می‌شود — فاز ۰ از امنیت شروع می‌کند.</p>
+</section>
+
+<footer>پیشنام · پرسکریپت نهایی معماری · ساخته‌شده با ارکستراتور + ۴ معمار + ۱ نقاد · ۲۱ مهر ۱۴۰۵ · v1.0</footer>
+</div>
+
+<script id="decision-json" type="application/json">
+{
+  "schema": "pishnam-arch-decision/v1",
+  "project": "Pishnam (پیشنام) — plush gift shop",
+  "doc": "final-architecture-prescription",
+  "version": "1.0",
+  "generatedAtFa": "۲۱ مهر ۱۴۰۵",
+  "basis": {
+    "answers": "pishnam-arch-answers/v1 (46/46 — binding)",
+    "agents": ["13-d backend/commerce", "13-e database", "13-f seo/content", "13-g infra/ops", "13-h adversarial critic (10 must-fix applied)"]
+  },
+  "designPoint": {
+    "ordersPerDay": "500 sustained, 5x seasonal spike (Yalda/Valentine)",
+    "visitorsPerDay": "10k",
+    "notDesigningFor": "10k buyers/day — out of year-1 scope, scale-trigger only",
+    "box": "Iranian VPS 2 vCPU / 2GB RAM / 40GB disk (owned)"
+  },
+  "platformLock": {
+    "app": "Next.js 16 modular monolith (standalone), no microservices",
+    "db": "SQLite WAL (busy_timeout=5000, withWriteRetry 3x jittered) — PG only on trigger",
+    "pgTrigger": ">500 orders/day sustained 2+ weeks AND observed symptom; 4GB resize first",
+    "noRedis": true, "noDocker": true,
+    "sessions": "DB-backed Session table; cookies pn_session (30d) / pn_admin (8h)",
+    "analytics": "Fathom Lite (cookieless, ~15MB); Umami deferred to PG-day",
+    "jobs": "systemd timers -> /api/jobs/* with x-cron-secret; TZ=Asia/Tehran; backup 03:30, purge 04:00",
+    "media": "Arvan Object Storage private buckets + presigned PUT (receipts/voice/UGC/photos)",
+    "backup": "Litestream WAL streaming -> Arvan S3 (RPO<=5s, RTO<=2h) + nightly full 03:30 + monthly restore drill + bucket versioning"
+  },
+  "decisions": [
+    {"id":"D1","area":"معماری","decision":"مونولیت ماژولار Next.js روی یک VPS ایران"},
+    {"id":"D2","area":"دیتابیس لانچ","decision":"SQLite WAL + withWriteRetry — بدون PG روز اول"},
+    {"id":"D3","area":"تریگر PG","decision":">500 سفارش/روز پایدار + علامت مشاهده‌شده؛ اول رزایز ۴GB"},
+    {"id":"D4","area":"سشن","decision":"Session در DB؛ pn_session/pn_admin جدا"},
+    {"id":"D5","area":"اسکوپ داده P0","decision":"حذف bootSync کامل؛ /api/me/bootstrap؛ مهمان هیچ"},
+    {"id":"D6","area":"ادمین","decision":"AdminUser ۲ نفره owner|operator + OTP؛ حذف PIN 1398"},
+    {"id":"D7","area":"مدل سفارش","decision":"Order جدید، ۱۱ وضعیت forward-only، حروف کوچک؛ GiftOrder قبل لانچ پاک می‌شود"},
+    {"id":"D8","area":"کد سفارش","decision":"PN-YYMMDD-#### با شمارنده روزانه در تراکنش (ساعت تهران)"},
+    {"id":"D9","area":"idempotency","decision":"کلید یکتا + retry کلاینت + صفحه موفقیت تا ACK؛ fallback /track"},
+    {"id":"D10","area":"موجودی","decision":"کاهش اتمیک شرطی stock>=qty در تراکنش؛ 409 روی کمبود"},
+    {"id":"D11","area":"زرین‌پال","decision":"آداپتور با verify مبلغ DB + reconcile ساعتی + دکمه بررسی مجدد؛ ×10 فقط در آداپتور"},
+    {"id":"D12","area":"پرداخت دستی","decision":"کارت/شبا/نام از Setting؛ رسید ≤۵MB با magic-byte و SHA-256 dedupe؛ ۳ تلاش + reopen ادمین؛ SLA ۱۲h نمایشی/۲h عملیاتی"},
+    {"id":"D13","area":"مدیا","decision":"آروان S3 خصوصی + presigned PUT از روز اول"},
+    {"id":"D14","area":"پیامک","decision":"SmsOutbox + کاوه‌نگار، تک‌سگمنت، ۲ پیامک/سفارش از ~۱۵۰/روز"},
+    {"id":"D15","area":"OTP","decision":"۶ رقمی crypto، هش، attempts، IP؛ حذف devCode در prod"},
+    {"id":"D16","area":"rate limit","decision":"توکن‌باکت درون‌پردازشی؛ شامل gift_open 5/15min + قفل بعد ۱۰ تلاش"},
+    {"id":"D17","area":"کارها","decision":"systemd timers → /api/jobs/* با x-cron-secret؛ TZ تهران"},
+    {"id":"D18","area":"آمارگیر","decision":"Fathom Lite؛ Umami فقط در روز PG"},
+    {"id":"D19","area":"روت‌ها","decision":"موج ۰ ماژول‌های route-ready؛ روت واقعی + sitemap + JSON-LD در دیپلوی؛ # بدون 301"},
+    {"id":"D20","area":"محصول","decision":"۱۲ SKU (۶ خانواده × S/L)، اسلاگ لاتین ابدی، قیمت Int تومان، IRR×10 فقط در JSON-LD"},
+    {"id":"D21","area":"UGC/بلاگ","decision":"تجربه مخاطب با رضایت صریح + تأیید هفتگی؛ بلاگ DB + ادیتور مارک‌داون؛ ISR"},
+    {"id":"D22","area":"/g/[no]","decision":"noindex,follow + OG فارسی + argon2 + قفل ۱۰ تلاشی؛ خارج از robots.txt"}
+  ],
+  "orderStates": ["awaiting_payment","payment_under_review","paid","preparing","shipped","delivered","failed","cancelled","expired","refund_requested","refunded"],
+  "customerTrackSteps": ["ثبت شد","در انتظار پرداخت","آماده‌سازی","ارسال شد","تحویل شد"],
+  "phases": [
+    {"name":"فاز ۰ — امنیت + route-ready","weeks":"1","items":["Session DB + اسکوپ کوئری‌ها + حذف dump","حذف PIN 1398","OTP سخت + rate limits (با gift_open)","withWriteRetry + تست ۵۰ همزمان","استخراج ماژول‌های route-ready"],"accept":"curl ۵۰ همزمان = صفر BUSY؛ هیچ API بدون سشن داده کاربر نمی‌دهد"},
+    {"name":"فاز ۱ — هسته تجارت","weeks":"2-5","items":["اسکیمای جدید + سید ۱۲ SKU","چک‌اوت سرورمحور + idempotency","چرخه ۱۱ وضعیتی","دو مسیر پرداخت + صف رسید","موجودی اتمیک","SMS کاوه‌نگار واقعی","ادمین v2","صفحات قانونی"],"accept":"خرید E2E هر دو مسیر + ضد oversell + پیامک واقعی"},
+    {"name":"فاز ۲ — رشد و محتوا","weeks":"5-7","items":["تجربه مخاطب + moderation","بلاگ + ادیتور","صدای هدیه (فاز ۲)","/g/[no] OG","سبد رهاشده","محتوای ۱۲ محصول + ۸ پست"],"accept":"گردش محتوایی بدون توسعه‌دهنده + Lighthouse SEO>90"},
+    {"name":"فاز ۳ — دیپلوی و لانچ","weeks":"7-8","items":["VPS systemd/Caddy/CDN/S3/Litestream","روت‌های واقعی + sitemap","k6 روی ماشین دیگر","پاک‌سازی داده دمو","اینماد badge + دامنه","drill بکاپ"],"accept":"چک‌لیست لانچ کامل + p95<800ms در ۵۰ همزمان"}
+  ],
+  "costScenarios": [
+    {"scenario":"لانچ (۱۰-۵۰ سفارش/روز)","totalToman":"250k-950k","verdict":"ok"},
+    {"scenario":"میانه سال اول (۲۰۰/روز)","totalToman":"1.7M-1.9M (با سیاست ۲ پیامکی)","verdict":"tight-ok"},
+    {"scenario":"پیک سال اول (۵۰۰/روز)","totalToman":"~7M","verdict":"revisit — SMS dominates; trim policy + resize"}
+  ],
+  "scaleTriggers": [
+    {"when":">500 orders/day sustained 2+ weeks OR BUSY errors post-retry","do":"1) resize 4GB 2) PostgreSQL 16 runbook"},
+    {"when":">10k visits/day sustained or campaign weekend","do":"resize 4c/8G (first lever)"},
+    {"when":"truly 10k buyers/day","do":"multi-node + Redis + pgBouncer + dedicated PG (~8-15M/mo) — out of year-1 scope"}
+  ],
+  "launchChecklist": ["دامنه + DNS","عکس واقعی ۱۲ محصول","پاک‌سازی داده دمو","OTP واقعی end-to-end","زرین‌پال live","drill بکاپ","۳ صفحه قانونی","badge اینماد","sitemap + Search Console","آماده‌سازی پیک یلدا"],
+  "ownerDecisions": [
+    {"id":1,"q":"قیمت سایز L؟","default":"L = 1.4-1.5 × S"},
+    {"id":2,"q":"ثبت pishnam.ir همین هفته؟","default":"بله — همین امروز"},
+    {"id":3,"q":"وعده تأیید کارت‌به‌کارت؟","default":"۱۲ ساعت نمایشی / ۲ ساعت کاری عملیاتی"},
+    {"id":4,"q":"نگه‌داری رسیدها برای مودیان؟","default":"۱۲ ماه آروان + CSV حسابدار"},
+    {"id":5,"q":"خبرنامه پیامکی داوطلبانه؟","default":"بله با رضایت صریح در تسویه"}
+  ]
+}
+</script>
+<script>
+  function getData(){return JSON.parse(document.getElementById('decision-json').textContent);}
+  function dl(){
+    var b=new Blob([JSON.stringify(getData(),null,2)],{type:'application/json'});
+    var a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='pishnam-architecture-decision.json';
+    document.body.appendChild(a);a.click();a.remove();setTimeout(function(){URL.revokeObjectURL(a.href)},2000);
+    var t=document.getElementById('btnDl'),o=t.textContent;t.textContent='✓ دانلود شد';setTimeout(function(){t.textContent=o},1600);
+  }
+  function cp(){
+    var s='پیشنام — پرسکریپت نهایی معماری v1.0\n'+'تصمیم‌های قفل‌شده: '+getData().decisions.length+' | فازها: '+getData().phases.length+' | تریگر PG: >500 سفارش/روز پایدار\n'+'دیتابیس لانچ: SQLite WAL | مدیا: آروان S3 | آمارگیر: Fathom Lite\n'+'هزینه لانچ: ۲۵۰-۹۵۰ هزار تومان/ماه ✓ | تریگر بازبینی پیامک: ۱۵۰ سفارش/روز\n'+'۵ سؤال مالک: قیمت L، دامنه، SLA تأیید، نگه‌داری رسید، خبرنامه';
+    function done(){var t=document.getElementById('btnCp'),o=t.textContent;t.textContent='✓ کپی شد';setTimeout(function(){t.textContent=o},1600);}
+    if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(s).then(done).catch(function(){fallback()});}else{fallback();}
+    function fallback(){var ta=document.createElement('textarea');ta.value=s;document.body.appendChild(ta);ta.select();try{document.execCommand('copy');done();}catch(e){}ta.remove();}
+  }
+</script>
+</body>
+</html>

@@ -1,0 +1,127 @@
+{
+  "schema": "pishnam-arch-answers/v1",
+  "project": "Pishnam (پیشنام) — plush gift shop",
+  "doc": "architecture-decision-questionnaire",
+  "version": "v1",
+  "generatedAt": "2026-10-13T02:44:30.724Z",
+  "generatedAtFa": "۲۱ مهر ۱۴۰۵",
+  "progress": {
+    "answered": 46,
+    "total": 46,
+    "percent": 100
+  },
+  "sections": [
+    {
+      "id": "brand",
+      "title": "پایه و برند",
+      "questions": [
+        { "id": "domain", "question": "دامنه‌ی سایت چیست؟ ثبتش کرده‌ای؟", "type": "text", "recommendation": "پیشنام — pishnam.ir (در صورت آزاد بودن)", "answer": "هنوز نه" },
+        { "id": "langs", "question": "سایت به چه زبان(هایی) ارائه شود؟", "type": "single", "recommendation": "فقط فارسی", "answer": "fa" },
+        { "id": "photos", "question": "عکس واقعی محصول (عروسک‌ها و جعبه) داری؟", "type": "single", "recommendation": "به‌زودی می‌گیریم", "answer": "soon" },
+        { "id": "launch", "question": "لانچ تجاری (پرداخت واقعی) کی هدف است؟", "type": "single", "recommendation": "۲ تا ۳ ماه دیگر", "answer": "m23" },
+        { "id": "team", "question": "بعد از تحویل، نگه‌داری فنی با کیست؟", "type": "single", "recommendation": "خودم (غیرفنی)", "answer": "ai" }
+      ]
+    },
+    {
+      "id": "scale",
+      "title": "مقیاس واقع‌بینانه",
+      "questions": [
+        { "id": "orders_d1", "question": "روز اول لانچ واقعاً چند سفارش انتظار داری؟", "type": "single", "recommendation": "۱۰ تا ۵۰ سفارش", "answer": "10-50" },
+        { "id": "orders_y1", "question": "در بهترین حالتِ سال اول، چند سفارش در روز؟", "type": "single", "recommendation": "۵۰ تا ۲۰۰", "answer": "200-500" },
+        { "id": "visitors", "question": "بازدیدکننده‌ی روزانه در سال اول؟", "type": "single", "recommendation": "۲ تا ۱۰ هزار", "answer": "2k-10k" },
+        { "id": "spike", "question": "برنامه‌ی کمپین/پیک بازدید داری؟", "type": "multi", "recommendation": "یلدا / ولنتاین / تولد پرفروش", "answer": ["seasonal"] }
+      ]
+    },
+    {
+      "id": "infra",
+      "title": "زیرساخت و بودجه",
+      "questions": [
+        { "id": "hosting", "question": "میزبانی (هاست) را چطور می‌خواهی؟", "type": "single", "recommendation": "سرور مجازی داخل ایران (آروان/پارس‌پک/…)", "answer": "vps-ir" },
+        { "id": "specs", "question": "اگر سرور داری: مشخصاتش (CPU / RAM / دیسک)؟", "type": "text", "recommendation": "ندارم — پیشنهاد: ۲ هسته، ۴ گیگ RAM، SSD", "answer": "رم 2 و سی پی 2 با 40 گیگ فضا" },
+        { "id": "residency", "question": "داده‌ی مشتریان باید داخل ایران بماند؟", "type": "single", "recommendation": "بله، الزام دارم", "answer": "must" },
+        { "id": "budget", "question": "بودجه‌ی ماهانه‌ی زیرساخت (سرور + پیامک + دامنه)؟", "type": "single", "recommendation": "زیر ۲ میلیون تومان", "answer": "lt2m" }
+      ]
+    },
+    {
+      "id": "legal",
+      "title": "قانونی و اعتماد",
+      "questions": [
+        { "id": "enamad", "question": "وضعیت اینماد (نماد اعتماد الکترونیکی)؟", "type": "single", "recommendation": "ندارم — فرایندش را برایم باز کن", "answer": "have" },
+        { "id": "license", "question": "پروانه‌ی کسب (برای درگاه و اینماد)؟", "type": "single", "recommendation": "در حال پیگیری", "answer": "have" },
+        { "id": "moadian", "question": "ثبت‌نام سامانه‌ی مودیان (مالیات)؟", "type": "single", "recommendation": "بعداً انجام می‌دهم", "answer": "done" },
+        { "id": "legal_pages", "question": "کدام صفحات قانونی را لازم دارم بنویسم؟", "type": "multi", "recommendation": "حریم خصوصی + قوانین و مقررات + شرایط مرجوعی ۷ روزه", "answer": ["refund", "privacy", "terms"] },
+        { "id": "refund_gift", "question": "سیاست مرجوعی هدیه‌ی شخصی‌سازی‌شده؟", "type": "single", "recommendation": "طبق قانون: ۷ روز بدون قید", "answer": "damage" }
+      ]
+    },
+    {
+      "id": "pay",
+      "title": "پرداخت",
+      "questions": [
+        { "id": "psp", "question": "کدام درگاه پرداخت؟", "type": "multi", "recommendation": "زرین‌پال", "answer": ["zarinpal", "have"] },
+        { "id": "psp_owner", "question": "درگاه به نام چه کسی/شرکتی فعال می‌شود؟", "type": "text", "recommendation": "فعلاً ندارم — به نام خودم/برند پیشنام فعال می‌کنیم", "answer": "فعلا روی درگاه بله پی و پرداخت کارت به کارت که شماره کارت و شماره شبا و اسم رو نشون میده و طرف میتونه کپی کنه و بعد از پرداخت رسیدشو اپلود کنه تا ما در بخش مدیریت دستی تایید کنی." },
+        { "id": "cod", "question": "پرداخت در محل؟", "type": "single", "recommendation": "خیر — فقط آنلاین", "answer": "no" },
+        { "id": "coupons", "question": "کد تخفیف واقعی از فاز ۱ لازم است؟", "type": "single", "recommendation": "بعداً — فاز ۲", "answer": "later" }
+      ]
+    },
+    {
+      "id": "product",
+      "title": "محصول و انبار",
+      "questions": [
+        { "id": "stock", "question": "موجودی واقعی عروسک‌ها چطور مدیریت می‌شود؟", "type": "single", "recommendation": "شمارش دقیق انبار — وقتی تمام شد، تمام", "answer": "count" },
+        { "id": "variants", "question": "واریانت (سایز / رنگ) لازم است؟", "type": "single", "recommendation": "تکی و ساده — هر طرح یک محصول", "answer": "size" },
+        { "id": "personal", "question": "لایه‌های شخصی‌سازی هدیه کدام‌ها باشند؟", "type": "multi", "recommendation": "کارت چاپی با پیام مشتری", "answer": ["card", "voice"] },
+        { "id": "catalog", "question": "در لانچ چند محصول (تعداد SKU) می‌فروشی؟", "type": "text", "recommendation": "۶ خانواده × ۲ سایز = ۱۲ محصول", "answer": "6 خانواده 2 سایز" }
+      ]
+    },
+    {
+      "id": "ship",
+      "title": "ارسال",
+      "questions": [
+        { "id": "carrier", "question": "با کدام شرکت حمل کار می‌کنی؟", "type": "multi", "recommendation": "پست (پیشتاز/سفارشی)", "answer": ["post", "tipax", "mahex"] },
+        { "id": "ship_charge", "question": "هزینه‌ی ارسال از مشتری اخذ شود؟", "type": "single", "recommendation": "بله — از لانچ واقعی اخذ می‌شود", "answer": "yes" },
+        { "id": "free_thr", "question": "ارسال رایگان از چه مبلغی؟", "type": "single", "recommendation": "از ۷۰۰ هزار تومان", "answer": "never" },
+        { "id": "promise", "question": "زمان تحویل اعلامی به مشتری؟", "type": "single", "recommendation": "تهران ۱ روز / شهرستان ۲–۴ روز کاری", "answer": "2-4" }
+      ]
+    },
+    {
+      "id": "seo",
+      "title": "سئو و محتوا",
+      "questions": [
+        { "id": "seo_prio", "question": "سئو در استراتژی فروش چه جایگاهی دارد؟", "type": "single", "recommendation": "ستون اصلی رشد — سرمایه‌گذاری جدی", "answer": "core" },
+        { "id": "keywords", "question": "مشتری‌ها با چه عبارتی دنبال این هدیه می‌گردند؟", "type": "text", "recommendation": "خرید عروسک پولیشی، جعبه هدیه عروسک، هدیه تولد دوست، هدیه ولنتاین", "answer": "باید خودت تحقیق کنی برای بازار ایران و فعلا سراغ کلمات سنگینو پر رقابت نریم." },
+        { "id": "writer", "question": "چه کسی و چند بار در ماه محتوا می‌نویسد؟", "type": "single", "recommendation": "خودم — ۲ تا ۴ پست در ماه", "answer": "me" },
+        { "id": "seo_order", "question": "ترتیب ساخت سطوح محتوایی؟", "type": "single", "recommendation": "اول صفحات محصول + تجربه‌ی مخاطب، بعد بلاگ", "answer": "product-first" }
+      ]
+    },
+    {
+      "id": "ugc",
+      "title": "تجربه‌ی مخاطب (UGC)",
+      "questions": [
+        { "id": "ugc_form", "question": "ثبت تجربه چه‌جورلی باشد؟", "type": "single", "recommendation": "فرم عمومی + تأیید من قبل از انتشار", "answer": "public" },
+        { "id": "ugc_review", "question": "تأیید تجربه‌ها را خودت انجام می‌دهی؟", "type": "single", "recommendation": "بله، هفتگی و سریع", "answer": "weekly" },
+        { "id": "ugc_incentive", "question": "مشوقی برای ارسال تجربه؟", "type": "single", "recommendation": "بدون مشوق — فقط فرصت دیده‌شدن", "answer": "none" }
+      ]
+    },
+    {
+      "id": "auth",
+      "title": "حساب، ورود و پیامک",
+      "questions": [
+        { "id": "guest", "question": "خرید مهمان (بدون ثبت‌نام) مجاز باشد؟", "type": "single", "recommendation": "بله — با شماره موبایل، بدون رمز", "answer": "yes" },
+        { "id": "sms_panel", "question": "پنل پیامک و خط خدماتی؟", "type": "single", "recommendation": "کاوه‌نگار", "answer": "have" },
+        { "id": "sms_line", "question": "خط خدماتی پیامک داری؟", "type": "single", "recommendation": "در حال ثبت", "answer": "have" },
+        { "id": "sms_notify", "question": "کدام اعلان‌های پیامکی فعال شود؟", "type": "multi", "recommendation": "تأیید سفارش به فرستنده + کد رهگیری پس از ارسال + اعلان «سفارش جدید» به من", "answer": ["confirm", "admin", "tracking", "abandon"] }
+      ]
+    },
+    {
+      "id": "ops",
+      "title": "پشتیبانی، عملیات و رشد",
+      "questions": [
+        { "id": "support", "question": "کانال پشتیبانی مشتری؟", "type": "multi", "recommendation": "تلگرام", "answer": ["telegram", "whatsapp"] },
+        { "id": "admins", "question": "چند نفر به پنل ادمین دسترسی دارند؟", "type": "single", "recommendation": "فقط خودم", "answer": "two" },
+        { "id": "analytics", "question": "آمارگیر بازدید؟", "type": "single", "recommendation": "سلف‌هاست حریم‌محور (Umami/Matomo)", "answer": "selfhost" },
+        { "id": "kpi", "question": "معیار موفقیت (KPI) چیست؟", "type": "multi", "recommendation": "نرخ تبدیل بازدید → سفارش", "answer": ["nps", "conv"] },
+        { "id": "newsletter", "question": "خبرنامه؟", "type": "single", "recommendation": "پیامکی (مناسب ایران)", "answer": "sms" }
+      ]
+    }
+  ]
+}

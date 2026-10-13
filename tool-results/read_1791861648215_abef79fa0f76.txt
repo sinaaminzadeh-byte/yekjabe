@@ -1,0 +1,221 @@
+     1→     1→# 13-d — Pishnam FINAL Backend & Commerce Blueprint
+     2→     2→
+     3→     3→Task ID: 13-d · Agent: backend-architect · Status: RESEARCH/DESIGN (no code touched, no db:push, dev server untouched)
+     4→     4→Input constraints: owner's 46 answers (`docs/architecture-answers.json`, BINDING) + Task 13-a/13-b/13-c findings + critic's locked decision **"wave-0 route-ready modules now / real routes at deploy"**.
+     5→     5→
+     6→     6→**Binding envelope (from answers):** Iranian VPS already owned — 2 vCPU / 2 GB RAM / 40 GB disk · data residency **must** stay in Iran · budget < 2M toman/month · launch in 2–3 months · year-1 target 200–500 orders/day, 2k–10k visitors/day, seasonal spikes (Yalda/Valentine) · اینماد ✔ · کسب ✔ · مودیان ✔ · payments = Zarinpal (owned) **and** today's reality: بله‌پی + card-to-card (customer copies card/sheba/name, uploads receipt image, admin approves manually) · no COD · coupons later · exact-count inventory · size-only variants · 6 families × 2 sizes = **12 SKUs** · personalization = printed card + voice note · carriers = post/tipax/mahex · shipping charged, **never** free · guest checkout (mobile, no password) · Kavenegar + service line (owned) · 2 admins · self-hosted analytics · KPI = conversion + NPS · refund policy = **damage-only** for personalized gifts.
+     7→     7→
+     8→     8→**Locked platform choices (do not re-open):** modular monolith inside Next.js App Router · SQLite (WAL) on the single VPS for launch · NO Redis, NO queue servers, NO microservices · boring, well-trodden patterns only (owner is non-technical; the codebase is AI-maintained). Everything below is module-first in `src/lib/*` + API routes — API routes are same-origin under `/`, so they are buildable/testable in-sandbox (curl); only SEO route pages wait for the deploy wave.
+     9→     9→
+    10→    10→**PostgreSQL migration trigger (inherited from critic, kept as a written tripwire):** SQLite+WAL is sized for launch. Migrate to PostgreSQL only when (a) sustained > ~300 orders/day for 2+ weeks, or (b) a second app instance is needed. Schema below stays portable (no SQLite-only hacks) so the move is mechanical with Prisma. — *Rejected now:* PostgreSQL at launch (critic: DB choice follows hosting; 2 GB VPS is better spent on one Node process than a PG instance).
+    11→    11→
+    12→    12→**SQLite runtime hardening (P0, one-time):** `db.ts` must set `journal_mode=WAL`, `busy_timeout=5000`, `foreign_keys=ON` on first connect; single Prisma client (already a singleton); drop query logging in production. — *Rejected:* connection pooling libs (one process, one writer — nothing to pool).
+    13→    13→
+    14→    14→**Schema management:** switch from `db:push --accept-data-loss` to `prisma migrate dev/deploy` before real orders exist. — *Rejected:* keeping db:push (it is a data-loss footgun with real customer rows).
+    15→    15→
+    16→    16→---
+    17→    17→
+    18→    18→## 1. Order State Machine (full)
+    19→    19→
+    20→    20→Single source of truth: `src/lib/order-status.ts` — transition map + Persian labels + allowed-actor check. Server is the ONLY writer of `status` (customer changes go through dedicated endpoints that validate the transition; the current `PATCH /api/orders/[id]` accepting any status in any direction is killed in §4).
+    21→    21→
+    22→    22→`DRAFT` is **client-only** (the existing builder draft in localStorage/Zustand). It is never persisted server-side. — *Rationale:* zero DB writes for browsing/abandoning visitors; at 12 SKUs a server-side cart buys nothing. — *Rejected:* DB-backed carts + cart-expiry jobs (complexity with no benefit; abandonment is detected on real `AWAITING_PAYMENT` rows, see §6/§7).
+    23→    23→
+    24→    24→| State | Meaning (fa) | Allowed transitions → | Actor | SMS on entry |
+    25→    25→|---|---|---|---|---|
+    26→    26→| `DRAFT` | سبد/ساخت هدیه (client-only, not in DB) | `AWAITING_PAYMENT` (checkout POST) | customer | — |
+    27→    27→| `AWAITING_PAYMENT` | در انتظار پرداخت (stock already decremented) | `PAID` · `PAYMENT_UNDER_REVIEW` · `FAILED` · `CANCELLED` · `EXPIRED` | psp / customer / system | none at entry; **abandon reminder at ~6h once** (job, §7) |
+    28→    28→| `PAID` | پرداخت تأیید شد (Zarinpal verify OK, or manual approve) | `PREPARING` · `CANCELLED` (OWNER, exceptional) | psp / admin | `order_confirm` → sender (baseline; scale-policy may skip for Zarinpal, §6) · `admin_new_order` → admin (→ Telegram at scale) |
+    29→    29→| `PAYMENT_UNDER_REVIEW` | رسید آپلود شده، منتظر تأیید ادمین | `PREPARING` (approve) · `AWAITING_PAYMENT` (reject, attempt < 3) · `CANCELLED` (reject, attempt = 3, auto-flag) | admin / system | approve → `payment_approved`; reject → `payment_rejected` |
+    30→    30→| `FAILED` | پرداخت ناموفق (Zarinpal verify negative / cancel at gateway) | `AWAITING_PAYMENT` (customer retry, new attempt) · `EXPIRED` (24h job) | customer / system | none (customer is already on the failure screen) |
+    31→    31→| `CANCELLED` | لغو شد (terminal) — stock released | — (terminal) | customer / admin | only for admin-initiated cancel: `order_cancelled` |
+    32→    32→| `EXPIRED` | ۲۴ ساعت بی‌پرداخت (terminal) — stock released | — (terminal) | system | none (silent; avoids nagging) |
+    33→    33→| `PREPARING` | در حال آماده‌سازی (maps today's "packing") | `SHIPPED` · `CANCELLED` (OWNER) | admin | none |
+    34→    34→| `SHIPPED` | پست شد | `DELIVERED` · `REFUND_REQUESTED` | admin | `shipped_tracking` → sender (carrier + tracking code) |
+    35→    35→| `DELIVERED` | تحویل شد | `REFUND_REQUESTED` (≤ 7 days, damage evidence) | admin | none (optional NPS ping later) |
+    36→    36→| `REFUND_REQUESTED` | درخواست مرجوعی (damage-only) | `REFUNDED` (approve) · `DELIVERED` (reject → restore) | customer / admin | ack to admin (`refund_new` → admin queue) |
+    37→    37→| `REFUNDED` | بازپرداخت شد (terminal) | — (terminal) | admin | `refund_outcome` → customer |
+    38→    38→
+    39→    39→Rules enforced in `order-status.ts`: **forward-only** for fulfilment (`PREPARING→SHIPPED→DELIVERED`), every transition validated server-side, invalid → `409`; stock is released (increment back) exactly on `CANCELLED` and `EXPIRED`. `opened` (gift-opened by recipient) stays a boolean flag, not a state. Status history is appended to an `OrderEvent` log (who/when/from/to) — replaces the "no audit" gap 13-a found. — *Rejected:* collapsing `EXPIRED` into `CANCELLED(reason=expired)` (explicit state keeps the admin queue and analytics honest); *rejected:* letting the customer PATCH status at all.
+    40→    40→
+    41→    41→## 2. Checkout API — server-authoritative
+    42→    42→
+    43→    43→One endpoint creates the order; nothing about money is trusted from the client. Today the total is computed in **4 places** (`flow.tsx` ×2, `pay-modal.tsx`, `store.placeOrder`) and POSTed as-is; shipping is displayed but never charged. All of that dies.
+    44→    44→
+    45→    45→**`POST /api/checkout`** (auth: session cookie if logged in, else guest; rate-limit §5):
+    46→    46→
+    47→    47→```jsonc
+    48→    48→{
+    49→    49→  "idempotencyKey": "uuid-v4 (generated once, persisted in localStorage pendingOrder)",
+    50→    50→  "items": [{ "variantId": "bear-lg", "qty": 1 }],        // 12 SKUs; qty small int
+    51→    51→  "addons": { "charmHearts": 0, "charmPaws": 2 },          // prices from Setting
+    52→    52→  "sender":   { "name": "...", "phone": "09xxxxxxxxx" },   // guest checkout = identity anchor
+    53→    53→  "recipient": { "name", "phone", "province", "city", "address", "postalCode" },
+    54→    54→  "occasion": "birthday|valentine|yalda|...",
+    55→    55→  "cardMessage": "...", "anonymous": false,
+    56→    56→  "paymentMethod": "zarinpal" | "manual"
+    57→    57→}
+    58→    58→```
+    59→    59→
+    60→    60→Server-side decisions, each with rationale:
+    61→    61→
+    62→    62→1. **Server-authoritative pricing.** Server loads `ProductVariant.priceToman` + box/charm prices from `Setting`, computes `shippingFee` from `Setting` (`ship_fee_tehran` / `ship_fee_other`, province-based; **never free** — answer `free_thr: never`), returns `total`. Client MUST render the returned total and pay exactly it. — *Rationale:* kills the ×4 client-total and the fake client-side coupon in one move. — *Rejected:* sending prices from client and "verifying" them (race-prone, still trusts client); *rejected:* coupon engine now (answer: later — but the totals response already carries `discount: 0` so a coupon row slots in later without contract change).
+    63→    63→2. **Idempotency.** `Order.idempotencyKey @unique`. Same key retried → returns the **same** order (`200`, not a second row). Client keeps `pendingOrder = { key, code, total }` in localStorage and retries the same key on reconnect; the success screen **blocks on server ACK** (polls `GET /api/checkout/{key}/status` until it returns the order state, max ~2 min, then falls back to SMS confirmation). — *Rationale:* critic's decision — a key alone is inert; it pays off only with client retry + ACK-blocking success. — *Rejected:* separate IdempotencyKey/replay-cache table (a unique column gives the same guarantee with one table); *rejected:* Redis-based idempotency middleware (no Redis).
+    64→    64→3. **Server order code.** `PN-YYMMDD-####` (e.g. `PN-260214-0007`), `####` from an `OrderSeq` counter row incremented inside the same transaction; `code @unique` makes the retry path safe. Human-readable, dictatable over the phone, fits SMS. — *Rejected:* keeping client-generated `no` (13-a proved the `@unique` race silently drops orders at concurrency); *rejected:* cuid/UUID as customer-facing code (unspeakable in Persian phone support).
+    65→    65→4. **Atomic stock decrement (oversell-proof on SQLite).** Inside `prisma.$transaction`: `db.productVariant.updateMany({ where: { id, stock: { gte: qty } }, data: { stock: { decrement: qty } } })`; if `count === 0` → abort → `409 { error: "sold_out" }`. A single conditional `UPDATE … WHERE stock >= qty` is atomic under SQLite's single-writer WAL — no reservation table needed. Release on `CANCELLED`/`EXPIRED` (increment back). — *Rejected:* Reservation/Hold table with TTL sweeps (12 SKUs don't justify it); *rejected:* `SELECT`-then-`UPDATE` (classic oversell race).
+    66→    66→5. **Guest checkout fields & validation.** Sender mobile `09xxxxxxxxx` (Persian digits normalized via one shared `normPhone` module — today it's duplicated ×3) is the identity anchor; postal code 10 digits; province from a fixed 31-province list; address ≤ 400 chars; `anonymous` hides sender name from the gift. No password, ever. — *Rationale:* matches answer `guest: yes` + Kavenegar contactability.
+    67→    67→6. **Voice note & printed card.** Card message is a checkout field; the voice note is uploaded **after** order creation to `POST /api/orders/{code}/voice` (multipart, ≤ 2 MB, `audio/webm|mp4|m4a` mime-sniffed) — keeps checkout JSON-only and lets slow uploads fail without losing the order.
+    68→    68→7. **What replaces `bootSync()`:** see §4 — checkout responds with `{ order: { code, status, total }, payment: {...} }` and nothing else needs the global dump.
+    69→    69→
+    70→    70→**Success/ACK contract:** Zarinpal redirect-back lands on the success screen with `?code=`; screen polls `GET /api/checkout/{key}/status` (authorized by key possession; returns only `{code, status, total}` — no PII) until `PAID | PAYMENT_UNDER_REVIEW | FAILED`. Manual flow lands on a "transfer instructions + upload receipt" screen (§3).
+    71→    71→
+    72→    72→## 3. PaymentProvider adapter
+    73→    73→
+    74→    74→```ts
+    75→    75→// src/lib/payments/types.ts
+    76→    76→interface PaymentProvider {
+    77→    77→  id: "zarinpal" | "manual";
+    78→    78→  createPayment(order: OrderRO): Promise<
+    79→    79→    | { kind: "redirect"; url: string }                 // Zarinpal gateway
+    80→    80→    | { kind: "instructions"; cardNumber: string; sheba: string; holderName: string;
+    81→    81→        amountToman: number; orderCode: string }>;      // manual/balle-pi
+    82→    82→  verify(order: OrderRO, payload: CallbackPayload): Promise<
+    83→    83→    { ok: true; providerRef: string } | { ok: false; reason: string }>;
+    84→    84→}
+    85→    85→```
+    86→    86→
+    87→    87→**ZarinpalImpl** — `request` → redirect → `GET /api/payment/zarinpal/callback?Authority&Status` → `verify` → mark `PAID`.
+    88→    88→- **Amount checked against DB**: verify uses `order.total` from our DB (never the amount Zarinpal echoes back), and the callback recomputes nothing. Amount mismatch → log + `FAILED` + admin alert.
+    89→    89→- **Idempotent callback**: if order already `PAID`, return `200` immediately (Zarinpal retries callbacks; back-button double-fires). Verify-before-mutate inside a transaction with `status: "AWAITING_PAYMENT"` guard in the `updateMany` where-clause.
+    90→    90→- **⚠ ×10 UNIT TRAP (implementation gotcha, pre-flagged):** Zarinpal v4 expects **Rial**; we store **Toman**. Convert `×10` at request and verify, covered by one sandbox-merchant self-test before deploy. — *Rejected:* storing Rial in DB (all owner-facing numbers are Toman; double-conversion bugs forever).
+    91→    91→- *Rejected:* supporting multiple PSPs behind feature flags now (owner has exactly one gateway; the interface is the seam for later).
+    92→    92→
+    93→    93→**ManualTransferImpl** (covers بله‌پی + card-to-card — today بله‌پی is literally a page showing card/sheba/name to copy, so both are the same flow):
+    94→    94→- Instructions rendered from `Setting` (`manual_card_number`, `manual_sheba`, `manual_holder_name`) with **copy buttons**; amount + order code always shown together.
+    95→    95→- **Receipt upload** `POST /api/payment/manual/receipt` (multipart): ≤ **5 MB**; **MIME sniffed from magic bytes** (`FF D8 FF` jpeg, `89 50 4E 47` png, `RIFF…WEBP`), not the extension; stored under `/data/uploads/receipts/` with a random filename, **outside `public/`**, served only via authenticated admin endpoint; **one receipt per attempt**, **max 3 attempts** per order (attempt counter on the order); each attempt → `PAYMENT_UNDER_REVIEW`; after the 3rd rejection the order auto-flags `CANCELLED(reason=payment_rejected)` + SMS. — *Rationale:* matches the owner's described manual reality exactly; capped attempts stop infinite-retry abuse. — *Rejected:* OCR/auto verification (over-engineering); *rejected:* storing receipts in `public/` (anyone with the URL reads PII).
+    96→    96→- **Admin approve/reject**: `POST /api/admin/receipts/{id}/approve|reject` → transition + SMS to customer (§1). Queue shows **age of oldest pending receipt** so the 12h SLA is visible at a glance.
+    97→    97→- **Fraud mitigations (manual flow):** (a) UI + SMS reminder to transfer the **exact amount** with the **order code / sender name** in the transfer description; (b) **receipt dedupe by SHA-256 hash** — the same image reused across orders/attempts is rejected (catches lazy fraud and honest double-uploads); (c) admin sees order total, holder-name expectation, and receipt side-by-side; (d) **SLA note** shown to the customer («تأیید پرداخت حداکثر تا ۱۲ ساعت») + queue visible in admin; (e) rate-limit uploads (§5).
+    98→    98→- *Rejected:* a "pending_bank_transfer" third provider (بله‌پی IS the manual flow today; if بله‌پی later exposes an API, it becomes a third `PaymentProvider` behind the same interface).
+    99→    99→
+   100→   100→## 4. P0 SECURITY FIX SPEC (highest priority, pre-scoped for the next dev rounds)
+   101→   101→
+   102→   102→1. **httpOnly session cookie on OTP verify.** `POST /api/auth/verify` creates `Session { id: random 32-byte base64url, phone, expiresAt: +30d, lastSeenAt }` and sets `Set-Cookie: pn_session=<id>; HttpOnly; SameSite=Lax; Path=/; Secure` (Secure enforced at deploy behind HTTPS). Helper `requireSession(req): { phone } | null` in `src/lib/auth.ts`. Client keeps the display name only; **phone in localStorage is no longer trusted**. — *Rationale:* today every endpoint trusts body/query `phone` → full IDOR (13-a P0). — *Rejected:* JWT (stateless logout/rotation pain for zero benefit with 1 instance); *rejected:* next-auth (heavy, OAuth-shaped, we need OTP-only — 30 lines of boring session code).
+   103→   103→2. **All order/favorite/review queries scoped by session phone.** `GET /api/orders` → `WHERE userPhone = session.phone` — the `?phone=` query param is **deleted** (it was the whole leak). `PUT /api/favorites` and `POST /api/reviews` take identity from the session. `PATCH /api/orders/[id]`: customers may only set `opened: true` on their own order (or open the gift via code+password on the gift-open surface); **all other status writes are admin-only**. — *Rationale:* 13-a P0 privacy: today `GET /api/orders` returns up to 200 full orders — message, recipient address/phone, card password — and `bootSync()` pulls it **for every visitor on every page load**.
+   104→   104→3. **Kill the full-dump bootSync → per-phone endpoints.** New `GET /api/me/bootstrap` (one call, session-scoped): `{ user, orders (≤ 50, newest-first), favorites }`. Guests get `{ user: null, orders: [], favorites: [] }` — **zero order rows to anonymous visitors**. `pishnam-sync.bootSync()` becomes a single fetch of this endpoint; the global `pullOrders()` + `mergeRemote()` full-dump path is deleted. The public "board" features that read all gifts must switch to a sanitized projection (`GET /api/gifts/public` — code, plush kind, hearts/paws counts only, no phone/address/message/password). — *Rationale:* P0 PII/IDOR; also removes ~200-row JSON from every cold page load.
+   105→   105→4. **Admin session + roles.** `AdminUser { phone @unique, role: OWNER | OPERATOR, active }` — exactly **2** rows, seeded from env. Admin login = same OTP flow to an **allowlisted phone** (kill the hardcoded `ADMIN_PIN = "1398"` client gate). Separate cookie `pn_admin` + `requireAdmin(req)` guard on every `/api/admin/*` route; destructive actions (settings, stock adjust, refunds, CSV export, admin management) require `OWNER`; day-to-day (transitions, receipt review, moderation, posts) allowed for `OPERATOR`. Every admin mutation writes `AdminLog { adminPhone, action, targetId, meta, at }`. — *Rationale:* 2 admins (answer), accountability for an AI-maintained shop.
+   106→   106→5. **Data hygiene.** `AuthCode` rows deleted on use + nightly purge job; sessions checked for expiry per request; no PII in logs (`db.ts` query logging off in prod); gift-open page requires order `code` + card `password` (already the design's pattern — keep it as the public surface's only per-gift secret).
+   107→   107→
+   108→   108→## 5. OTP Hardening + In-Process Rate Limiting (NO Redis)
+   109→   109→
+   110→   110→**`src/lib/rate-limit.ts`** — in-process token buckets keyed `scope:id`, `Map` with lazy expiry; returns `429` + `Retry-After`. Config table (one place):
+   111→   111→
+   112→   112→| Scope | Limit | Why |
+   113→   113→|---|---|---|
+   114→   114→| `otp_request:phone` | 3/hour **+ 60 s cooldown between requests** | SMS cost burn + harassment |
+   115→   115→| `otp_request:ip` | 10/day | distributed abuse |
+   116→   116→| `otp_verify:phone` | 5 per code / 15 min | brute force (4-digit code = 10k space) |
+   117→   117→| `checkout:ip` | 5/10 min | checkout spam / stock pinning |
+   118→   118→| `review:phone|ip` | 2/hour | UGC spam (13-a: reviews publish instantly) |
+   119→   119→| `receipt:order` | 6/hour | upload abuse |
+   120→   120→| `contact:ip` | 3/hour | form spam |
+   121→   121→
+   122→   122→**OTP hardening:** 6-digit `crypto.randomInt` (was `Math.random` 4-digit), TTL 5 min, single-use, **stored hashed** (sha256 + app pepper), per-code attempt counter (≥ 5 wrong tries voids it), `devCode` in the API response **only** when `NODE_ENV=development && SMS_DEV_ECHO=1` (real Kavenegar send otherwise), Persian-digit normalization centralized. — *Rationale:* 13-a P0 — codes were brute-forceable inside the 5-min TTL with zero throttling. — *Rejected:* Redis-backed limiter (constraint + one instance); *rejected:* DB-backed counters (write amplification on SQLite's single writer + cleanup jobs).
+   123→   123→
+   124→   124→**Restart behavior (documented, accepted):** buckets live in process memory → a deploy/restart resets limits. Worst case is one extra burst per deploy on a single instance — acceptable; the SMS-burn scopes are additionally bounded by the DB-side counters above. If the app ever scales to 2 instances (migration trigger §0), rate limiting moves to the DB or the migration to PG+shared store happens first — noted in the tripwire.
+   125→   125→
+   126→   126→## 6. SMS Architecture (queue + provider seam + COST ALARM)
+   127→   127→
+   128→   128→**`SmsOutbox`** table: `{ id, to, template, paramsJson, status: queued|sent|failed|dead, attempts, lastError, scheduledAt, sentAt, orderId?, createdAt }`. Every notification is **enqueued in the same Prisma transaction** as the state change it belongs to (no lost notifications on crash-after-commit). A tiny flush job (§7) sends queued rows and retries failures with backoff **1m → 5m → 30m, ×3**, then marks `dead`; dead letters visible in admin.
+   129→   129→
+   130→   130→**Provider seam:** `interface SmsProvider { send(to, text, opts?): Promise<{ ref }> }` + `KavenegarImpl` (plain `fetch` against Kavenegar REST from the owned service line). — *Rejected:* official SDK dependency (one more dep for one HTTP call); *rejected:* sending inline from route handlers (no retry, no audit, couples HTTP latency to Kavenegar).
+   131→   131→
+   132→   132→**Template registry** (`src/lib/sms-templates.ts`, Persian, `{placeholders}`):
+   133→   133→
+   134→   134→| Template | Recipient | Persian text (keep ≤ 1 segment ≈ 70 chars) |
+   135→   135→|---|---|---|
+   136→   136→| `otp` | customer | «کد ورود پیشنام: {code} — تا ۵ دقیقه اعتبار دارد.» |
+   137→   137→| `order_confirm` | sender | «{name} عزیز، سفارش {code} ثبت شد ♥ پیگیری: pishnam.ir/track» |
+   138→   138→| `admin_new_order` | owner | «سفارش جدید {code} — {total} تومان — {method}» |
+   139→   139→| `payment_approved` | sender | «پرداخت سفارش {code} تأیید شد ✓ به‌زودی آماده و ارسال می‌شه.» |
+   140→   140→| `payment_rejected` | sender | «رسید سفارش {code} تأیید نشد ({reason}). تا ۳ بار می‌تونی رسید جدید بفرستی.» |
+   141→   141→| `shipped_tracking` | sender | «سفارش {code} با {carrier} ارسال شد 📦 کد رهگیری: {tracking}» |
+   142→   142→| `abandon_cart` | sender | «هدیه‌ت هنوز آماده‌ست ♥ {code}: pishnam.ir/track» — **once, at ~6h** |
+   143→   143→| `low_stock` | owner | «موجودی {variant} فقط {n} عدد مونده» (threshold from Setting, ≤ 3) |
+   144→   144→| `refund_outcome` | sender | «درخواست مرجوعی {code}: {outcome}» |
+   145→   145→
+   146→   146→> ### 🚨 SMS COST ALARM — the budget does not close at year-1 target volume
+   147→   147→> 500 orders/day × ~3.5 SMS/order × ~120–130 toman ≈ **6–6.5M toman/month** — **3× over** the 2M budget. Even at 250/day it's ~3.3M. Prescribed policy:
+   148→   148→> 1. **Every template is 1 segment** (hard rule in `sms-templates.ts`; a unit test asserts ≤ 70 chars).
+   149→   149→> 2. **Documented trim to 2 SMS/order at scale**: when sustained orders pass **~150/day** (a `Setting` flag), (a) drop `order_confirm` for Zarinpal-paid orders (the redirect-back success screen IS the confirmation; keep it only for manual payments where a wake-up is genuinely needed), (b) route `admin_new_order`/`low_stock`/`refund_new` to a **free Telegram bot** instead of SMS (owner already uses Telegram/WhatsApp for support). Result: ~1.3 SMS/order (mostly `shipped_tracking` + payment outcomes) → 500/day × 1.3 × 125 ≈ **0.8M/month — inside budget**.
+   150→   150→> 3. Seasonal peaks are weeks, not months — the Yalda/Valentine overage is a conscious, owner-approved exception, not a permanent leak.
+   151→   151→> — *Rejected:* SMS batching/aggregator haggling now (Kavenegar service line is owned; renegotiate only if the 2-SMS policy still breaks budget).
+   152→   152→
+   153→   153→## 7. Background Jobs — systemd timers → signed internal endpoints
+   154→   154→
+   155→   155→**No in-process cron** (`node-cron`/`setInterval` dies with deploys and double-runs under dev hot-reload). One `POST /api/jobs/{name}` route family, each guarded by constant-time compare of the `x-cron-secret` header against env `CRON_SECRET`; timers live in systemd on the VPS (`OnCalendar`), each just `curl -sS -X POST -H "x-cron-secret: …" http://127.0.0.1:3000/api/jobs/{name}`. Every run appends a row to `JobRun { name, startedAt, finishedAt, ok, detail }` — cheap audit the AI can read when debugging. All jobs are **idempotent** (safe to double-fire).
+   156→   156→
+   157→   157→| Timer | Job | Action |
+   158→   158→|---|---|---|
+   159→   159→| every 10 min | `expire-unpaid` | `AWAITING_PAYMENT` (and `FAILED`) older than **24h** → `EXPIRED`, **stock released** |
+   160→   160→| every 2 min | `sms-flush` | send queued `SmsOutbox` rows, backoff ×3 (§6) |
+   161→   161→| hourly | `abandon-cart` | `AWAITING_PAYMENT` age > **6h** and `smsAbandonedAt IS NULL` → enqueue `abandon_cart` **once** (set flag) — no extra table needed |
+   162→   162→| hourly | `low-stock` | variants with `stock ≤ Setting.low_stock_threshold` → enqueue `low_stock` to admin (once per crossing) |
+   163→   163→| daily 04:30 | `backup` | **pre-hook pattern**: `sqlite3 db.custom "…/.backup …"` + tar `/data/uploads` → `/data/backups/`, prune > 14 days |
+   164→   164→| daily 05:00 | `purge` | stale `AuthCode`, expired `Session`, old `JobRun` |
+   165→   165→
+   166→   166→— *Rationale:* single-instance boring infra, survives deploys, visible in `systemctl list-timers`. — *Rejected:* in-process scheduler (dies with the app); *rejected:* a separate worker service + queue (constraint: one app, one VPS); *rejected:* GitHub Actions cron (data residency must stay in Iran).
+   167→   167→
+   168→   168→## 8. Admin API Surface (2 users: OWNER / OPERATOR)
+   169→   169→
+   170→   170→All under `/api/admin/*`, guarded by `requireAdmin` (§4), mutations logged to `AdminLog`. The client-side PIN gate (`1398` hardcoded, hint shown in UI) is deleted.
+   171→   171→
+   172→   172→| Endpoint | Roles | Purpose |
+   173→   173→|---|---|---|
+   174→   174→| `GET /api/admin/orders?status&q&page` | both | list/filter/search (code, phones, names, plush), paginated — replaces the current read-only admin that fetches the unscoped dump |
+   175→   175→| `POST /api/admin/orders/{id}/transition {to, note?}` | both | state-machine-validated transitions only (§1) |
+   176→   176→| `POST /api/admin/orders/{id}/shipping {carrier, trackingCode}` | both | → `SHIPPED` + `shipped_tracking` SMS |
+   177→   177→| `GET /api/admin/receipts?status=under_review` / `POST …/{id}/approve|reject` | both | manual-payment review queue with age badges (12h SLA visible) |
+   178→   178→| `GET /api/admin/stock` · `POST /api/admin/stock/adjust {variantId, delta, reason}` | OWNER | exact-count inventory; writes `StockMove` audit row (receive/damage/correction) |
+   179→   179→| `GET /api/admin/experiences?status=pending` · `POST …/{id}/approve|hide` | both | UGC moderation (13-a: currently zero moderation) |
+   180→   180→| `/api/admin/posts` CRUD | both | DB-backed blog (Post model already scaffolded; published flag) |
+   181→   181→| `GET /api/admin/settings` · `PUT /api/admin/settings` | OWNER | typed key allowlist: ship fees, manual card/sheba/holder, low-stock threshold, SMS trim policy, announcement |
+   182→   182→| `GET /api/admin/export/orders.csv?from&to` | OWNER | streamed CSV (PII inside — OWNER-only, logged) |
+   183→   183→| `GET /api/admin/logs` · `GET /api/admin/jobs` | both | AdminLog + JobRun visibility |
+   184→   184→
+   185→   185→## 9. Refund Flow (damage-only per owner's answer)
+   186→   186→
+   187→   187→Policy: personalized gifts are legally exempt from the blanket 7-day return; owner chose **damage-only**. The legal pages still publish the 7-day policy with the customized-goods exception stated (answer `legal_pages: refund`).
+   188→   188→
+   189→   189→1. Customer opens `/track` (order `code` + their phone as proof) → `POST /api/refund-request {code, phone, reason, damagePhotos[] (≤3, same validation as receipts)}` — only valid while status ∈ {`SHIPPED`, `DELIVERED`} and ≤ 7 days after delivery; sets `REFUND_REQUESTED`.
+   190→   190→2. Admin sees it in the queue with photos + order history → `approve` → admin performs the refund **manually** (card-to-card transfer) and marks `REFUNDED` with the transfer reference in the note → `refund_outcome` SMS. `reject` → state restored to `DELIVERED` + SMS with reason.
+   191→   191→3. No PSP refund API at launch (Zarinpal refunds are possible but manual transfer is the boring, owner-controlled path; can be added as a `verify`-style provider method later).
+   192→   192→— *Rejected:* auto-approval flows / self-service refunds (fraud surface on a gift shop with photos as sole evidence).
+   193→   193→
+   194→   194→## 10. Security Checklist (deploy gate)
+   195→   195→
+   196→   196→- **Uploads:** size cap ≤ 5 MB, **magic-byte MIME sniff** (never trust extension/Content-Type), random filenames, stored outside `public/`, served only through authenticated endpoints, rate-limited, images never executed/served inline (`Content-Disposition: attachment`, `X-Content-Type-Options: nosniff`).
+   197→   197→- **Secrets inventory** (`.env`, git-ignored; documented in `docs/secrets.md` + deploy runbook for AI maintenance): `DATABASE_URL`, `SESSION_SECRET` (pepper for OTP hashes + admin cookie HMAC), `CRON_SECRET`, `KAVENEGAR_API_KEY` (+ sender line), `ZARINPAL_MERCHANT` (sandbox/prod), `SMS_DEV_ECHO`, `ADMIN_SEED_PHONES`, `UPLOAD_DIR`. No secret in code or logs; admin PIN "1398" **deleted**.
+   198→   198→- **Headers** (static via `next.config headers()`): `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`, `Permissions-Policy: camera=(), microphone=(), geolocation=()`, `Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline'; img-src 'self' data:; style-src 'self' 'unsafe-inline'` — pragmatic CSP at launch (Next inline bootstrap), tighten to nonces post-launch. `HSTS` + TLS terminated at Caddy/nginx on the VPS with Let's Encrypt (domain pishnam.ir when registered — answer: not yet).
+   199→   199→- **Admin login via OTP** to the 2 allowlisted phones (same hardened OTP path, same rate limits) — separate `pn_admin` cookie, 8h admin session TTL vs 30d customer.
+   200→   200→- **Misc:** `typescript.ignoreBuildErrors = false` + `noImplicitAny: true` restored (13-a finding), strict input clamps server-side everywhere (pattern already exists), Prisma errors never leaked to responses, all Persian-digit normalization through one module.
+   201→   201→
+   202→   202→## 11. Prisma Schema Delta (design only — migration executed in a later dev round)
+   203→   203→
+   204→   204→New models: `Session` · `AdminUser {phone @unique, role}` · `ProductVariant {sku @unique "bear-lg", kind, size, priceToman, stock, active}` (seeded 12 rows) · `StockMove` · `Setting {key @unique, value}` · `SmsOutbox` · `PaymentReceipt {orderId, file, sha256 @unique-per-order, attempt, status}` · `OrderEvent` · `AdminLog` · `JobRun`.
+   205→   205→`GiftOrder` gains: `code @unique (PN-…)` · `idempotencyKey @unique` · `status` new enum values (§1) · `paymentMethod` · `shippingFee` · `totalBreakdownJson` · `carrier` · `trackingCode` · `attemptCount` · `cancelReason` · `smsAbandonedAt` · `refund fields` (reason, requestedAt, decidedAt). `User`/`Post` scaffold stays (blog); legacy `no` kept briefly for the local-first merge migration, then dropped. Backfill note: demo rows (1000/104/102) are wiped before launch (locked decision from Task 13).
+   206→   206→
+   207→   207→## 12. Phasing (respecting the locked "wave-0 route-ready / real routes at deploy")
+   208→   208→
+   209→   209→- **فاز ۰ (sandbox, now):** §4 security fixes (sessions, per-phone scoping, bootstrap endpoint, admin guard skeleton) · §5 rate-limit + OTP hardening · §1 `order-status.ts` module + §3 adapter interfaces as route-ready modules — all testable via curl behind `/` with the hash router intact.
+   210→   210→- **فاز ۱ (deploy wave):** §2 checkout + stock · §3 live Zarinpal/Manual providers + uploads · §6 Kavenegar live · §7 systemd timers + backups · §8 full admin surface · real routes/sitemap (SEO wave) · demo-data wipe.
+   211→   211→- **فاز ۲+:** coupons (totals contract already reserves `discount`), SMS trim policy flip at ~150 orders/day, PostgreSQL tripwire (§0), Zarinpal refund API.
+   212→   212→
+   213→   213→## Open Questions for the Critic
+   214→   214→
+   215→   215→1. **Zarinpal amount unit (Rial vs Toman ×10)** — I prescribed convert-×10 with a sandbox self-test; is there a way to pin this against the owner's *existing* merchant account before deploy day?
+   216→   216→2. **Abandon-cart for guests:** reachable only when the sender phone is already known (unpaid `AWAITING_PAYMENT` rows). Acceptable to skip logged-out visitors who never reached checkout, or do we need a draft-capture ping?
+   217→   217→3. **`order_confirm` for Zarinpal orders:** drop from day 1 (cost) or keep until 150 orders/day for trust-building?
+   218→   218→4. **Offsite backup target within Iran:** second cheap Iranian VPS vs owner's home machine pull — budget shows ~0 spare toman; which does the owner accept?
+   219→   219→5. **Receipt photo privacy retention:** keep receipts forever (tax/مودیان evidence?) or purge at 90 days?
+   220→   220→6. **Media storage — reconcile with the parallel ops/infra plan (Task 13 round, worklog):** that plan moves ALL media (receipts, voice notes) to Arvan S3 off-box (voice-note math: 1.5 MB × 500 orders/day ≈ 22.5 GB/mo → the 40 GB disk dies in < 2 months) and sets its PostgreSQL trigger at > 800 orders/day, while this doc's §3/§9 store uploads on-box under `/data/uploads` (backup + prune) with a > ~300 orders/day trigger. Both plans agree on WAL pragmas, systemd jobs, secrets discipline. Critic should pick one media home (Arvan private bucket + presigned PUT **recommended if budget allows** — it also solves the §10 backup question) and one trigger number before فاز ۰ implementation.
+   221→   221→

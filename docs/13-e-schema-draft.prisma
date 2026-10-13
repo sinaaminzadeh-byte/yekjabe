@@ -1,0 +1,369 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// Pishnam (پیشنام) — TARGET COMMERCE SCHEMA · DRAFT (Task 13-e, db-architect)
+//
+// Drop-in replacement draft for prisma/schema.prisma. Companion doc:
+// docs/13-e-db-schema.md (rationale, oversell guard, code scheme, wipe/seed,
+// WAL pragmas, PG-migration mapping, retention). RESEARCH DELIVERABLE — do not
+// db:push until the pre-launch wipe + seed plan in the companion doc runs.
+//
+// DIALECT RULES (SQLite):
+//   • NO enums / Json / scalar lists — every closed vocabulary is a String
+//     with its legal values documented on the field (/// comment). Each such
+//     vocabulary maps 1:1 to a PG enum at upgrade (see companion doc §6).
+//   • All money = Int toman (no floats/decimals; Iran toman has no practical
+//     decimals). Zarinpal's ×10 rial conversion happens ONLY in the PSP
+//     adapter at the edge — the DB is single-unit (toman) to kill the IRR×10
+//     trap flagged by the 13-c critic.
+//   • Binary media NEVER lives in the DB: product covers, payment receipts,
+//     UGC photos, voice notes are objects on Arvan S3; rows store keys only.
+//
+// DIFF vs current prisma/schema.prisma:
+//   • User (scaffold)      → REMOVED (dead; no FK ever pointed at it).
+//   • Post (scaffold)      → UPGRADED to the real blog model (owner-authored,
+//                            slug + markdown + SEO fields; authorId dropped —
+//                            posts are written by AdminUser role=owner).
+//   • GiftOrder            → KEPT VERBATIM = LEGACY demo model. Marked for the
+//                            pre-launch wipe (rows 1000/104/102 + نیلا) and
+//                            table drop at launch; new code must NOT touch it.
+//   • ContactMessage/Favorite/Review → UNCHANGED (production-able as-is).
+//   • AppUser              → KEPT as the customer identity (OTP accounts).
+//   • AuthCode             → HARDENED (hashed code, attempts, ip).
+//   • NEW: Product, ProductVariant, Order, OrderItem, OrderEvent, Payment,
+//          SmsOutbox, Experience, Setting, VoiceNote, AdminUser.
+// ─────────────────────────────────────────────────────────────────────────────
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL") // file:./db/custom.db — unchanged
+}
+
+// ── Catalog (12 launch SKUs = 6 families × 2 sizes) ─────────────────────────
+
+model Product {
+  id           String   @id @default(cuid())
+  family       String // vocabulary: bear | bunny | cat | duck | panda | sheep (= TS PlushKind; → PG enum product_family)
+  slug         String   @unique // latin-transliterated, e.g. "creamy-bear", "bambou-panda" — public URL /product/[slug]
+  nameFa       String // persona name, e.g. «کِرِمی»
+  taglineFa    String   @default("") // short card chips line, e.g. «بغلی، آروم، شیرین»
+  descriptionFa String  @default("") // long fa copy for PDP + SEO (→ @db.Text on PG)
+  coverImage   String   @default("") // Arvan S3 key or /images/… path (never a blob in DB)
+  isActive     Boolean  @default(true) // false = hidden from catalog, rows kept (never hard-delete)
+  sortOrder    Int      @default(0) // home-grid order
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  variants ProductVariant[]
+
+  @@index([isActive, sortOrder])
+}
+
+model ProductVariant {
+  id                String  @id @default(cuid())
+  productId         String
+  size              String // vocabulary: S | L (variants = size ONLY per owner answer; → PG enum variant_size)
+  sku               String  @unique // "<family>-<size>" lowercase latin, e.g. "bear-S" — id used on packing slips
+  priceToman        Int // launch placeholder; owner confirms S/L pricing (see companion doc §4)
+  stock             Int     @default(0) // exact-count inventory: when out, out (no backorder flag)
+  lowStockThreshold Int     @default(3) // below this → admin low-stock SMS/panel badge (overridable in Setting)
+  isActive          Boolean @default(true)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  product Product  @relation(fields: [productId], references: [id], onDelete: Restrict)
+  items   OrderItem[]
+
+  @@unique([productId, size]) // belt-and-braces on top of sku
+  @@index([productId])
+}
+
+// ── Orders (server-authoritative checkout — replaces legacy GiftOrder) ──────
+
+model Order {
+  id             String   @id @default(cuid())
+  code           String   @unique // server-assigned PN-YYMMDD-#### (collision-safe scheme: companion doc §3). Client ids are DEAD — client sends idempotencyKey, server returns code.
+  status         String   @default("awaiting_payment") // forward-only machine: awaiting_payment | payment_under_review | paid | failed | cancelled | expired | preparing | shipped | delivered | refund_requested | refunded (→ PG enum order_status; transitions logged in OrderEvent)
+  // sender (فرستنده)
+  senderName     String   @default("")
+  senderPhone    String   @default("") // normalized 09… — SMS confirm/abandon target
+  // recipient (گیرنده)
+  recipientName  String   @default("")
+  recipientPhone String   @default("")
+  province       String   @default("") // ostān for carrier pricing/manifests
+  city           String   @default("")
+  address        String   @default("")
+  postalCode     String   @default("") // post/tipax require it; validate 10 digits at API edge
+  // gift personalization
+  occasion       String   @default("just_because") // vocabulary: just_because | miss_you | get_well | happy_birthday (UI OCCASIONS index 0..3 ↔ slug order; → PG enum occasion_slug)
+  cardMessage    String   @default("") // printed-card text (→ @db.Text on PG)
+  cardPassword   String   @default("") // gift-card open password (رمز کارت). LOW-entropy → move to hashed verify when gift-open goes server-side (فاز ۰ hardening candidate)
+  anonymous      Boolean  @default(false) // true ⇒ senderName must render empty on card/box
+  hearts         Int      @default(0) // charity charm ♥ count (unit price in Setting) — folded into subtotalToman, kept for the «دفتر مهربونی» charity ledger
+  paws           Int      @default(0) // charity charm 🐾 count
+  // fulfillment
+  carrier        String   @default("") // vocabulary: "" | post | tipax | mahex (set at preparing; → PG text + CHECK, carriers may grow)
+  trackingCode   String   @default("") // carrier tracking number → tracking SMS
+  // money (Int toman; never recompute on client)
+  subtotalToman  Int      @default(0) // items + charms, server-priced
+  shippingToman  Int      @default(0) // from Setting ship_fee_* at checkout time (no free threshold per owner: "never")
+  totalToman     Int      @default(0) // subtotal + shipping — PSP amount source of truth
+  // checkout integrity
+  idempotencyKey String?  @unique // client Idempotency-Key (uuid); retry reuses it → one order. null = admin/manual order
+  userPhone      String   @default("") // account phone bound to the order; "" = guest checkout by phone
+  sessionPhone   String   @default("") // phone from the verified session that created the order (server sets BOTH). Invariant: sessionPhone != "" ⟹ userPhone == sessionPhone; client-sent userPhone is ignored
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  items    OrderItem[]
+  events   OrderEvent[]
+  payments Payment[]
+  voice    VoiceNote?
+  sms      SmsOutbox[]
+
+  @@index([status, createdAt]) // admin queues: review/pack/ship + timeline pages
+  @@index([senderPhone])
+  @@index([userPhone])
+  @@index([recipientPhone])
+}
+
+model OrderItem {
+  id             String @id @default(cuid())
+  orderId        String
+  variantId      String // FK never dangles: variants are deactivated, never deleted
+  kind           String // SNAPSHOT of Product.family at purchase time (catalog renames can't falsify history)
+  size           String // SNAPSHOT of ProductVariant.size
+  title          String // SNAPSHOT of Product.nameFa (e.g. «کِرِمی») for receipts/slips
+  qty            Int    @default(1)
+  unitPriceToman Int // SNAPSHOT of priceToman paid (excludes shipping/charms)
+
+  order   Order          @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  variant ProductVariant @relation(fields: [variantId], references: [id], onDelete: Restrict)
+
+  @@index([orderId])
+  @@index([variantId])
+}
+
+model OrderEvent {
+  id        String   @id @default(cuid())
+  orderId   String
+  type      String // append-only vocabulary: created | payment_initiated | payment_submitted | payment_verified | payment_rejected | payment_failed | confirmed | cancelled | expired | preparing | shipped | delivered | refund_requested | refunded | note (→ PG text + CHECK; grows with product)
+  actor     String // vocabulary: system | admin | customer | psp (→ PG enum event_actor)
+  note      String   @default("") // fa human text; doubles as admin internal note when actor=admin (→ @db.Text on PG)
+  createdAt DateTime @default(now()) // powers the customer timeline + SMS triggers (event → SmsOutbox row in same tx)
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId, createdAt])
+}
+
+model Payment {
+  id         String   @id @default(cuid())
+  orderId    String
+  method     String // vocabulary: zarinpal | manual_transfer (card-to-card; → PG enum payment_method)
+  status     String   @default("initiated") // vocabulary: initiated | pending_review | verified | rejected | failed (→ PG enum payment_status; pending_review = manual receipt awaiting admin)
+  amountToman Int // server-expected amount; verify callback must match Order.totalToman
+  authority  String?  @unique // Zarinpal authority (null for manual_transfer — multiple NULLs are legal)
+  refId      String? // Zarinpal refId / bank reference shown on receipt
+  cardLast4  String?  @default("") // for manual_transfer: last 4 of sender card (owner reads it off the receipt image)
+  receiptKey String?  @default("") // Arvan S3 object key of uploaded receipt photo (binary never in DB)
+  receiptHash String? @default("") // sha256 of receipt bytes — dedupe reuse across orders (app rejects same hash on a verified/pending_review payment; plain index, NOT unique: same file may be re-sent after a rejected attempt)
+  reviewedBy String?  @default("") // AdminUser.phone of the approver/rejecter
+  reviewedAt DateTime?
+  note       String   @default("") // admin rejection reason etc.
+  createdAt  DateTime @default(now())
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId])
+  @@index([status, createdAt]) // «در انتظار تأیید» admin queue
+  @@index([receiptHash])
+}
+
+// ── SMS (Kavenegar; every send is an outbox row first) ──────────────────────
+
+model SmsOutbox {
+  id                String   @id @default(cuid())
+  phone             String // destination, normalized 09…
+  template          String // code-side vocabulary: otp | order_confirm_sender | admin_new_order | tracking_code | payment_under_review | low_stock | abandon_cart (templates live in code, → PG text)
+  body              String // rendered fa text (audit copy)
+  status            String   @default("queued") // vocabulary: queued | sent | failed (→ PG enum sms_status)
+  attempts          Int      @default(0)
+  lastError         String   @default("")
+  providerMessageId String?  @default("")
+  orderId           String? // optional linkage for order-triggered SMS
+  sendAfter         DateTime @default(now()) // throttle/schedule (abandon flows set a future time)
+  sentAt            DateTime?
+  createdAt         DateTime @default(now())
+
+  order Order? @relation(fields: [orderId], references: [id], onDelete: SetNull)
+
+  @@index([status, sendAfter]) // worker: WHERE status='queued' AND sendAfter <= now
+  @@index([phone])
+}
+
+// ── UGC «تجربه مخاطب» stories (public form + weekly admin approval) ─────────
+
+model Experience {
+  id         String   @id @default(cuid())
+  name       String // display name (first name + initial)
+  city       String   @default("")
+  occasion   String   @default("") // free-text fa («تولد دوستم») — UGC, NOT the order enum
+  body       String // story text, fa (→ @db.Text on PG)
+  photoKey   String?  @default("") // Arvan S3 key of optional photo
+  status     String   @default("pending") // vocabulary: pending | approved | rejected (→ PG enum moderation_status; only approved renders publicly)
+  isFeatured Boolean  @default(false) // pinned to home
+  submittedIp String  @default("") // rate-limit + spam forensics (in-process limiter is primary)
+  reviewedBy String?  @default("") // AdminUser.phone
+  reviewedAt DateTime?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([status, createdAt]) // weekly approval queue + public listing
+}
+
+// ── Blog (owner writes 2–4 posts/mo) ────────────────────────────────────────
+
+model Post {
+  id             String   @id @default(cuid())
+  title          String
+  slug           String   @unique // latin, URL /blog/[slug]
+  excerpt        String   @default("") // list view + meta description fallback
+  bodyMd         String // markdown source (react-markdown already a dep) (→ @db.Text on PG)
+  coverImage     String?  @default("") // S3 key / path
+  status         String   @default("draft") // vocabulary: draft | published (→ PG enum post_status)
+  publishedAt    DateTime? // null until first publish; drives canonical date + sitemap lastmod
+  seoTitle       String?  @default("")
+  seoDescription String?  @default("")
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([status, publishedAt])
+}
+
+// ── Runtime settings (single-row-per-key KV owned by admin panel) ───────────
+
+model Setting {
+  key       String   @id // vocabulary (seeded): manual_transfer_card_number | manual_transfer_sheba | manual_transfer_holder | ship_fee_tehran_toman (49000) | ship_fee_other_toman (69000) | shipping_promise_fa | low_stock_threshold (3) | support_telegram | support_whatsapp | kavenegar_sender | charm_price_toman (50000) | charity_base (18) | order_seq_YYYYMMDD (daily order-code counter, see companion doc §3)
+  value     String // always String (→ @db.Text on PG); numeric keys parsed at the edge
+  updatedAt DateTime @updatedAt
+}
+
+// ── Voice personalization (phase-2) ─────────────────────────────────────────
+
+model VoiceNote {
+  id          String   @id @default(cuid())
+  orderId     String   @unique // one voice note per order
+  key         String // Arvan S3 object key (audio never in DB)
+  durationSec Int      @default(0)
+  status      String   @default("pending") // vocabulary: pending | ready | failed (upload lifecycle; → PG enum voice_status)
+  createdAt   DateTime @default(now())
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+}
+
+// ── Admin (2 admins, OTP login like customers) ──────────────────────────────
+
+model AdminUser {
+  id          String    @id @default(cuid())
+  phone       String    @unique
+  name        String    @default("")
+  role        String    @default("operator") // vocabulary: owner | operator (→ PG enum admin_role)
+  isActive    Boolean   @default(true)
+  lastLoginAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+// ── Auth (existing models; AuthCode hardened) ───────────────────────────────
+
+model AppUser {
+  id          String   @id @default(cuid())
+  phone       String   @unique
+  name        String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  lastLoginAt DateTime @default(now())
+}
+
+model AuthCode {
+  id        String   @id @default(cuid())
+  phone     String
+  codeHash  String // sha256(code + server salt) — plaintext code NEVER stored/returned (was: `code` plaintext; demo rows wiped at cutover)
+  attempts  Int      @default(0) // verify increments; >=5 ⇒ code dead + IP throttle (fixes 13-a P0: brute-forceable OTP)
+  ip        String   @default("") // requester ip at issue time (abuse forensics)
+  expiresAt DateTime
+  used      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([phone, createdAt])
+}
+
+// ── Kept verbatim (production-able) ─────────────────────────────────────────
+
+model Favorite {
+  id        String   @id @default(cuid())
+  userPhone String
+  kind      String // vocabulary: bear | bunny | cat | panda | sheep | duck (= PlushKind)
+  createdAt DateTime @default(now())
+
+  @@unique([userPhone, kind])
+  @@index([userPhone])
+}
+
+model Review {
+  id        String   @id @default(cuid())
+  who       String // display name
+  role      String   @default("sender") // vocabulary: sender | receiver
+  stars     Int      @default(5) // 1..5 (clamp at API edge)
+  kind      String   @default("bear") // vocabulary: PlushKind of the gift
+  title     String   @default("")
+  text      String
+  createdAt DateTime @default(now())
+}
+
+model ContactMessage {
+  id        String   @id @default(cuid())
+  name      String
+  email     String
+  subject   String
+  orderNo   String   @default("")
+  message   String
+  createdAt DateTime @default(now())
+}
+
+// ── LEGACY — DEMO ONLY ──────────────────────────────────────────────────────
+// GiftOrder is the pre-commerce demo model (client-generated ids g-<no>-<ts>,
+// client-computed totals, no payments/inventory). All rows (orders 1000/104/102
+// + seed-96…) + AppUser «نیلا»/09123456789 + its favorites are DEMO DATA →
+// wipe before launch (companion doc §4), then DROP this table at launch.
+// New checkout code must not read or write it.
+
+model GiftOrder {
+  id         String   @id // client-side id (g-<no>-<ts>) — legacy identity scheme
+  no         Int      @unique
+  kind       String
+  to         String
+  city       String   @default("")
+  address    String   @default("")
+  phone      String   @default("")
+  message    String   @default("")
+  occasion   Int      @default(0)
+  password   String   @default("")
+  anonymous  Boolean  @default(false)
+  senderName String   @default("")
+  hearts     Int      @default(0)
+  paws       Int      @default(0)
+  total      Int      @default(0)
+  date       String   @default("")
+  status     String   @default("paid") // legacy: paid | packing | shipped | delivered
+  opened     Boolean  @default(false)
+  dir        String   @default("sent") // legacy: sent | recv
+  userPhone  String   @default("")
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([userPhone])
+}

@@ -367,3 +367,92 @@ Stage Summary:
 - Deliverable shipped: /pishnam-architecture.html — architecture review + 46-question decision questionnaire with JSON export, ready for the owner to answer and send back.
 - Architecture locked (pending owner's Q answers): modular monolith Next.js; sessions+IDOR fix P0; server-authoritative checkout w/ idempotency+retry; PSP adapter w/ pending_payment machine; DB follows hosting (SQLite+WAL vs PostgreSQL); wave-0 route-ready modules now, real routes+sitemap at deploy; in-process rate limiting; /g/[no] viral share; UGC opt-in + moderation; اینماد/legal on critical path.
 - Next round: when the owner returns the JSON, lock per-answer architecture and start فاز ۰ security fixes (orders dump, sessions, OTP hardening, moderation flag) — all pre-scoped in this doc's فاز table.
+
+---
+Task ID: 13-g
+Agent: infra-ops-architect
+Task: Infra/ops/cost/roadmap plan for the locked stack (owner's 2c/2G/40GB Iranian VPS, SQLite WAL, no Redis) — research only → docs/13-g-infra-ops.md.
+Work Log:
+- Memory budget: steady ~665–845MB committed (OS 220–280 + Caddy 30 + Next standalone 350–450 w/ MemoryMax=768M + Fathom Lite 15 [+Kuma 60 optional]) → fits with ~15–25% true headroom; `next build` (1.2–1.8GB) must run OFF-BOX (default) or swap-guarded off-peak; 2GB swap + swappiness=10.
+- Analytics: Fathom Lite (Go+SQLite, 15MB) over Umami/Matomo — owner's binding answer is "self-hosted privacy-first"; Umami needs Postgres (~+250MB) → revisit when PG lands. No Docker: RAM + AI-ops simplicity (plain systemd units, copy-paste runbook).
+- Cost math (SMS ≈ orders×3.5×125T×30): launch 10–50/day = 245–920K/mo ✓; 200/day = 2.63M ✗; 500/day = 6.56M ✗✗; mitigations (≤70-char 1-segment templates, 2-SMS/order at scale, Telegram admin alerts, volume tier) → ~1.7–1.9M at 200/day ✓-tight; REVISIT TRIGGER = 150 orders/day.
+- Data safety: WAL pragmas (busy_timeout=5000, FK, synchronous=NORMAL, nightly TRUNCATE checkpoint), Litestream→Arvan S3 (RPO≤5s, RTO≤2h) + nightly .backup snapshot, 30-day retention, monthly AI-runnable restore drill; voice-note math (1.5MB×500/day=22.5GB/mo → 40GB disk dead in <2mo) → ALL media to Arvan private/public buckets via presigned PUT, env/secrets inventory incl. age-encrypted .env backup.
+- Also delivered: systemd layout (9 units incl. OnFailure SMS hook), deploy.sh (build off-box→rsync→migrate deploy→restart→/api/health gate→auto-rollback), production Caddyfile sketch (auto-TLS, HSTS headers, immutable static cache, Arvan CDN for /_next/static+images, HTML uncached at edge v1), monitoring (health contract, ≤3 alert SMS/day, digest, Kuma optional), 8-week فاز ۰–۳ roadmap w/ acceptance criteria, launch checklist (اینماد, demo wipe 1000/104/102+نیلا, k6 500/50/p95<800ms), scale-trigger table (PG at >800 orders/day or ≥4GB; 4c/8G resize as first lever; multi-node out of year-1), top-8 risk register w/ owner actions.
+Stage Summary:
+- Verdict: owner's VPS + SQLite WAL is fit-for-launch with boring AI-operable ops — build/media/backup all off-box; SMS is the #1 cost line and the only budget breaker at scale.
+- Open for critic: Kavenegar live rate card; Arvan S3/CDN exact pricing; VPS renewal cost; off-box uptime probe for the box-down blind spot; whether 50-concurrent-checkout k6 gate should relax to queue-based on 2c/2G.
+
+---
+Task ID: 13-d
+Agent: backend-architect
+Task: Final backend/commerce blueprint from owner's 46 answers
+Work Log:
+- Read worklog (Task 13 round: 13-a/13-b/13-c + critic lock "wave-0 route-ready / real routes at deploy") + all 46 binding answers; re-verified code claims in schema.prisma, orders/auth/verify API, bootSync full-dump path, pay-modal mock gateway, client total ×4.
+- Wrote docs/13-d-backend-plan.md (12 sections): full order state machine DRAFT→AWAITING_PAYMENT→paid|payment_under_review|failed|cancelled|expired→PREPARING→SHIPPED→DELIVERED + REFUND_REQUESTED→REFUNDED (damage-only) with per-transition actor+SMS table; server-authoritative checkout (PN-YYMMDD-#### codes, idempotencyKey @unique + ACK-blocking success, conditional UPDATE stock>=qty oversell-proof on SQLite, shipping fee from Setting never-free).
+- Spec'd PaymentProvider adapter (ZarinpalImpl with DB-amount verify + idempotent callback + ×10 Rial trap flagged; ManualTransferImpl = بله‌پی/card-to-card with ≤5MB magic-byte-sniffed receipt upload, sha256 dedupe, max-3-attempts → payment_under_review → admin approve/reject → SMS); P0 security fix spec (httpOnly pn_session cookie on OTP verify, all queries session-scoped, bootSync full-dump → /api/me/bootstrap per-phone, AdminUser OWNER/OPERATOR via OTP allowlist killing PIN 1398).
+- Added in-process token-bucket rate limits (no Redis, restart behavior documented), SmsOutbox queue + Kavenegar seam + 9 Persian 1-segment templates with LOUD cost alarm (500/day × 3.5 SMS ≈ 6M+/mo > 2M budget → trim-to-2-SMS policy at ~150 orders/day, admin→Telegram), systemd-timer jobs via x-cron-secret endpoints (expire-unpaid 24h stock release, abandon-cart 6h once, low-stock, sqlite backup pre-hook), admin API surface, damage-only refund flow, security checklist/secrets inventory, Prisma delta, فاز ۰/۱ phasing.
+Stage Summary:
+- Blueprint locked: SQLite WAL on 2c/2G VPS for launch with written PostgreSQL tripwire (>~300 orders/day sustained or 2nd instance); modular monolith, boring patterns, AI-maintainable.
+- Highest-priority pre-scoped fixes: session-scoped PII fix + server-authoritative checkout + hardened OTP + admin guard — all buildable in-sandbox behind "/" (API routes same-origin), real routes untouched per wave-0 lock.
+- Deliverable: /home/z/my-project/docs/13-d-backend-plan.md (open questions for critic: Zarinpal amount unit self-test, guest abandon-cart scope, order_confirm drop timing, in-Iran offsite backup target, receipt retention).
+
+---
+Task ID: 13-f
+Agent: seo-content-architect
+Task: SEO/content/UGC route plan (research only, no code changes) → docs/13-f-seo-content.md: route map, metadata/JSON-LD plan, slug strategy, Persian keyword map, blog + «تجربه مخاطب» specs, wave-0 module list, performance budget.
+Work Log:
+- Read worklog 13-b/13-c/13 + all 46 owner answers; inventoried pishnam-data.ts (6 families + blurbs/FAQ/shipping), home/info/gift-experience surfaces, robots.txt (no Sitemap line), hash-route.ts, layout.tsx (brand still «پیشتم» — rename sweep flagged).
+- Route map (24 rows): /product/[slug]×12 SSG+ISR (P0, new — no detail page exists today), /build one client noindex flow, /g/[no] SSR noindex+Persian OG viral card (deploy wave, needs server render), /stories+/stories/[slug]+/blog ISR indexable, legal×3 SSG (اینماد gate), sitemap.ts+robots.ts at deploy; documented noindex≠robots-Disallow trap (never block /g/ — kills WhatsApp/Telegram OG previews) + deploy hash-shim (no 301s possible on #/ links).
+- Metadata plan: template «%s | پیشنام — جعبه هدیه عروسک پولیشی» (≤35-char %s budget), fa_IR OG, canonical everywhere, metadataBase=pishnam.ir (domain unregistered → 1-line constant); JSON-LD builders Org+WebSite/Product+Offer/FAQPage(home×4 visible)/Article+Breadcrumb; IRR×10 trap spec'd exactly (۸۹۰٬۰۰۰ تومان → price:"8900000" + "IRR", ×10 done inside the builder so it can't be hand-faked); AggregateRating GATED at ≥5 real reviews — «۳۱۸ نظر» seed must NEVER enter schema; no structured data on noindex pages.
+- Slugs: latin transliteration (WhatsApp/Arvan/owner-workflow comfort, zero SEO cost) — 12 SKUs bear|bunny|cat|duck|panda|sheep × s|l matching existing PlushKind keys, Persian display names table; blog/story slug patterns (immutable-forever rule).
+- Keyword map: 20 long-tail Persian keywords product-first (عروسک با پیام صوتی, جعبه هدیه عروسک پولیشی, عروسک هدیه با کارت چاپی …) + seasonal (هدیه یلدا دخترانه، جعبه هدیه ولنتاین) + informational (عروسک پولیشی چیست؟، متن کارت هدیه برای دوست…) each with target URL + winnability note + heavy-head avoid list (خرید عروسک پولیشی etc.); first 8 blog titles (owner 2-4/mo, calendar-ordered, یلدا before ولنتاین).
+- تجربه مخاطب spec: public form (نام/شهر/بهانه/≤1500 chars/photo optional + hard opt-in checkbox — consent NEVER auto-derived from private gift messages), Story model draft|published|rejected, weekly admin queue, Article JSON-LD (author = first name + city only), pending stories unindexable by construction (no URL exists), product↔story interlinking (feeds future rating gate).
+- Wave-0 module list: seo/{site,route-map,product-catalog,metadata,jsonld} (route-map.ts = single source for sitemap+shim+nav; useDocumentMeta hook titles the hash SPA today, deleted at deploy) + info.tsx split into 5 props-driven presentational sections + StoryCard/Form + Markdown renderer + og-default.png asset; hash router stays sole live nav — all modules imported back into existing screens.
+Stage Summary:
+- docs/13-f-seo-content.md shipped: deploy-wave route creation is now mechanical (registry-driven sitemap/robots/metadata + presentational modules taking props); perf budget LCP<2.5s mid-3G Iran, server-component content pages <100KB JS, Arvan CDN, Vazirmatn woff2 kept.
+- Open for critic: domain not registered (canonical placeholder), brand پیشتم→پیشنام rename timing, AggregateRating ≥5-real-review gate, /g/ OG privacy scope (no message/photo in card, stays out of robots.txt), اینماد «have» needs badge verification.
+
+---
+Task ID: 13-e
+Agent: db-architect
+Task: Final DB schema design from owner's 46 answers — drop-in SQLite-first Prisma draft + design doc (research only; no code, no db:push).
+Work Log:
+- Read worklog (13-a/b/c/13/13-g/13-d) + all 46 binding answers + schema.prisma + pishnam-data/store/sync; wrote docs/13-e-schema-draft.prisma — `prisma validate` ✅ (6.19.2). 18 models: NEW Product/ProductVariant(12 SKU, sku=bear-S)/Order(code PN-YYMMDD-####, 11-state machine, idempotencyKey @unique, sessionPhone invariant)/OrderItem(snapshot)/OrderEvent(actor+SMS trigger)/Payment(zarinpal|manual_transfer, receiptHash dedupe)/SmsOutbox(status+sendAfter)/Experience(UGC pending|approved|rejected)/Post(upgraded, no authorId)/Setting(KV incl. daily order-seq counter)/VoiceNote(S3 key only)/AdminUser(owner|operator); AuthCode HARDENED (codeHash+attempts+ip); User scaffold dropped; GiftOrder frozen legacy → pre-launch wipe; Favorite/Review/ContactMessage kept verbatim.
+- Wrote docs/13-e-db-schema.md: per-model rationale; oversell guard = single conditional `updateMany({where:{stock:{gte:qty}}})` in tx (atomic check+decrement, survives PG MVCC); collision-safe order code = Setting daily counter in checkout tx + unique backstop retry; WAL pragma set + honest busy_timeout caveat; full PG mapping table (every String vocabulary → enum/text+CHECK, @db.Text list, toman-Int stays single-unit vs IRR×10); retention (receipts/voice/photos on Arvan S3 keys-only, SMS prune 90d, AuthCode purge 24h); NOT-PG-day-1 memory one-liner + 5 upgrade triggers.
+- Aligned with 13-d blueprint (state machine, oversell SQL, Kavenegar outbox, demo wipe 1000/104/102+نیلا) and 13-g ops (media off-box to S3) — no conflicts found; seed plan = 6 products × S/L + settings + 2 admins, Review left empty (UI 318 baseline separate).
+Stage Summary:
+- Deliverables: docs/13-e-schema-draft.prisma (validated) + docs/13-e-db-schema.md — ready for critic round and for فاز ۰ implementation to adopt as the migration target.
+- Open for critic: S/L pricing vs «یه قیمت برای همه», cardPassword hash timing vs /g/[no] flow, slug transliteration signoff, abandon-cart client-only scope, occasion slug↔UI-index shim.
+
+---
+Task ID: 13-h
+Agent: architecture-critic-v2
+Task: Adversarial critique of 13-d/e/f/g (research only, no code changes) → docs/13-h-critique.md.
+Work Log:
+- Verified code claims first-hand (unscoped 200-row /api/orders dump, bootSync full pull per load, ADMIN_PIN 1398, Math.random OTP + unconditional devCode echo, client-only total in pay-modal, legacy-only schema.prisma) — all four plans' factual claims hold.
+- Answer-conformance sweep of all 11 sections: conforming (budget honesty incl. SMS scaling, damage-only refund, no COD/coupons, 2 admins, exact SMS set, 3 carriers + tracking, never-free shipping, guest checkout, voice+card, product-first, residency); no answer violated.
+- Found 10 MUST-FIX cross-doc/correctness holes: Order-vs-GiftOrder identity, Session DB-vs-JWT, /g/[no] cardPassword brute force (no rate-limit scope/attempt counter), write-retry wrapper unnamed, media home on-box vs Arvan, PG trigger 300-vs-800, Fathom-vs-Umami, PaymentReceipt-vs-Payment + hash scope, Zarinpal verify-timeout path, schedule/timezone drift (03:30 vs 04:30, no Asia/Tehran).
+- Resolved all named divergences with final calls (Arvan wins media, >500/day+evidence PG trigger, Fathom now/Umami at PG-day, DB sessions, new Order + lowercase statuses, /api/jobs/*, 12h-display/2h-ops SLA); confirmed Zarinpal ×10 consistent across 13-d/13-f and /g/ noindex-vs-robots prescription technically correct.
+- Over-engineering verdicts: CUT AdminLog+StockMove (fold into OrderEvent), CUT Uptime-Kuma at launch, DEFER Umami; KEEP SmsOutbox/11-state/per-IP-OTP/Fathom/OrderEvent/JobRun/presigned-PUT/VoiceNote-now.
+- Under-engineering catches: k6 must run off-box; Arvan bucket versioning; ACK-fallback must be /track not the trimmed order_confirm SMS; newsletter SMS + مودیان evidence missing; /track customer timeline mapping.
+Stage Summary:
+- Verdict: all four plans ACCEPTED WITH CORRECTIONS — 13-e schema draft is canonical base; 13-d re-pointed at it; no locked decision re-opened. MUST-FIX count: 10 (all doc edits + prescriptions, listed in docs/13-h-critique.md).
+- Deliverable: /home/z/my-project/docs/13-h-critique.md (verdict, 10 must-fix, should/nice, over-eng kill list, 6 conflict resolutions, 5 Persian owner questions, 13-section final-doc checklist).
+
+---
+Task ID: 13 (final) 
+Agent: main (Z.ai Code) — orchestrator
+Task: Owner returned the completed questionnaire (46/46, docs/architecture-answers.json) → finalize architecture with the agent orchestra, make final decisions, deliver the prescription, kick off execution.
+
+Work Log:
+- Saved owner's 46 binding answers to docs/architecture-answers.json; dispatched 4 parallel specialist agents: 13-d backend/commerce (state machine, server-authoritative checkout + idempotency, PaymentProvider adapter, P0 security spec, SMS outbox, systemd jobs) → docs/13-d-backend-plan.md; 13-e database (18-model portable schema, prisma validate ✓) → docs/13-e-schema-draft.prisma + docs/13-e-db-schema.md; 13-f SEO/content (24-row route map with waves, JSON-LD + IRR×10 trap, 20-keyword low-competition map, UGC governance, wave-0 module list) → docs/13-f-seo-content.md; 13-g infra/ops (2GB memory budget, systemd/Caddy/Litestream→Arvan S3, Fathom Lite, cost scenarios incl. SMS scaling law, scale triggers) → docs/13-g-infra-ops.md.
+- Dispatched critic 13-h (opus): verified all code claims (unscoped orders dump, bootSync full pull, PIN 1398, Math.random OTP, client-only total), swept all 11 answer sections (conform), found 10 MUST-FIX + resolved 6 cross-doc conflicts → docs/13-h-critique.md. All 10 adopted: new Order model, DB-backed sessions, /g brute-force lock, withWriteRetry spec, media→Arvan, PG trigger unified (>500/day + symptom), Fathom now, Payment unified, Zarinpal reconcile job, single Asia/Tehran schedule.
+- Final decisions locked (ratified critic's calls): design point 500 orders/day + 5× spike on owner's 2c/2G VPS; SQLite WAL launch / PG trigger; dual payment (Zarinpal + manual receipt queue, SLA 12h display / 2h ops); media all on Arvan S3 presigned; Fathom Lite analytics; 22 locked decisions table; cost scenarios 250-950K (launch ✓) / 1.7-1.9M (200/day, tight) / ~7M (500/day, revisit — SMS dominates); 8-week فاز ۰-۳ roadmap with acceptance criteria; 5 owner decisions with defaults.
+- Built public/pishnam-prescription.html (Persian RTL, Vazirmatn, 12 sections: constraints strip, platform lock, architecture diagram, 22-decision table, 18-model data map + 11-state machine, dual payment flows, SEO route/keyword plan, SMS matrix + cost law, memory budget + cost scenarios, 4-phase roadmap + launch checklist + scale triggers, owner questions, risks) + embedded pishnam-arch-decision/v1 JSON with working download button (pishnam-architecture-decision.json) + clipboard copy + link back to v1 questionnaire doc.
+- QA via agent-browser: page renders (12 sections, 11 tables, JSON embedded), console clean, desktop + 390px mobile both 0 overflow, download button click → «✓ دانلود شد»; main app / regression-checked (renders, console clean); dev.log healthy.
+- Replaced stale 15-min webDevReview cron (old job 454980, stopped, outdated studio context) with new job 455531 (fixed_rate 900s, priority 10) whose context now points at the locked prescription and فاز ۰ execution checklist (sessions/IDOR, PIN kill, OTP hardening, withWriteRetry, route-ready modules, then فاز ۱ schema/checkout/payments).
+
+Stage Summary:
+- Architecture is now FINAL and owner-anchored: public/pishnam-prescription.html (v1.0) + 5 specialist docs in docs/13-*.md + docs/architecture-answers.json. All agent work preserved; no code touched this round (design/decision round).
+- Execution handoff: the new 15-min cron continues development autonomously, starting فاز ۰ (P0 security fixes pre-scoped in 13-d §4 + prescription §4 rows 4-6,15-16), then فاز ۱ commerce core using docs/13-e-schema-draft.prisma.
+- 5 owner decisions pending (defaults active): L-size pricing, pishnam.ir registration this week, manual-approval SLA, receipt retention for مودیان, SMS newsletter consent — asked in the prescription §11 and the chat reply.
