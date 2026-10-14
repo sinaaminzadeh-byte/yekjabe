@@ -114,7 +114,7 @@
     <tr><td>مرجوعی هدیه</td><td>فقط آسیب فیزیکی</td><td>جریان refund_requested به‌جای ۷ روز بی‌قید؛ هزینه ارسالِ آسیبِ حمل‌ونقل با ما</td></tr>
     <tr><td>پرداخت</td><td>زرین‌پال ✓ + کارت‌به‌کارت/بله‌پی با رسید</td><td>آداپتور دومسیره + صف تأیید دستی در ادمین</td></tr>
     <tr><td>موجودی</td><td>شمارش دقیق — تمام شد، تمام</td><td>کاهش اتمیک شرطی stock≥qty؛ ضد فروش اضافه</td></tr>
-    <tr><td>کاتالوگ</td><td>۶ خانواده × ۲ سایز = ۱۲ SKU</td><td>مدل Product + ProductVariant با اسلاگ لاتین</td></tr>
+    <tr><td>کاتالوگ</td><td>۶ محصول × ۱ سایز = ۶ SKU <span class="muted">(تصمیم مالک ۲۲ مهر: همه یک سایزند)</span></td><td>مدل Product + ProductVariant با اسلاگ لاتین</td></tr>
     <tr><td>پیامک</td><td>کاوه‌نگار + خط خدماتی ✓ — ۴ اعلان انتخابی</td><td>SmsOutbox با retry؛ قالب‌های تک‌سگمنت؛ هشدار هزینه</td></tr>
   </table></div>
 </section>
@@ -162,7 +162,7 @@
     <tr><td>۱۷</td><td>کارهای زمان‌بندی</td><td>systemd timers → <code>/api/jobs/*</code> با هدر <code>x-cron-secret</code>؛ همه با <code>TZ=Asia/Tehran</code>: بکاپ ۰۳:۳۰، purge ۰۴:۰۰، انقضای سفارش هر ۱۵ دقیقه، رها‌شدن سبد ~۶h، موجودی کم، reconcile ساعتی</td><td>cron درون-پردازشی با هر دیپلوی می‌میرد</td></tr>
     <tr><td>۱۸</td><td>آمارگیر</td><td><b>Fathom Lite</b> (Go+SQLite، ~۱۵MB، بدون کوکی ⇒ بدون نیاز به بنر رضایت)؛ Umami فقط در روزِ PG</td><td>پاسخ شما «سلف‌هاست حریم‌محور» بود؛ Umami یعنی +۲۵۰MB RAM — نمی‌گذرد</td></tr>
     <tr><td>۱۹</td><td>روت‌ها و سئو</td><td>موج ۰: ماژول‌های route-ready در سندباکس (همین‌جا) ← موج دیپلوی: روت واقعی + <code>sitemap.ts</code> + <code>robots.ts</code> + JSON-LD؛ <code>#</code> بدون 301 (فرگمنت اصلاً به سرور نمی‌رسد)</td><td>سئو ستون رشد است ولی سندباکس فقط «/» را پیش‌نمایش می‌دهد</td></tr>
-    <tr><td>۲۰</td><td>محصول</td><td>۱۲ SKU: ۶ خانواده (bear/bunny/cat/duck/panda/sheep) × سایز S/L؛ اسلاگ لاتین تغییرناپذیر (مثلاً <code>/product/bear-s</code>)؛ قیمت Int تومان؛ IRR×10 فقط در لایه JSON-LD</td><td>پاسخ شما: ۶ خانواده ۲ سایز؛ URLها ابدی‌اند</td></tr>
+    <tr><td>۲۰</td><td>محصول</td><td>۶ SKU تک‌سایز (bear/bunny/cat/duck/panda/sheep) — تصمیم مالک ۲۲ مهر: «همه یک سایزند»، بدون تنوع قیمت؛ اسلاگ لاتین تغییرناپذیر (مثلاً <code>/product/bear</code>)؛ قیمت Int تومان؛ IRR×10 فقط در لایه JSON-LD</td><td>پاسخ جدید شما جایگزین «۶ خانواده ۲ سایز» شد؛ URLها ابدی‌اند</td></tr>
     <tr><td>۲۱</td><td>UGC و بلاگ</td><td>تجربه مخاطب: فرم عمومی + رضایت صریح + تأیید هفتگی شما + صفحه اختصاصی؛ بلاگ: پست در DB + ادیتور مارک‌داون ادمین + ISR — هر دو فقط روت واقعی، هرگز <code>#</code></td><td>دقیقاً ترتیب پاسخ شما: محصول ← تجربه مخاطب ← بلاگ</td></tr>
     <tr><td>۲۲</td><td>هدیه بازکردنی <code>/g/[no]</code></td><td>noindex,follow + کارت OG فارسی (اشتراک وایرال) + رمز با argon2 و قفل بعد از ۱۰ تلاش؛ از robots.txt مستثنی (واتساپ/تلگرام OG می‌خواهند)</td><td>لوپ وایرال برند — الان اشتراک‌گذاری واقعی ندارد</td></tr>
   </table></div>
@@ -274,17 +274,17 @@
   <div class="tscroll"><table>
     <tr><th>فاز</th><th>چه چیزهایی</th><th>معیار پذیرش</th></tr>
     <tr><td><b>فاز ۰ — امنیت + آمادگی روت</b><br><span class="muted">هفته ۱</span></td><td>سشن DB + اسکوپ کوئری‌ها + حذف dump کامل، حذف PIN 1398، سخت‌سازی OTP، rate-limitها (شامل gift_open)، wrapper بازنویسی، استخراج ماژول‌های route-ready</td><td>تست curl با ۵۰ درخواست همزمان = صفر خطای BUSY؛ هیچ API بدون سشن داده کاربر برنمی‌گرداند</td></tr>
-    <tr><td><b>فاز ۱ — هسته تجارت</b><br><span class="muted">هفته ۲–۵</span></td><td>اسکیمای جدید (Order/Variant/Payment/…)، چک‌اوت سرورمحور با idempotency، چرخه ۱۱ وضعیتی، هر دو مسیر پرداخت + صف تأیید، موجودی اتمیک، SMS واقعی کاوه‌نگار، ادمین v2 (سفارش/رسید/موجودی/۲ نقش)، صفحات قانونی، سید ۱۲ SKU</td><td>خرید E2E هر دو مسیر + ضد فروش اضافه + پیامک واقعی سر و کله می‌کشد</td></tr>
-    <tr><td><b>فاز ۲ — رشد و محتوا</b><br><span class="muted">هفته ۵–۷</span></td><td>تجربه مخاطب + تأیید هفتگی، بلاگ + ادیتور، صدای هدیه (MediaRecorder ≤۹۰s → S3)، /g/[no] با OG، سبدهای رهاشده، محتوای ۱۲ محصول + ۸ پست اول + نقشه کلیدواژه اجرا</td><td>گردش محتوایی کامل بدون توسعه‌دهنده + Lighthouse SEO > ۹۰ روی پیش‌نمایش</td></tr>
+    <tr><td><b>فاز ۱ — هسته تجارت</b><br><span class="muted">هفته ۲–۵</span></td><td>اسکیمای جدید (Order/Variant/Payment/…)، چک‌اوت سرورمحور با idempotency، چرخه ۱۱ وضعیتی، هر دو مسیر پرداخت + صف تأیید، موجودی اتمیک، SMS واقعی کاوه‌نگار، ادمین v2 (سفارش/رسید/موجودی/۲ نقش)، صفحات قانونی، سید ۶ SKU تک‌سایز (تصمیم مالک)</td><td>خرید E2E هر دو مسیر + ضد فروش اضافه + پیامک واقعی سر و کله می‌کشد</td></tr>
+    <tr><td><b>فاز ۲ — رشد و محتوا</b><br><span class="muted">هفته ۵–۷</span></td><td>تجربه مخاطب + تأیید هفتگی، بلاگ + ادیتور، صدای هدیه (MediaRecorder ≤۹۰s → S3)، /g/[no] با OG، سبدهای رهاشده، محتوای ۶ محصول + ۸ پست اول + نقشه کلیدواژه اجرا</td><td>گردش محتوایی کامل بدون توسعه‌دهنده + Lighthouse SEO > ۹۰ روی پیش‌نمایش</td></tr>
     <tr><td><b>فاز ۳ — دیپلوی و لانچ</b><br><span class="muted">هفته ۷–۸</span></td><td>Provisioning VPS (systemd/Caddy/CDN/S3/Litestream)، روت‌های واقعی + sitemap + JSON-LD، تست بار k6 (روی ماشین دیگر!)، پاک‌سازی داده دمو (۱۰۰۰/۱۰۴/۱۰۲ و نیلا)، badge اینماد، دامنه، drill بکاپ</td><td>چک‌لیست لانچ پایین کامل + p95&lt;۸۰۰ms در ۵۰ همزمانِ چک‌اوت</td></tr>
   </table></div>
   <h3>چک‌لیست لانچ تجاری</h3>
   <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(240px,1fr))">
-    <div class="mini"><p>☐ دامنه ثبت + DNS</p><p>☐ عکس واقعی ۱۲ محصول</p></div>
+    <div class="mini"><p>☐ دامنه ثبت + DNS</p><p>☐ عکس واقعی ۶ محصول</p></div>
     <div class="mini"><p>☐ پاک‌سازی کامل داده دمو</p><p>☐ OTP واقعی کاوه‌نگار end-to-end</p></div>
     <div class="mini"><p>☐ زرین‌پال sandbox→live</p><p>☐ تست بکاپ/بازگردانی انجام‌شده</p></div>
     <div class="mini"><p>☐ ۳ صفحه قانونی منتشر</p><p>☐ badge اینماد در فوتر</p></div>
-    <div class="mini"><p>☐ sitemap + Search Console</p><p>☐ کلمات کلیدی ۱۲ صفحه تنظیم</p></div>
+    <div class="mini"><p>☐ sitemap + Search Console</p><p>☐ کلمات کلیدی ۶ صفحه تنظیم</p></div>
     <div class="mini"><p>☐ آماده‌سازی پیک یلدا/ولنتاین</p><p>☐ Fathom Lite فعال</p></div>
   </div>
   <h3>تریگرهای مقیاس (فقط با داده، نه با هیجان)</h3>
@@ -297,16 +297,17 @@
 </section>
 
 <section class="card">
-  <h2><span class="no">۱۱</span> ۵ تصمیم که فقط خودت می‌توانی بدهی</h2>
+  <h2><span class="no">۱۱</span> ۶ تصمیم که فقط خودت می‌توانی بدهی</h2>
   <div class="tscroll"><table>
     <tr><th>#</th><th>سؤال</th><th>پیشنهاد من (پیش‌فرض تا بگویی)</th></tr>
-    <tr><td>۱</td><td>قیمت سایز بزرگ (L) هر خانواده چقدر است؟</td><td>L = ۱٫۴ تا ۱٫۵ × قیمت S — قبل از سید دیتابیس لازم است</td></tr>
+    <tr><td>۱</td><td>قیمت سایز بزرگ (L) هر خانواده چقدر است؟</td><td><b style="color:#7CF29C">✓ حل شد (۲۲ مهر)</b> — «همه یک سایزند»: ۶ محصول × یک سایز، بدون تنوع قیمت؛ اعمال‌شده در اسکیما و سید</td></tr>
     <tr><td>۲</td><td>دامنه pishnam.ir همین هفته ثبت می‌شود؟</td><td>همین امروز — ~۱۵۰K/سال؛ همه‌چیز پشت آن بلاک است</td></tr>
     <tr><td>۳</td><td>وعده تأیید کارت‌به‌کارت به مشتری؟</td><td>«تا ۱۲ ساعت» نمایشی + هدف عملیاتی ۲ ساعت در ساعت کاری</td></tr>
     <tr><td>۴</td><td>رسیدهای پرداخت برای مودیان چند وقت بمانند؟</td><td>۱۲ ماه در آروان + خروجی CSV برای حسابدار</td></tr>
     <tr><td>۵</td><td>خبرنامه پیامکی داوطلبانه + ارسال ماهانه از پنل؟</td><td>بله — با چک‌باکس رضایت صریح در تسویه</td></tr>
+    <tr><td>۶</td><td>برای مسیر PostgreSQL+Coolify (راهنمای لانچ): ارتقای RAM به ۴GB یا PG مدیریت‌شده؟</td><td>ارتقای ۴GB — بدون آن PG+Coolify روی ۲GB در پیک یلدا/ولنتاین ریسک OOM دارد</td></tr>
   </table></div>
-  <p class="muted">با جواب دادن به همین ۵ مورد در چت، فاز ۰ از همین امشب بدون معطلی ادامه می‌یابد — تا آن موقع پیش‌فرض‌ها معتبرند.</p>
+  <p class="muted">با جواب دادن به موارد باقی‌مانده در چت، بقیه کار بدون معطلی ادامه می‌یابد — تا آن موقع پیش‌فرض‌ها معتبرند (سؤال ۱ با تصمیم «همه یک سایزند» حل شد).</p>
 </section>
 
 <section class="card">
@@ -324,6 +325,77 @@
   </table></div>
 </section>
 
+<section class="card">
+  <h2><span class="no">۱۳</span> گزارش اجرا — کجاییم و چه مانده تا لانچ؟ <span class="muted" style="font-size:.75rem">به‌روزرسانی ۲۲ مهر ۱۴۰۵ · v1.1</span></h2>
+  <p>از نسخه قبلی این سند سه اتفاق بزرگ افتاد: <b>«راهنمای لانچ» شما</b> (PostgreSQL + Coolify) مبنای اجرا شد و روی ۳ نقطه پرسکریپت را override کرد؛ <b>فاز A (پایه و امنیت) و فاز B (هسته تجارت) کامل اجرا و تست شدند</b>؛ و تصمیم جدید شما <b>«همه یک سایزند»</b> در اسکیما، سید و همین سند اعمال شد (۶ SKU). همه کدها روی گیت‌هاب <code>isnamni/yekdoost</code> (main + برنچ <code>launch-v1</code>) پوش شده است.</p>
+
+  <h3>وضعیت فازها (طبق راهنمای لانچ)</h3>
+  <div class="tscroll"><table>
+    <tr><th>فاز</th><th>وضعیت</th><th>خلاصه چه شد</th></tr>
+    <tr><td><b>A — پایه و امنیت</b></td><td style="color:#7CF29C"><b>✅ کامل + تست‌شده</b></td><td>سشن DB، حذف PIN 1398، OTP سخت‌شده (۶ رقمی/هش/۵ تلاش/سوختن)، rate-limitها، رفع IDOR (بدون کوکی = صفر PII)، <code>/api/me/bootstrap</code> اسکوپ‌شده، صف تأیید نظرات، env.ts/errors.ts — ماتریس curl سبز</td></tr>
+    <tr><td><b>B — هسته تجارت</b></td><td style="color:#7CF29C"><b>✅ کامل + تست‌شده</b></td><td>چک‌اوت سرورمحور + idempotency + کد <code>PN-YYMMDD-####</code>، ماشین ۱۱ وضعیتی، موجودی اتمیک ضد oversell، زرین‌پال (simulate) + کارت‌به‌کارت با صف رسید (magic-byte/SHA-256/۳ تلاش)، SmsOutbox + ۹ قالب، ۶ جاب خودکار، کنسول ادمین ۳ تب — خرید E2E مرورگری سبز</td></tr>
+    <tr><td><b>C — محتوا و سئو</b></td><td style="color:#FFD66B"><b>☐ باقی‌مانده</b></td><td>روت‌های واقعی، بلاگ، تجربه مخاطب، صفحات قانونی — لیست کامل پایین</td></tr>
+    <tr><td><b>D — دیپلوی و لانچ</b></td><td style="color:#FFD66B"><b>☐ باقی‌مانده</b></td><td>Coolify + PostgreSQL، k6، drill بکاپ، پاک‌سازی — لیست کامل پایین</td></tr>
+  </table></div>
+
+  <h3>لیست کامل باقی‌مانده‌ها تا لانچ نهایی (۵ دسته)</h3>
+  <p class="muted">موارد دسته ۵ فقط با تصمیم/اقدام خودتان جلو می‌روند؛ بقیه را ایجنت‌ها می‌سازند. ترتیب پیشنهادی پایین آمده.</p>
+  <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(280px,1fr))">
+    <div class="mini">
+      <p><b>۱) فنی و کد — فاز C</b></p>
+      <p>☐ روت‌های واقعی <code>/product/[slug]×۶</code> + generateMetadata + canonical</p>
+      <p>☐ sitemap.xml + robots.ts + سازنده JSON-LD (Org/WebSite/Product/FAQ)</p>
+      <p>☐ بلاگ: مدل Post + ادیتور مارک‌داون ادمین + ISR</p>
+      <p>☐ تجربه مخاطب: فرم + رضایت صریح + صف تأیید + /stories</p>
+      <p>☐ مرجوعی damage-only: فرم مشتری + عکس ≤۳ + گردش ادمین (دم B9)</p>
+      <p>☐ ۳ صفحه قانونی (privacy/terms/refund با استثنای هدیه)</p>
+      <p>☐ sweep برند پیشتم→پیشنام + 404/500 فارسی</p>
+      <p>☐ E2E کامل ورود OTP در مرورگر (دور بعد QA)</p>
+    </div>
+    <div class="mini">
+      <p><b>۲) امنیت — قبل از پول واقعی</b></p>
+      <p>☐ <b>چرخش PAT گیت‌هاب</b> (در چت paste شده — بعد تثبیت ریپو حتماً)</p>
+      <p>☐ کلید live زرین‌پال + تست verify مبلغ واقعی (تله ۱۰× ریال)</p>
+      <p>☐ اطمینان خاموشی simulate/devCode در prod (env-gated)</p>
+      <p>☐ HSTS + X-Frame-Options روی edge (Coolify)</p>
+      <p>☐ تکرار ماتریس IDOR/rate-limit روی دامنه اصلی</p>
+      <p>☐ drill واقعی بکاپ/بازگردانی + ثبت نتیجه</p>
+      <p>☐ چرخش همه secretهای dev قبل لانچ</p>
+    </div>
+    <div class="mini">
+      <p><b>۳) سئو و محتوا</b></p>
+      <p>☐ <b>ثبت دامنه pishnam.ir + DNS</b> — بلاکر همه چیز</p>
+      <p>☐ عکس واقعی ۶ محصول</p>
+      <p>☐ متن + FAQ هر ۶ صفحه محصول + جدول ۲۰ کلیدواژه</p>
+      <p>☐ ۸ پست اول بلاگ (تقویم: یلدا قبل از ولنتاین)</p>
+      <p>☐ ثبت اینماد + badge فوتر</p>
+      <p>☐ Search Console + submit sitemap</p>
+      <p>☐ Lighthouse SEO &gt; ۹۰ روی /product/bear</p>
+    </div>
+    <div class="mini">
+      <p><b>۴) زیرساخت و دیپلوی — فاز D</b></p>
+      <p>☐ آینه‌سازی schema.postgres.prisma با ۱۰ مدل جدید فاز B</p>
+      <p>☐ Coolify: PG16 + اپ + دامنه + migrate پیش از دیپلوی + healthcheck + جاب‌ها</p>
+      <p>☐ تصمیم RAM ۴GB / PG مدیریت‌شده (سؤال ۶)</p>
+      <p>☐ k6 از ماشین دیگر: ۵۰۰ VU + ۵۰ چک‌اوت همزمان، p95&lt;۸۰۰ms</p>
+      <p>☐ بکاپ PG→آروان + drill ثبت‌شده</p>
+      <p>☐ Fathom Lite + آلارم health</p>
+      <p>☐ پاک‌سازی داده تست/دمو + تست kill کانتینر</p>
+    </div>
+    <div class="mini">
+      <p><b>۵) مالکی — فقط دست شما</b></p>
+      <p>☐ ثبت دامنه (~۱۵۰K/سال)</p>
+      <p>☐ عکس محصول + لوگو نهایی</p>
+      <p>☐ پنل کاوه‌نگار: ثبت ۹ قالب پیامک + شارژ</p>
+      <p>☐ درگاه live زرین‌پال</p>
+      <p>☐ تأیید متن ۳ صفحه قانونی</p>
+      <p>☐ شماره موبایل ادمین دوم (operator)</p>
+      <p>☐ تصمیم خبرنامه پیامکی (سؤال ۵)</p>
+    </div>
+  </div>
+  <div class="callout info" style="margin-top:12px"><b>ترتیب پیشنهادی تا لانچ:</b> ① دامنه + عکس‌ها (موازی با ساخت فاز C) ② فاز C کامل (روت‌ها/بلاگ/قانونی/مرجوعی) ③ آینه PG + Coolify + دامنه ④ k6 + drill بکاپ ⑤ چرخش secretها + پاک‌سازی دمو ⑥ لانچ نرم (خانواده/دوستان) ⑦ اینماد ⑧ لانچ رسمی قبل از پیک یلدا. تخمین با ریتم ایجنت خودکار: فاز C ≈ ۱-۲ هفته، فاز D ≈ ۱ هفته پس از دامنه.</div>
+</section>
+
 <section class="dl">
   <h2>⬇️ خروجی نهایی معماری</h2>
   <p>این فایل JSON تمام تصمیم‌های قفل‌شده، فازها، هزینه‌ها و تریگرهای مقیاس را به‌صورت ماشین‌خوان نگه می‌دارد — نگهش دار؛ هر جلسه توسعه بعدی با آن سینک می‌شود.</p>
@@ -333,7 +405,7 @@
   <p class="muted" style="color:#ffffff88;margin-top:10px">مسیر توسعه: از این لحظه هر ~۱۵ دقیقه یک دور خودکار توسعه/QA طبق همین پرسکریپت اجرا می‌شود — فاز ۰ از امنیت شروع می‌کند.</p>
 </section>
 
-<footer>پیشنام · پرسکریپت نهایی معماری · ساخته‌شده با ارکستراتور + ۴ معمار + ۱ نقاد · ۲۱ مهر ۱۴۰۵ · v1.0</footer>
+<footer>پیشنام · پرسکریپت نهایی معماری · ارکستراتور + ۴ معمار + ۱ نقاد · ۲۱ مهر ۱۴۰۵ · به‌روزرسانی اجرا: ۲۲ مهر ۱۴۰۵ · v1.1</footer>
 </div>
 
 <script id="decision-json" type="application/json">
@@ -341,8 +413,16 @@
   "schema": "pishnam-arch-decision/v1",
   "project": "Pishnam (پیشنام) — plush gift shop",
   "doc": "final-architecture-prescription",
-  "version": "1.0",
+  "version": "1.1",
   "generatedAtFa": "۲۱ مهر ۱۴۰۵",
+  "updatedAtFa": "۲۲ مهر ۱۴۰۵",
+  "executionStatus": {
+    "repo": "github.com/isnamni/yekdoost (main + launch-v1)",
+    "guide": "PISHNAM-LAUNCH-GUIDE.md (PostgreSQL + Coolify — override بر دیتابیس/دیپلوی/بکاپ)",
+    "phasesDone": ["A پایه و امنیت", "B هسته تجارت"],
+    "phasesRemaining": ["C محتوا و سئو", "D دیپلوی و لانچ"],
+    "nextActions": ["دامنه pishnam.ir", "روت‌های واقعی + metadata + sitemap", "بلاگ + تجربه مخاطب", "صفحات قانونی", "آینه PG + Coolify", "k6 + drill بکاپ", "چرخش secretها"]
+  },
   "basis": {
     "answers": "pishnam-arch-answers/v1 (46/46 — binding)",
     "agents": ["13-d backend/commerce", "13-e database", "13-f seo/content", "13-g infra/ops", "13-h adversarial critic (10 must-fix applied)"]
@@ -384,7 +464,7 @@
     {"id":"D17","area":"کارها","decision":"systemd timers → /api/jobs/* با x-cron-secret؛ TZ تهران"},
     {"id":"D18","area":"آمارگیر","decision":"Fathom Lite؛ Umami فقط در روز PG"},
     {"id":"D19","area":"روت‌ها","decision":"موج ۰ ماژول‌های route-ready؛ روت واقعی + sitemap + JSON-LD در دیپلوی؛ # بدون 301"},
-    {"id":"D20","area":"محصول","decision":"۱۲ SKU (۶ خانواده × S/L)، اسلاگ لاتین ابدی، قیمت Int تومان، IRR×10 فقط در JSON-LD"},
+    {"id":"D20","area":"محصول","decision":"۶ SKU تک‌سایز (bear/bunny/cat/duck/panda/sheep) — تصمیم مالک ۲۲ مهر: همه یک سایزند، بدون تنوع قیمت؛ اسلاگ لاتین ابدی، قیمت Int تومان، IRR×10 فقط در JSON-LD"},
     {"id":"D21","area":"UGC/بلاگ","decision":"تجربه مخاطب با رضایت صریح + تأیید هفتگی؛ بلاگ DB + ادیتور مارک‌داون؛ ISR"},
     {"id":"D22","area":"/g/[no]","decision":"noindex,follow + OG فارسی + argon2 + قفل ۱۰ تلاشی؛ خارج از robots.txt"}
   ],
@@ -392,8 +472,8 @@
   "customerTrackSteps": ["ثبت شد","در انتظار پرداخت","آماده‌سازی","ارسال شد","تحویل شد"],
   "phases": [
     {"name":"فاز ۰ — امنیت + route-ready","weeks":"1","items":["Session DB + اسکوپ کوئری‌ها + حذف dump","حذف PIN 1398","OTP سخت + rate limits (با gift_open)","withWriteRetry + تست ۵۰ همزمان","استخراج ماژول‌های route-ready"],"accept":"curl ۵۰ همزمان = صفر BUSY؛ هیچ API بدون سشن داده کاربر نمی‌دهد"},
-    {"name":"فاز ۱ — هسته تجارت","weeks":"2-5","items":["اسکیمای جدید + سید ۱۲ SKU","چک‌اوت سرورمحور + idempotency","چرخه ۱۱ وضعیتی","دو مسیر پرداخت + صف رسید","موجودی اتمیک","SMS کاوه‌نگار واقعی","ادمین v2","صفحات قانونی"],"accept":"خرید E2E هر دو مسیر + ضد oversell + پیامک واقعی"},
-    {"name":"فاز ۲ — رشد و محتوا","weeks":"5-7","items":["تجربه مخاطب + moderation","بلاگ + ادیتور","صدای هدیه (فاز ۲)","/g/[no] OG","سبد رهاشده","محتوای ۱۲ محصول + ۸ پست"],"accept":"گردش محتوایی بدون توسعه‌دهنده + Lighthouse SEO>90"},
+    {"name":"فاز ۱ — هسته تجارت","weeks":"2-5","items":["اسکیمای جدید + سید ۶ SKU تک‌سایز","چک‌اوت سرورمحور + idempotency","چرخه ۱۱ وضعیتی","دو مسیر پرداخت + صف رسید","موجودی اتمیک","SMS کاوه‌نگار واقعی","ادمین v2","صفحات قانونی"],"accept":"خرید E2E هر دو مسیر + ضد oversell + پیامک واقعی"},
+    {"name":"فاز ۲ — رشد و محتوا","weeks":"5-7","items":["تجربه مخاطب + moderation","بلاگ + ادیتور","صدای هدیه (فاز ۲)","/g/[no] OG","سبد رهاشده","محتوای ۶ محصول + ۸ پست"],"accept":"گردش محتوایی بدون توسعه‌دهنده + Lighthouse SEO>90"},
     {"name":"فاز ۳ — دیپلوی و لانچ","weeks":"7-8","items":["VPS systemd/Caddy/CDN/S3/Litestream","روت‌های واقعی + sitemap","k6 روی ماشین دیگر","پاک‌سازی داده دمو","اینماد badge + دامنه","drill بکاپ"],"accept":"چک‌لیست لانچ کامل + p95<800ms در ۵۰ همزمان"}
   ],
   "costScenarios": [
@@ -406,13 +486,14 @@
     {"when":">10k visits/day sustained or campaign weekend","do":"resize 4c/8G (first lever)"},
     {"when":"truly 10k buyers/day","do":"multi-node + Redis + pgBouncer + dedicated PG (~8-15M/mo) — out of year-1 scope"}
   ],
-  "launchChecklist": ["دامنه + DNS","عکس واقعی ۱۲ محصول","پاک‌سازی داده دمو","OTP واقعی end-to-end","زرین‌پال live","drill بکاپ","۳ صفحه قانونی","badge اینماد","sitemap + Search Console","آماده‌سازی پیک یلدا"],
+  "launchChecklist": ["دامنه + DNS","عکس واقعی ۶ محصول","چرخش PAT گیت‌هاب + secretهای dev","پاک‌سازی داده دمو","OTP واقعی end-to-end","زرین‌پال live","drill بکاپ","۳ صفحه قانونی","badge اینماد","sitemap + Search Console","آماده‌سازی پیک یلدا"],
   "ownerDecisions": [
-    {"id":1,"q":"قیمت سایز L؟","default":"L = 1.4-1.5 × S"},
+    {"id":1,"q":"قیمت سایز L؟","resolved":"حل شد ۲۲ مهر — همه یک سایزند، بدون تنوع قیمت"},
     {"id":2,"q":"ثبت pishnam.ir همین هفته؟","default":"بله — همین امروز"},
     {"id":3,"q":"وعده تأیید کارت‌به‌کارت؟","default":"۱۲ ساعت نمایشی / ۲ ساعت کاری عملیاتی"},
     {"id":4,"q":"نگه‌داری رسیدها برای مودیان؟","default":"۱۲ ماه آروان + CSV حسابدار"},
-    {"id":5,"q":"خبرنامه پیامکی داوطلبانه؟","default":"بله با رضایت صریح در تسویه"}
+    {"id":5,"q":"خبرنامه پیامکی داوطلبانه؟","default":"بله با رضایت صریح در تسویه"},
+    {"id":6,"q":"ارتقای RAM به 4GB یا PG مدیریت‌شده برای مسیر PG+Coolify؟","default":"ارتقای 4GB — ریسک OOM پیک یلدا روی 2GB"}
   ]
 }
 </script>
@@ -425,7 +506,7 @@
     var t=document.getElementById('btnDl'),o=t.textContent;t.textContent='✓ دانلود شد';setTimeout(function(){t.textContent=o},1600);
   }
   function cp(){
-    var s='پیشنام — پرسکریپت نهایی معماری v1.0\n'+'تصمیم‌های قفل‌شده: '+getData().decisions.length+' | فازها: '+getData().phases.length+' | تریگر PG: >500 سفارش/روز پایدار\n'+'دیتابیس لانچ: SQLite WAL | مدیا: آروان S3 | آمارگیر: Fathom Lite\n'+'هزینه لانچ: ۲۵۰-۹۵۰ هزار تومان/ماه ✓ | تریگر بازبینی پیامک: ۱۵۰ سفارش/روز\n'+'۵ سؤال مالک: قیمت L، دامنه، SLA تأیید، نگه‌داری رسید، خبرنامه';
+    var s='پیشنام — پرسکریپت نهایی معماری v1.1 (به‌روزرسانی اجرا ۲۲ مهر)\n'+'انجام‌شده: فاز A امنیت + فاز B هسته تجارت (تست‌شده، روی گیت‌هاب)\n'+'باقی‌مانده: فاز C محتوا/سئو + فاز D دیپلوی + ۶ SKU تک‌سایز (تصمیم مالک)\n'+'دیتابیس لانچ: PostgreSQL+Coolify (راهنمای مالک) | مدیا: آروان S3 | آمارگیر: Fathom\n'+'سؤال باز مالک: دامنه، SLA تأیید، نگه‌داری رسید، خبرنامه، RAM 4GB';
     function done(){var t=document.getElementById('btnCp'),o=t.textContent;t.textContent='✓ کپی شد';setTimeout(function(){t.textContent=o},1600);}
     if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(s).then(done).catch(function(){fallback()});}else{fallback();}
     function fallback(){var ta=document.createElement('textarea');ta.value=s;document.body.appendChild(ta);ta.select();try{document.execCommand('copy');done();}catch(e){}ta.remove();}
