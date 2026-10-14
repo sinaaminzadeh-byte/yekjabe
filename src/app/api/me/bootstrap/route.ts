@@ -59,6 +59,15 @@ export async function GET() {
         date: new Intl.DateTimeFormat("fa-IR", { day: "numeric", month: "long" }).format(o.createdAt),
         status: legacyStep(o.status as OrderStatus), // 4-step for legacy chips
         status2: o.status, // raw 11-state for new components
+        // payment reservation (dashboard «تکمیل پرداخت» panel): sent/owned
+        // orders carry the hold deadline + their own idempotency key so the
+        // manual card-to-card panel works from any device of the same account
+        paymentHoldUntil:
+          o.status === "awaiting_payment" || o.status === "payment_under_review"
+            ? o.expiresAt.toISOString()
+            : null,
+        paymentKey: isRecv ? "" : o.idempotencyKey,
+        paymentMethod: o.paymentMethod,
         opened: o.giftOpened,
         dir: isRecv ? ("recv" as const) : ("sent" as const),
         userPhone: o.userPhone,

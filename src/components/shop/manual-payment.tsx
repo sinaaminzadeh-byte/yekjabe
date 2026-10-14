@@ -135,7 +135,7 @@ export function ManualPaymentPanel({
   const [instructions, setInstructions] = useState<{ cardNumber: string; sheba: string; cardName: string } | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
-  const setPendingStatus = usePishnam((s) => s.setPendingStatus);
+  const setOrderStatusByCode = usePishnam((s) => s.setOrderStatusByCode);
   // timer ran out while watching → derive the expired view (no effect needed)
   const view: PanelPhase = phase === "pay" && expired ? "expired" : phase;
 
@@ -168,7 +168,9 @@ export function ManualPaymentPanel({
         setPhase("error");
         return;
       }
-      setPendingStatus("payment_under_review");
+      // code-scoped flip: the panel may be rendering an order that is NOT the
+      // globally-pending one (dashboard/track rebuild it from bootstrap)
+      setOrderStatusByCode(code, "payment_under_review");
       setPhase("review");
       toast({ title: "رسیدت ثبت شد ✓", description: "تا ۱۲ ساعت بررسی می‌شه؛ نتیجه‌ش با پیامک میاد." });
       onUploaded?.();

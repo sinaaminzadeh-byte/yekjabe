@@ -52,6 +52,11 @@ export interface GiftOrder {
   code?: string; // PN-YYMMDD-#### for Phase-B server orders
   status2?: string; // raw 11-state status (server orders)
   v2?: boolean; // true = lives in the new Order table
+  // payment reservation (bootstrap): lets the dashboard rebuild the
+  // «تکمیل پرداخت» panel (countdown + copyable card + receipt upload)
+  paymentHoldUntil?: string | null; // ISO deadline of the 10-min window
+  paymentKey?: string; // idempotency key — the order owner may reuse it
+  paymentMethod?: string; // zarinpal | manual_transfer
 }
 
 export interface Receiver {
@@ -151,6 +156,10 @@ interface PishnamState {
   submitCheckout: () => Promise<{ ok: boolean; ack?: CheckoutAck; error?: string; details?: Record<string, unknown> }>;
   clearPendingOrder: () => void;
   setPendingStatus: (status: string) => void;
+  /** Flip the raw status of a SPECIFIC order (by its PN code) — used by the
+   * manual payment panel, which may be opened for an order that is NOT the
+   * globally-pending one (dashboard/track rebuild the panel from bootstrap). */
+  setOrderStatusByCode: (code: string, status: string) => void;
   advanceStatus: (id: string) => void;
   markOpened: (id: string) => void;
   resetBuilder: () => void;
@@ -398,6 +407,15 @@ export const usePishnam = create<PishnamState>()(
         set({
           pendingOrder: { ...p, status },
           orders: get().orders.map((o) => (o.code === p.code ? { ...o, status2: status } : o)),
+        });
+      },
+
+      setOrderStatusByCode: (code, status) => {
+        const p = get().pendingOrder;
+        set({
+          orders: get().orders.map((o) => (o.code === code ? { ...o, status2: status } : o)),
+          // keep the pending ack consistent ONLY when it points at this order
+          pendingOrder: p?.code === code ? { ...p, status } : p,
         });
       },
 

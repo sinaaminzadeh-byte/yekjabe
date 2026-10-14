@@ -11,6 +11,7 @@ const STATUS_RANK: Record<string, number> = { paid: 0, packing: 1, shipped: 2, d
 interface ServerOrder {
   id: string;
   no: number;
+  code?: string; // PN-YYMMDD-#### (v2 orders) — also supersedes the local mirror id
   kind: GiftOrder["kind"];
   to: string;
   city: string;
@@ -30,6 +31,9 @@ interface ServerOrder {
   opened: boolean;
   dir: string;
   userPhone?: string;
+  paymentHoldUntil?: string | null; // ISO — end of the 10-min reservation window
+  paymentKey?: string; // idempotency key (sent/owned orders only)
+  paymentMethod?: string; // zarinpal | manual_transfer
 }
 
 interface BootstrapPayload {
@@ -57,6 +61,10 @@ function mergeRemote(remote: ServerOrder[], adoptPhone?: string): number {
   for (const r of remote) {
     if (!r || typeof r.id !== "string" || typeof r.no !== "number") continue;
     maxNo = Math.max(maxNo, r.no);
+    // the optimistic local mirror (o-local-<code>) is superseded by its server
+    // row — otherwise the board shows the same gift twice forever
+    const mirrorId = r.code ? `o-local-${r.code}` : "";
+    if (mirrorId && mirrorId !== r.id) byId.delete(mirrorId);
     const local = byId.get(r.id);
     if (!local) {
       byId.set(r.id, {
@@ -75,8 +83,20 @@ function mergeRemote(remote: ServerOrder[], adoptPhone?: string): number {
       const userPhone = !local.userPhone && adopted ? adopted : local.userPhone;
       // raw 11-state: the server always wins (refund states have no legacy rank)
       const status2 = r.status2 ?? local.status2;
-      if (status !== local.status || opened !== local.opened || userPhone !== local.userPhone || status2 !== local.status2) {
-        byId.set(r.id, { ...local, status, opened, userPhone, status2 });
+      // payment reservation fields follow the server (admin can reopen a window)
+      const paymentHoldUntil = r.paymentHoldUntil ?? local.paymentHoldUntil ?? null;
+      const paymentKey = r.paymentKey || local.paymentKey;
+      const paymentMethod = r.paymentMethod || local.paymentMethod;
+      if (
+        status !== local.status ||
+        opened !== local.opened ||
+        userPhone !== local.userPhone ||
+        status2 !== local.status2 ||
+        paymentHoldUntil !== local.paymentHoldUntil ||
+        paymentKey !== local.paymentKey ||
+        paymentMethod !== local.paymentMethod
+      ) {
+        byId.set(r.id, { ...local, status, opened, userPhone, status2, paymentHoldUntil, paymentKey, paymentMethod });
         changed++;
       }
     }
@@ -101,13 +121,46 @@ async function fetchBootstrap(): Promise<BootstrapPayload | null> {
 }
 
 /**
+ * Applies one bootstrap payload to the local board:
+ *  1. account-switch hygiene — server-made (v2) rows that belong to ANOTHER
+ *     phone and are NOT part of this session's payload are dropped, so logging
+ *     into a different account never shows the previous account's orders;
+ *  2. mirror dedupe + merge (server rows supersede the optimistic o-local-*).
+ * Local-only legacy demo orders and guest-made v2 rows (userPhone="") stay.
+ */
+function applyBootstrap(data: BootstrapPayload): number {
+  const sessionPhone = data.user?.phone ?? null;
+  const incoming = Array.isArray(data.orders) ? data.orders : [];
+  // hydrate the account from the session — a live cookie must mean a live
+  // «حساب من» (favorites sync + LoggedInBlock) even after a cold reload
+  if (data.user) {
+    const cur = usePishnam.getState().user;
+    if (!cur || cur.phone !== data.user.phone) {
+      usePishnam.setState({ user: { phone: data.user.phone, name: data.user.name || cur?.name || "" } });
+    }
+  }
+  if (sessionPhone && incoming.length >= 0) {
+    const ids = new Set(incoming.map((o) => o.id));
+    const st = usePishnam.getState();
+    const stale = st.orders.filter(
+      (o) => o.v2 && o.userPhone && o.userPhone !== sessionPhone && !ids.has(o.id),
+    );
+    if (stale.length > 0) {
+      const staleIds = new Set(stale.map((o) => o.id));
+      usePishnam.setState({ orders: st.orders.filter((o) => !staleIds.has(o.id)) });
+    }
+  }
+  return mergeRemote(incoming, sessionPhone ?? undefined);
+}
+
+/**
  * Pulls the session's orders (and merges them). Identity = HttpOnly cookie;
  * the `phone` parameter is accepted for call-site compatibility and ignored.
  */
 export async function pullOrders(_phone?: string): Promise<number> {
   const data = await fetchBootstrap();
   if (!data || !Array.isArray(data.orders)) return 0;
-  return mergeRemote(data.orders, data.user?.phone);
+  return applyBootstrap(data);
 }
 
 /** Alias kept for the «هدیه‌هام» post-login pull — now session-scoped. */
@@ -149,6 +202,6 @@ export async function syncStatus(
 ): Promise<{ ok: boolean; changed: number }> {
   const data = await fetchBootstrap();
   if (!data) return { ok: false, changed: 0 };
-  const changed = Array.isArray(data.orders) ? mergeRemote(data.orders, data.user?.phone) : 0;
+  const changed = Array.isArray(data.orders) ? applyBootstrap(data) : 0;
   return { ok: true, changed };
 }

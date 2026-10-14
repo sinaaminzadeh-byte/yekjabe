@@ -18,14 +18,11 @@ import { PLUSH_MAP, OCCASIONS } from "@/lib/pishnam-data";
 import { fa, faPrice } from "@/lib/fa";
 import { useToast } from "@/hooks/use-toast";
 import { downloadGiftCard } from "@/lib/gift-card";
+import { orderChip, isOnJourney } from "@/lib/orders/order-view";
+import { CountdownBadge } from "../manual-payment";
+import { PaymentBlock, useHold } from "./dashboards";
 
 /* ── local helpers ── */
-const STATUS_CHIP: Record<string, { label: string; bg: string }> = {
-  paid: { label: "بسته‌بندی", bg: "#FFF3C9" },
-  packing: { label: "بسته‌بندی", bg: "#FFF3C9" },
-  shipped: { label: "در راه", bg: "#CDEFFB" },
-  delivered: { label: "تحویل شد", bg: "#D7F5E4" },
-};
 
 const NEXT_LABEL: Record<string, string> = {
   paid: "بسته‌بندی",
@@ -33,6 +30,24 @@ const NEXT_LABEL: Record<string, string> = {
   shipped: "تحویل به دوستت",
   delivered: "",
 };
+
+/** Honest one-liner for v2 orders outside the classic 4-step journey. */
+function bannerNote(status2?: string): string {
+  switch (status2) {
+    case "awaiting_payment":
+      return "هدیه‌ت ساخته شده و ۱۰ دقیقه برات رزرو شده؛ پرداخت که تموم شد، جعبه‌چینی شروع می‌شه.";
+    case "payment_under_review":
+      return "رسیدت رسید و تو نوبت بررسیه؛ تا ۱۲ ساعت نتیجه رو پیامک می‌کنیم.";
+    case "failed":
+      return "پرداخت این سفارش ناتموم موند. اگه مبلغ کم شده با پشتیبانی در تماس باش.";
+    case "cancelled":
+      return "این سفارش لغو شده؛ اگه فکر می‌کنی اشتباهه با ما در تماس باش.";
+    case "expired":
+      return "مهلت ۱۰ دقیقه‌ای رزرو تموم شد و موجودی آزاد شد؛ می‌تونی یه هدیه‌ی تازه بسازی.";
+    default:
+      return "وضعیت سفارش به‌روزه.";
+  }
+}
 
 function who(o: GiftOrder): string {
   return o.dir === "sent" ? `برای ${o.to}` : `از ${o.senderName || "یه دوست ناشناس"}`;
@@ -461,6 +476,9 @@ export function MobileTrack() {
   const o = useSelectedOrder();
   const advanceStatus = usePishnam((s) => s.advanceStatus);
   const { toast } = useToast();
+  const hold = useHold(o);
+  const chip = o ? orderChip(o) : null;
+  const onJourney = o ? (!o.v2 || isOnJourney(o)) : true;
 
   return (
     <div className="flex min-h-screen flex-col bg-[#F2FAFD] md:hidden">
@@ -485,15 +503,19 @@ export function MobileTrack() {
                 <div className="flex items-center gap-2">
                   <span
                     className="rounded-[10px] px-2.5 py-1 text-[12px] font-bold"
-                    style={{ background: STATUS_CHIP[o.status].bg }}
+                    style={{ background: chip?.bg, color: chip?.fg ?? undefined }}
                   >
-                    {STATUS_CHIP[o.status].label}
+                    {chip?.label}
                   </span>
+                  {o.v2 && o.status2 === "awaiting_payment" && hold.expiresAt && (
+                    <CountdownBadge expiresAt={hold.expiresAt} />
+                  )}
                   <span className="text-[12.5px] font-medium text-[#4A6572]">{o.date}</span>
                 </div>
               </div>
             </div>
-            {/* mini progress */}
+            {/* mini progress — only for orders actually on the 4-step journey */}
+            {onJourney && (
             <div className="mt-4 flex items-center gap-3">
               <div className="h-[10px] flex-1 overflow-hidden rounded-full bg-[#E1EFF5]">
                 <div
@@ -505,9 +527,18 @@ export function MobileTrack() {
                 {fa(statusToStep(o.status) + 1)} از {fa(4)} قدم
               </span>
             </div>
+            )}
+            {/* honest status banner for orders outside the journey (unpaid/dead) */}
+            {!onJourney && (
+              <div className="mt-4 flex flex-col gap-2 rounded-[20px] border border-[#F2E3A0] bg-[#FFFBEC] px-4 py-3.5">
+                <span className="text-[13.5px] font-extrabold text-[#04202E]">{bannerNote(o.status2)}</span>
+                <PaymentBlock o={o} />
+              </div>
+            )}
           </div>
 
           {/* timeline */}
+          {onJourney && (
           <div className="mt-4 px-5">
             <div className="rounded-[24px] border border-[#DDEEF5] bg-white p-5">
               <ol className="m-0 list-none p-0">
@@ -517,6 +548,7 @@ export function MobileTrack() {
               </ol>
             </div>
           </div>
+          )}
 
           {/* details */}
           <div className="mt-4 px-5">
@@ -525,7 +557,7 @@ export function MobileTrack() {
               <InfoRow k="شهر" v={o.city} />
               {o.address && <InfoRow k="آدرس" v={o.address} />}
               <InfoRow k="قلب و پنجه" v={extras(o)} />
-              <InfoRow k="مبلغ پرداختی" v={`${faPrice(o.total)} تومان`} />
+              <InfoRow k="مبلغ پرداختی" v={faPrice(o.total)} />
             </div>
           </div>
 
@@ -547,7 +579,7 @@ export function MobileTrack() {
                   <ForwardIcon size={16} stroke="#006387" />
                 </button>
               )}
-              {o.dir === "sent" && o.status !== "delivered" && (
+              {o.dir === "sent" && !o.v2 && o.status !== "delivered" && (
                 <button
                   type="button"
                   onClick={() => {
@@ -587,6 +619,7 @@ export function DesktopTrack() {
   const o = useSelectedOrder();
   const advanceStatus = usePishnam((s) => s.advanceStatus);
   const { toast } = useToast();
+  const hold = useHold(o);
 
   if (!o)
     return (
@@ -598,6 +631,8 @@ export function DesktopTrack() {
     );
 
   const cur = statusToStep(o.status);
+  const chip = orderChip(o);
+  const onJourney = !o.v2 || isOnJourney(o);
 
   return (
     <div className="hidden min-h-screen flex-col bg-[#F2FAFD] md:flex">
@@ -620,14 +655,28 @@ export function DesktopTrack() {
             </div>
             <span
               className="rounded-[14px] px-4 py-2 text-[14px] font-extrabold"
-              style={{ background: STATUS_CHIP[o.status].bg }}
+              style={{ background: chip.bg, color: chip.fg ?? undefined }}
             >
-              {STATUS_CHIP[o.status].label}
+              {chip.label}
             </span>
+            {o.v2 && o.status2 === "awaiting_payment" && hold.expiresAt && (
+              <CountdownBadge expiresAt={hold.expiresAt} />
+            )}
           </div>
         </section>
 
+        {/* honest status banner for orders outside the journey (unpaid/dead) */}
+        {!onJourney && (
+          <section className="flex flex-col gap-3 rounded-[28px] border border-[#F2E3A0] bg-[#FFFBEC] p-7">
+            <span className="text-[15px] font-extrabold text-[#04202E]">{bannerNote(o.status2)}</span>
+            <div className="max-w-[560px]">
+              <PaymentBlock o={o} desktop />
+            </div>
+          </section>
+        )}
+
         {/* horizontal stepper */}
+        {onJourney && (
         <section className="rounded-[28px] border border-[#DDEEF5] bg-white p-7">
           <div className="relative flex items-start justify-between">
             <div className="absolute inset-x-[46px] top-[23px] h-[3px] rounded bg-[#E1EFF5]" aria-hidden>
@@ -659,11 +708,13 @@ export function DesktopTrack() {
             })}
           </div>
         </section>
+        )}
 
         {/* two columns */}
         <section className="grid grid-cols-[1fr_400px] gap-7">
           {/* right: vertical timeline + details */}
           <div className="flex flex-col gap-7">
+            {onJourney && (
             <div className="rounded-[28px] border border-[#DDEEF5] bg-white p-7">
               <h2 className="mb-5 mt-0 text-[19px] font-extrabold">قدم‌به‌قدم</h2>
               <ol className="m-0 list-none p-0">
@@ -672,6 +723,7 @@ export function DesktopTrack() {
                 ))}
               </ol>
             </div>
+            )}
             <div className="rounded-[28px] border border-[#DDEEF5] bg-white px-6 py-2.5">
               <h2 className="mb-1 mt-4 text-[19px] font-extrabold">جزئیات سفارش</h2>
               <InfoRow k="گیرنده" v={o.dir === "sent" ? o.to : "تو"} />
@@ -679,7 +731,7 @@ export function DesktopTrack() {
               {o.address && <InfoRow k="آدرس" v={o.address} />}
               <InfoRow k="تاریخ" v={o.date} />
               <InfoRow k="قلب و پنجه" v={extras(o)} />
-              <InfoRow k="مبلغ پرداختی" v={`${faPrice(o.total)} تومان`} />
+              <InfoRow k="مبلغ پرداختی" v={faPrice(o.total)} />
               <div className="h-3" />
             </div>
           </div>
@@ -707,7 +759,7 @@ export function DesktopTrack() {
                   <ForwardIcon size={16} stroke="#006387" />
                 </button>
               )}
-              {o.dir === "sent" && o.status !== "delivered" && (
+              {o.dir === "sent" && !o.v2 && o.status !== "delivered" && (
                 <button
                   type="button"
                   onClick={() => {

@@ -34,15 +34,16 @@ import {
   pullOrdersForPhone,
   syncStatus,
 } from "@/lib/pishnam-sync";
+import { FavoritesStrip } from "../fav";
+import { CountdownBadge, ManualPaymentPanel } from "../manual-payment";
+import { orderChip, V2_CHIP, type OrderChip as ViewChip } from "@/lib/orders/order-view";
 
 /* ═══════════════ shared constants & helpers ═══════════════ */
 
-const STATUS_MAP: Record<GiftStatus, { label: string; bg: string }> = {
-  paid: { label: "بسته‌بندی", bg: "#FFF3C9" },
-  packing: { label: "بسته‌بندی", bg: "#FFF3C9" },
-  shipped: { label: "در راه", bg: "#CDEFFB" },
-  delivered: { label: "تحویل شد", bg: "#D7F5E4" },
-};
+// Honest customer-facing chips live in @/lib/orders/order-view (one source of
+// truth for dashboard + track): v2 orders show the real 11-state status —
+// legacyStep used to collapse «awaiting_payment» into «بسته‌بندی», which lied
+// about money. Legacy demo orders keep the classic 4-step chip.
 
 const NEXT_LABEL: Record<GiftStatus, string> = {
   paid: "بسته‌بندی",
@@ -50,25 +51,6 @@ const NEXT_LABEL: Record<GiftStatus, string> = {
   shipped: "تحویل به دوستت",
   delivered: "تمام شد",
 };
-
-function recvStatus(o: GiftOrder) {
-  return o.opened
-    ? { label: "پیام رو دیدی", bg: "#D7F5E4" }
-    : { label: "پیام منتظرته", bg: "#CDEFFB" };
-}
-
-/* ── damage-only refund (Phase C) — raw 11-state wins for refund statuses ── */
-const REFUND_CHIP: Record<string, { label: string; bg: string }> = {
-  refund_requested: { label: "در جریان مرجوعی", bg: "#E7E0FA" },
-  refunded: { label: "مرجوع شد", bg: "#E7E0FA" },
-};
-
-function displayStatus(o: GiftOrder): { label: string; bg: string } {
-  if (o.v2 && (o.status2 === "refund_requested" || o.status2 === "refunded")) {
-    return REFUND_CHIP[o.status2];
-  }
-  return o.dir === "sent" ? STATUS_MAP[o.status] : recvStatus(o);
-}
 
 /**
  * Damage-only refund request block (Phase C §4.8): shown on sent server orders
@@ -87,7 +69,10 @@ function RefundBlock({ o, desktop = false }: { o: GiftOrder; desktop?: boolean }
   const [busy, setBusy] = useState(false);
 
   const eligible = Boolean(o.v2) && o.dir === "sent" && (o.status2 === "shipped" || o.status2 === "delivered");
-  const chip = o.v2 && (o.status2 === "refund_requested" || o.status2 === "refunded") ? REFUND_CHIP[o.status2] : null;
+  const chip =
+    o.v2 && (o.status2 === "refund_requested" || o.status2 === "refunded")
+      ? V2_CHIP[o.status2 as "refund_requested" | "refunded"]
+      : null;
 
   if (!eligible && !chip) return null;
 
@@ -247,6 +232,161 @@ function RefundBlock({ o, desktop = false }: { o: GiftOrder; desktop?: boolean }
       )}
     </div>
   );
+}
+
+/* ── payment actions (dashboard): the 10-min reservation, reachable again ──
+ * awaiting_payment → countdown + card-to-card panel (copyable card + receipt
+ * upload) or a zarinpal re-verify button; payment_under_review → honest hint;
+ * expired/cancelled/failed → build-a-new-gift CTA. Works from any device of
+ * the account: the server board carries the hold deadline + idempotency key. */
+
+interface PaymentHold {
+  expiresAt?: string;
+  key: string;
+  method: string;
+}
+
+export function useHold(o: GiftOrder | null): PaymentHold {
+  const pendingOrder = usePishnam((s) => s.pendingOrder);
+  return useMemo(
+    () => ({
+      expiresAt: o
+        ? o.paymentHoldUntil ?? (pendingOrder?.code === o.code ? pendingOrder?.expiresAt : undefined)
+        : undefined,
+      key: o ? o.paymentKey || (pendingOrder?.code === o.code ? pendingOrder?.key : "") || "" : "",
+      method: o
+        ? o.paymentMethod ??
+          (pendingOrder?.code === o.code ? pendingOrder?.method : undefined) ??
+          "manual_transfer"
+        : "manual_transfer",
+    }),
+    [o?.code, o?.paymentHoldUntil, o?.paymentKey, o?.paymentMethod, pendingOrder],
+  );
+}
+
+export function PaymentBlock({ o, desktop = false }: { o: GiftOrder; desktop?: boolean }) {
+  const { toast } = useToast();
+  const hold = useHold(o);
+  const [open, setOpen] = useState(false);
+  const [busy, setBusy] = useState(false);
+
+  if (!o.v2 || o.dir !== "sent") return null;
+
+  /* awaiting_payment — the customer still owes money for THIS gift */
+  if (o.status2 === "awaiting_payment") {
+    const canManual = hold.method === "manual_transfer" && Boolean(hold.key && o.code);
+    const recheckZarinpal = async () => {
+      if (busy || !o.code || !hold.key) return;
+      setBusy(true);
+      try {
+        const res = await fetch("/api/payment/zarinpal/recheck", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ code: o.code, key: hold.key }),
+        });
+        const body = (await res.json().catch(() => ({}))) as {
+          paid?: boolean;
+          retryUrl?: string;
+        };
+        if (body.paid) {
+          toast({ title: "پرداخت تأیید شد ✓", description: "هدیه‌ت وارد صف بسته‌بندی شد." });
+          void pullOrders();
+          return;
+        }
+        if (body.retryUrl) {
+          window.location.href = body.retryUrl; // callback → 302 → #/success?code=…
+          return;
+        }
+        toast({ title: "پرداختی ثبت نشده", description: "می‌تونی دوباره درگاه رو امتحان کنی." });
+      } catch {
+        toast({ title: "سرور در دسترس نیست", description: "کمی بعد دوباره تلاش کن." });
+      } finally {
+        setBusy(false);
+      }
+    };
+
+    return (
+      <div
+        onClick={(e) => e.stopPropagation()}
+        onKeyDown={(e) => e.stopPropagation()}
+        className={desktop ? "w-full pt-2" : "mt-3 border-t border-[#EDF6FA] pt-3"}
+      >
+        {canManual && !open && (
+          <button
+            type="button"
+            onClick={() => setOpen(true)}
+            className={`flex items-center justify-center gap-1.5 rounded-full bg-[#FFF3C9] font-extrabold text-[#7A5C00] transition-transform active:scale-95 ${
+              desktop ? "h-9 px-3.5 text-[12px]" : "h-10 w-full text-[13px]"
+            }`}
+          >
+            نمایش شماره کارت و آپلود رسید
+            <ForwardIcon size={15} stroke="#7A5C00" />
+          </button>
+        )}
+        {canManual && open && (
+          <ManualPaymentPanel
+            code={o.code ?? ""}
+            idempotencyKey={hold.key}
+            total={o.total}
+            expiresAt={hold.expiresAt}
+            onUploaded={() => void pullOrders()}
+          />
+        )}
+        {hold.method === "zarinpal" && (
+          <button
+            type="button"
+            onClick={() => void recheckZarinpal()}
+            disabled={busy}
+            className={`flex items-center justify-center gap-1.5 rounded-full bg-[#E3F6FD] font-extrabold text-[#006387] transition-transform active:scale-95 disabled:opacity-60 ${
+              desktop ? "h-9 px-3.5 text-[12px]" : "h-10 w-full text-[13px]"
+            }`}
+          >
+            {busy ? "در حال بررسی…" : "ادامه‌ی پرداخت (درگاه)"}
+            <ForwardIcon size={15} stroke="#006387" />
+          </button>
+        )}
+      </div>
+    );
+  }
+
+  /* payment_under_review — receipt received, owner hasn't confirmed yet */
+  if (o.status2 === "payment_under_review") {
+    return (
+      <div className={desktop ? "pt-2" : "mt-3 border-t border-[#EDF6FA] pt-3"}>
+        <span className="text-[12px] font-bold leading-[1.85] text-[#7A5C00]">
+          رسیدت ثبت شده ✓ تا ۱۲ ساعت بررسی می‌شه و نتیجه رو پیامک می‌کنیم.
+        </span>
+      </div>
+    );
+  }
+
+  /* dead orders — nothing left but a fresh gift */
+  if (o.status2 === "expired" || o.status2 === "cancelled" || o.status2 === "failed") {
+    return (
+      <div
+        onClick={(e) => e.stopPropagation()}
+        onKeyDown={(e) => e.stopPropagation()}
+        className={desktop ? "pt-2" : "mt-3 border-t border-[#EDF6FA] pt-3"}
+      >
+        <button
+          type="button"
+          onClick={() => navigate("pick")}
+          className={`flex items-center justify-center gap-1.5 rounded-full bg-[#F2F7F9] font-extrabold text-[#4A6572] transition-transform active:scale-95 ${
+            desktop ? "h-9 px-3.5 text-[12px]" : "h-10 w-full text-[13px]"
+          }`}
+        >
+          ساختن هدیه‌ی تازه
+          <ForwardIcon size={15} stroke="#4A6572" />
+        </button>
+      </div>
+    );
+  }
+
+  return null;
+}
+
+function displayStatus(o: GiftOrder): ViewChip {
+  return orderChip(o);
 }
 
 function sentExtra(o: GiftOrder): string {
@@ -445,12 +585,15 @@ function TabsPill({
   className = "",
   height = 42,
   fontSize = "14.5px",
+  sentAlert = 0,
 }: {
   tab: "sent" | "recv";
   onChange: (t: "sent" | "recv") => void;
   className?: string;
   height?: number;
   fontSize?: string;
+  /** v2 sent orders that still need payment — amber attention badge. */
+  sentAlert?: number;
 }) {
   return (
     <div className={`flex gap-1.5 rounded-[22px] bg-[#E3F0F5] p-[5px] ${className}`}>
@@ -460,10 +603,18 @@ function TabsPill({
           type="button"
           aria-pressed={tab === t}
           onClick={() => onChange(t)}
-          className="flex-1 rounded-[17px] font-extrabold text-[#04202E] transition-colors"
+          className="flex flex-1 items-center justify-center gap-1.5 rounded-[17px] font-extrabold text-[#04202E] transition-colors"
           style={{ height, fontSize, background: tab === t ? "#fff" : "transparent" }}
         >
           {t === "sent" ? "فرستاده‌ها" : "دریافتی‌ها"}
+          {t === "sent" && sentAlert > 0 && (
+            <span
+              title={`${fa(sentAlert)} سفارش منتظر پرداخته`}
+              className="flex h-[19px] min-w-[19px] items-center justify-center rounded-full bg-[#F0426B] px-1 text-[10.5px] font-black leading-none text-white"
+            >
+              {fa(sentAlert)}
+            </span>
+          )}
         </button>
       ))}
     </div>
@@ -533,7 +684,7 @@ function EmptyPanel({ tab, desktop = false }: { tab: "sent" | "recv"; desktop?: 
         <span className={`${desktop ? "text-[14.5px]" : "text-[13px]"} max-w-[420px] font-medium leading-[1.9] text-[#4A6572]`}>
           {isSent
             ? "اولین بغل پشمالوت رو برای یه دوست بساز؛ هر هدیه یه شماره‌ی مخصوص خودش رو می‌گیره و همین‌جا می‌مونه."
-            : "وقتی یکی برات هدیه بفرسته، کارت و پیامش همین‌جا می‌افته. فعلاً تو غافلگیری پیش‌دستی کن!"}
+            : "وقتی یکی برات هدیه بفرسته، کارت و پیامش همین‌جا می‌افته. کد PN و رمز کارت رو برات پیامک می‌کنن؛ با همون از صفحه‌ی رهگیری کارت رو باز کن."}
         </span>
       </div>
       <button
@@ -670,6 +821,7 @@ function BadgesRow({ className = "" }: { className?: string }) {
 function MobileOrderCard({ o }: { o: GiftOrder }) {
   const advanceStatus = usePishnam((s) => s.advanceStatus);
   const selectOrder = usePishnam((s) => s.selectOrder);
+  const hold = useHold(o);
   const st = displayStatus(o);
   return (
     <div
@@ -699,8 +851,13 @@ function MobileOrderCard({ o }: { o: GiftOrder }) {
           <span className="text-[12.5px] font-medium text-[#4A6572]">
             {o.date} · {orderExtra(o)}
           </span>
-          <span className="self-start rounded-[10px] px-2.5 py-1 text-[12px] font-bold" style={{ background: st.bg }}>
-            {st.label}
+          <span className="flex flex-wrap items-center gap-1.5">
+            <span className="self-start rounded-[10px] px-2.5 py-1 text-[12px] font-bold" style={{ background: st.bg, color: st.fg ?? undefined }}>
+              {st.label}
+            </span>
+            {o.v2 && o.status2 === "awaiting_payment" && hold.expiresAt && (
+              <CountdownBadge expiresAt={hold.expiresAt} />
+            )}
           </span>
         </div>
       </div>
@@ -738,6 +895,7 @@ function MobileOrderCard({ o }: { o: GiftOrder }) {
         </div>
       )}
 
+      {o.dir === "sent" && <PaymentBlock o={o} />}
       {o.dir === "sent" && <RefundBlock o={o} />}
     </div>
   );
@@ -751,6 +909,9 @@ export function MobileMyGifts() {
   const hearts = list.reduce((a, o) => a + o.hearts, 0);
   const paws = list.reduce((a, o) => a + o.paws, 0);
   const anon = list.filter((o) => o.anonymous).length;
+  const awaiting = orders.filter((o) => o.dir === "sent" && o.v2 && o.status2 === "awaiting_payment").length;
+  const doneCount = list.filter((o) => (o.status2 ? o.status2 === "delivered" : o.status === "delivered")).length;
+  const openedCount = list.filter((o) => o.opened).length;
 
   return (
     <div className="flex min-h-screen flex-col bg-[#F2FAFD] pb-6 md:hidden">
@@ -770,7 +931,7 @@ export function MobileMyGifts() {
       </div>
 
       {/* tabs */}
-      <TabsPill tab={tab} onChange={setTab} className="mx-5 mt-2.5" />
+      <TabsPill tab={tab} onChange={setTab} className="mx-5 mt-2.5" sentAlert={awaiting} />
 
       {/* stats */}
       <div className="flex gap-2.5 px-5 pt-3.5">
@@ -782,6 +943,10 @@ export function MobileMyGifts() {
           <span className="text-[12px] font-semibold text-[#4A6572]">قلب و پنجه‌ی تو</span>
           <span className="text-[22px] font-black">{fa(charms)}</span>
         </div>
+        <div className="flex flex-1 flex-col gap-0.5 rounded-[20px] border border-[#BFE5D3] bg-[#DDF3EA] p-3">
+          <span className="text-[12px] font-semibold text-[#4A6572]">{tab === "sent" ? "تحویل‌شده" : "پیام بازشده"}</span>
+          <span className="text-[22px] font-black">{fa(tab === "sent" ? doneCount : openedCount)}</span>
+        </div>
       </div>
 
       {/* charms summary chips */}
@@ -791,6 +956,9 @@ export function MobileMyGifts() {
       <div className="flex flex-col gap-3 px-5 pt-3.5">
         {list.length === 0 ? <EmptyPanel tab={tab} /> : list.map((o) => <MobileOrderCard key={o.id} o={o} />)}
       </div>
+
+      {/* favorites — the plushes this account hearted (self-hides when empty) */}
+      <FavoritesStrip />
 
       {/* dashed info box */}
       <div className="mx-5 mt-4 flex items-center gap-3 rounded-[24px] border-2 border-dashed border-[#99D6EE] p-4">
@@ -808,6 +976,7 @@ export function MobileMyGifts() {
 function DesktopOrderCard({ o }: { o: GiftOrder }) {
   const advanceStatus = usePishnam((s) => s.advanceStatus);
   const selectOrder = usePishnam((s) => s.selectOrder);
+  const hold = useHold(o);
   const st = displayStatus(o);
   return (
     <div
@@ -837,9 +1006,10 @@ function DesktopOrderCard({ o }: { o: GiftOrder }) {
           {o.date} · {orderExtra(o)}
         </span>
         <div className="flex flex-wrap items-center gap-2">
-          <span className="rounded-[10px] px-2.5 py-1 text-[12.5px] font-bold" style={{ background: st.bg }}>
+          <span className="rounded-[10px] px-2.5 py-1 text-[12.5px] font-bold" style={{ background: st.bg, color: st.fg ?? undefined }}>
             {st.label}
           </span>
+          {o.v2 && o.status2 === "awaiting_payment" && hold.expiresAt && <CountdownBadge expiresAt={hold.expiresAt} />}
           {o.dir === "sent" && o.status !== "delivered" && !o.v2 && (
             <button
               type="button"
@@ -877,6 +1047,7 @@ function DesktopOrderCard({ o }: { o: GiftOrder }) {
             رهگیری ›
           </button>
         </div>
+        {o.dir === "sent" && <PaymentBlock o={o} desktop />}
         {o.dir === "sent" && <RefundBlock o={o} desktop />}
       </div>
     </div>
@@ -891,6 +1062,9 @@ export function DesktopMyGifts() {
   const hearts = list.reduce((a, o) => a + o.hearts, 0);
   const paws = list.reduce((a, o) => a + o.paws, 0);
   const anon = list.filter((o) => o.anonymous).length;
+  const awaiting = orders.filter((o) => o.dir === "sent" && o.v2 && o.status2 === "awaiting_payment").length;
+  const doneCount = list.filter((o) => (o.status2 ? o.status2 === "delivered" : o.status === "delivered")).length;
+  const openedCount = list.filter((o) => o.opened).length;
 
   return (
     <div className="hidden min-h-screen flex-col bg-[#F2FAFD] md:flex">
@@ -915,7 +1089,7 @@ export function DesktopMyGifts() {
 
         {/* tabs + stat cards */}
         <section className="flex flex-wrap items-center gap-4">
-          <TabsPill tab={tab} onChange={setTab} className="w-[380px] max-w-full" height={44} fontSize="15px" />
+          <TabsPill tab={tab} onChange={setTab} className="w-[380px] max-w-full" height={44} fontSize="15px" sentAlert={awaiting} />
           <div className="ms-auto flex flex-wrap gap-4">
             <div className="flex min-w-[190px] flex-col gap-0.5 rounded-[22px] border border-[#DDEEF5] bg-white px-[18px] py-[14px]">
               <span className="text-[13px] font-semibold text-[#4A6572]">تعداد هدیه‌ها</span>
@@ -924,6 +1098,10 @@ export function DesktopMyGifts() {
             <div className="flex min-w-[190px] flex-col gap-0.5 rounded-[22px] border border-[#F7C5D3] bg-[#FFE9F0] px-[18px] py-[14px]">
               <span className="text-[13px] font-semibold text-[#4A6572]">قلب و پنجه‌ی تو</span>
               <span className="text-[26px] font-black">{fa(charms)}</span>
+            </div>
+            <div className="flex min-w-[190px] flex-col gap-0.5 rounded-[22px] border border-[#BFE5D3] bg-[#DDF3EA] px-[18px] py-[14px]">
+              <span className="text-[13px] font-semibold text-[#4A6572]">{tab === "sent" ? "تحویل‌شده" : "پیام بازشده"}</span>
+              <span className="text-[26px] font-black">{fa(tab === "sent" ? doneCount : openedCount)}</span>
             </div>
           </div>
           {list.length > 0 && <CharmChips hearts={hearts} paws={paws} anonymous={anon} className="w-full" />}
@@ -941,6 +1119,9 @@ export function DesktopMyGifts() {
             ))}
           </section>
         )}
+
+        {/* favorites — the plushes this account hearted (self-hides when empty) */}
+        <FavoritesStrip desktop />
 
         {/* dashed note + impact link */}
         <section className="mb-4 mt-2 flex flex-wrap items-center gap-4 rounded-[28px] border-2 border-dashed border-[#99D6EE] px-[26px] py-[22px]">
@@ -1473,9 +1654,25 @@ function LoginFlowBlock({ flow }: { flow: OtpFlow }) {
 
 function LoggedInBlock() {
   const user = usePishnam((s) => s.user);
+  const orders = usePishnam((s) => s.orders);
   const logout = usePishnam((s) => s.logout);
   const { toast } = useToast();
   if (!user) return null;
+
+  const sent = orders.filter((o) => o.dir === "sent");
+  const recv = orders.filter((o) => o.dir === "recv");
+  const charms = sent.reduce((a, o) => a + o.hearts + o.paws, 0);
+  const awaiting = sent.filter((o) => o.v2 && o.status2 === "awaiting_payment").length;
+
+  const links: { label: string; route: Route; bg: string; note: string }[] = [
+    { label: "هدیه‌هام", route: "my-gifts", bg: "#E3F6FD", note: awaiting > 0 ? `${fa(awaiting)} سفارش منتظر پرداخت` : "فرستاده‌ها و دریافتی‌ها" },
+    { label: "دفتر مهربونی", route: "impact", bg: "#FFE9F0", note: "قلب و پنجه‌هات کجا رفتن" },
+    { label: "پیگیری هدیه", route: "track", bg: "#FFF3C9", note: "مسیر جعبه تا تحویل" },
+    { label: "داستان‌ها", route: "stories", bg: "#DDF3EA", note: "بغل‌های واقعی مشتری‌ها" },
+    { label: "نظرها", route: "reviews", bg: "#E7E0FA", note: "حرف‌های بغل‌گیرنده‌ها" },
+    { label: "تماس با ما", route: "contact", bg: "#F2F7F9", note: "سؤالی داری؟" },
+  ];
+
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-col gap-2.5">
@@ -1484,17 +1681,56 @@ function LoggedInBlock() {
           حسابت فعاله؛ هدیه‌هات و کارت‌هات همیشه همین‌جان.
         </p>
       </div>
+
+      {/* profile card */}
       <div className="flex items-center gap-4 rounded-[26px] border border-[#DDEEF5] bg-white p-5">
         <span className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-[#00ABE7] text-2xl font-black text-[#04202E]">
-          {user.name.slice(0, 1)}
+          {user.name.slice(0, 1) || "پ"}
         </span>
         <div className="flex min-w-0 flex-col gap-1">
-          <span className="text-[17px] font-extrabold">{user.name}</span>
+          <span className="text-[17px] font-extrabold">{user.name || "دوست پیشنامی"}</span>
           <span dir="ltr" className="text-[13.5px] font-semibold text-[#4A6572]">
             {fa(user.phone)}
           </span>
         </div>
       </div>
+
+      {/* account stats — live from the synced board */}
+      <div className="flex gap-2.5">
+        <div className="flex flex-1 flex-col gap-0.5 rounded-[20px] border border-[#DDEEF5] bg-white px-3 py-2.5">
+          <span className="text-[11.5px] font-semibold text-[#4A6572]">فرستادی</span>
+          <span className="text-[20px] font-black">{fa(sent.length)}</span>
+        </div>
+        <div className="flex flex-1 flex-col gap-0.5 rounded-[20px] border border-[#CDEFFB] bg-[#E3F6FD] px-3 py-2.5">
+          <span className="text-[11.5px] font-semibold text-[#4A6572]">گرفتی</span>
+          <span className="text-[20px] font-black">{fa(recv.length)}</span>
+        </div>
+        <div className="flex flex-1 flex-col gap-0.5 rounded-[20px] border border-[#F7C5D3] bg-[#FFE9F0] px-3 py-2.5">
+          <span className="text-[11.5px] font-semibold text-[#4A6572]">قلب و پنجه</span>
+          <span className="text-[20px] font-black">{fa(charms)}</span>
+        </div>
+      </div>
+
+      {/* quick links — the shortcuts a returning customer actually needs */}
+      <div className="grid grid-cols-2 gap-2.5">
+        {links.map((l) => (
+          <button
+            key={l.route}
+            type="button"
+            onClick={() => navigate(l.route)}
+            className={`flex flex-col items-start gap-1 rounded-[20px] border border-[#DDEEF5] p-3.5 text-right transition-all hover:shadow-[0_6px_18px_rgba(4,32,46,0.07)] focus-visible:ring-2 focus-visible:ring-[#00ABE7] focus-visible:outline-none`}
+          >
+            <span className="flex w-full items-center justify-between gap-2">
+              <span className="text-[14.5px] font-extrabold text-[#04202E]">{l.label}</span>
+              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border-2 border-[#04202E]" style={{ background: l.bg }}>
+                <ForwardIcon size={14} stroke="#04202E" />
+              </span>
+            </span>
+            <span className="text-[11.5px] font-semibold leading-[1.7] text-[#4A6572]">{l.note}</span>
+          </button>
+        ))}
+      </div>
+
       <button
         type="button"
         onClick={() => navigate("my-gifts")}
