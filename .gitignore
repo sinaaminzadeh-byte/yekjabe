@@ -52,3 +52,13 @@ prompt
 server.log
 # Skills directory
 /skills/
+# Pishnam repo hygiene
+db/
+tool-results/
+upload/
+download/
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+--full-page
