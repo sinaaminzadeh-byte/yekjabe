@@ -576,3 +576,25 @@ Stage Summary:
 - JSON-LD price verified as "8900000" IRR (×10 lives only inside productJsonLd). Not-found path is graceful with zero structured data. No files outside the allowed set touched; prisma/api/admin/dashboards/flow/info untouched; no git commit.
 - Known tradeoffs (documented): document.title persists when navigating to screens without the hook (sandbox-only, deploy removes it); one-frame not-found flash on direct hash load (useHashRoute mount-sync lag, pre-existing pattern); placeholder domain https://pishnam.ir until registration.
 - Next: integrate pick ?kind= preselect, sweep پیشتم→پیشنام in old screens (owner-approved timing), then real /product/[slug] routes + sitemap at deploy wave.
+
+---
+Task ID: 17 (17-a/17-b/17-c/17-d) — final
+Agent: main (Z.ai Code) — orchestrator (+3 specialists)
+Task: Owner directive: complete remaining items EXCEPT SMS/Zarinpal-live/deploy (deferred to last). Execute Phase C (content & SEO) end-to-end.
+
+Work Log:
+- Owner sequencing applied: پیامک واقعی، درگاه live، دیپلوی → deferred; فاز C + local security items → now.
+- 17-a (frontend-styling-expert): SEO wave-0 modules — src/lib/seo/{site,product-catalog,metadata,jsonld}.ts + <JsonLd/> + product.tsx (#/product?slug=) with Product+FAQ+Breadcrumb JSON-LD (price "8900000" IRR ×10 inside builder only), sticky mobile CTA, 6-slug cross-links; home product cards deep-link; layout.tsx پیشنام metadata + OG fa_IR. Verified: lint/tsc 0, ldCount=3, all 6 slugs, not-found graceful, 390px overflow 0.
+- 17-b (full-stack-developer): schema +Post{slug@unique,excerpt,tags,publishedAt} +Experience(consent gate, pending|published|rejected) +Order{refundReason,refundPhotos,refundRequestedAt}; db:push clean. APIs: POST /api/experiences (2/h/IP, magic-byte photo), GET /api/stories, /api/posts(+[slug]), admin experiences queue PATCH publish|reject, admin posts CRUD (slug auto/translit, dup 409), POST /api/orders/[id]/refund (own-order via sessionPhone|userPhone|senderPhone, shipped|delivered only, ≤3 photos .data/refunds/, transitionOrder reuse). Full curl matrix PASS (rate limits, 403 not_yours, 409s, PII-clean). Seed: scripts/seed-blog.ts (3 Persian posts 250-400w + 2 experiences). .env: SMS_DEV_ECHO=1 + ADMIN_SEED_PHONES=09121112233 (QA only).
+- 17-c (frontend-styling-expert, hit context deadline — files landed complete, I verified): stories.tsx (grid+form+consent+rate-limit copy), blog.tsx (index+post with safe <Markdown/> md.tsx — no dangerouslySetInnerHTML), legal.tsx (privacy/terms/refund پیش‌نویس), dashboards refund panel (reason+3 photos, REFUND chips), admin 5 tabs (+تجربه‌ها moderation, +بلاگ editor), router+page wiring, info.tsx links.
+- Orchestrator verification round: lint+tsc 0. E2E browser: product page OK (earlier «پیدا نشد» was the documented one-frame mount flash); blog post markdown renders clean; stories form submit → 201 (first attempt 429 «فردا» = rate limit PROVEN, not a bug) → admin queue → publish via UI → public /api/stories shows it first; admin OTP browser login re-verified (devCode echo → 6-digit → console); admin blog tab lists 3 seeds + editor.
+- Refund E2E built from scratch: checkout (nested zod payload) → callback?Authority=&Status=OK (capital params!) → paid → preparing→shipped→delivered via admin transitions → browser login as sender (OTP) → my-gifts card → refund panel → «ثبت درخواست مرجوعی» → UI chip در جریان مرجوعی + server refund_requested.
+- BUG FOUND+FIXED (orchestrator): /api/me/bootstrap order scope omitted senderPhone → guest-sender orders invisible in my-gifts (refund guard accepted them but UI couldn't reach). One-line OR-list fix; curl+browser verified.
+- 17-d (orchestrator): brand sweep پیشتم→پیشنام — 63 occurrences across 15 files (logo/nav/info/gift-card canvas watermark/legacy pishnam components) → 0 remaining; hash router: unknown hash → «not-found» route (empty hash stays home) + Persian NotFoundScreen (🧸 برگرد به خانه); src/app/error.tsx Persian 500 boundary (تلاش دوباره / رفتن به خانه + digest). Cleanup: scripts/tmp-inspect.ts removed; ensure-server.sh committed as dev shim.
+- Git: commit 5103968 on main (checkout abort mid-sequence committed to main; then launch-v1 ff-merged to same commit — both branches synced + pushed to github.com/isnamni/yekdoost).
+
+Stage Summary:
+- فاز C COMPLETE (in-sandbox scope): SEO foundation + product pages, UGC stories with consent+moderation, blog+editor, 3 legal drafts, refund flow both sides, admin 5 tabs, brand=پیشنام, Persian 404/500.
+- Deferred (owner order): Kavenegar live SMS, Zarinpal live keys, deployment (PG mirror/Coolify/k6/drill) — all pre-scoped, flip-on-config at deploy.
+- E2E evidence: stories/blog/product/legal/refund/admin all browser-proven; rate limits and guards re-proven live.
+- Next cron rounds: content polish + product photos seam, blog post seeding cadence, THEN deploy wave (PG schema mirror of 10 models first), keeping SMS/payment-live/deploy-last per owner.
