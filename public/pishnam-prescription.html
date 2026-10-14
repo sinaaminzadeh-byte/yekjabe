@@ -334,7 +334,7 @@
     <tr><th>فاز</th><th>وضعیت</th><th>خلاصه چه شد</th></tr>
     <tr><td><b>A — پایه و امنیت</b></td><td style="color:#7CF29C"><b>✅ کامل + تست‌شده</b></td><td>سشن DB، حذف PIN 1398، OTP سخت‌شده (۶ رقمی/هش/۵ تلاش/سوختن)، rate-limitها، رفع IDOR (بدون کوکی = صفر PII)، <code>/api/me/bootstrap</code> اسکوپ‌شده، صف تأیید نظرات، env.ts/errors.ts — ماتریس curl سبز</td></tr>
     <tr><td><b>B — هسته تجارت</b></td><td style="color:#7CF29C"><b>✅ کامل + تست‌شده</b></td><td>چک‌اوت سرورمحور + idempotency + کد <code>PN-YYMMDD-####</code>، ماشین ۱۱ وضعیتی، موجودی اتمیک ضد oversell، زرین‌پال (simulate) + کارت‌به‌کارت با صف رسید (magic-byte/SHA-256/۳ تلاش)، SmsOutbox + ۹ قالب، ۶ جاب خودکار، کنسول ادمین ۳ تب — خرید E2E مرورگری سبز</td></tr>
-    <tr><td><b>C — محتوا و سئو</b></td><td style="color:#FFD66B"><b>☐ باقی‌مانده</b></td><td>روت‌های واقعی، بلاگ، تجربه مخاطب، صفحات قانونی — لیست کامل پایین</td></tr>
+    <tr><td><b>C — محتوا و سئو</b></td><td style="color:#7CF29C"><b>✅ کامل (سندباکس) — ۲۲ مهر</b></td><td>ماژول‌های سئو + صفحه محصول با JSON-LD (تله ۱۰×ریال در بیلدر)، بلاگ + ادیتور مارک‌داون، تجربه مخاطب با رضایت صریح + صف تأیید، ۳ صفحه قانونی (پیش‌نویس برای تأیید شما)، مرجوعی damage-only دو سمت، sweep برند پیشنام، 404/500 فارسی، ادمین ۵ تب — همه E2E مرورگری سبز</td></tr>
     <tr><td><b>D — دیپلوی و لانچ</b></td><td style="color:#FFD66B"><b>☐ باقی‌مانده</b></td><td>Coolify + PostgreSQL، k6، drill بکاپ، پاک‌سازی — لیست کامل پایین</td></tr>
   </table></div>
 
@@ -342,15 +342,17 @@
   <p class="muted">موارد دسته ۵ فقط با تصمیم/اقدام خودتان جلو می‌روند؛ بقیه را ایجنت‌ها می‌سازند. ترتیب پیشنهادی پایین آمده.</p>
   <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(280px,1fr))">
     <div class="mini">
-      <p><b>۱) فنی و کد — فاز C</b></p>
-      <p>☐ روت‌های واقعی <code>/product/[slug]×۶</code> + generateMetadata + canonical</p>
-      <p>☐ sitemap.xml + robots.ts + سازنده JSON-LD (Org/WebSite/Product/FAQ)</p>
-      <p>☐ بلاگ: مدل Post + ادیتور مارک‌داون ادمین + ISR</p>
-      <p>☐ تجربه مخاطب: فرم + رضایت صریح + صف تأیید + /stories</p>
-      <p>☐ مرجوعی damage-only: فرم مشتری + عکس ≤۳ + گردش ادمین (دم B9)</p>
-      <p>☐ ۳ صفحه قانونی (privacy/terms/refund با استثنای هدیه)</p>
-      <p>☐ sweep برند پیشتم→پیشنام + 404/500 فارسی</p>
-      <p>☐ E2E کامل ورود OTP در مرورگر (دور بعد QA)</p>
+      <p><b>۱) فنی و کد — فاز C</b> <span class="muted">(سبز = انجام‌شده ۲۲ مهر)</span></p>
+      <p style="color:#7CF29C">☑ صفحه محصول (موج ۰: <code>#/product?slug=</code>) + generateMetadata الگو + canonical در سند seo</p>
+      <p style="color:#7CF29C">☑ ماژول sitemap/robots/JSON-LD آماده دیپلوی (Org/WebSite/Product/FAQ/Breadcrumb — قیمت IRR×10 داخل بیلدر)</p>
+      <p style="color:#7CF29C">☑ بلاگ: مدل Post + ادیتور مارک‌داون ادمین + رندر امن (بدون dangerouslySetInnerHTML) — روت واقعی + ISR در دیپلوی</p>
+      <p style="color:#7CF29C">☑ تجربه مخاطب: فرم + رضایت صریح + صف تأیید ادمین — روت واقعی /stories در دیپلوی</p>
+      <p style="color:#7CF29C">☑ مرجوعی damage-only: فرم مشتری (دلیل + عکس ≤۳) + گردش ادمین (دو سمت E2E)</p>
+      <p style="color:#7CF29C">☑ ۳ صفحه قانونی (privacy/terms/refund) — پیش‌نویس، منتظر تأیید متن شما</p>
+      <p style="color:#7CF29C">☑ sweep برند پیشتم→پیشنام (۶۳ مورد) + 404/500 فارسی</p>
+      <p style="color:#7CF29C">☑ E2E کامل ورود OTP در مرورگر (ادمین + کاربر) + رفع باگ scope سفارش مهمان در bootstrap</p>
+      <p>☐ روت‌های واقعی /product/[slug] و /stories و /blog (موج دیپلوی — ماژول‌ها آماده)</p>
+      <p>☐ اینماد بعد از دامنه (مسیرش از صفحات قانونی رد می‌شود)</p>
     </div>
     <div class="mini">
       <p><b>۲) امنیت — قبل از پول واقعی</b></p>
@@ -374,7 +376,7 @@
     </div>
     <div class="mini">
       <p><b>۴) زیرساخت و دیپلوی — فاز D</b></p>
-      <p>☐ آینه‌سازی schema.postgres.prisma با ۱۰ مدل جدید فاز B</p>
+      <p>☐ آینه‌سازی schema.postgres.prisma با ۱۲ مدل جدید (فاز A+B+C)</p>
       <p>☐ Coolify: PG16 + اپ + دامنه + migrate پیش از دیپلوی + healthcheck + جاب‌ها</p>
       <p>☐ تصمیم RAM ۴GB / PG مدیریت‌شده (سؤال ۶)</p>
       <p>☐ k6 از ماشین دیگر: ۵۰۰ VU + ۵۰ چک‌اوت همزمان، p95&lt;۸۰۰ms</p>
