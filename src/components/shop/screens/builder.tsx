@@ -25,6 +25,7 @@ import {
   OCCASION_HOLDERS,
   CHARITY_TARGET,
 } from "@/lib/pishnam-data";
+import { PROVINCES } from "@/lib/orders/provinces";
 import { useEffect, useState } from "react";
 
 export function DesktopBuilder({ step }: { step: 1 | 2 | 3 | 4 }) {
@@ -51,7 +52,13 @@ export function DesktopBuilder({ step }: { step: 1 | 2 | 3 | 4 }) {
   const setReceiver = usePishnam((s) => s.setReceiver);
   const nextNo = usePishnam((s) => s.nextNo);
   const done = useCharityDone();
-  const total = BOX_PRICE + (hearts + paws) * CHARM_PRICE;
+  // server quote — the only payable number (guide §4.5)
+  const quote = usePishnam((s) => s.quote);
+  const fetchQuote = usePishnam((s) => s.fetchQuote);
+  useEffect(() => {
+    void fetchQuote();
+  }, [fetchQuote, kind, hearts, paws, receiver.province]);
+  const total = quote?.total ?? 0;
   const sel = PLUSHES.find((p) => p.kind === kind) ?? PLUSHES[0];
   const valid = receiver.name.trim() !== "" && receiver.phone.trim().length >= 8 && receiver.address.trim() !== "";
 
@@ -358,7 +365,21 @@ export function DesktopBuilder({ step }: { step: 1 | 2 | 3 | 4 }) {
             <div className="flex flex-wrap gap-3.5">
               <DField label="اسم گیرنده" value={receiver.name} onChange={(v) => setReceiver({ name: v })} placeholder="اسم دوستت" />
               <DField label="شماره‌ی موبایل گیرنده" value={receiver.phone} onChange={(v) => setReceiver({ phone: v })} placeholder="۰۹۱۲ ۱۲۳ ۴۵۶۷" tel />
-              <DField label="استان و شهر" value={receiver.city} onChange={(v) => setReceiver({ city: v })} placeholder="مثلاً تهران، تهران" />
+              <div className="flex min-w-0 flex-[1_1_240px] flex-col gap-1.5">
+                <label className="text-[13px] font-bold text-[#4A6572]">استان</label>
+                <select
+                  value={receiver.province}
+                  onChange={(e) => setReceiver({ province: e.target.value })}
+                  className="box-border h-[52px] rounded-2xl border-[1.5px] border-[#CFE6EF] bg-[#F8FDFF] px-4 text-base font-semibold text-[#04202E] outline-none focus:border-[#00ABE7]"
+                >
+                  {PROVINCES.map((p) => (
+                    <option key={p} value={p}>
+                      {p}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <DField label="شهر" value={receiver.city} onChange={(v) => setReceiver({ city: v })} placeholder="مثلاً تهران" />
               <div className="flex min-w-0 flex-[1_1_240px] flex-col gap-1.5">
                 <label className="text-[13px] font-bold text-[#4A6572]">آدرس کامل</label>
                 <textarea
@@ -392,15 +413,14 @@ export function DesktopBuilder({ step }: { step: 1 | 2 | 3 | 4 }) {
           </div>
 
           <div className="flex flex-col gap-2">
-            <Row label={`${sel.name}، دوست پشمالو`} sub="جعبه‌ی کادویی + کارت پستال QR" amount={money(BOX_PRICE)} />
-            {hearts > 0 && <Row label={`قلب قرمز × ${fa(hearts)}`} sub="برای بچه‌های بی‌سرپرست" amount={money(hearts * CHARM_PRICE)} />}
-            {paws > 0 && <Row label={`پنجه × ${fa(paws)}`} sub="برای پناهگاه حیوونا" amount={money(paws * CHARM_PRICE)} />}
-            <Row label="هزینه‌ی ارسال" sub={receiver.city ? (receiver.city.includes("تهران") ? "تهران" : "شهرستان") : "بعد از ثبت آدرس"} amount={receiver.city ? (receiver.city.includes("تهران") ? money(49_000) : money(69_000)) : "—"} muted />
+            <Row label={`${sel.name}، دوست پشمالو`} sub="جعبه‌ی کادویی + کارت پستال QR" amount={quote ? money(quote.total - quote.shipping - quote.charms) : "…"} />
+            {hearts + paws > 0 && <Row label={`قلب و پنجه × ${fa(hearts + paws)}`} sub="برای بچه‌های بی‌سرپرست و حیوونا" amount={quote ? money(quote.charms) : "…"} />}
+            <Row label="هزینه‌ی ارسال" sub={receiver.province === "تهران" ? "تهران" : "شهرستان"} amount={quote ? money(quote.shipping) : "…"} muted />
           </div>
 
           <div className="flex items-center justify-between border-t border-[#E3F0F5] pt-3.5 text-lg font-black">
             <span>جمع کل</span>
-            <span>{money(total)} تومان</span>
+            <span>{quote ? `${money(total)} تومان` : "در حال محاسبه…"}</span>
           </div>
 
           <div
@@ -416,10 +436,10 @@ export function DesktopBuilder({ step }: { step: 1 | 2 | 3 | 4 }) {
 
           <button
             type="button"
-            disabled={!valid}
+            disabled={!valid || !quote}
             onClick={() => window.dispatchEvent(new CustomEvent("pishnam:pay"))}
             className="flex h-[56px] items-center justify-center gap-2 rounded-full text-base font-extrabold transition-all active:scale-95"
-            style={{ background: valid ? "#00ABE7" : "#CFE6EF", color: "#04202E", opacity: valid ? 1 : 0.75, cursor: valid ? "pointer" : "not-allowed" }}
+            style={{ background: valid && quote ? "#00ABE7" : "#CFE6EF", color: "#04202E", opacity: valid && quote ? 1 : 0.75, cursor: valid && quote ? "pointer" : "not-allowed" }}
           >
             پرداخت و فرستادن
             <HeartSticker size={20} fill="#04202E" stroke="none" />

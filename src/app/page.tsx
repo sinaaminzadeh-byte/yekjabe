@@ -23,6 +23,7 @@ import {
 import { GiftExperience } from "@/components/shop/screens/gift-experience";
 import { MobileTrack, DesktopTrack } from "@/components/shop/screens/track";
 import { AdminScreen } from "@/components/shop/screens/admin";
+import { PayGateway } from "@/components/shop/screens/pay-gateway";
 import {
   AboutPage,
   MissionPage,
@@ -52,8 +53,8 @@ function Splash() {
 }
 
 function PishnamScreens() {
-  const { route } = useHashRoute();
-  const standalone = route === "gift";
+  const { route, query } = useHashRoute();
+  const standalone = route === "gift" || route === "pay-gateway";
 
   // boot-time server sync: merge orders persisted in SQLite into the local
   // store (global board first, then the logged-in account's bound orders)
@@ -128,6 +129,8 @@ function PishnamScreens() {
         );
       case "gift":
         return <GiftExperience />;
+      case "pay-gateway":
+        return <PayGateway authority={query.get("authority") ?? ""} />;
       case "track":
         return (
           <>

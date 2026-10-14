@@ -10,6 +10,7 @@ export type Route =
   | "card"
   | "extras"
   | "checkout"
+  | "pay-gateway"
   | "success"
   | "my-gifts"
   | "impact"
@@ -29,6 +30,7 @@ export const ROUTES: Route[] = [
   "card",
   "extras",
   "checkout",
+  "pay-gateway",
   "success",
   "my-gifts",
   "impact",

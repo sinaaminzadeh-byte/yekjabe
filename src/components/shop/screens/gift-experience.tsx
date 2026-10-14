@@ -176,14 +176,81 @@ export function GiftExperience() {
   const [show, setShow] = useState(false);
   const [wrong, setWrong] = useState(false);
   const [shakeN, setShakeN] = useState(0);
+  // server-order unlock (guide §4.11): code + password → POST /api/gifts/{code}/open
+  const [code, setCode] = useState("");
+  const [remote, setRemote] = useState<GiftOrder | null>(null);
+  const [lockErr, setLockErr] = useState("");
 
-  const sender = order.anonymous || !order.senderName ? "یه دوست ناشناس" : order.senderName;
-  const occasion = OCCASIONS[order.occasion] ?? "همین‌طوری";
+  const active: GiftOrder = remote ?? order;
+
+  const sender = active.anonymous || !active.senderName ? "یه دوست ناشناس" : active.senderName;
+  const occasion = OCCASIONS[active.occasion] ?? "همین‌طوری";
+
+  const openRemote = async (c: string, password: string) => {
+    setLockErr("");
+    try {
+      const res = await fetch(`/api/gifts/${encodeURIComponent(c)}/open`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password }),
+      });
+      if (!res.ok) {
+        const b = (await res.json().catch(() => ({}))) as { error?: string };
+        const map: Record<string, string> = {
+          wrong_password: "رمز درست نیست! یه بار دیگه امتحان کن یا از کسی که فرستاده بپرس.",
+          gift_locked: "به‌خاطر تلاش‌های زیاد، این کارت موقتاً قفل شده.",
+          rate_limited: "چند دقیقه صبر کن و دوباره امتحان کن.",
+          not_found: "با این کد، سفارشی پیدا نشد.",
+        };
+        setWrong(true);
+        setShakeN((n) => n + 1);
+        setLockErr(map[b.error ?? ""] ?? "باز کردن انجام نشد؛ دوباره امتحان کن.");
+        return;
+      }
+      const g = (await res.json()) as { to: string; senderName: string; anonymous: boolean; message: string; occasion: number; kind: string; hearts: number; paws: number };
+      const mapped: GiftOrder = {
+        id: `o-remote-${c}`,
+        no: Number(c.slice(-4)) || 0,
+        kind: (g.kind as GiftOrder["kind"]) ?? "bear",
+        to: g.to || "دوست گلم",
+        city: "",
+        address: "",
+        phone: "",
+        message: g.message,
+        occasion: g.occasion,
+        password: "",
+        anonymous: g.anonymous,
+        senderName: g.senderName,
+        hearts: g.hearts,
+        paws: g.paws,
+        total: 0,
+        date: "",
+        status: "delivered",
+        opened: true,
+        dir: "recv",
+        code: c,
+        v2: true,
+      };
+      setRemote(mapped);
+      setWrong(false);
+      setPhase("open");
+      toast({ title: "هدیه‌ت باز شد 🎉" });
+    } catch {
+      setWrong(true);
+      setShakeN((n) => n + 1);
+      setLockErr("اینترنت قطعه؛ اتصالت رو چک کن.");
+    }
+  };
 
   const tryUnlock = () => {
     const v = pw.trim();
-    if (v === order.password) {
-      markOpened(order.id);
+    const c = code.trim().toUpperCase();
+    if (/^PN-\d{6}-\d{4}$/.test(c)) {
+      void openRemote(c, v);
+      return;
+    }
+    if (v === active.password) {
+      markOpened(active.id);
       setWrong(false);
       setPhase("open");
     } else {
@@ -209,13 +276,13 @@ export function GiftExperience() {
             >
               خانه
             </button>
-            <GiftChip no={order.no} />
+            <GiftChip no={active.no} />
           </div>
 
           <div className="relative mx-auto mt-[26px] h-[290px] w-[290px] shrink-0">
             <div className="absolute inset-0 rounded-full bg-[#66CDF1]" />
             <div className="absolute left-[35px] top-[40px]">
-              <Plush kind={order.kind} size={220} />
+              <Plush kind={active.kind} size={220} />
             </div>
             <span className="absolute right-[28px] top-[18px] rotate-12">
               <HeartSticker size={30} fill="#fff" stroke="#04202E" strokeWidth={2.4} />
@@ -242,6 +309,21 @@ export function GiftExperience() {
             }}
             className="mt-5 flex flex-col gap-3 px-6"
           >
+            <div>
+              <label htmlFor="gc-m" className="mb-1 block px-1 text-[12px] font-bold text-[#04202E]/80">
+                کد سفارش (روی کارت پستال نوشته شده — اختیاری)
+              </label>
+              <input
+                id="gc-m"
+                type="text"
+                value={code}
+                onChange={(e) => setCode(e.target.value)}
+                placeholder="PN-251213-0007"
+                dir="ltr"
+                autoCapitalize="characters"
+                className="h-[54px] w-full box-border rounded-[22px] border-[3px] border-[#04202E]/85 bg-white/95 px-5 text-[16px] font-bold text-[#04202E] outline-none placeholder:text-[#9DB6C2]"
+              />
+            </div>
             <div key={shakeN} className={wrong ? "pishnam-shake" : ""}>
               <div className="relative">
                 <label htmlFor="gp-m" className="absolute -left-[9999px]">
@@ -261,7 +343,7 @@ export function GiftExperience() {
             </div>
             {wrong && (
               <div className="rounded-2xl bg-[#FFE9F0] px-4 py-2.5 text-center text-[13.5px] font-bold text-[#C2274B]">
-                رمز درست نیست! یه بار دیگه امتحان کن یا از کسی که فرستاده بپرس.
+                {lockErr || "رمز درست نیست! یه بار دیگه امتحان کن یا از کسی که فرستاده بپرس."}
               </div>
             )}
             <button
@@ -313,7 +395,7 @@ export function GiftExperience() {
                   <path d="M6 6l12 12M18 6L6 18" />
                 </svg>
               </button>
-              <GiftChip no={order.no} />
+              <GiftChip no={active.no} />
             </div>
 
             <div className="relative flex flex-col items-start gap-1.5 pt-[22px]">
@@ -324,7 +406,7 @@ export function GiftExperience() {
             </div>
 
             <div className="absolute -bottom-2 left-3.5">
-              <Plush kind={order.kind} size={168} />
+              <Plush kind={active.kind} size={168} />
             </div>
           </div>
 
@@ -337,7 +419,7 @@ export function GiftExperience() {
               </span>
             </div>
             <p className="m-0 whitespace-pre-line text-[17px] font-medium leading-[2.1]">
-              {order.message}
+              {active.message}
             </p>
           </div>
 
@@ -378,8 +460,8 @@ export function GiftExperience() {
               <HeartSticker size={40} fill="#F0426B" stroke="#04202E" strokeWidth={2.4} />
             </span>
             <div className="text-[14px] font-semibold leading-[1.9] text-[#1F3E4D]">
-              فرستنده‌ت با <b className="text-[#04202E]">{fa(order.hearts)} قلب</b> و{" "}
-              <b className="text-[#04202E]">{fa(order.paws)} پنجه</b> به بچه‌های بی‌سرپرست و
+              فرستنده‌ت با <b className="text-[#04202E]">{fa(active.hearts)} قلب</b> و{" "}
+              <b className="text-[#04202E]">{fa(active.paws)} پنجه</b> به بچه‌های بی‌سرپرست و
               حیوونا هدیه داده. این هدیه، مهربونی رو دو برابر کرد.
             </div>
           </div>
@@ -451,13 +533,13 @@ export function GiftExperience() {
 
             <div className="relative flex flex-wrap items-center justify-between gap-3">
               <span className="text-sm font-extrabold">پیشتم · یه بغل، تو یه جعبه</span>
-              <GiftChip no={order.no} big />
+              <GiftChip no={active.no} big />
             </div>
 
             <div className="relative mx-auto h-[300px] w-[300px] shrink-0 self-center">
               <div className="absolute inset-0 rounded-full bg-[#66CDF1]" />
               <div className="absolute left-[36px] top-[42px]">
-                <Plush kind={order.kind} size={228} />
+                <Plush kind={active.kind} size={228} />
               </div>
               <span className="absolute right-[28px] top-[18px] rotate-12">
                 <HeartSticker size={32} fill="#fff" stroke="#04202E" strokeWidth={2.4} />
@@ -486,6 +568,19 @@ export function GiftExperience() {
                 }}
                 className="relative flex flex-col gap-3.5"
               >
+                <label htmlFor="gc-d" className="text-sm font-extrabold">
+                  کد سفارش (اختیاری)
+                </label>
+                <input
+                  id="gc-d"
+                  type="text"
+                  value={code}
+                  onChange={(e) => setCode(e.target.value)}
+                  placeholder="PN-251213-0007"
+                  dir="ltr"
+                  autoCapitalize="characters"
+                  className="h-[58px] w-full box-border rounded-[22px] border-[3px] border-[#04202E]/85 bg-white/95 px-[22px] text-[16px] font-bold text-[#04202E] outline-none placeholder:text-[#9DB6C2]"
+                />
                 <label htmlFor="gp-d" className="text-sm font-extrabold">
                   رمز کارت
                 </label>
@@ -505,7 +600,7 @@ export function GiftExperience() {
                 </div>
                 {wrong && (
                   <div className="rounded-2xl bg-[#FFE9F0] px-4 py-2.5 text-center text-[13.5px] font-bold text-[#C2274B]">
-                    رمز درست نیست! یه بار دیگه امتحان کن یا از کسی که فرستاده بپرس.
+                    {lockErr || "رمز درست نیست! یه بار دیگه امتحان کن یا از کسی که فرستاده بپرس."}
                   </div>
                 )}
                 <button
@@ -541,7 +636,7 @@ export function GiftExperience() {
                   </span>
                   <h2 className="m-0 mt-1 text-[36px] font-black leading-[1.4]">یه بغل برات رسید</h2>
                   <span className="text-[13px] font-semibold text-[#BFE9F8]">
-                    {plushLabel(order.kind)} الان کنارته؛ بغلت کن.
+                    {plushLabel(active.kind)} الان کنارته؛ بغلت کن.
                   </span>
                 </div>
 
@@ -554,7 +649,7 @@ export function GiftExperience() {
                     </span>
                   </div>
                   <p className="m-0 whitespace-pre-line text-lg font-medium leading-[2.1]">
-                    {order.message}
+                    {active.message}
                   </p>
                 </div>
 
@@ -593,8 +688,8 @@ export function GiftExperience() {
                     <HeartSticker size={40} fill="#F0426B" stroke="#04202E" strokeWidth={2.4} />
                   </span>
                   <div className="text-[14.5px] font-semibold leading-[1.9] text-[#1F3E4D]">
-                    فرستنده‌ت با <b className="text-[#04202E]">{fa(order.hearts)} قلب</b> و{" "}
-                    <b className="text-[#04202E]">{fa(order.paws)} پنجه</b> به بچه‌های بی‌سرپرست و
+                    فرستنده‌ت با <b className="text-[#04202E]">{fa(active.hearts)} قلب</b> و{" "}
+                    <b className="text-[#04202E]">{fa(active.paws)} پنجه</b> به بچه‌های بی‌سرپرست و
                     حیوونا هدیه داده. این هدیه، مهربونی رو دو برابر کرد.
                   </div>
                 </div>

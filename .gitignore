@@ -62,3 +62,4 @@ download/
 *.db-wal
 *.db-shm
 --full-page
+.data/

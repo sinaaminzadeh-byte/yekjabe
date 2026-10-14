@@ -529,7 +529,7 @@ function MobileOrderCard({ o }: { o: GiftOrder }) {
         </div>
       )}
 
-      {o.dir === "sent" && o.status !== "delivered" && (
+      {o.dir === "sent" && o.status !== "delivered" && !o.v2 && (
         <div className="mt-3 flex items-center gap-3 border-t border-[#EDF6FA] pt-3">
           <span className="shrink-0 text-[11.5px] font-semibold text-[#4A6572]">شبیه‌سازی مسیر</span>
           <button
@@ -646,7 +646,7 @@ function DesktopOrderCard({ o }: { o: GiftOrder }) {
           <span className="rounded-[10px] px-2.5 py-1 text-[12.5px] font-bold" style={{ background: st.bg }}>
             {st.label}
           </span>
-          {o.dir === "sent" && o.status !== "delivered" && (
+          {o.dir === "sent" && o.status !== "delivered" && !o.v2 && (
             <button
               type="button"
               onClick={(e) => {

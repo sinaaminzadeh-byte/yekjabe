@@ -1,65 +1,130 @@
 "use client";
 
-// ── Simulated bank gateway modal — listens for 'pishnam:pay' ──
-import { useEffect, useState } from "react";
+// ── Pay modal v2 — real checkout + dual payment (guide §4.9 / §B5–B6) ──
+// zarinpal → POST /api/checkout → redirect to the PSP (simulated #/pay-gateway
+// in the sandbox, real StartPay at deploy). manual_transfer → instructions +
+// receipt upload (≤5MB, jpeg/png/webp) → payment_under_review.
+import { useEffect, useRef, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { usePishnam } from "@/lib/pishnam-store";
+import { usePishnam, type CheckoutAck } from "@/lib/pishnam-store";
 import { money } from "@/lib/fa";
-import { BOX_PRICE, CHARM_PRICE } from "@/lib/pishnam-data";
 import { navigate } from "@/lib/hash-route";
 import { useToast } from "@/hooks/use-toast";
 import { HeartSticker } from "../icons";
 
-type Phase = "form" | "processing" | "done";
+type Phase = "form" | "processing" | "manual" | "uploading" | "error";
+
+const ERROR_FA: Record<string, string> = {
+  sold_out: "ایم عروسک همین الان تموم شد! یه دوست پشمالوی دیگه انتخاب کن.",
+  rate_limited: "چند دقیقه صبر کن و دوباره امتحان کن.",
+  bad_input: "اطلاعات سفارش کامل نیست؛ یه نگاه به فرم بنداز.",
+  idempotency_key_reuse: "این سفارش قبلاً با اطلاعات دیگه‌ای ثبت شده؛ صفحه رو رفرش کن.",
+  network: "اینترنت قطعه؛ اتصالت رو چک کن و دوباره بزن.",
+  busy: "یه لحظه، داریم سفارش قبلی رو ثبت می‌کنیم…",
+  file_too_large: "حجم عکس رسید بیشتر از ۵ مگابایته.",
+  bad_file_type: "فقط عکس با فرمت JPG یا PNG یا WebP قبوله.",
+  duplicate_receipt: "این رسید قبلاً ثبت شده! عکس جدیدی از رسید بفرست.",
+  too_many_attempts: "سه بار رسید رد شده؛ این سفارش قابل پیگیری تلفنی است.",
+  bad_order_status: "وضعیت سفارش اجازه‌ی آپلود رسید نمی‌ده.",
+};
 
 export function PayModal() {
   const [open, setOpen] = useState(false);
   const [phase, setPhase] = useState<Phase>("form");
-  const hearts = usePishnam((s) => s.hearts);
-  const paws = usePishnam((s) => s.paws);
-  const placeOrder = usePishnam((s) => s.placeOrder);
-  const resetBuilder = usePishnam((s) => s.resetBuilder);
+  const [ack, setAck] = useState<CheckoutAck | null>(null);
+  const [error, setError] = useState("");
+  const fileRef = useRef<HTMLInputElement>(null);
+  const quote = usePishnam((s) => s.quote);
+  const quoteStatus = usePishnam((s) => s.quoteStatus);
+  const paymentMethod = usePishnam((s) => s.paymentMethod);
+  const setPaymentMethod = usePishnam((s) => s.setPaymentMethod);
+  const fetchQuote = usePishnam((s) => s.fetchQuote);
+  const submitCheckout = usePishnam((s) => s.submitCheckout);
   const { toast } = useToast();
-  const total = BOX_PRICE + (hearts + paws) * CHARM_PRICE;
 
   useEffect(() => {
     const onPay = () => {
       setPhase("form");
+      setError("");
+      setAck(null);
       setOpen(true);
+      void fetchQuote();
     };
     window.addEventListener("pishnam:pay", onPay);
     return () => window.removeEventListener("pishnam:pay", onPay);
-  }, []);
+  }, [fetchQuote]);
 
-  const pay = () => {
+  const total = quote?.total;
+
+  const fail = (code: string) => {
+    setError(ERROR_FA[code] ?? "یه مشکلی پیش اومد؛ دوباره امتحان کن.");
+    setPhase("error");
+  };
+
+  // ۱) ثبت سفارش (idempotent) و ادامه بر اساس روش پرداخت
+  const start = async () => {
     setPhase("processing");
-    window.setTimeout(() => {
-      placeOrder();
-      setPhase("done");
-      window.setTimeout(() => {
-        setOpen(false);
-        resetBuilder();
-        navigate("success");
-        toast({
-          title: "پرداخت موفق بود 🎉",
-          description: "سفارشت ثبت شد و مسیرش رو تو «هدیه‌هام» می‌بینی.",
-        });
-      }, 1400);
-    }, 1800);
+    const r = await submitCheckout();
+    if (!r.ok || !r.ack) {
+      fail(r.error ?? "unknown");
+      return;
+    }
+    setAck(r.ack);
+    if (r.ack.payment.method === "zarinpal") {
+      if (r.ack.payment.redirectUrl) {
+        // real round trip: #/pay-gateway (sandbox) or Zarinpal StartPay (deploy)
+        window.location.href = r.ack.payment.redirectUrl;
+        return;
+      }
+      fail("psp_unavailable");
+      return;
+    }
+    setPhase("manual");
+  };
+
+  // ۲) کارت‌به‌کارت: آپلود رسید
+  const uploadReceipt = async (file: File) => {
+    if (!ack) return;
+    setPhase("uploading");
+    const form = new FormData();
+    form.set("file", file);
+    form.set("code", ack.code);
+    form.set("key", usePishnam.getState().pendingOrder?.key ?? "");
+    try {
+      const res = await fetch("/api/payment/manual/receipt", { method: "POST", body: form });
+      if (!res.ok) {
+        const body = (await res.json().catch(() => ({}))) as { error?: string };
+        fail(body.error ?? `http_${res.status}`);
+        return;
+      }
+      setOpen(false);
+      resetAndGo();
+      toast({
+        title: "رسیدت ثبت شد ✓",
+        description: "تا ۱۲ ساعت بررسی می‌شه؛ نتیجه‌ش با پیامک میاد.",
+      });
+      navigate("success");
+    } catch {
+      fail("network");
+    }
+  };
+
+  const resetAndGo = () => {
+    usePishnam.getState().resetBuilder();
   };
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogContent className="max-w-[400px] rounded-[28px] border-[1.5px] border-[#CFE6EF] bg-white p-6" dir="rtl">
+    <Dialog open={open} onOpenChange={(v) => { setOpen(v); }}>
+      <DialogContent className="max-w-[420px] rounded-[28px] border-[1.5px] border-[#CFE6EF] bg-white p-6" dir="rtl">
         <DialogHeader>
           <DialogTitle className="flex items-center justify-between text-lg font-black text-[#04202E]">
-            <span>درگاه پرداخت امن</span>
+            <span>پرداخت سفارش</span>
             <span className="rounded-xl border border-[#CFE6EF] bg-[#F2FAFD] px-2 py-1 text-[11px] font-bold text-[#006387]">
-              شبان‌پی
+              {paymentMethod === "zarinpal" ? "زرین‌پال" : "کارت به کارت"}
             </span>
           </DialogTitle>
           <DialogDescription className="sr-only">
-            پرداخت سفارش هدیه پیشتم
+            پرداخت سفارش هدیه پیشنام
           </DialogDescription>
         </DialogHeader>
 
@@ -67,24 +132,56 @@ export function PayModal() {
           <div className="flex flex-col gap-3">
             <div className="flex items-center justify-between rounded-2xl bg-[#E3F6FD] px-4 py-3">
               <span className="text-sm font-bold text-[#04202E]">مبلغ قابل پرداخت</span>
-              <span className="text-base font-black text-[#04202E]">{money(total)} تومان</span>
+              <span className="text-base font-black text-[#04202E]">
+                {total ? `${money(total)} تومان` : quoteStatus === "loading" ? "در حال محاسبه…" : "—"}
+              </span>
             </div>
+
+            {/* method switch — server quote refreshes per method */}
             <div className="grid grid-cols-2 gap-2">
-              <MockField label="شماره کارت" value="۶۲۱۹ ۸۶۱۰ ▪▪▪▪ ۴۵۶۷" />
-              <MockField label="CVV2" value="▪▪▪" />
-              <MockField label="تاریخ انقضا" value="۰۶/۰۸" />
-              <MockField label="رمز پویا" value="▪▪▪▪▪▪" />
+              <button
+                type="button"
+                onClick={() => {
+                  setPaymentMethod("zarinpal");
+                  void fetchQuote();
+                }}
+                className="rounded-2xl border-2 px-3 py-2.5 text-right transition-colors"
+                style={{
+                  borderColor: paymentMethod === "zarinpal" ? "#00ABE7" : "#DDEEF5",
+                  background: paymentMethod === "zarinpal" ? "#F2FAFD" : "white",
+                }}
+              >
+                <span className="block text-[13.5px] font-extrabold text-[#04202E]">پرداخت آنلاین</span>
+                <span className="block text-[11px] font-medium text-[#4A6572]">زرین‌پال، همه‌ی کارت‌ها</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setPaymentMethod("manual_transfer");
+                  void fetchQuote();
+                }}
+                className="rounded-2xl border-2 px-3 py-2.5 text-right transition-colors"
+                style={{
+                  borderColor: paymentMethod === "manual_transfer" ? "#00ABE7" : "#DDEEF5",
+                  background: paymentMethod === "manual_transfer" ? "#F2FAFD" : "white",
+                }}
+              >
+                <span className="block text-[13.5px] font-extrabold text-[#04202E]">کارت به کارت</span>
+                <span className="block text-[11px] font-medium text-[#4A6572]">با آپلود رسید</span>
+              </button>
             </div>
+
             <button
               type="button"
-              onClick={pay}
-              className="mt-1 flex h-[52px] items-center justify-center gap-2 rounded-full bg-[#00ABE7] text-base font-extrabold text-[#04202E] transition-transform active:scale-95"
+              disabled={!total || quoteStatus !== "ready"}
+              onClick={() => void start()}
+              className="mt-1 flex h-[52px] items-center justify-center gap-2 rounded-full bg-[#00ABE7] text-base font-extrabold text-[#04202E] transition-transform active:scale-95 disabled:opacity-60"
             >
-              پرداخت
+              {paymentMethod === "zarinpal" ? "رفتن به درگاه پرداخت" : "ثبت سفارش و نمایش کارت"}
               <HeartSticker size={20} fill="#04202E" stroke="none" />
             </button>
             <p className="text-center text-[11.5px] leading-[1.8] text-[#4A6572]">
-              این یه درگاه نمایشیه؛ چیزی واقعاً پرداخت نمی‌شه.
+              پرداخت روی یه درگاه آزمایشی انجام می‌شه؛ پولی جابه‌جا نمی‌شه.
             </p>
           </div>
         )}
@@ -92,20 +189,72 @@ export function PayModal() {
         {phase === "processing" && (
           <div className="flex flex-col items-center gap-4 py-8">
             <span className="h-12 w-12 animate-spin rounded-full border-4 border-[#CFE6EF] border-t-[#00ABE7]" />
-            <span className="text-[15px] font-bold text-[#04202E]">در حال اتصال به بانک…</span>
+            <span className="text-[15px] font-bold text-[#04202E]">داریم سفارشت رو ثبت می‌کنیم…</span>
             <span className="text-xs text-[#4A6572]">لطفاً صفحه رو نبند.</span>
           </div>
         )}
 
-        {phase === "done" && (
-          <div className="flex flex-col items-center gap-3 py-8">
-            <span className="flex h-16 w-16 items-center justify-center rounded-full border-[3px] border-[#04202E] bg-[#00ABE7]">
-              <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#04202E" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                <path d="M5 12.5l4.5 4.5L19 7" />
-              </svg>
-            </span>
-            <span className="text-lg font-black text-[#04202E]">پرداخت شد!</span>
-            <span className="text-sm text-[#4A6572]">داریم سفارشت رو ثبت می‌کنیم…</span>
+        {phase === "manual" && ack && (
+          <div className="flex flex-col gap-3">
+            <div className="rounded-2xl bg-[#FFF3C9] px-4 py-3 text-[12.5px] font-bold leading-[1.9] text-[#7A5C00]">
+              مبلغ رو با کارت‌به‌کارت بریز و عکس رسید رو آپلود کن. کد سفارش رو تو توضیحات انتقال بنویس.
+            </div>
+            <ManualRow label="شماره کارت" value={ack.payment.instructions?.cardNumber ?? ""} copyable />
+            <ManualRow label="شماره شبا" value={ack.payment.instructions?.sheba ?? ""} copyable />
+            <ManualRow label="نام صاحب کارت" value={ack.payment.instructions?.cardName ?? ""} />
+            <ManualRow label="مبلغ (تومان)" value={money(Number(ack.payment.instructions?.amount ?? ack.total))} />
+            <ManualRow label="کد سفارش" value={ack.code} copyable />
+            <input
+              ref={fileRef}
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              className="hidden"
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                if (f) void uploadReceipt(f);
+                e.target.value = "";
+              }}
+            />
+            <button
+              type="button"
+              onClick={() => fileRef.current?.click()}
+              className="flex h-[52px] items-center justify-center gap-2 rounded-full bg-[#00ABE7] text-base font-extrabold text-[#04202E] transition-transform active:scale-95"
+            >
+              آپلود عکس رسید
+              <HeartSticker size={20} fill="#04202E" stroke="none" />
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setOpen(false);
+                resetAndGo();
+                navigate("success");
+              }}
+              className="text-center text-[12px] font-bold text-[#006387] underline underline-offset-4"
+            >
+              رسید رو بعداً می‌فرستم — برو به صفحه‌ی سفارش
+            </button>
+          </div>
+        )}
+
+        {phase === "uploading" && (
+          <div className="flex flex-col items-center gap-4 py-8">
+            <span className="h-12 w-12 animate-spin rounded-full border-4 border-[#CFE6EF] border-t-[#00ABE7]" />
+            <span className="text-[15px] font-bold text-[#04202E]">داریم رسیدت رو ثبت می‌کنیم…</span>
+          </div>
+        )}
+
+        {phase === "error" && (
+          <div className="flex flex-col items-center gap-3 py-6">
+            <span className="flex h-14 w-14 items-center justify-center rounded-full bg-[#FFE9F0] text-2xl">😟</span>
+            <span className="text-[14.5px] font-bold leading-[1.9] text-center text-[#04202E]">{error}</span>
+            <button
+              type="button"
+              onClick={() => setPhase("form")}
+              className="flex h-[48px] w-full items-center justify-center rounded-full bg-[#04202E] text-[15px] font-extrabold text-white"
+            >
+              دوباره امتحان کن
+            </button>
           </div>
         )}
       </DialogContent>
@@ -113,12 +262,30 @@ export function PayModal() {
   );
 }
 
-function MockField({ label, value }: { label: string; value: string }) {
+function ManualRow({ label, value, copyable }: { label: string; value: string; copyable?: boolean }) {
+  const { toast } = useToast();
   return (
-    <div className="flex flex-col gap-1">
-      <span className="text-[11px] font-bold text-[#4A6572]">{label}</span>
-      <span className="flex h-10 items-center rounded-xl border border-[#CFE6EF] bg-[#F8FDFF] px-3 text-[13px] font-semibold text-[#04202E]">
-        {value}
+    <div className="flex items-center justify-between gap-2 rounded-xl border border-[#DDEEF5] bg-[#F8FDFF] px-3 py-2.5">
+      <span className="text-[11.5px] font-bold text-[#4A6572]">{label}</span>
+      <span className="flex items-center gap-2">
+        <span className="text-[13.5px] font-extrabold text-[#04202E]" dir="ltr">{value}</span>
+        {copyable && value && (
+          <button
+            type="button"
+            aria-label={`کپی ${label}`}
+            onClick={async () => {
+              try {
+                await navigator.clipboard.writeText(value);
+                toast({ title: "کپی شد ✓" });
+              } catch {
+                toast({ title: "کپی نشد — دستی انتخاب کن" });
+              }
+            }}
+            className="rounded-lg bg-[#D6F1FB] px-2 py-1 text-[10.5px] font-extrabold text-[#006387]"
+          >
+            کپی
+          </button>
+        )}
       </span>
     </div>
   );

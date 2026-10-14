@@ -28,7 +28,8 @@ import {
   OCCASION_HOLDERS,
   CHARITY_TARGET,
 } from "@/lib/pishnam-data";
-import { useState } from "react";
+import { PROVINCES } from "@/lib/orders/provinces";
+import { useEffect, useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { FavHeart, FavFilterChips, SurpriseButton } from "@/components/shop/fav";
 import { MessageIdeas } from "@/components/shop/ideas";
@@ -546,19 +547,29 @@ export function MobileCheckout() {
   const paws = usePishnam((s) => s.paws);
   const receiver = usePishnam((s) => s.receiver);
   const setReceiver = usePishnam((s) => s.setReceiver);
-  const [coupon, setCoupon] = useState("");
-  const [couponOk, setCouponOk] = useState(false);
-  const { toast } = useToast();
+  const quote = usePishnam((s) => s.quote);
+  const quoteStatus = usePishnam((s) => s.quoteStatus);
+  const fetchQuote = usePishnam((s) => s.fetchQuote);
+  const paymentMethod = usePishnam((s) => s.paymentMethod);
+  const setPaymentMethod = usePishnam((s) => s.setPaymentMethod);
+
+  // server quote — the only payable number (guide §4.5)
+  useEffect(() => {
+    void fetchQuote();
+  }, [fetchQuote, kind, hearts, paws, receiver.province]);
 
   const sel = PLUSHES.find((p) => p.kind === kind) ?? PLUSHES[0];
-  const total = BOX_PRICE + (hearts + paws) * CHARM_PRICE;
+  const total = quote?.total ?? 0;
 
   interface CartRow { isHeart: boolean; bg: string; title: string; sub: string; amount: string; }
-  const rows: CartRow[] = [];
-  if (hearts > 0)
-    rows.push({ isHeart: true, bg: "#FFE9F0", title: `قلب قرمز × ${fa(hearts)}`, sub: "برای بچه‌های بی‌سرپرست", amount: money(hearts * CHARM_PRICE) });
-  if (paws > 0)
-    rows.push({ isHeart: false, bg: "#E3F6FD", title: `پنجه × ${fa(paws)}`, sub: "برای پناهگاه حیوونا", amount: money(paws * CHARM_PRICE) });
+  const cartRows: CartRow[] = quote
+    ? [
+        { isHeart: false, bg: sel.bg, title: `${sel.name}، دوست پشمالو`, sub: "جعبه‌ی کادویی + کارت پستال QR", amount: money(quote.total - quote.shipping - quote.charms) },
+        ...(quote.charms > 0
+          ? [{ isHeart: true, bg: "#FFE9F0", title: `قلب و پنجه × ${fa(hearts + paws)}`, sub: "برای بچه‌های بی‌سرپرست و حیوونا", amount: money(quote.charms) }]
+          : []),
+      ]
+    : [];
 
   const valid = receiver.name.trim() !== "" && receiver.phone.trim().length >= 8 && receiver.address.trim() !== "";
 
@@ -588,31 +599,18 @@ export function MobileCheckout() {
         <div className="absolute -bottom-3 right-[106px] h-6 w-6 rounded-full bg-[#F2FAFD]" />
       </div>
 
-      {/* items */}
+      {/* items — amounts come from the SERVER quote */}
       <div className="mx-5 mt-4 rounded-[26px] border border-[#DDEEF5] bg-white px-4 py-2">
-        <div className="flex items-center gap-3 border-b border-[#E3F0F5] py-3">
-          <div
-            className="flex h-16 w-16 shrink-0 items-center justify-center rounded-[18px]"
-            style={{ background: sel.bg }}
-          >
-            <Plush kind={sel.kind} size={54} />
-          </div>
-          <div className="flex flex-1 flex-col gap-0.5">
-            <span className="text-[15px] font-extrabold">{sel.name}، دوست پشمالو</span>
-            <span className="text-[12.5px] font-medium text-[#4A6572]">جعبه‌ی کادویی + کارت پستال QR</span>
-          </div>
-          <span className="text-sm font-extrabold">{money(BOX_PRICE)}</span>
-        </div>
-        {rows.map((r) => (
+        {cartRows.map((r) => (
           <div key={r.title} className="flex items-center gap-3 border-b border-[#E3F0F5] py-3">
             <div
-              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full"
-              style={{ background: r.bg }}
+              className="flex h-16 w-16 shrink-0 items-center justify-center rounded-[18px]"
+              style={{ background: r.isHeart ? "#FFE9F0" : sel.bg }}
             >
               {r.isHeart ? (
-                <HeartSticker size={22} fill="#F0426B" stroke="#04202E" strokeWidth={2.6} />
+                <HeartSticker size={26} fill="#F0426B" stroke="#04202E" strokeWidth={2.6} />
               ) : (
-                <PawIcon size={22} />
+                <Plush kind={sel.kind} size={54} />
               )}
             </div>
             <div className="flex flex-1 flex-col gap-0.5">
@@ -624,11 +622,11 @@ export function MobileCheckout() {
         ))}
         <div className="flex justify-between py-3 pb-1.5 text-sm font-semibold text-[#4A6572]">
           <span>هزینه‌ی ارسال</span>
-          <span>{receiver.city ? (receiver.city.includes("تهران") ? money(49_000) : money(69_000)) : "بعد از ثبت آدرس"}</span>
+          <span>{quote ? money(quote.shipping) : quoteStatus === "loading" ? "در حال محاسبه…" : "—"}</span>
         </div>
         <div className="flex items-center justify-between py-2 pb-3 text-[17px] font-black">
           <span>جمع کل</span>
-          <span>{money(total)} تومان</span>
+          <span>{quote ? `${money(total)} تومان` : "در حال محاسبه…"}</span>
         </div>
       </div>
 
@@ -648,11 +646,28 @@ export function MobileCheckout() {
           placeholder="۰۹۱۲ ۱۲۳ ۴۵۶۷"
           tel
         />
+        <div className="flex flex-col gap-1 border-b border-[#E3F0F5] py-3">
+          <label htmlFor="province" className="text-[12.5px] font-bold text-[#4A6572]">
+            استان
+          </label>
+          <select
+            id="province"
+            value={receiver.province}
+            onChange={(e) => setReceiver({ province: e.target.value })}
+            className="h-9 w-full appearance-none border-none bg-transparent text-base font-semibold text-[#04202E] outline-none"
+          >
+            {PROVINCES.map((p) => (
+              <option key={p} value={p}>
+                {p}
+              </option>
+            ))}
+          </select>
+        </div>
         <Field
-          label="استان و شهر"
+          label="شهر"
           value={receiver.city}
           onChange={(v) => setReceiver({ city: v })}
-          placeholder="مثلاً تهران، تهران"
+          placeholder="مثلاً تهران"
         />
         <div className="flex flex-col gap-1 border-b border-[#E3F0F5] py-3">
           <label htmlFor="ra" className="text-[12.5px] font-bold text-[#4A6572]">
@@ -669,48 +684,63 @@ export function MobileCheckout() {
         </div>
       </div>
 
-      {/* coupon */}
-      <div className="mx-5 mt-3.5 flex items-center gap-2.5 rounded-[22px] border border-[#DDEEF5] bg-white py-1.5 pl-1.5 pr-4">
-        <input
-          aria-label="کد تخفیف"
-          type="text"
-          value={coupon}
-          onChange={(e) => setCoupon(e.target.value)}
-          placeholder={couponOk ? "کد مهربونی فعال شد ✓" : "کد تخفیف داری؟ (امتحان کن: مهربونی)"}
-          className="h-11 flex-1 border-none bg-transparent text-base text-[#04202E] outline-none"
-        />
-        <button
-          type="button"
-          onClick={() => {
-            if (coupon.trim() === "مهربونی") {
-              setCouponOk(true);
-              toast({ title: "کد تخفیف اعمال شد", description: "قلب بعدی مهمون ما! یکی‌ش رو خودمون حساب می‌کنیم." });
-            } else {
-              toast({ title: "این کد کار نمی‌کنه", description: "راهنمایی: کلمه‌ی «مهربونی» رو امتحان کن." });
-            }
-          }}
-          className="h-11 rounded-2xl border-none bg-[#D6F1FB] px-5 text-[14.5px] font-extrabold text-[#04202E]"
-        >
-          اعمال
-        </button>
+      {/* coupon — honest: server discounts land later (contract: no fake codes) */}
+      <div className="mx-5 mt-3.5 flex items-center gap-2.5 rounded-[22px] border border-dashed border-[#BFDDE8] bg-[#F8FDFF] py-3 pl-4 pr-4">
+        <span className="text-lg">🎁</span>
+        <div className="text-[12.5px] font-semibold leading-[1.8] text-[#4A6572]">
+          کد تخفیف نداری؟ به‌زودی اولین کد مهربونی اینجا فعال می‌شه — بیهوده منتظر تخفیف‌های تقلبی نمی‌مونی.
+        </div>
       </div>
 
-      {/* payment method */}
+      {/* payment method — server-authoritative quote per method */}
       <div className="px-5 pb-2 pt-[22px] text-lg font-extrabold">روش پرداخت</div>
-      <div className="mx-5 flex items-center gap-3 rounded-[22px] border-2 border-[#00ABE7] bg-white px-4 py-3.5">
-        <span className="flex h-[26px] w-[26px] shrink-0 items-center justify-center rounded-full border-2 border-[#04202E] bg-[#00ABE7]">
-          <CheckIcon size={14} stroke="#04202E" />
-        </span>
-        <div className="flex flex-1 flex-col gap-0.5">
-          <span className="text-[15px] font-extrabold">پرداخت آنلاین</span>
-          <span className="text-[12.5px] font-medium text-[#4A6572]">
-            با همه‌ی کارت‌های عضو شتاب، از درگاه امن بانکی
+      <div className="mx-5 flex flex-col gap-2.5">
+        <button
+          type="button"
+          onClick={() => setPaymentMethod("zarinpal")}
+          className="flex items-center gap-3 rounded-[22px] border-2 bg-white px-4 py-3.5 text-right transition-colors"
+          style={{ borderColor: paymentMethod === "zarinpal" ? "#00ABE7" : "#DDEEF5" }}
+        >
+          <span
+            className="flex h-[26px] w-[26px] shrink-0 items-center justify-center rounded-full border-2 border-[#04202E]"
+            style={{ background: paymentMethod === "zarinpal" ? "#00ABE7" : "white" }}
+          >
+            {paymentMethod === "zarinpal" && <CheckIcon size={14} stroke="#04202E" />}
           </span>
-        </div>
-        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#04202E" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-          <rect x="3" y="6" width="18" height="13" rx="3" />
-          <path d="M3 10.5h18M7 15h4" />
-        </svg>
+          <div className="flex flex-1 flex-col gap-0.5">
+            <span className="text-[15px] font-extrabold">پرداخت آنلاین</span>
+            <span className="text-[12.5px] font-medium text-[#4A6572]">
+              با همه‌ی کارت‌های عضو شتاب، از درگاه امن بانکی
+            </span>
+          </div>
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#04202E" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <rect x="3" y="6" width="18" height="13" rx="3" />
+            <path d="M3 10.5h18M7 15h4" />
+          </svg>
+        </button>
+        <button
+          type="button"
+          onClick={() => setPaymentMethod("manual_transfer")}
+          className="flex items-center gap-3 rounded-[22px] border-2 bg-white px-4 py-3.5 text-right transition-colors"
+          style={{ borderColor: paymentMethod === "manual_transfer" ? "#00ABE7" : "#DDEEF5" }}
+        >
+          <span
+            className="flex h-[26px] w-[26px] shrink-0 items-center justify-center rounded-full border-2 border-[#04202E]"
+            style={{ background: paymentMethod === "manual_transfer" ? "#00ABE7" : "white" }}
+          >
+            {paymentMethod === "manual_transfer" && <CheckIcon size={14} stroke="#04202E" />}
+          </span>
+          <div className="flex flex-1 flex-col gap-0.5">
+            <span className="text-[15px] font-extrabold">کارت به کارت / بله‌پی</span>
+            <span className="text-[12.5px] font-medium text-[#4A6572]">
+              مبلغ رو می‌ریزی، عکس رسید رو آپلود می‌کنی؛ تا ۱۲ ساعت بررسی می‌شه
+            </span>
+          </div>
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#04202E" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <rect x="2" y="5" width="20" height="14" rx="2" />
+            <path d="M2 10h20M6 15h5" />
+          </svg>
+        </button>
       </div>
 
       <div className="px-6 pt-3.5 text-center text-[12.5px] font-medium leading-[1.9] text-[#4A6572]">
@@ -721,17 +751,17 @@ export function MobileCheckout() {
       <div className="sticky bottom-0 mt-auto flex items-center gap-3.5 border-t border-[#D3E8F0] bg-white/95 px-5 pb-[max(14px,env(safe-area-inset-bottom))] pt-3.5">
         <div className="flex flex-col">
           <span className="text-[13px] font-semibold text-[#4A6572]">جمع کل</span>
-          <span className="text-lg font-black">{money(total)} تومان</span>
+          <span className="text-lg font-black">{quote ? `${money(total)} تومان` : "…"}</span>
         </div>
         <button
           type="button"
-          disabled={!valid}
+          disabled={!valid || !quote}
           onClick={() => {
             const evt = new CustomEvent("pishnam:pay");
             window.dispatchEvent(evt);
           }}
           className="flex h-[54px] flex-1 items-center justify-center gap-2 rounded-full text-base font-extrabold transition-all active:scale-95"
-          style={{ background: valid ? "#00ABE7" : "#CFE6EF", color: "#04202E", opacity: valid ? 1 : 0.7 }}
+          style={{ background: valid && quote ? "#00ABE7" : "#CFE6EF", color: "#04202E", opacity: valid && quote ? 1 : 0.7 }}
         >
           پرداخت و فرستادن
           <HeartSticker size={20} fill="#04202E" stroke="none" />

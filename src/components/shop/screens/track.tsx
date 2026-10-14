@@ -220,24 +220,136 @@ function PostcardCard({ o, compact = false }: { o: GiftOrder; compact?: boolean 
 
 function EmptyTrack() {
   return (
-    <div className="flex flex-col items-center gap-5 rounded-[28px] border-2 border-dashed border-[#99D6EE] bg-white/60 px-6 py-14 text-center">
-      <span className="text-[44px]">📦</span>
-      <p className="m-0 text-[15.5px] font-bold leading-[2]">
-        هنوز هدیه‌ای برای رهگیری انتخاب نشده.
-        <br />
-        از «هدیه‌هام» یه سفارش رو انتخاب کن.
-      </p>
-      <button
-        type="button"
-        onClick={() => navigate("my-gifts")}
-        className="flex h-12 items-center gap-2 rounded-full bg-[#00ABE7] px-6 text-[14.5px] font-extrabold text-[#04202E] transition-transform active:scale-95"
-      >
-        رفتن به هدیه‌هام
-        <ForwardIcon size={16} />
-      </button>
+    <div className="flex flex-col gap-5">
+      <div className="flex flex-col items-center gap-5 rounded-[28px] border-2 border-dashed border-[#99D6EE] bg-white/60 px-6 py-14 text-center">
+        <span className="text-[44px]">📦</span>
+        <p className="m-0 text-[15.5px] font-bold leading-[2]">
+          هنوز هدیه‌ای برای رهگیری انتخاب نشده.
+          <br />
+          از «هدیه‌هام» یه سفارش رو انتخاب کن.
+        </p>
+        <button
+          type="button"
+          onClick={() => navigate("my-gifts")}
+          className="flex h-12 items-center gap-2 rounded-full bg-[#00ABE7] px-6 text-[14.5px] font-extrabold text-[#04202E] transition-transform active:scale-95"
+        >
+          رفتن به هدیه‌هام
+          <ForwardIcon size={16} />
+        </button>
+      </div>
+      <TrackByCode />
     </div>
   );
 }
+
+/* ── رهگیری با کد سفارش + موبایل (guide §B4 fallback: /track code+phone) ── */
+interface TrackHit {
+  code: string;
+  status: string;
+  stepLabel: string;
+  stepBody: string;
+}
+
+function TrackByCode() {
+  const [code, setCode] = useState("");
+  const [phone, setPhone] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [hit, setHit] = useState<TrackHit | null>(null);
+  const [err, setErr] = useState("");
+  const { toast } = useToast();
+
+  const faDigits = (s: string) => s.replace(/\d/g, (d) => "۰۱۲۳۴۵۶۷۸۹"[Number(d)]);
+
+  const lookup = async () => {
+    setBusy(true);
+    setErr("");
+    setHit(null);
+    try {
+      const res = await fetch("/api/track", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code: code.trim(), phone }),
+      });
+      if (!res.ok) {
+        setErr(res.status === 404 ? "با این کد و شماره، سفارشی پیدا نشد." : "یه مشکلی پیش اومد؛ دوباره امتحان کن.");
+        return;
+      }
+      const body = (await res.json()) as { code: string; status: string; stepLabel: string };
+      const stepBody = STEP_FA_SUB[body.status] ?? "وضعیت سفارش به‌روزه.";
+      setHit({ code: body.code, status: body.status, stepLabel: body.stepLabel, stepBody });
+      toast({ title: "سفارش پیدا شد ✓" });
+    } catch {
+      setErr("اینترنت قطعه؛ اتصالت رو چک کن.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="rounded-[28px] border border-[#DDEEF5] bg-white px-6 py-6">
+      <div className="text-[16px] font-extrabold">رهگیری با کد سفارش</div>
+      <p className="mb-4 mt-1.5 text-[12.5px] font-medium leading-[1.9] text-[#4A6572]">
+        کد PN از صفحه‌ی موفقیت یا پیامکت رو با شماره‌ی موبایلت وارد کن.
+      </p>
+      <div className="flex flex-wrap items-end gap-3">
+        <label className="flex min-w-[200px] flex-1 flex-col gap-1.5">
+          <span className="text-[12px] font-bold text-[#4A6572]">کد سفارش</span>
+          <input
+            value={code}
+            onChange={(e) => setCode(e.target.value)}
+            placeholder="PN-251213-0007"
+            dir="ltr"
+            className="h-12 rounded-2xl border-[1.5px] border-[#CFE6EF] bg-[#F8FDFF] px-4 text-[15px] font-bold text-[#04202E] outline-none focus:border-[#00ABE7]"
+          />
+        </label>
+        <label className="flex min-w-[200px] flex-1 flex-col gap-1.5">
+          <span className="text-[12px] font-bold text-[#4A6572]">شماره‌ی موبایل</span>
+          <input
+            value={phone}
+            onChange={(e) => setPhone(e.target.value)}
+            placeholder="۰۹۱۲ ۱۲۳ ۴۵۶۷"
+            inputMode="tel"
+            className="h-12 rounded-2xl border-[1.5px] border-[#CFE6EF] bg-[#F8FDFF] px-4 text-[15px] font-bold text-[#04202E] outline-none focus:border-[#00ABE7]"
+          />
+        </label>
+        <button
+          type="button"
+          disabled={busy || code.trim().length < 8 || phone.trim().length < 8}
+          onClick={() => void lookup()}
+          className="h-12 rounded-full bg-[#04202E] px-7 text-[14.5px] font-extrabold text-white transition-transform active:scale-95 disabled:opacity-50"
+        >
+          {busy ? "در حال جست‌وجو…" : "جست‌وجو"}
+        </button>
+      </div>
+      {err && (
+        <div className="mt-3 rounded-2xl bg-[#FFE9F0] px-4 py-3 text-[13px] font-bold text-[#B02A52]">{err}</div>
+      )}
+      {hit && (
+        <div className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-[#E3F6FD] px-4 py-3.5">
+          <div className="flex flex-col">
+            <span className="text-[13px] font-black" dir="ltr">{faDigits(hit.code)}</span>
+            <span className="text-[12.5px] font-medium leading-[1.8] text-[#4A6572]">{hit.stepBody}</span>
+          </div>
+          <span className="rounded-full bg-[#04202E] px-4 py-1.5 text-[12.5px] font-extrabold text-white">{hit.stepLabel}</span>
+        </div>
+      )}
+    </div>
+  );
+}
+
+const STEP_FA_SUB: Record<string, string> = {
+  awaiting_payment: "سفارش منتظر پرداخته.",
+  payment_under_review: "رسید ثبت شده و در حال بررسیه.",
+  paid: "پرداخت تأیید شد؛ به‌زودی بسته‌بندی می‌شه.",
+  preparing: "جعبه داره با دلسوزی بسته‌بندی می‌شه.",
+  shipped: "جعبه تحویل پست شده و در راهه.",
+  delivered: "جعبه تحویل داده شد؛ نوبت رمز کارته!",
+  failed: "پرداخت ناموفق بوده؛ می‌تونی دوباره امتحان کنی.",
+  cancelled: "این سفارش لغو شده.",
+  expired: "این سفارش منقضی شده.",
+  refund_requested: "درخواست مرجوعیت در جریانه.",
+  refunded: "مرجوعیت انجام شد.",
+};
 
 /* ── share/copy gift info button (shared logic, two looks) + success micro-burst ── */
 const BURST_COLORS = ["#F0426B", "#00ABE7", "#FFF3C9", "#66CDF1", "#FFE0EA"];
@@ -479,7 +591,7 @@ export function DesktopTrack() {
   if (!o)
     return (
       <div className="hidden min-h-screen flex-col bg-[#F2FAFD] md:flex">
-        <main className="mx-auto w-full max-w-[1200px] px-6 pt-12">
+        <main className="mx-auto flex w-full max-w-[900px] flex-col gap-5 px-6 pb-14 pt-12">
           <EmptyTrack />
         </main>
       </div>
