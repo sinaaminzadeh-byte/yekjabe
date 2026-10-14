@@ -1,6 +1,8 @@
-// ── Server sync: pull server orders into the local store ──
-// Push-side happens inside store actions (placeOrder / advanceStatus / markOpened)
-// to avoid an import cycle. This module is pull + merge only.
+// ── Server sync — session-scoped bootstrap (Phase A of the launch guide) ──
+// The old global pull (GET /api/orders without a session) is gone. Everything
+// now flows through ONE endpoint: GET /api/me/bootstrap → { user, admin,
+// orders(≤50), favorites }. Guests get empty payloads; the UI keeps working
+// local-first either way.
 import { usePishnam, type GiftOrder, type GiftStatus } from "./pishnam-store";
 import type { PlushKind } from "./pishnam-data";
 
@@ -29,13 +31,19 @@ interface ServerOrder {
   userPhone?: string;
 }
 
+interface BootstrapPayload {
+  user?: { phone: string; name: string } | null;
+  admin?: boolean;
+  orders?: ServerOrder[];
+  favorites?: string[];
+}
+
 /**
  * Merges remote orders into the persisted store. Returns how many local
  * rows were added/updated (0 = nothing new).
  * Merge policy (last-writer-wins by progress):
  *  - ids only on server → added
- *  - ids on both → take the more-advanced status, opened = local || server;
- *    a locally-unbound row adopts the server's userPhone (self-healing)
+ *  - ids on both → take the more-advanced status, opened = local || server
  *  - local-only ids stay untouched (offline-made orders keep theirs until pushed)
  * Also keeps nextNo ahead of the highest seen gift number.
  */
@@ -78,76 +86,55 @@ function mergeRemote(remote: ServerOrder[], adoptPhone?: string): number {
   return changed;
 }
 
-/**
- * Fetches ALL orders from /api/orders and merges them into the store.
- * Returns the number of rows added/updated (0 also covers offline/API-down).
- */
-export async function pullOrders(): Promise<number> {
+/** One session-scoped fetch: user + orders + favorites (cookie carries identity). */
+async function fetchBootstrap(): Promise<BootstrapPayload | null> {
   try {
-    const res = await fetch("/api/orders", { cache: "no-store" });
-    if (!res.ok) return 0;
-    const json = (await res.json()) as { orders?: ServerOrder[] };
-    const remote = Array.isArray(json.orders) ? json.orders : [];
-    return mergeRemote(remote);
+    const res = await fetch("/api/me/bootstrap", { cache: "no-store" });
+    if (!res.ok) return null; // 401 / offline → local-only mode, UI keeps working
+    return (await res.json()) as BootstrapPayload;
   } catch {
-    return 0; // offline / API down → local-only mode, UI keeps working
+    return null;
   }
 }
 
 /**
- * Pulls only the orders bound to the given account phone and merges them,
- * adopting userPhone onto matching local rows. Powers «هدیه‌هام» sync after
- * login: gifts made on another device (bound server-side) appear here.
+ * Pulls the session's orders (and merges them). Identity = HttpOnly cookie;
+ * the `phone` parameter is accepted for call-site compatibility and ignored.
  */
-export async function pullOrdersForPhone(phone: string): Promise<number> {
-  if (!phone) return 0;
-  try {
-    const res = await fetch(`/api/orders?phone=${encodeURIComponent(phone)}`, { cache: "no-store" });
-    if (!res.ok) return 0;
-    const json = (await res.json()) as { orders?: ServerOrder[] };
-    const remote = Array.isArray(json.orders) ? json.orders : [];
-    return mergeRemote(remote, phone);
-  } catch {
-    return 0;
-  }
+export async function pullOrders(_phone?: string): Promise<number> {
+  const data = await fetchBootstrap();
+  if (!data || !Array.isArray(data.orders)) return 0;
+  return mergeRemote(data.orders, data.user?.phone);
+}
+
+/** Alias kept for the «هدیه‌هام» post-login pull — now session-scoped. */
+export async function pullOrdersForPhone(_phone?: string): Promise<number> {
+  return pullOrders();
 }
 
 /**
  * Pulls the account's server-side favorites and merges them (union) into the
- * local list — favorites are hearts, so union is the friendly policy.
- * Returns how many NEW kinds landed (0 = nothing new / offline / guest).
+ * local list. Returns how many NEW kinds landed (0 = nothing new / offline).
  */
 const KNOWN_KINDS = new Set(["bear", "bunny", "cat", "duck", "panda", "sheep"]);
 
-export async function pullFavorites(phone: string): Promise<number> {
-  if (!phone) return 0;
-  try {
-    const res = await fetch(`/api/favorites?phone=${encodeURIComponent(phone)}`, { cache: "no-store" });
-    if (!res.ok) return 0;
-    const json = (await res.json()) as { kinds?: unknown };
-    if (!Array.isArray(json.kinds)) return 0;
-    const remote = json.kinds.filter(
-      (k): k is PlushKind => typeof k === "string" && (KNOWN_KINDS as Set<string>).has(k),
-    );
-    const st = usePishnam.getState();
-    const fresh = remote.filter((k) => !st.favorites.includes(k));
-    if (fresh.length > 0) {
-      usePishnam.setState({ favorites: [...st.favorites, ...fresh] });
-    }
-    return fresh.length;
-  } catch {
-    return 0; // offline → local-only favorites, UI keeps working
+export async function pullFavorites(_phone?: string): Promise<number> {
+  const data = await fetchBootstrap();
+  if (!data || !Array.isArray(data.favorites)) return 0;
+  const remote = data.favorites.filter(
+    (k): k is PlushKind => typeof k === "string" && (KNOWN_KINDS as Set<string>).has(k),
+  );
+  const st = usePishnam.getState();
+  const fresh = remote.filter((k) => !st.favorites.includes(k));
+  if (fresh.length > 0) {
+    usePishnam.setState({ favorites: [...st.favorites, ...fresh] });
   }
+  return fresh.length;
 }
 
-/** Boot-time sync: global board pull first, then the account-bound pull. */
+/** Boot-time sync: single bootstrap fetch covers orders + favorites. */
 export async function bootSync(): Promise<void> {
   await pullOrders();
-  const u = usePishnam.getState().user;
-  if (u?.phone) {
-    await pullOrdersForPhone(u.phone);
-    await pullFavorites(u.phone);
-  }
 }
 
 /**
@@ -157,24 +144,8 @@ export async function bootSync(): Promise<void> {
 export async function syncStatus(
   userPhone?: string | null,
 ): Promise<{ ok: boolean; changed: number }> {
-  try {
-    const res = await fetch("/api/orders", { cache: "no-store" });
-    if (!res.ok) return { ok: false, changed: 0 };
-    const json = (await res.json()) as { orders?: ServerOrder[] };
-    const remote = Array.isArray(json.orders) ? json.orders : [];
-    let changed = mergeRemote(remote);
-    if (userPhone) {
-      const r2 = await fetch(`/api/orders?phone=${encodeURIComponent(userPhone)}`, {
-        cache: "no-store",
-      });
-      if (r2.ok) {
-        const j2 = (await r2.json()) as { orders?: ServerOrder[] };
-        const remote2 = Array.isArray(j2.orders) ? j2.orders : [];
-        changed += mergeRemote(remote2, userPhone);
-      }
-    }
-    return { ok: true, changed };
-  } catch {
-    return { ok: false, changed: 0 };
-  }
+  const data = await fetchBootstrap();
+  if (!data) return { ok: false, changed: 0 };
+  const changed = Array.isArray(data.orders) ? mergeRemote(data.orders, data.user?.phone) : 0;
+  return { ok: true, changed };
 }

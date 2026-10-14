@@ -81,12 +81,40 @@ model AppUser {
 model AuthCode {
   id        String   @id @default(cuid())
   phone     String
-  code      String // 4 digits
+  code      String   @default("") // legacy demo field (pre-hardening rows)
+  codeHash  String   @default("") // HMAC-SHA256(phone:code, SESSION_SECRET)
+  attempts  Int      @default(0)
+  ip        String   @default("")
   expiresAt DateTime
   used      Boolean  @default(false)
   createdAt DateTime @default(now())
 
   @@index([phone, createdAt])
+}
+
+// ── DB-backed sessions (Phase A — guide §4.2) ──
+
+model Session {
+  id         String   @id // sha256(token) — the raw token only lives in the cookie
+  phone      String
+  kind       String   @default("customer") // customer | admin
+  expiresAt  DateTime
+  lastSeenAt DateTime @default(now())
+  createdAt  DateTime @default(now())
+
+  @@index([phone])
+  @@index([expiresAt])
+}
+
+// ── Admin users (2 seats max — owner | operator) ──
+
+model AdminUser {
+  id          String    @id @default(cuid())
+  phone       String    @unique
+  name        String    @default("")
+  role        String    @default("operator") // owner | operator
+  isActive    Boolean   @default(true)
+  lastLoginAt DateTime?
 }
 
 // ── Per-account favorites (پشمالوهای محبوب) ──
@@ -111,5 +139,6 @@ model Review {
   kind      String   @default("bear") // PlushKind of the gift
   title     String   @default("")
   text      String
+  approved  Boolean  @default(false) // moderation gate (Phase A — guide A9)
   createdAt DateTime @default(now())
 }

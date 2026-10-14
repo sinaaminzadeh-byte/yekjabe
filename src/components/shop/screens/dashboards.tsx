@@ -993,9 +993,9 @@ function useOtpFlow(): OtpFlow {
   }, [step, timer]);
 
   /**
-   * Asks the server for a real OTP. If the API is unreachable, the flow
-   * falls back to demo mode (fixed ۱۲۳۴) so the UI always works offline.
-   * Returns the code to display as a hint (devCode).
+   * Asks the server for a 6-digit OTP (session flow, guide §4.3).
+   * No demo fallback code exists anymore — if the API is down we surface an
+   * honest error. Returns the dev-echo code in dev mode ("" otherwise).
    */
   const requestOtp = async (p: string): Promise<string> => {
     try {
@@ -1005,10 +1005,10 @@ function useOtpFlow(): OtpFlow {
         body: JSON.stringify({ phone: p }),
       });
       const json = (await res.json()) as { devCode?: string };
-      if (res.ok && json.devCode) return json.devCode;
-      throw new Error("bad response");
+      if (res.ok) return json.devCode ?? "";
+      return "";
     } catch {
-      return "1234"; // demo fallback
+      return ""; // offline — UI shows the honest «service unavailable» state
     }
   };
 
@@ -1027,13 +1027,16 @@ function useOtpFlow(): OtpFlow {
       setBusy(false);
       setStep("otp");
       setTimer(RESEND_SECONDS);
+      if (!code) {
+        toast({ title: "کد پیامک شد", description: "کد ۶ رقمی به همین شماره پیامک می‌شه." });
+      }
     });
   };
 
   const submitOtp = () => {
     const c = norm(otp);
-    if (!/^\d{4}$/.test(c)) {
-      setError("کد چهار رقمی رو کامل بزن.");
+    if (!/^\d{6}$/.test(c)) {
+      setError("کد شش‌رقمی رو کامل بزن.");
       return;
     }
     if (busy) return;
@@ -1068,7 +1071,7 @@ function useOtpFlow(): OtpFlow {
     setOtpRaw("");
     void requestOtp(norm(phone)).then((code) => {
       setDevCode(code);
-      toast({ title: "کد دوباره فرستاده شد", description: `کد نمایشی: ${fa(code)}` });
+      toast({ title: "کد دوباره فرستاده شد", description: code ? `کد نمایشی: ${fa(code)}` : "کد ۶ رقمی پیامک شد." });
     });
   };
 
@@ -1090,7 +1093,7 @@ function useOtpFlow(): OtpFlow {
     navigate("my-gifts");
     // cross-device «هدیه‌هام»: pull orders bound to this account on the server
     // (gifts made on other devices show up right here)
-    void pullOrdersForPhone(p).then((n) => {
+    void pullOrdersForPhone().then((n) => {
       if (n > 0) {
         toast({
           title: "هدیه‌هات رسیدن!",
@@ -1099,7 +1102,7 @@ function useOtpFlow(): OtpFlow {
       }
     });
     // cross-device favorites: hearts saved on other devices land here too
-    void pullFavorites(p).then((n) => {
+    void pullFavorites().then((n) => {
       if (n > 0) {
         toast({
           title: "محبوب‌هات هم رسیدن ♥",
@@ -1198,8 +1201,8 @@ function LoginFlowBlock({ flow }: { flow: OtpFlow }) {
             type="tel"
             inputMode="numeric"
             dir="ltr"
-            maxLength={4}
-            placeholder="●●●●"
+            maxLength={6}
+            placeholder="●●●●●●"
             className={INPUT_CLS}
             style={{ textAlign: "right", letterSpacing: "0.35em" }}
             value={flow.otp}

@@ -1250,12 +1250,20 @@ function ReviewForm({
       body: JSON.stringify({ who: who.trim(), role, stars, kind, title: title.trim(), text: text.trim() }),
     })
       .then((r) => (r.ok ? r.json() : Promise.reject(new Error("bad"))))
-      .then((j: { review?: ServerReview }) => {
-        if (j.review) onAdded(j.review);
+      .then((j: { review?: ServerReview & { pending?: boolean } }) => {
         setBusy(false);
         setText("");
         setTitle("");
-        toast({ title: "نظرت ثبت شد ♥", description: "ممنون که تجربه‌ت رو با بقیه تقسیم می‌کنی." });
+        if (j.review?.pending) {
+          // moderation flow (guide A9): nothing goes public before approval
+          toast({
+            title: "نظرت ثبت شد ♥",
+            description: "بعد از یه نگاه سریع، منتشرش می‌کنیم.",
+          });
+        } else if (j.review) {
+          onAdded(j.review);
+          toast({ title: "نظرت ثبت شد ♥", description: "ممنون که تجربه‌ت رو با بقیه تقسیم می‌کنی." });
+        }
       })
       .catch(() => {
         setBusy(false);

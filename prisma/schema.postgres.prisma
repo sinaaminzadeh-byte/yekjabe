@@ -1,0 +1,386 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// Pishnam — CANONICAL PRODUCTION SCHEMA (PostgreSQL 16)
+// Based on: launch guide §3 + docs/13-e + critic 13-h resolutions.
+//
+// ⚠️ The sandbox dev runtime uses prisma/schema.prisma (SQLite) because the
+//    dev container has no PostgreSQL. This file is what Coolify/Docker uses:
+//      npx prisma generate --schema prisma/schema.postgres.prisma
+//      npx prisma migrate deploy  (migrations generated against this file)
+//
+// After the initial migration, apply prisma/checks-pg.sql (CHECK constraints).
+// ─────────────────────────────────────────────────────────────────────────────
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ── enums ──
+
+enum OrderStatus {
+  awaiting_payment
+  payment_under_review
+  paid
+  preparing
+  shipped
+  delivered
+  failed
+  cancelled
+  expired
+  refund_requested
+  refunded
+}
+
+enum PaymentMethod {
+  zarinpal
+  manual_transfer
+}
+
+enum PaymentStatus {
+  initiated
+  pending_review
+  verified
+  rejected
+  failed
+}
+
+enum ActorType {
+  system
+  admin
+  customer
+  psp
+}
+
+enum SmsStatus {
+  queued
+  sent
+  failed
+  dead
+}
+
+enum ModerationStatus {
+  pending
+  approved
+  rejected
+}
+
+enum AdminRole {
+  owner
+  operator
+}
+
+// ── catalog ──
+
+model Product {
+  id            String           @id @default(cuid())
+  family        String // bear|bunny|cat|duck|panda|sheep
+  slug          String           @unique
+  nameFa        String
+  taglineFa     String           @default("")
+  descriptionFa String           @default("") @db.Text
+  coverImage    String           @default("")
+  isActive      Boolean          @default(true)
+  sortOrder     Int              @default(0)
+  createdAt     DateTime         @default(now()) @db.Timestamptz(6)
+  updatedAt     DateTime         @updatedAt @db.Timestamptz(6)
+  variants      ProductVariant[]
+
+  @@index([isActive, sortOrder])
+}
+
+model ProductVariant {
+  id                String       @id @default(cuid())
+  productId         String
+  size              String // S | L
+  sku               String       @unique
+  priceToman        Int
+  stock             Int          @default(0)
+  lowStockThreshold Int          @default(3)
+  isActive          Boolean      @default(true)
+  product           Product      @relation(fields: [productId], references: [id], onDelete: Restrict)
+  items             OrderItem[]
+
+  @@unique([productId, size])
+  // CHECK (stock >= 0) added via prisma/checks-pg.sql
+}
+
+// ── orders ──
+
+model Order {
+  id                String          @id @default(cuid())
+  code              String          @unique // PN-YYMMDD-#### (Tehran date)
+  idempotencyKey    String?         @unique
+  requestHash       String          @default("") // sha256 canonical body — key-reuse detection
+  status            OrderStatus     @default(awaiting_payment)
+  senderName        String          @default("")
+  senderPhone       String          @default("")
+  recipientName     String          @default("")
+  recipientPhone    String          @default("")
+  province          String          @default("")
+  city              String          @default("")
+  address           String          @default("") @db.Text
+  postalCode        String          @default("")
+  occasion          String          @default("just_because")
+  cardMessage       String          @default("") @db.Text
+  cardPasswordHash  String          @default("") // scrypt — never plaintext
+  giftOpenAttempts  Int             @default(0)
+  giftLockedAt      DateTime?       @db.Timestamptz(6)
+  anonymous         Boolean         @default(false)
+  hearts            Int             @default(0)
+  paws              Int             @default(0)
+  carrier           String          @default("") // post | tipax | mahex
+  trackingCode      String          @default("")
+  subtotalToman     Int             @default(0)
+  shippingToman     Int             @default(0)
+  discountToman     Int             @default(0)
+  totalToman        Int             @default(0)
+  paymentMethod     PaymentMethod
+  paymentAttempts   Int             @default(0)
+  cancelReason      String          @default("")
+  smsAbandonedAt    DateTime?       @db.Timestamptz(6)
+  marketingConsent  Boolean         @default(false)
+  userPhone         String          @default("") // "" = guest
+  sessionPhone      String          @default("")
+  expiresAt         DateTime        @db.Timestamptz(6) // createdAt + 24h
+  createdAt         DateTime        @default(now()) @db.Timestamptz(6)
+  updatedAt         DateTime        @updatedAt @db.Timestamptz(6)
+  items             OrderItem[]
+  events            OrderEvent[]
+  payments          Payment[]
+  sms               SmsOutbox[]
+
+  @@index([status, createdAt])
+  @@index([status, expiresAt])
+  @@index([senderPhone])
+  @@index([userPhone])
+}
+
+model OrderItem {
+  id             String         @id @default(cuid())
+  orderId        String
+  variantId      String
+  kind           String
+  size           String
+  title          String
+  qty            Int            @default(1)
+  unitPriceToman Int
+  order          Order          @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  variant        ProductVariant @relation(fields: [variantId], references: [id], onDelete: Restrict)
+
+  @@index([orderId])
+  // CHECK (qty > 0) added via prisma/checks-pg.sql
+}
+
+// Single audit spine (AdminLog/StockMove folded here — critic 13-h)
+model OrderEvent {
+  id        String       @id @default(cuid())
+  orderId   String
+  type      String // created|status_changed|payment_*|stock_adjust|admin_note|…
+  fromStatus OrderStatus?
+  toStatus  OrderStatus?
+  actor     ActorType
+  actorId   String       @default("") // adminPhone / userPhone
+  note      String       @default("") @db.Text
+  meta      Json?
+  createdAt DateTime     @default(now()) @db.Timestamptz(6)
+  order     Order        @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId, createdAt])
+}
+
+// ── payments ──
+
+model Payment {
+  id          String        @id @default(cuid())
+  orderId     String
+  method      PaymentMethod
+  status      PaymentStatus @default(initiated)
+  amountToman Int
+  authority   String?       @unique
+  refId       String?
+  cardLast4   String        @default("")
+  receiptKey  String        @default("") // Arvan S3 key (private bucket)
+  receiptHash String        @default("") // sha256 — cross-order dedupe
+  reviewedBy  String        @default("")
+  reviewedAt  DateTime?     @db.Timestamptz(6)
+  note        String        @default("") @db.Text
+  createdAt   DateTime      @default(now()) @db.Timestamptz(6)
+  order       Order         @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId])
+  @@index([status, createdAt])
+  @@index([receiptHash])
+}
+
+// ── sms outbox ──
+
+model SmsOutbox {
+  id                 String    @id @default(cuid())
+  phone              String
+  template           String
+  body               String    @db.Text
+  status             SmsStatus @default(queued)
+  attempts           Int       @default(0)
+  lastError          String    @default("")
+  orderId            String?
+  sendAfter          DateTime  @default(now()) @db.Timestamptz(6)
+  sentAt             DateTime? @db.Timestamptz(6)
+  createdAt          DateTime  @default(now()) @db.Timestamptz(6)
+  order              Order?    @relation(fields: [orderId], references: [id], onDelete: SetNull)
+
+  @@index([status, sendAfter])
+}
+
+// ── infra / identity ──
+
+model DailyCounter {
+  day   String @id // YYYYMMDD — Tehran time
+  value Int
+}
+
+model Session {
+  id         String   @id // sha256(token) — raw token only in the HttpOnly cookie
+  phone      String
+  kind       String   @default("customer") // customer | admin
+  expiresAt  DateTime @db.Timestamptz(6)
+  lastSeenAt DateTime @default(now()) @db.Timestamptz(6)
+  createdAt  DateTime @default(now()) @db.Timestamptz(6)
+
+  @@index([phone])
+  @@index([expiresAt])
+}
+
+model AuthCode {
+  id        String   @id @default(cuid())
+  phone     String
+  codeHash  String // HMAC-SHA256(phone:code, SESSION_SECRET)
+  attempts  Int      @default(0)
+  ip        String   @default("")
+  expiresAt DateTime @db.Timestamptz(6)
+  used      Boolean  @default(false)
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+
+  @@index([phone, createdAt])
+}
+
+model AppUser {
+  id          String    @id @default(cuid())
+  phone       String    @unique
+  name        String?
+  createdAt   DateTime  @default(now()) @db.Timestamptz(6)
+  lastLoginAt DateTime  @default(now()) @db.Timestamptz(6)
+}
+
+model AdminUser {
+  id          String    @id @default(cuid())
+  phone       String    @unique
+  name        String    @default("")
+  role        AdminRole @default(operator)
+  isActive    Boolean   @default(true)
+  lastLoginAt DateTime? @db.Timestamptz(6)
+}
+
+model Setting {
+  key        String   @id
+  value      String   @db.Text
+  updatedAt  DateTime @updatedAt @db.Timestamptz(6)
+}
+
+// Optional durable rate-limit buckets (only needed if replicas > 1)
+model RateBucket {
+  key     String   @id
+  count   Int
+  resetAt DateTime @db.Timestamptz(6)
+}
+
+model JobRun {
+  id         String    @id @default(cuid())
+  name       String
+  startedAt  DateTime  @default(now()) @db.Timestamptz(6)
+  finishedAt DateTime? @db.Timestamptz(6)
+  ok         Boolean   @default(false)
+  detail     String    @default("") @db.Text
+}
+
+// ── content / community ──
+
+model Experience {
+  id         String           @id @default(cuid())
+  name       String
+  city       String           @default("")
+  occasion   String           @default("")
+  body       String           @db.Text
+  photoKey   String           @default("")
+  status     ModerationStatus @default(pending)
+  isFeatured Boolean          @default(false)
+  submittedIp String          @default("")
+  reviewedBy String           @default("")
+  reviewedAt DateTime?        @db.Timestamptz(6)
+  createdAt  DateTime         @default(now()) @db.Timestamptz(6)
+
+  @@index([status, createdAt])
+}
+
+model Post {
+  id             String    @id @default(cuid())
+  title          String
+  slug           String    @unique
+  excerpt        String    @default("") @db.Text
+  bodyMd         String    @default("") @db.Text
+  coverImage     String    @default("")
+  status         ModerationStatus @default(pending) // pending=draft, approved=published
+  publishedAt    DateTime? @db.Timestamptz(6)
+  seoTitle       String    @default("")
+  seoDescription String    @default("")
+  createdAt      DateTime  @default(now()) @db.Timestamptz(6)
+  updatedAt      DateTime  @updatedAt @db.Timestamptz(6)
+
+  @@index([status, publishedAt])
+}
+
+model VoiceNote {
+  id          String   @id @default(cuid())
+  orderId     String   @unique
+  key         String // Arvan S3 key (private bucket)
+  durationSec Int      @default(0)
+  status      String   @default("ready")
+  createdAt   DateTime @default(now()) @db.Timestamptz(6)
+}
+
+model Favorite {
+  id        String   @id @default(cuid())
+  userPhone String
+  kind      String
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+
+  @@unique([userPhone, kind])
+  @@index([userPhone])
+}
+
+model Review {
+  id        String   @id @default(cuid())
+  who       String
+  role      String   @default("sender")
+  stars     Int      @default(5)
+  kind      String   @default("bear")
+  title     String   @default("")
+  text      String   @db.Text
+  approved  Boolean  @default(false)
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+
+  @@index([approved, createdAt])
+}
+
+model ContactMessage {
+  id        String   @id @default(cuid())
+  name      String
+  email     String
+  subject   String
+  orderNo   String   @default("")
+  message   String   @db.Text
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+}

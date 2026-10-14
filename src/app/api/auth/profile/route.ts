@@ -1,26 +1,21 @@
-// ── /api/auth/profile — set/update the display name of a logged-in user ──
+// ── /api/auth/profile — set/update the display name of the SESSION user ──
+// Identity comes from the HttpOnly cookie; body.phone is ignored (guide #3).
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
-
-function normPhone(v: unknown): string | null {
-  if (typeof v !== "string") return null;
-  const p = v
-    .replace(/[۰-۹]/g, (d) => String("۰۱۲۳۴۵۶۷۸۹".indexOf(d)))
-    .replace(/\s/g, "");
-  return /^09\d{9}$/.test(p) ? p : null;
-}
+import { toErrorResponse, AppError } from "@/lib/errors";
+import { assertSameOrigin, requireSession } from "@/lib/auth/session";
 
 export async function POST(req: Request) {
   try {
-    const body = (await req.json()) as Record<string, unknown>;
-    const phone = normPhone(body.phone);
+    assertSameOrigin(req);
+    const session = await requireSession();
+    const body = (await req.json().catch(() => ({}))) as Record<string, unknown>;
     const name = typeof body.name === "string" ? body.name.trim().slice(0, 60) : "";
-    if (!phone || !name) {
-      return NextResponse.json({ error: "invalid input" }, { status: 400 });
-    }
+    if (!name) throw new AppError(400, "invalid_input");
+
     const user = await db.appUser.upsert({
-      where: { phone },
-      create: { phone, name },
+      where: { phone: session.phone },
+      create: { phone: session.phone, name },
       update: { name },
     });
     return NextResponse.json({
@@ -28,7 +23,7 @@ export async function POST(req: Request) {
       user: { phone: user.phone, name: user.name ?? "" },
     });
   } catch (e) {
-    console.error("POST /api/auth/profile failed:", e);
-    return NextResponse.json({ error: "server unavailable" }, { status: 500 });
+    const { body, status } = toErrorResponse(e);
+    return NextResponse.json(body, { status });
   }
 }

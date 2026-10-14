@@ -216,7 +216,7 @@ export const usePishnam = create<PishnamState>()(
           phone: s.receiver.phone,
           message: s.message,
           occasion: s.occasion,
-          password: s.cardPassword || "بهار",
+          password: s.cardPassword,
           anonymous: s.anonymous,
           senderName: s.anonymous ? "" : s.senderName || (s.user?.name ?? ""),
           hearts: s.hearts,
@@ -286,13 +286,13 @@ export const usePishnam = create<PishnamState>()(
           : [...get().favorites, k];
         set({ favorites });
         // account-bound favorites follow the user across devices (offline-safe:
-        // the local toggle always lands first, the PUT is fire-and-forget)
-        const phone = get().user?.phone;
-        if (phone) {
+        // the local toggle always lands first, the PUT is fire-and-forget).
+        // Identity = HttpOnly session cookie; no phone in the body (Phase A).
+        if (get().user?.phone) {
           void fetch("/api/favorites", {
             method: "PUT",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ phone, kinds: favorites }),
+            body: JSON.stringify({ kinds: favorites }),
           }).catch(() => {});
         }
       },

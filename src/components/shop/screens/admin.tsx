@@ -58,29 +58,73 @@ const NEXT_ACTION: Record<string, string> = {
   delivered: "",
 };
 
-// ── demo gate ──
-const ADMIN_PIN = "1398";
+// ── admin gate — OTP + server-side admin session (guide A7: PIN killed) ──
 const UNLOCK_KEY = "pishnam-admin-ok";
 
 function toEnDigits(s: string): string {
   return s.replace(/[۰-۹]/g, (d) => String("۰۱۲۳۴۵۶۷۸۹".indexOf(d)));
 }
 
-function PinGate({ onOk }: { onOk: () => void }) {
-  const [pin, setPin] = useState("");
+function AdminOtpGate({ onOk }: { onOk: () => void }) {
+  const [step, setStep] = useState<"phone" | "code">("phone");
+  const [phone, setPhone] = useState("");
+  const [code, setCode] = useState("");
+  const [busy, setBusy] = useState(false);
   const [err, setErr] = useState(false);
 
-  const submit = () => {
-    const p = toEnDigits(pin.trim());
-    if (p === ADMIN_PIN) {
-      try {
-        sessionStorage.setItem(UNLOCK_KEY, "1");
-      } catch {}
-      onOk();
-    } else {
-      setErr(true);
-      setTimeout(() => setErr(false), 700);
+  const fail = () => {
+    setErr(true);
+    setTimeout(() => setErr(false), 900);
+  };
+
+  const sendCode = async () => {
+    const p = toEnDigits(phone.trim());
+    if (!/^09\d{9}$/.test(p)) {
+      fail();
+      return;
     }
+    setBusy(true);
+    try {
+      const res = await fetch("/api/auth/request", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone: p }),
+      });
+      if (!res.ok) throw new Error("request failed");
+      setStep("code");
+    } catch {
+      fail();
+    }
+    setBusy(false);
+  };
+
+  const submit = async () => {
+    const p = toEnDigits(phone.trim());
+    const c = toEnDigits(code.trim());
+    if (!/^09\d{9}$/.test(p) || !/^\d{6}$/.test(c)) {
+      fail();
+      return;
+    }
+    setBusy(true);
+    try {
+      const res = await fetch("/api/auth/verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone: p, code: c }),
+      });
+      const json = (await res.json()) as { ok?: boolean; admin?: boolean };
+      if (res.ok && json.ok && json.admin) {
+        try {
+          sessionStorage.setItem(UNLOCK_KEY, "1");
+        } catch {}
+        onOk();
+        return;
+      }
+      fail();
+    } catch {
+      fail();
+    }
+    setBusy(false);
   };
 
   return (
@@ -93,33 +137,70 @@ function PinGate({ onOk }: { onOk: () => void }) {
         <div className="flex flex-col gap-1.5">
           <h1 className="m-0 text-[22px] font-black">پنل همکاران</h1>
           <p className="m-0 text-[13.5px] font-medium leading-[1.9] text-[#4A6572]">
-            برای دیدن دفتر سفارش‌ها رمز همکاریت رو بزن.
+            {step === "phone"
+              ? "با شماره‌ی موبایلِ همکاریت کد ورود بگیر."
+              : "کد ۶ رقمی پیامک‌شده رو بزن."}
           </p>
         </div>
-        <input
-          type="password"
-          inputMode="numeric"
-          dir="ltr"
-          maxLength={4}
-          value={pin}
-          onChange={(e) => setPin(e.target.value.replace(/[^\d۰-۹]/g, "").slice(0, 4))}
-          onKeyDown={(e) => e.key === "Enter" && submit()}
-          placeholder="••••"
-          aria-label="رمز همکاران"
-          className={`h-[54px] w-full rounded-[18px] border-2 bg-white text-center text-[20px] font-black tracking-[0.4em] text-[#04202E] outline-none transition-shadow focus:shadow-[0_0_0_4px_rgba(0,171,231,0.15)] ${
-            err ? "pishnam-shake border-[#F0426B]" : "border-[#04202E]"
-          }`}
-        />
-        {err && <span className="text-[12.5px] font-bold text-[#F0426B]">رمز درست نیست!</span>}
+        {step === "phone" ? (
+          <input
+            type="tel"
+            inputMode="numeric"
+            dir="ltr"
+            maxLength={11}
+            value={phone}
+            onChange={(e) => setPhone(e.target.value.replace(/[^\d۰-۹]/g, "").slice(0, 11))}
+            onKeyDown={(e) => e.key === "Enter" && !busy && void sendCode()}
+            placeholder="09xxxxxxxxx"
+            aria-label="شماره موبایل همکاری"
+            className={`h-[54px] w-full rounded-[18px] border-2 bg-white text-center text-[18px] font-black text-[#04202E] outline-none transition-shadow focus:shadow-[0_0_0_4px_rgba(0,171,231,0.15)] ${
+              err ? "pishnam-shake border-[#F0426B]" : "border-[#04202E]"
+            }`}
+          />
+        ) : (
+          <input
+            type="password"
+            inputMode="numeric"
+            dir="ltr"
+            maxLength={6}
+            value={code}
+            onChange={(e) => setCode(e.target.value.replace(/[^\d۰-۹]/g, "").slice(0, 6))}
+            onKeyDown={(e) => e.key === "Enter" && !busy && void submit()}
+            placeholder="••••••"
+            aria-label="کد ورود شش‌رقمی"
+            className={`h-[54px] w-full rounded-[18px] border-2 bg-white text-center text-[20px] font-black tracking-[0.4em] text-[#04202E] outline-none transition-shadow focus:shadow-[0_0_0_4px_rgba(0,171,231,0.15)] ${
+              err ? "pishnam-shake border-[#F0426B]" : "border-[#04202E]"
+            }`}
+          />
+        )}
+        {err && (
+          <span className="text-[12.5px] font-bold text-[#F0426B]">
+            {step === "phone" ? "شماره درست نیست یا سرویس در دسترس نیست." : "کد درست نیست یا منقضی شده."}
+          </span>
+        )}
         <button
           type="button"
-          onClick={submit}
-          className="flex h-[52px] w-full items-center justify-center rounded-full bg-[#00ABE7] text-[16px] font-extrabold text-[#04202E] transition-transform active:scale-95"
+          disabled={busy}
+          onClick={() => (step === "phone" ? void sendCode() : void submit())}
+          className="flex h-[52px] w-full items-center justify-center rounded-full bg-[#00ABE7] text-[16px] font-extrabold text-[#04202E] transition-transform active:scale-95 disabled:opacity-60"
         >
-          ورود به پنل
+          {step === "phone" ? "دریافت کد ورود" : "ورود به پنل"}
         </button>
+        {step === "code" && (
+          <button
+            type="button"
+            onClick={() => {
+              setStep("phone");
+              setCode("");
+              setErr(false);
+            }}
+            className="text-[12.5px] font-bold text-[#4A6572] underline"
+          >
+            تغییر شماره
+          </button>
+        )}
         <span className="rounded-full bg-[#FFF3C9] px-3.5 py-1.5 text-[11.5px] font-extrabold text-[#8A6D1F]">
-          حالت نمایشی — رمز: ۱۳۹۸
+          فقط شماره‌های ثبت‌شده‌ی همکاری وارد می‌شن
         </span>
       </div>
     </div>
@@ -255,7 +336,7 @@ export function AdminScreen() {
     return (
       <div className="flex min-h-screen flex-col bg-[#F2FAFD]">
         <MobileTopBar title="پنل همکاران" back="home" />
-        <PinGate onOk={() => setUnlocked(true)} />
+        <AdminOtpGate onOk={() => setUnlocked(true)} />
       </div>
     );
   }

@@ -182,7 +182,7 @@ export function GiftExperience() {
 
   const tryUnlock = () => {
     const v = pw.trim();
-    if (v === order.password || v === GIFT_OPEN_DEFAULT_PASSWORD) {
+    if (v === order.password) {
       markOpened(order.id);
       setWrong(false);
       setPhase("open");

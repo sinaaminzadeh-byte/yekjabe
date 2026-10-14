@@ -1,0 +1,37 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Pishnam — local/production compose (launch guide A1 + §5)
+# PostgreSQL 16 is INTERNAL to the app network; in production Coolify manages
+# this service and NO public port is published. The 127.0.0.1 mapping below is
+# for local development only.
+# ─────────────────────────────────────────────────────────────────────────────
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: pishnam
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
+      POSTGRES_DB: pishnam
+      TZ: Asia/Tehran
+    command:
+      - postgres
+      - -c
+      - shared_buffers=128MB
+      - -c
+      - max_connections=30
+      - -c
+      - work_mem=4MB
+      - -c
+      - effective_cache_size=768MB
+    ports:
+      - "127.0.0.1:5432:5432" # local dev only — remove in production
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U pishnam -d pishnam"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  pgdata:
