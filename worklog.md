@@ -503,3 +503,21 @@ Stage Summary:
 - Phase B COMPLETE per guide checklist B1–B9 (S3 presigned upload is the deploy-wave swap — sandbox stores receipts at .data/ behind the same Payment.receiptKey seam; real Zarinpal keys flip the same adapter out of simulate).
 - Branch: work committed on launch-v1, merged to main after green tests and pushed (owner rule). Next up (فاز ۱ ادامه): real Kavenegar key + Zarinpal merchant at deploy, PG schema.postgres.prisma mirror of the 10 new models before D1 Coolify deploy, 12→6 SKU doc update in 13-e/13-f, refund request endpoint UI (B9 tail), blog/SEO wave.
 - Owner decisions recorded today: ONE size for all products (no L pricing) — schema + seed + docs aligned; the 5 older pending decisions keep their defaults.
+
+---
+Task ID: 16
+Agent: main (Z.ai Code) — orchestrator
+Task: Owner report "preview doesn't load" + update the prescription guide file with full remaining-until-launch list (technical/security/SEO/etc.)
+
+Work Log:
+- Diagnosed preview failure — 3 stacked causes after sandbox recycle between sessions: (1) dev server dead when owner opened preview (auto-restarted at 19:40, was serving GET / 200 on arrival); (2) db/custom.db schema survived but ALL rows lost (WAL file lost on unclean recycle — Product/ProductVariant/Order/AdminUser all 0) so /api/catalog returned {"products":[]} and the gift builder had nothing; (3) .gitignore truncated to 2 lines (65 lines lost) — dangerous for future add -A.
+- Fixes: git checkout -- .gitignore (restored full ignore rules incl. .env*/db/node_modules); verified .env/custom.db NOT tracked (Task 14 purge held); git checkout -- . to clear 40 mode-only diffs; ran scripts/seed-commerce.ts → 6 products / 6 variants @890,000 / 8 settings (idempotent, single-size); verified /api/catalog returns 6 products with variantIds; agent-browser E2E: home + #/build render with prices, console clean.
+- Prescription updated to v1.1 (public/pishnam-prescription.html): NEW section ۱۳ «گزارش اجرا — کجاییم و چه مانده تا لانچ؟» = phase status table (A ✅ / B ✅ / C ☐ / D ☐ per launch guide naming) + complete remaining checklist in 5 categories (فنی/فاز C — 8 items; امنیت — 7 items incl. PAT rotation FIRST; سئو/محتوا — 7 items incl. domain as blocker #1; زیرساخت/فاز D — 7 items incl. PG schema mirror of 10 new B models; مالکی — 7 items) + suggested launch order callout (domain+photos → C → PG mirror+Coolify → k6 → secret rotation+demo wipe → soft launch → اینماد → official before Yalda). Single-size decision swept everywhere (12 SKU → 6 SKU in sections 2/4/10/13 + JSON D20/phases/launchChecklist); owner Q1 marked resolved + new Q6 added (4GB RAM / managed PG per guide §8); embedded JSON bumped v1.1 + executionStatus block; footer + copy-summary updated.
+- QA: embedded JSON parses (22 decisions, 6 ownerDecisions, 11 checklist items), 14/14 sections balanced, agent-browser: section 13 renders, download button → «✓ دانلود شد», console clean, 390px overflow = 0.
+- Git: committed on launch-v1 (1b9ead6), merged to main, pushed both branches to github.com/isnamni/yekdoost. Working tree clean.
+
+Stage Summary:
+- Preview fixed at 3 layers (server up + DB reseeded + builder live); root cause documented for future recycles: ALWAYS re-run scripts/seed-commerce.ts + check WAL after sandbox restart.
+- Guide file is now the living execution report: /pishnam-prescription.html section 13 = single source for "what's left until launch"; JSON download reflects v1.1 state.
+- Owner-facing remaining list delivered in chat (5 categories, ~36 items, 7 owner-only).
+- Next for cron rounds: فاز C — real routes (/product/[slug]×6) + metadata + sitemap/robots + JSON-LD, blog, UGC, legal pages, refund flow UI; then PG mirror + Coolify prep.
