@@ -11,6 +11,7 @@ import { navigate } from "@/lib/hash-route";
 import { usePishnam } from "@/lib/pishnam-store";
 import { fa, money } from "@/lib/fa";
 import { DownloadGiftButton } from "@/components/shop/screens/track";
+import { ManualPaymentPanel } from "../manual-payment";
 
 const STEP_BGS = ["#CDEFFB", "#FFE0EA", "#FFF3C9", "#E7E0FA"];
 
@@ -22,6 +23,8 @@ interface StatusPayload {
   total: number;
   paid: boolean;
   payment?: { method: string; status: string };
+  paymentMethod?: string;
+  expiresAt?: string;
 }
 
 function stateFromStatus(s: string): SuccessState {
@@ -140,7 +143,7 @@ function stepsFor(status: string) {
 
 /* ═══════════════ status banners ═══════════════ */
 
-function StatusBanner({ st, data, onRecheck, busy }: { st: SuccessState; data: StatusPayload | null; onRecheck: () => void; busy: boolean }) {
+function StatusBanner({ st, data, onRecheck, busy, pendingKey }: { st: SuccessState; data: StatusPayload | null; onRecheck: () => void; busy: boolean; pendingKey?: string }) {
   const code = data?.code;
   if (st === "paid") {
     return (
@@ -163,6 +166,17 @@ function StatusBanner({ st, data, onRecheck, busy }: { st: SuccessState; data: S
     );
   }
   if (st === "failed" || st === "awaiting") {
+    // کارت‌به‌کارت: پنل رزرو ۱۰ دقیقه‌ای + آپلود رسید (بعد از رفرش هم زنده می‌مونه)
+    if (st === "awaiting" && data?.paymentMethod === "manual_transfer" && pendingKey && data?.code) {
+      return (
+        <ManualPaymentPanel
+          code={data.code}
+          idempotencyKey={pendingKey}
+          total={data.total}
+          expiresAt={data.expiresAt}
+        />
+      );
+    }
     return (
       <div className="flex flex-col gap-2.5 rounded-[22px] bg-[#FFE9F0] px-4 py-3.5">
         <div className="flex items-center gap-3">
@@ -217,7 +231,7 @@ function StatusBanner({ st, data, onRecheck, busy }: { st: SuccessState; data: S
 export function MobileSuccess() {
   const { st, data } = useOrderStatus();
   const { recheck, busy } = useRecheck();
-  const { order } = useOrderData();
+  const { pendingOrder, order } = useOrderData();
   const selectOrder = usePishnam((s) => s.selectOrder);
   const no = order?.no ?? 101;
   const code = data?.code ?? order?.code;
@@ -285,7 +299,7 @@ export function MobileSuccess() {
             </div>
           </div>
         ))}
-        <StatusBanner st={st} data={data} onRecheck={() => void recheck().then((r) => { if (r.redirectUrl) window.location.href = r.redirectUrl; })} busy={busy} />
+        <StatusBanner st={st} data={data} pendingKey={pendingOrder?.key} onRecheck={() => void recheck().then((r) => { if (r.redirectUrl) window.location.href = r.redirectUrl; })} busy={busy} />
       </div>
 
       <div className="mx-5 mt-4 flex items-center gap-3 rounded-[22px] bg-[#04202E] p-[18px] text-white">
@@ -355,7 +369,7 @@ export function MobileSuccess() {
 export function DesktopSuccess() {
   const { st, data } = useOrderStatus();
   const { recheck, busy } = useRecheck();
-  const { order } = useOrderData();
+  const { pendingOrder, order } = useOrderData();
   const selectOrder = usePishnam((s) => s.selectOrder);
   const no = order?.no ?? 101;
   const code = data?.code ?? order?.code;
@@ -421,7 +435,7 @@ export function DesktopSuccess() {
             </div>
           ))}
         </div>
-        <StatusBanner st={st} data={data} onRecheck={() => void recheck().then((r) => { if (r.redirectUrl) window.location.href = r.redirectUrl; })} busy={busy} />
+        <StatusBanner st={st} data={data} pendingKey={pendingOrder?.key} onRecheck={() => void recheck().then((r) => { if (r.redirectUrl) window.location.href = r.redirectUrl; })} busy={busy} />
         <div className="flex flex-wrap items-center gap-5 rounded-[24px] bg-[#04202E] p-5 text-white">
           {order && (
             <div

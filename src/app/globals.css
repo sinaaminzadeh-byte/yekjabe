@@ -312,6 +312,18 @@
   animation: pishnam-shake 0.45s ease-in-out;
 }
 
+/* ── Pishnam: card-to-card reservation timer (last minute urgency) ── */
+@keyframes pishnam-timer-pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.06); }
+}
+.pishnam-timer-pulse {
+  animation: pishnam-timer-pulse 0.9s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .pishnam-timer-pulse { animation: none; }
+}
+
 
 /* ── Pishnam: current-step pulse ring (order tracking) ── */
 @keyframes pishnam-pulse-ring {

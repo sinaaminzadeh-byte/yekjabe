@@ -16,6 +16,8 @@ import {
 } from "@/lib/pishnam-store";
 import { fa, faPrice, money } from "@/lib/fa";
 import { FavHeart, FavoritesStrip } from "../fav";
+import { HomeStats, HomeBlog } from "../home-sections";
+import { SiteFooter } from "../site-footer";
 import {
   PLUSHES,
   BOX_PRICE,
@@ -28,7 +30,6 @@ import {
 /* ═══════════════ MOBILE HOME ═══════════════ */
 export function MobileHome() {
   const nextNo = usePishnam((s) => s.nextNo);
-  const done = useCharityDone();
 
   return (
     <div className="flex min-h-screen flex-col bg-[#F2FAFD] md:hidden">
@@ -227,9 +228,14 @@ export function MobileHome() {
         ))}
       </div>
 
-      <div className="px-5 pt-[26px] pb-6 text-center text-[12.5px] font-medium text-[#4A6572]">
-        پیشنام · یه بغل، تو یه جعبه · تا حالا {fa(done)} قلب و پنجه ثبت شده
-      </div>
+      {/* live stats */}
+      <HomeStats />
+
+      {/* blog */}
+      <HomeBlog />
+
+      {/* footer — shared, links to every screen + admin door */}
+      <SiteFooter />
     </div>
   );
 }
@@ -497,6 +503,10 @@ export function DesktopHome() {
         </div>
       </section>
 
+      {/* live stats + blog */}
+      <HomeStats />
+      <HomeBlog />
+
       {/* faq */}
       <section id="faq" className="mx-auto w-full max-w-[1200px] px-6 pt-[88px] box-border">
         <h2 className="m-0 mb-7 text-[38px] font-black leading-[1.4]">سؤال‌های رایج</h2>
@@ -513,53 +523,9 @@ export function DesktopHome() {
         </div>
       </section>
 
-      {/* footer */}
-      <footer className="mt-24 bg-[#04202E] text-white">
-        <div className="mx-auto flex w-full max-w-[1200px] flex-wrap justify-between gap-9 px-6 pb-10 pt-14 box-border">
-          <div className="flex flex-[1_1_280px] flex-col gap-3.5">
-            <Logo size={44} />
-            <span className="text-[15px] font-bold text-[#BFE9F8]">یه بغل، تو یه جعبه</span>
-          </div>
-          <div className="flex flex-col gap-2.5 text-[15px] font-semibold">
-            <span className="text-base font-extrabold text-[#00ABE7]">پیشنام</span>
-            <FooterLink label="چطوری کار می‌کنه؟" target="how" />
-            <FooterLink label="دوست‌های پشمالو" target="friends" />
-            <FooterLink label="دفتر مهربونی" target="love" />
-          </div>
-          <div className="flex flex-col gap-2.5 text-[15px] font-semibold">
-            <span className="text-base font-extrabold text-[#00ABE7]">کمک</span>
-            <FooterLink label="سؤال‌های رایج" target="faq" />
-            <FooterLink label="قوانین و شرایط" route="shipping" />
-            <FooterLink label="تماس با ما" route="contact" />
-            <FooterLink label="ورود همکاران" route="admin" />
-          </div>
-          <div className="flex flex-col gap-2.5 text-[15px] font-semibold">
-            <span className="text-base font-extrabold text-[#00ABE7]">ما رو دنبال کن</span>
-            <span>پیشنام@ اینستاگرام</span>
-            <span>پیشنام@ تلگرام</span>
-            <span>نماد اعتماد الکترونیکی</span>
-          </div>
-        </div>
-        <div className="border-t border-[#0E3C52] px-6 py-[18px] text-center text-[13px] font-medium text-[#BFE9F8]">
-          پیشنام · همه‌ی حقوق محفوظ است
-        </div>
-      </footer>
+      {/* footer — shared, links to every screen + admin door */}
+      <SiteFooter />
     </div>
-  );
-}
-
-function FooterLink({ label, target, route }: { label: string; target?: string; route?: Route }) {
-  return (
-    <button
-      type="button"
-      className="text-right transition-colors hover:text-[#00ABE7]"
-      onClick={() => {
-        if (target) document.getElementById(target)?.scrollIntoView({ behavior: "smooth" });
-        else if (route) navigate(route);
-      }}
-    >
-      {label}
-    </button>
   );
 }
 

@@ -19,23 +19,14 @@ function checkSecret(req: Request): void {
 }
 
 const JOBS: Record<string, () => Promise<string>> = {
-  // انقضای سفارش‌های پرداخت‌نشده + آزادسازی موجودی
+  // انقضای سفارش‌های پرداخت‌نشده + آزادسازی موجودی (رزرو ۱۰ دقیقه‌ای کارت‌به‌کارت)
   "expire-unpaid": async () => {
-    const stale = await db.order.findMany({
+    const { expireDueOrders } = await import("@/lib/orders/expire");
+    const stale = await db.order.count({
       where: { status: { in: ["awaiting_payment", "failed"] }, expiresAt: { lt: new Date() } },
-      select: { id: true, code: true },
-      take: 100,
     });
-    let n = 0;
-    for (const o of stale) {
-      try {
-        await transitionOrder(o.id, "expired", { actor: "system", note: "expire-unpaid job" });
-        n += 1;
-      } catch {
-        /* raced — next tick */
-      }
-    }
-    return `expired ${n}/${stale.length}`;
+    const n = await expireDueOrders(100);
+    return `expired ${n}/${stale}`;
   },
 
   // خالی‌کردن صف پیامک

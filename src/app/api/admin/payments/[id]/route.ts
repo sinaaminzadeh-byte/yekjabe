@@ -7,6 +7,7 @@ import { db } from "@/lib/db";
 import { AppError, toErrorResponse } from "@/lib/errors";
 import { assertSameOrigin, requireAdmin } from "@/lib/auth/session";
 import { transitionOrder } from "@/lib/orders/transition";
+import { MANUAL_WINDOW_MINUTES } from "@/lib/orders/expire";
 import { enqueueSms } from "@/lib/sms";
 import { deleteReceiptFile } from "@/lib/payments/manual";
 
@@ -41,6 +42,9 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
         // ۳ تلاش — سفارش لغو می‌شه (guide §4.9)
         await transitionOrder(order.id, "cancelled", { actor: admin.role === "owner" ? "owner" : "admin", actorId: admin.phone, note: reason || "3_rejected_receipts" });
       } else {
+        // رسید رد شد → پنجره‌ی رزرو ۱۰ دقیقه‌ای از نو باز می‌شه تا مشتری فرصت آپلود دوباره داشته باشه
+        const extend = order.paymentMethod === "manual_transfer" ? { expiresAt: new Date(Date.now() + MANUAL_WINDOW_MINUTES * 60_000) } : {};
+        await db.order.update({ where: { id: order.id }, data: extend });
         await transitionOrder(order.id, "awaiting_payment", { actor: admin.role === "owner" ? "owner" : "admin", actorId: admin.phone, note: reason || "receipt_rejected" });
       }
       const phone = order.userPhone || order.senderPhone;
@@ -55,8 +59,8 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     if (action === "reopen") {
       if (admin.role !== "owner") throw new AppError(403, "owner_only");
       if (order.status !== "cancelled") throw new AppError(409, "bad_order_status", { status: order.status });
-      // owner mercy path: cancelled is terminal → direct guarded write + event
-      await db.order.update({ where: { id: order.id }, data: { status: "awaiting_payment", paymentAttempts: 0 } });
+      // owner mercy path: cancelled is terminal → direct guarded write + event (+fresh window)
+      await db.order.update({ where: { id: order.id }, data: { status: "awaiting_payment", paymentAttempts: 0, expiresAt: new Date(Date.now() + (order.paymentMethod === "manual_transfer" ? MANUAL_WINDOW_MINUTES : 24 * 60) * 60_000) } });
       await db.orderEvent.create({
         data: { orderId: order.id, type: "status_changed", fromStatus: "cancelled", toStatus: "awaiting_payment", actor: "owner", actorId: admin.phone, note: "owner_reopen" },
       });

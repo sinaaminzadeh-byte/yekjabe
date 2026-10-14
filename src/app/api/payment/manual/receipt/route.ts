@@ -8,6 +8,7 @@ import { AppError, toErrorResponse } from "@/lib/errors";
 import { assertSameOrigin } from "@/lib/auth/session";
 import { clientIp, isRateLimited, rateLimit } from "@/lib/rate-limit";
 import { transitionOrder } from "@/lib/orders/transition";
+import { expireOrderIfDue } from "@/lib/orders/expire";
 import { RECEIPT_MAX_BYTES, sniffImageMime, storeReceiptFile, deleteReceiptFile } from "@/lib/payments/manual";
 
 export async function POST(req: Request) {
@@ -24,6 +25,12 @@ export async function POST(req: Request) {
     if (!order) throw new AppError(404, "not_found");
     if (order.status !== "awaiting_payment") throw new AppError(409, "bad_order_status", { status: order.status });
     if (order.paymentAttempts >= 3) throw new AppError(409, "too_many_attempts");
+
+    // رزرو ۱۰ دقیقه‌ای — after the window the stock is released for others
+    if (order.expiresAt.getTime() < Date.now()) {
+      await expireOrderIfDue(order.id);
+      throw new AppError(410, "payment_window_expired", { windowMinutes: 10 });
+    }
 
     const file = form.get("file");
     if (!(file instanceof File)) throw new AppError(400, "file_required");

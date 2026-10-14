@@ -9,6 +9,7 @@ import { validPhone, normPhone } from "../auth/phone";
 import { canonicalJson, hashGiftPassword, sha256Hex } from "./crypto";
 import { nextOrderCode } from "./code";
 import { computeQuote, getSettings, type Quote } from "./pricing";
+import { MANUAL_WINDOW_MINUTES } from "./expire";
 import type { OrderStatus } from "./status";
 
 // ── input validation (zod) ──
@@ -75,6 +76,8 @@ export interface CheckoutAck {
     provider: string;
     status: string;
     redirectUrl?: string;
+    expiresAt?: string; // ISO — end of the payment/reservation window
+    windowMinutes?: number; // 10 for card-to-card (رزرو ۱۰ دقیقه‌ای)
     instructions?: Record<string, string>;
   };
 }
@@ -144,7 +147,13 @@ export async function createOrder(raw: unknown, ctx: CheckoutCtx): Promise<Check
           totalToman: q.total,
           userPhone: phone,
           sessionPhone: phone,
-          expiresAt: new Date(Date.now() + 24 * 36e5),
+          // رزرو ۱۰ دقیقه‌ای برای کارت‌به‌کارت؛ درگاه آنلاین ۲۴ ساعت مهلت دارد.
+          // همین میدان، رزرو موجودی را برای بقیه‌ی مشتری‌ها هم منصفانه نگه می‌دارد:
+          // انقضا → expired → transitionOrder موجودی را برمی‌گرداند.
+          expiresAt:
+            input.paymentMethod === "manual_transfer"
+              ? new Date(Date.now() + MANUAL_WINDOW_MINUTES * 60_000)
+              : new Date(Date.now() + 24 * 36e5),
           items: {
             create: input.items.map((i) => {
               const v = q.lines.find((l) => l.variantId === i.variantId)!;
@@ -187,7 +196,7 @@ export async function createOrder(raw: unknown, ctx: CheckoutCtx): Promise<Check
   };
 }
 
-async function replay(order: { requestHash: string; code: string; status: string; totalToman: number; payments: { id: string; method: string; provider: string; status: string; authority: string }[] }, requestHash: string): Promise<CheckoutAck> {
+async function replay(order: { requestHash: string; code: string; status: string; totalToman: number; expiresAt: Date; payments: { id: string; method: string; provider: string; status: string; authority: string }[] }, requestHash: string): Promise<CheckoutAck> {
   if (order.requestHash && order.requestHash !== requestHash) {
     throw new AppError(422, "idempotency_key_reuse");
   }
@@ -197,6 +206,10 @@ async function replay(order: { requestHash: string; code: string; status: string
     payment = { method: active.method, provider: active.provider, status: active.status };
     if (active.method === "zarinpal" && active.status === "initiated" && active.authority) {
       payment.redirectUrl = zarinRedirectUrl(active.authority);
+    }
+    if (active.method === "manual_transfer" && active.status === "initiated") {
+      payment.expiresAt = order.expiresAt.toISOString();
+      payment.windowMinutes = MANUAL_WINDOW_MINUTES;
     }
   } else if (order.status === "awaiting_payment") {
     // crashed between commit and payment creation → repair once
@@ -245,10 +258,16 @@ export async function createPaymentFor(order: {
   const payment = await db.payment.create({
     data: { orderId: order.id, method: "manual_transfer", provider: map.manual_card_name ? "card_to_card" : "", amountToman: order.totalToman, status: "initiated" },
   });
+  const fresh = await db.order.findUniqueOrThrow({
+    where: { id: order.id },
+    select: { expiresAt: true },
+  });
   return {
     method: "manual_transfer",
     provider: payment.provider,
     status: payment.status,
+    expiresAt: fresh.expiresAt.toISOString(),
+    windowMinutes: MANUAL_WINDOW_MINUTES,
     instructions: {
       cardNumber: map.manual_card_number ?? "",
       sheba: map.manual_card_sheba ?? "",

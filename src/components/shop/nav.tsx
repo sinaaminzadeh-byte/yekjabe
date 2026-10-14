@@ -64,6 +64,7 @@ export function DesktopHeader() {
     { label: "ساخت هدیه", route: "card" },
     { label: "هدیه‌هام", route: "my-gifts" },
     { label: "دفتر مهربونی", route: "impact" },
+    { label: "وبلاگ", route: "blog" },
   ];
   return (
     <header className="sticky top-0 z-40 border-b border-[#D3E8F0] bg-[#F2FAFD]/95 backdrop-blur">

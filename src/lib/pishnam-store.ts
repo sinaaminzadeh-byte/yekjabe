@@ -90,6 +90,8 @@ export interface CheckoutAck {
     provider: string;
     status: string;
     redirectUrl?: string;
+    expiresAt?: string; // ISO — end of the payment/reservation window (10min manual)
+    windowMinutes?: number;
     instructions?: Record<string, string>;
   };
 }
@@ -126,7 +128,7 @@ interface PishnamState {
   quoteStatus: "idle" | "loading" | "ready" | "error";
   paymentMethod: PaymentMethod;
   setPaymentMethod: (m: PaymentMethod) => void;
-  pendingOrder: { key: string; code?: string; status?: string; total?: number } | null;
+  pendingOrder: { key: string; code?: string; status?: string; total?: number; expiresAt?: string; method?: string } | null;
   checkoutBusy: boolean;
 
   setKind: (k: PlushKind) => void;
@@ -341,7 +343,16 @@ export const usePishnam = create<PishnamState>()(
             return { ok: false, error: body.error ?? `http_${res.status}`, details: body.details };
           }
           const ack = (await res.json()) as CheckoutAck;
-          set({ pendingOrder: { key: pending.key, code: ack.code, status: ack.status, total: ack.total } });
+          set({
+            pendingOrder: {
+              key: pending.key,
+              code: ack.code,
+              status: ack.status,
+              total: ack.total,
+              expiresAt: ack.payment?.expiresAt,
+              method: ack.payment?.method,
+            },
+          });
 
           // local mirror so «هدیه‌هام»/موفقیت work even before the next bootstrap
           const mirrored: GiftOrder = {

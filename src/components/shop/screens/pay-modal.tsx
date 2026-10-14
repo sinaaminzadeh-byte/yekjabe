@@ -11,8 +11,9 @@ import { money } from "@/lib/fa";
 import { navigate } from "@/lib/hash-route";
 import { useToast } from "@/hooks/use-toast";
 import { HeartSticker } from "../icons";
+import { CountdownBadge, useCountdown } from "../manual-payment";
 
-type Phase = "form" | "processing" | "manual" | "uploading" | "error";
+type Phase = "form" | "processing" | "manual" | "uploading" | "expired" | "error";
 
 const ERROR_FA: Record<string, string> = {
   sold_out: "ایم عروسک همین الان تموم شد! یه دوست پشمالوی دیگه انتخاب کن.",
@@ -26,6 +27,7 @@ const ERROR_FA: Record<string, string> = {
   duplicate_receipt: "این رسید قبلاً ثبت شده! عکس جدیدی از رسید بفرست.",
   too_many_attempts: "سه بار رسید رد شده؛ این سفارش قابل پیگیری تلفنی است.",
   bad_order_status: "وضعیت سفارش اجازه‌ی آپلود رسید نمی‌ده.",
+  payment_window_expired: "مهلت ۱۰ دقیقه‌ای رزرو تموم شد و موجودی آزاد شد.",
 };
 
 export function PayModal() {
@@ -41,6 +43,11 @@ export function PayModal() {
   const fetchQuote = usePishnam((s) => s.fetchQuote);
   const submitCheckout = usePishnam((s) => s.submitCheckout);
   const { toast } = useToast();
+
+  // رزرو ۱۰ دقیقه‌ای — فاز انقضا در زمان رندر مشتق می‌شه (نه با effect)
+  const expiresAt = ack?.payment?.expiresAt;
+  const { expired } = useCountdown(expiresAt);
+  const showExpired = phase === "manual" && expired;
 
   useEffect(() => {
     const onPay = () => {
@@ -94,6 +101,10 @@ export function PayModal() {
       const res = await fetch("/api/payment/manual/receipt", { method: "POST", body: form });
       if (!res.ok) {
         const body = (await res.json().catch(() => ({}))) as { error?: string };
+        if (body.error === "payment_window_expired" || body.error === "bad_order_status") {
+          setPhase("expired");
+          return;
+        }
         fail(body.error ?? `http_${res.status}`);
         return;
       }
@@ -194,8 +205,16 @@ export function PayModal() {
           </div>
         )}
 
-        {phase === "manual" && ack && (
+        {phase === "manual" && ack && !showExpired && (
           <div className="flex flex-col gap-3">
+            {/* رزرو ۱۰ دقیقه‌ای */}
+            <div className="flex items-center justify-between gap-2.5 rounded-2xl bg-[#E3F6FD] px-4 py-3">
+              <div className="flex min-w-0 flex-col gap-0.5">
+                <span className="text-[12.5px] font-extrabold text-[#04202E]">سفارشت ۱۰ دقیقه رزرو شده</span>
+                <span className="text-[10.5px] font-medium leading-[1.7] text-[#4A6572]">موجودی تا پایان تایمر کنار شماست؛ بعدش آزاد می‌شه</span>
+              </div>
+              <CountdownBadge expiresAt={expiresAt} />
+            </div>
             <div className="rounded-2xl bg-[#FFF3C9] px-4 py-3 text-[12.5px] font-bold leading-[1.9] text-[#7A5C00]">
               مبلغ رو با کارت‌به‌کارت بریز و عکس رسید رو آپلود کن. کد سفارش رو تو توضیحات انتقال بنویس.
             </div>
@@ -241,6 +260,39 @@ export function PayModal() {
           <div className="flex flex-col items-center gap-4 py-8">
             <span className="h-12 w-12 animate-spin rounded-full border-4 border-[#CFE6EF] border-t-[#00ABE7]" />
             <span className="text-[15px] font-bold text-[#04202E]">داریم رسیدت رو ثبت می‌کنیم…</span>
+          </div>
+        )}
+
+        {(phase === "expired" || showExpired) && (
+          <div className="flex flex-col items-center gap-3 py-5">
+            <span className="flex h-14 w-14 items-center justify-center rounded-full bg-[#FFE9F0] text-2xl">⌛</span>
+            <span className="text-[14.5px] font-extrabold leading-[1.9] text-center text-[#B02A52]">
+              مهلت ۱۰ دقیقه‌ای رزرو تموم شد؛ موجودی این سفارش آزاد شده.
+            </span>
+            <span className="text-[12px] font-medium leading-[1.85] text-center text-[#4A6572]">
+              اگه واریز کردی، کد سفارش {ack?.code ? <b dir="ltr">{ack.code}</b> : null} رو بهمون پیام بده تا دستی بررسی کنیم.
+            </span>
+            <button
+              type="button"
+              onClick={() => {
+                setOpen(false);
+                resetAndGo();
+                navigate("pick");
+              }}
+              className="mt-1 flex h-[48px] w-full items-center justify-center rounded-full bg-[#04202E] text-[15px] font-extrabold text-white"
+            >
+              ساختن سفارش تازه
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setOpen(false);
+                resetAndGo();
+              }}
+              className="text-[12px] font-bold text-[#006387] underline underline-offset-4"
+            >
+              بستن
+            </button>
           </div>
         )}
 

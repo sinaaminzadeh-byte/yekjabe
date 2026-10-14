@@ -43,15 +43,19 @@ function toEnDigits(s: string): string {
 }
 
 function AdminOtpGate({ onOk }: { onOk: () => void }) {
+  const [mode, setMode] = useState<"otp" | "password">("otp");
   const [step, setStep] = useState<"phone" | "code">("phone");
   const [phone, setPhone] = useState("");
   const [code, setCode] = useState("");
+  const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState(false);
+  const [errMsg, setErrMsg] = useState("");
 
-  const fail = () => {
+  const fail = (msg?: string) => {
+    setErrMsg(msg ?? "");
     setErr(true);
-    setTimeout(() => setErr(false), 900);
+    setTimeout(() => setErr(false), 1200);
   };
 
   const sendCode = async () => {
@@ -104,6 +108,34 @@ function AdminOtpGate({ onOk }: { onOk: () => void }) {
     setBusy(false);
   };
 
+  // ورود با رمز — مسیر دوم (فوتر: «ورود مدیر»). سرور رمز را constant-time مقایسه می‌کند.
+  const submitPassword = async () => {
+    if (password.trim().length < 4) {
+      fail();
+      return;
+    }
+    setBusy(true);
+    try {
+      const res = await fetch("/api/auth/admin-login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password }),
+      });
+      const json = (await res.json()) as { ok?: boolean; error?: string };
+      if (res.ok && json.ok) {
+        try {
+          sessionStorage.setItem(UNLOCK_KEY, "1");
+        } catch {}
+        onOk();
+        return;
+      }
+      fail(json.error === "rate_limited" ? "چند بار اشتباه زدی؛ ۱۵ دقیقه صبر کن." : "رمز درست نیست.");
+    } catch {
+      fail();
+    }
+    setBusy(false);
+  };
+
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-[#F2FAFD] px-5">
       <div className="pishnam-reveal flex w-full max-w-[380px] flex-col items-center gap-4 rounded-[28px] border border-[#DDEEF5] bg-white p-7 text-center shadow-[0_14px_34px_rgba(4,32,46,0.06)]">
@@ -113,12 +145,27 @@ function AdminOtpGate({ onOk }: { onOk: () => void }) {
         <div className="flex flex-col gap-1.5">
           <h1 className="m-0 text-[22px] font-black">پنل همکاران</h1>
           <p className="m-0 text-[13.5px] font-medium leading-[1.9] text-[#4A6572]">
-            {step === "phone"
-              ? "با شماره‌ی موبایلِ همکاریت کد ورود بگیر."
-              : "کد ۶ رقمی پیامک‌شده رو بزن."}
+            {mode === "password"
+              ? "رمز پنل رو بزن (فایل .env سرور: ADMIN_PANEL_PASSWORD)."
+              : step === "phone"
+                ? "با شماره‌ی موبایلِ همکاریت کد ورود بگیر."
+                : "کد ۶ رقمی پیامک‌شده رو بزن."}
           </p>
         </div>
-        {step === "phone" ? (
+        {mode === "password" ? (
+          <input
+            type="password"
+            dir="ltr"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && !busy && void submitPassword()}
+            placeholder="••••••••"
+            aria-label="رمز پنل مدیریت"
+            className={`h-[54px] w-full rounded-[18px] border-2 bg-white text-center text-[16px] font-black tracking-[0.2em] text-[#04202E] outline-none transition-shadow focus:shadow-[0_0_0_4px_rgba(0,171,231,0.15)] ${
+              err ? "pishnam-shake border-[#F0426B]" : "border-[#04202E]"
+            }`}
+          />
+        ) : step === "phone" ? (
           <input
             type="tel"
             inputMode="numeric"
@@ -151,18 +198,25 @@ function AdminOtpGate({ onOk }: { onOk: () => void }) {
         )}
         {err && (
           <span className="text-[12.5px] font-bold text-[#F0426B]">
-            {step === "phone" ? "شماره درست نیست یا سرویس در دسترس نیست." : "کد درست نیست یا منقضی شده."}
+            {errMsg ||
+              (mode === "password"
+                ? "رمز درست نیست."
+                : step === "phone"
+                  ? "شماره درست نیست یا سرویس در دسترس نیست."
+                  : "کد درست نیست یا منقضی شده.")}
           </span>
         )}
         <button
           type="button"
           disabled={busy}
-          onClick={() => (step === "phone" ? void sendCode() : void submit())}
+          onClick={() =>
+            mode === "password" ? void submitPassword() : step === "phone" ? void sendCode() : void submit()
+          }
           className="flex h-[52px] w-full items-center justify-center rounded-full bg-[#00ABE7] text-[16px] font-extrabold text-[#04202E] transition-transform active:scale-95 disabled:opacity-60"
         >
-          {step === "phone" ? "دریافت کد ورود" : "ورود به پنل"}
+          {mode === "password" ? "ورود با رمز" : step === "phone" ? "دریافت کد ورود" : "ورود به پنل"}
         </button>
-        {step === "code" && (
+        {mode === "otp" && step === "code" && (
           <button
             type="button"
             onClick={() => {
@@ -175,6 +229,22 @@ function AdminOtpGate({ onOk }: { onOk: () => void }) {
             تغییر شماره
           </button>
         )}
+        <div className="flex items-center gap-2 text-[12px] font-bold text-[#4A6572]">
+          <span className="h-px w-8 bg-[#CFE6EF]" aria-hidden="true" />
+          یا
+          <span className="h-px w-8 bg-[#CFE6EF]" aria-hidden="true" />
+        </div>
+        <button
+          type="button"
+          onClick={() => {
+            setMode(mode === "otp" ? "password" : "otp");
+            setErr(false);
+            setErrMsg("");
+          }}
+          className="text-[12.5px] font-extrabold text-[#006387] underline underline-offset-4"
+        >
+          {mode === "otp" ? "ورود با رمز عبور" : "ورود با کد پیامکی"}
+        </button>
         <span className="rounded-full bg-[#FFF3C9] px-3.5 py-1.5 text-[11.5px] font-extrabold text-[#8A6D1F]">
           فقط شماره‌های ثبت‌شده‌ی همکاری وارد می‌شن
         </span>

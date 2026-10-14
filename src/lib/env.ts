@@ -13,6 +13,10 @@ const schema = z.object({
   ADMIN_SEED_PHONES: z.string().default(""),
   // "1" → OTP echoed in the response (dev/QA only; production ignores this)
   SMS_DEV_ECHO: z.string().default("0"),
+  // پنل مدیریت: ورود با رمز (علاوه بر مسیر OTP). در استقرار حتماً عوض شود.
+  ADMIN_PANEL_PASSWORD: z.string().min(8).default("pishnam-admin-1404"),
+  // "0" → internal scheduler (reservation sweep / SMS flush) disabled
+  INTERNAL_CRON: z.string().default("1"),
   // phase-B vars (declared now so deploy env is a single contract)
   KAVENEGAR_API_KEY: z.string().optional(),
   KAVENEGAR_SENDER: z.string().optional(),
