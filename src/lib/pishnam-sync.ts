@@ -26,6 +26,7 @@ interface ServerOrder {
   total: number;
   date: string;
   status: string;
+  status2?: string; // raw 11-state (v2 orders) — server is the source of truth
   opened: boolean;
   dir: string;
   userPhone?: string;
@@ -72,8 +73,10 @@ function mergeRemote(remote: ServerOrder[], adoptPhone?: string): number {
       const opened = local.opened || r.opened;
       const adopted = r.userPhone || (adoptPhone ?? "");
       const userPhone = !local.userPhone && adopted ? adopted : local.userPhone;
-      if (status !== local.status || opened !== local.opened || userPhone !== local.userPhone) {
-        byId.set(r.id, { ...local, status, opened, userPhone });
+      // raw 11-state: the server always wins (refund states have no legacy rank)
+      const status2 = r.status2 ?? local.status2;
+      if (status !== local.status || opened !== local.opened || userPhone !== local.userPhone || status2 !== local.status2) {
+        byId.set(r.id, { ...local, status, opened, userPhone, status2 });
         changed++;
       }
     }

@@ -82,7 +82,7 @@ export function CommandPalette({
     <CommandDialog
       open={open}
       onOpenChange={onOpenChange}
-      title="جست‌وجوی سریع پیشتم"
+      title="جست‌وجوی سریع پیشنام"
       description="جست‌وجو و پرش به هر صفحه‌ای از دیزاین‌سیستم"
     >
       <CommandInput placeholder="برو به صفحه… (نام، شماره یا دسته)" />
@@ -181,7 +181,7 @@ export function CommandPalette({
         <span>↑↓ حرکت</span>
         <span>Enter باز کردن</span>
         <span>Esc بستن</span>
-        <span className="mr-auto">پیشتم ⌘K</span>
+        <span className="mr-auto">پیشنام ⌘K</span>
       </div>
     </CommandDialog>
   );

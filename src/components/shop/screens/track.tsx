@@ -363,7 +363,7 @@ function CopyGiftButton({ o, dark = false }: { o: GiftOrder; dark?: boolean }) {
       type="button"
       onClick={async () => {
         const link = `${window.location.origin}/#/gift`;
-        const text = `یه بغل از پیشتم ♥\nهدیه‌ی شماره‌ی ${fa(o.no)} برای ${o.to}${o.password ? `\nرمز کارت: ${o.password}` : ""}\n${link}`;
+        const text = `یه بغل از پیشنام ♥\nهدیه‌ی شماره‌ی ${fa(o.no)} برای ${o.to}${o.password ? `\nرمز کارت: ${o.password}` : ""}\n${link}`;
         const ok = await copyText(text);
         if (ok) setBurst((n) => n + 1);
         toast(

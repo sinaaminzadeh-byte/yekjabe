@@ -266,7 +266,7 @@ export function GiftExperience() {
         /* ---- mobile · locked (06-قفل کارت پستال) ---- */
         <div className="flex min-h-screen flex-col bg-[#00ABE7] text-[#04202E] md:hidden">
           <div className="flex items-center justify-between px-6 pt-[22px]">
-            <button type="button" aria-label="پیشتم" onClick={() => navigate("home")}>
+            <button type="button" aria-label="پیشنام" onClick={() => navigate("home")}>
               <Logo size={34} />
             </button>
             <button
@@ -357,7 +357,7 @@ export function GiftExperience() {
           </form>
 
           <div className="mt-auto pb-7 pt-4 text-center text-[12.5px] font-bold">
-            پیشتم · یه بغل، تو یه جعبه
+            پیشنام · یه بغل، تو یه جعبه
           </div>
         </div>
       ) : (
@@ -503,7 +503,7 @@ export function GiftExperience() {
           </div>
 
           <div className="mt-auto pb-7 pt-[18px] text-center text-[12.5px] font-semibold text-[#4A6572]">
-            پیشتم · یه بغل، تو یه جعبه
+            پیشنام · یه بغل، تو یه جعبه
           </div>
         </div>
       )}
@@ -512,7 +512,7 @@ export function GiftExperience() {
       <div className="hidden min-h-screen flex-col bg-[#F2FAFD] text-[#04202E] md:flex">
         {/* header */}
         <header className="mx-auto flex w-full max-w-[1200px] items-center justify-between gap-4 px-6 py-[18px]">
-          <button type="button" onClick={() => navigate("home")} aria-label="پیشتم — خانه">
+          <button type="button" onClick={() => navigate("home")} aria-label="پیشنام — خانه">
             <Logo size={46} />
           </button>
           <button
@@ -532,7 +532,7 @@ export function GiftExperience() {
             <span className="absolute right-[120px] top-[60px] h-1.5 w-[18px] rotate-[-30deg] rounded-full bg-white" />
 
             <div className="relative flex flex-wrap items-center justify-between gap-3">
-              <span className="text-sm font-extrabold">پیشتم · یه بغل، تو یه جعبه</span>
+              <span className="text-sm font-extrabold">پیشنام · یه بغل، تو یه جعبه</span>
               <GiftChip no={active.no} big />
             </div>
 
@@ -735,7 +735,7 @@ export function GiftExperience() {
         </main>
 
         <footer className="mt-10 px-6 pb-7 pt-[18px] text-center text-[13px] font-bold text-[#4A6572]">
-          پیشتم · یه بغل، تو یه جعبه
+          پیشنام · یه بغل، تو یه جعبه
         </footer>
       </div>
     </>

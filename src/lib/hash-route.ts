@@ -6,6 +6,7 @@ import { useEffect, useState, useCallback } from "react";
 
 export type Route =
   | "home"
+  | "product"
   | "pick"
   | "card"
   | "extras"
@@ -22,10 +23,16 @@ export type Route =
   | "reviews"
   | "shipping"
   | "track"
-  | "admin";
+  | "admin"
+  | "stories"
+  | "blog"
+  | "post"
+  | "legal"
+  | "not-found";
 
 export const ROUTES: Route[] = [
   "home",
+  "product",
   "pick",
   "card",
   "extras",
@@ -43,13 +50,20 @@ export const ROUTES: Route[] = [
   "shipping",
   "track",
   "admin",
+  "stories",
+  "blog",
+  "post",
+  "legal",
+  "not-found",
 ];
 
 function parseHash(): { route: Route; query: URLSearchParams; anchor: string | null } {
   const h = window.location.hash.replace(/^#\/?/, "");
   const [pathAndAnchor, qs] = h.split("?");
   const [path, anchorPart] = pathAndAnchor.split("@");
-  const route = (ROUTES as string[]).includes(path) ? (path as Route) : "home";
+  // empty hash → home; known path → its screen; anything else → Persian 404
+  const route: Route =
+    path === "" ? "home" : (ROUTES as string[]).includes(path) ? (path as Route) : "not-found";
   return {
     route,
     query: new URLSearchParams(qs ?? ""),

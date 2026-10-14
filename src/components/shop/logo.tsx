@@ -5,7 +5,7 @@ export function Logo({ size = 48, showName = true }: { size?: number; showName?:
   const wordSize = Math.round(size * 0.62);
   return (
     <div className="flex items-center" style={{ gap: size * 0.14 }}>
-      <svg viewBox="0 0 64 64" width={size} height={size} role="img" aria-label="لوگوی پیشتم">
+      <svg viewBox="0 0 64 64" width={size} height={size} role="img" aria-label="لوگوی پیشنام">
         <rect x="2" y="2" width="60" height="60" rx="18" fill="#00ABE7" />
         <path
           d="M32 51C17 41 10 33 10 26a11 11 0 0 1 22-3 11 11 0 0 1 22 3c0 7-7 15-22 25z"
@@ -41,7 +41,7 @@ export function Logo({ size = 48, showName = true }: { size?: number; showName?:
           className="font-black text-[#04202E]"
           style={{ fontSize: wordSize, lineHeight: 1 }}
         >
-          پیشتم
+          پیشنام
         </span>
       )}
     </div>

@@ -57,6 +57,198 @@ function recvStatus(o: GiftOrder) {
     : { label: "پیام منتظرته", bg: "#CDEFFB" };
 }
 
+/* ── damage-only refund (Phase C) — raw 11-state wins for refund statuses ── */
+const REFUND_CHIP: Record<string, { label: string; bg: string }> = {
+  refund_requested: { label: "در جریان مرجوعی", bg: "#E7E0FA" },
+  refunded: { label: "مرجوع شد", bg: "#E7E0FA" },
+};
+
+function displayStatus(o: GiftOrder): { label: string; bg: string } {
+  if (o.v2 && (o.status2 === "refund_requested" || o.status2 === "refunded")) {
+    return REFUND_CHIP[o.status2];
+  }
+  return o.dir === "sent" ? STATUS_MAP[o.status] : recvStatus(o);
+}
+
+/**
+ * Damage-only refund request block (Phase C §4.8): shown on sent server orders
+ * with raw status shipped|delivered. Expands inline — reason 10..500 chars +
+ * up to 3 photos (≤5MB each, client pre-checked) → POST /api/orders/{id}/refund.
+ * On success the raw status flips locally to refund_requested (chip updates),
+ * then a best-effort pullOrders() confirms against the server.
+ */
+function RefundBlock({ o, desktop = false }: { o: GiftOrder; desktop?: boolean }) {
+  const { toast } = useToast();
+  const [open, setOpen] = useState(false);
+  const [reason, setReason] = useState("");
+  const [photos, setPhotos] = useState<File[]>([]);
+  const [photoErr, setPhotoErr] = useState("");
+  const [err, setErr] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  const eligible = Boolean(o.v2) && o.dir === "sent" && (o.status2 === "shipped" || o.status2 === "delivered");
+  const chip = o.v2 && (o.status2 === "refund_requested" || o.status2 === "refunded") ? REFUND_CHIP[o.status2] : null;
+
+  if (!eligible && !chip) return null;
+
+  const tooShort = reason.trim().length > 0 && reason.trim().length < 10;
+
+  const addPhotos = (files: FileList | null) => {
+    setPhotoErr("");
+    if (!files) return;
+    const next = [...photos];
+    for (const f of Array.from(files)) {
+      if (next.length >= 3) {
+        setPhotoErr("حداکثر ۳ عکس.");
+        break;
+      }
+      if (!(["image/jpeg", "image/png", "image/webp"] as string[]).includes(f.type)) {
+        setPhotoErr("عکس‌ها باید JPG، PNG یا WebP باشن.");
+        continue;
+      }
+      if (f.size > 5 * 1024 * 1024) {
+        setPhotoErr("هر عکس باید کمتر از ۵ مگابایت باشه.");
+        continue;
+      }
+      next.push(f);
+    }
+    setPhotos(next);
+  };
+
+  const submit = async () => {
+    if (busy) return;
+    setErr("");
+    if (reason.trim().length < 10 || reason.trim().length > 500) {
+      setErr("دلیل مرجوعی باید بین ۱۰ تا ۵۰۰ حرف باشه.");
+      return;
+    }
+    setBusy(true);
+    try {
+      const orderId = o.id.replace(/^o-/, ""); // bootstrap maps ids as "o-<cuid>"
+      let res: Response;
+      if (photos.length > 0) {
+        const fd = new FormData();
+        fd.append("reason", reason.trim());
+        for (const f of photos) fd.append("photos", f);
+        res = await fetch(`/api/orders/${orderId}/refund`, { method: "POST", body: fd });
+      } else {
+        res = await fetch(`/api/orders/${orderId}/refund`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ reason: reason.trim() }),
+        });
+      }
+      if (res.status === 201) {
+        usePishnam.setState((st) => ({
+          orders: st.orders.map((x) => (x.id === o.id ? { ...x, status2: "refund_requested" } : x)),
+        }));
+        void pullOrders(); // best-effort confirm against the server board
+        toast({
+          title: "درخواست مرجوعی ثبت شد ✓",
+          description: "بررسی تا ۴۸ ساعت — نتیجه همین‌جا می‌افته.",
+        });
+        return;
+      }
+      const b = (await res.json().catch(() => ({}))) as { error?: string };
+      if (res.status === 409) setErr("این سفارش الان قابل مرجوع نیست؛ با پشتیبانی در تماس باش.");
+      else if (res.status === 429) setErr("برای این سفارش زیاد درخواست زدی؛ فردا دوباره تلاش کن.");
+      else if (res.status === 403) setErr("این سفارش به حسابت وصل نیست.");
+      else if (res.status === 400 && b.error === "file_too_large") setErr("حجم عکس بیش از حد مجازه (۵ مگابایت).");
+      else if (res.status === 400 && b.error === "bad_file_type") setErr("عکس‌ها باید JPG، PNG یا WebP باشن.");
+      else setErr("ثبت نشد — دلیل و عکس‌ها رو چک کن و دوباره تلاش کن.");
+    } catch {
+      setErr("اینترنت در دسترس نیست؛ کمی بعد دوباره امتحان کن.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  if (chip) {
+    return (
+      <div className={desktop ? "pt-1" : "mt-3 border-t border-[#EDF6FA] pt-3"}>
+        <span className="inline-block rounded-[10px] px-2.5 py-1 text-[12px] font-extrabold" style={{ background: chip.bg }}>
+          {chip.label}
+        </span>
+      </div>
+    );
+  }
+
+  return (
+    <div
+      onClick={(e) => e.stopPropagation()}
+      onKeyDown={(e) => e.stopPropagation()}
+      className={desktop ? "w-full pt-2" : "mt-3 border-t border-[#EDF6FA] pt-3"}
+    >
+      {!open ? (
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          className={`flex items-center gap-1.5 rounded-full bg-[#FFE9F0] font-extrabold text-[#B02A52] transition-transform active:scale-95 ${
+            desktop ? "h-9 px-3.5 text-[12px]" : "h-10 w-full justify-center text-[13px]"
+          }`}
+        >
+          درخواست مرجوعی (آسیب فیزیکی)
+        </button>
+      ) : (
+        <div className={`flex flex-col gap-3 rounded-[18px] bg-[#FFF7FA] ${desktop ? "w-full p-4" : "p-3.5"}`}>
+          <span className="text-[12.5px] font-bold leading-[1.9] text-[#B02A52]">
+            فقط برای آسیب فیزیکی جعبه یا عروسک. بررسی تا ۴۸ ساعت — اگه تأیید بشه، وجه به کارت مبدأ برمی‌گرده.
+          </span>
+          <label className="flex flex-col gap-1.5">
+            <span className="text-[12.5px] font-extrabold text-[#04202E]">چی شده؟ (بین ۱۰ تا ۵۰۰ حرف)</span>
+            <textarea
+              value={reason}
+              onChange={(e) => setReason(e.target.value.slice(0, 500))}
+              rows={3}
+              placeholder="مثلاً: جعبه لهیده رسیده و گوش عروسک پاره شده…"
+              className="w-full resize-y rounded-[14px] border-[1.5px] border-[#F0B7C9] bg-white px-3.5 py-2.5 text-[13px] font-semibold text-[#04202E] outline-none focus:border-[#B02A52]"
+            />
+            <span className="flex items-center justify-between gap-2">
+              <span className={`text-[11.5px] font-bold ${tooShort ? "text-[#F0426B]" : "text-[#8FA8B5]"}`}>
+                {tooShort ? "چند حرف بیشتر بنویس (حداقل ۱۰)" : "اختیاری: تا ۳ عکس از آسیب"}
+              </span>
+              <span className="text-[11.5px] font-extrabold text-[#4A6572]" dir="ltr">
+                {fa(reason.trim().length)} / {fa(500)}
+              </span>
+            </span>
+          </label>
+          <input
+            type="file"
+            multiple
+            accept="image/jpeg,image/png,image/webp"
+            onChange={(e) => addPhotos(e.target.files)}
+            aria-label="عکس‌های آسیب (حداکثر ۳ عکس، هرکدام تا ۵ مگابایت)"
+            className="w-full cursor-pointer rounded-[14px] border-[1.5px] border-dashed border-[#F0B7C9] bg-white px-3 py-2 text-[12px] font-semibold text-[#4A6572] file:mr-3 file:rounded-full file:border-0 file:bg-[#FFE9F0] file:px-3 file:py-1 file:text-[11.5px] file:font-extrabold file:text-[#B02A52]"
+          />
+          {photoErr && <span className="text-[12px] font-bold text-[#F0426B]">{photoErr}</span>}
+          {photos.length > 0 && (
+            <span className="text-[12px] font-bold text-[#2E7D53]">{fa(photos.length)} عکس انتخاب شد</span>
+          )}
+          {err && <span className="text-[12.5px] font-bold text-[#B02A52]">{err}</span>}
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => void submit()}
+              disabled={busy}
+              className="flex h-10 flex-1 items-center justify-center rounded-full bg-[#B02A52] px-4 text-[13px] font-extrabold text-white transition-transform active:scale-95 disabled:opacity-60"
+            >
+              {busy ? "در حال ارسال…" : "ثبت درخواست مرجوعی"}
+            </button>
+            <button
+              type="button"
+              onClick={() => setOpen(false)}
+              disabled={busy}
+              className="flex h-10 items-center rounded-full border-[1.5px] border-[#E2C6CF] bg-white px-4 text-[13px] font-extrabold text-[#4A6572]"
+            >
+              بی‌خیال
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function sentExtra(o: GiftOrder): string {
   const parts: string[] = [];
   if (o.anonymous) parts.push("ناشناس");
@@ -478,7 +670,7 @@ function BadgesRow({ className = "" }: { className?: string }) {
 function MobileOrderCard({ o }: { o: GiftOrder }) {
   const advanceStatus = usePishnam((s) => s.advanceStatus);
   const selectOrder = usePishnam((s) => s.selectOrder);
-  const st = o.dir === "sent" ? STATUS_MAP[o.status] : recvStatus(o);
+  const st = displayStatus(o);
   return (
     <div
       role="button"
@@ -545,6 +737,8 @@ function MobileOrderCard({ o }: { o: GiftOrder }) {
           </button>
         </div>
       )}
+
+      {o.dir === "sent" && <RefundBlock o={o} />}
     </div>
   );
 }
@@ -614,7 +808,7 @@ export function MobileMyGifts() {
 function DesktopOrderCard({ o }: { o: GiftOrder }) {
   const advanceStatus = usePishnam((s) => s.advanceStatus);
   const selectOrder = usePishnam((s) => s.selectOrder);
-  const st = o.dir === "sent" ? STATUS_MAP[o.status] : recvStatus(o);
+  const st = displayStatus(o);
   return (
     <div
       role="button"
@@ -683,6 +877,7 @@ function DesktopOrderCard({ o }: { o: GiftOrder }) {
             رهگیری ›
           </button>
         </div>
+        {o.dir === "sent" && <RefundBlock o={o} desktop />}
       </div>
     </div>
   );
@@ -984,7 +1179,7 @@ function useOtpFlow(): OtpFlow {
 
   const norm = (s: string) => toEnDigits(s).replace(/\s/g, "");
   const setPhone = (v: string) => setPhoneRaw(fa(v.replace(/[^\d۰-۹]/g, "").slice(0, 11)));
-  const setOtp = (v: string) => setOtpRaw(fa(v.replace(/[^\d۰-۹]/g, "").slice(0, 4)));
+  const setOtp = (v: string) => setOtpRaw(fa(v.replace(/[^\d۰-۹]/g, "").slice(0, 6)));
 
   useEffect(() => {
     if (step !== "otp" || timer <= 0) return;
@@ -1143,7 +1338,7 @@ function LoginHeading({ flow }: { flow: OtpFlow }) {
     flow.step === "phone"
       ? { h: "خوش اومدی", p: "با شماره‌ت وارد شو تا هدیه‌هات رو ببینی." }
       : flow.step === "otp"
-        ? { h: "کد تایید", p: `کد چهار رقمی به شماره‌ی ${flow.phone} فرستاده شد.` }
+        ? { h: "کد تایید", p: `کد شش‌رقمی به شماره‌ی ${flow.phone} فرستاده شد.` }
         : { h: "آخرین قدم", p: "اگه اسمت رو بگی، قشنگ‌تر خوش‌اومد می‌گیم! (اختیاری)" };
   return (
     <div className="flex flex-col gap-2.5">
@@ -1254,7 +1449,7 @@ function LoginFlowBlock({ flow }: { flow: OtpFlow }) {
             onKeyDown={(e) => e.key === "Enter" && flow.submitLogin()}
           />
           <button type="button" onClick={flow.submitLogin} className={PRIMARY_BTN_CLS}>
-            ورود به پیشتم
+            ورود به پیشنام
           </button>
         </div>
       )}
@@ -1437,7 +1632,7 @@ function DesktopFooter({ compact = false }: { compact?: boolean }) {
           <span className="text-[15px] font-bold text-[#BFE9F8]">یه بغل، تو یه جعبه</span>
         </div>
         <div className="flex flex-col gap-2.5 text-[15px] font-semibold">
-          <span className="text-base font-extrabold text-[#00ABE7]">پیشتم</span>
+          <span className="text-base font-extrabold text-[#00ABE7]">پیشنام</span>
           <FooterLink label="ماموریت" route="mission" />
           <FooterLink label="درباره‌ی ما" route="about" />
           <FooterLink label="دفتر مهربونی" route="impact" />
@@ -1450,12 +1645,12 @@ function DesktopFooter({ compact = false }: { compact?: boolean }) {
         </div>
         <div className="flex flex-col gap-2.5 text-[15px] font-semibold">
           <span className="text-base font-extrabold text-[#00ABE7]">ما رو دنبال کن</span>
-          <span>پیشتم@ اینستاگرام</span>
-          <span>پیشتم@ تلگرام</span>
+          <span>پیشنام@ اینستاگرام</span>
+          <span>پیشنام@ تلگرام</span>
         </div>
       </div>
       <div className="border-t border-[#0E3C52] px-6 py-[18px] text-center text-[13px] font-medium text-[#BFE9F8]">
-        پیشتم · همه‌ی حقوق محفوظ است
+        پیشنام · همه‌ی حقوق محفوظ است
       </div>
     </footer>
   );

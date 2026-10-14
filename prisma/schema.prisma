@@ -19,13 +19,36 @@ model User {
 }
 
 model Post {
-  id        String   @id @default(cuid())
-  title     String
-  content   String?
-  published Boolean  @default(false)
-  authorId  String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id          String    @id @default(cuid())
+  title       String
+  content     String?
+  published   Boolean   @default(false)
+  authorId    String // legacy scaffold — kept, unused-ok
+  slug        String    @unique // latin, immutable-forever (guide 13-f)
+  excerpt     String    @default("") // ≤300 chars for cards/meta
+  tags        String    @default("") // comma-separated Persian tags
+  publishedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+// ── «تجربه مخاطب» UGC stories (Phase C — guide 13-f) ──
+// Opt-in only: consent MUST be true (never auto-derived from gift messages).
+// Moderation gate: nothing goes public before an admin publishes it.
+
+model Experience {
+  id          String    @id @default(cuid())
+  name        String // display name (2..40)
+  city        String    @default("")
+  occasion    Int       @default(0) // 0..10 — index into the occasions list
+  body        String // 20..1500 chars
+  photoKey    String    @default("") // optional storage key (.data/experiences in sandbox)
+  consent     Boolean   @default(false) // explicit UGC opt-in — must be true to store
+  status      String    @default("pending") // pending | published | rejected
+  publishedAt DateTime?
+  createdAt   DateTime  @default(now())
+
+  @@index([status])
 }
 
 // ── Pishnam domain ──
@@ -212,6 +235,10 @@ model Order {
   // bookkeeping
   userPhone        String      @default("")
   sessionPhone     String      @default("")
+  // refund (damage-only — guide §4.8; shipped|delivered → refund_requested)
+  refundReason      String    @default("")
+  refundPhotos      String    @default("") // JSON array of storage keys
+  refundRequestedAt DateTime?
   giftOpened       Boolean     @default(false)
   giftOpenedAt     DateTime?
   giftOpenAttempts Int         @default(0)

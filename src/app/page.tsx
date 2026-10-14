@@ -8,6 +8,7 @@ import { bootSync } from "@/lib/pishnam-sync";
 import { MobileNav, DesktopHeader } from "@/components/shop/nav";
 import { Logo } from "@/components/shop/logo";
 import { MobileHome, DesktopHome } from "@/components/shop/screens/home";
+import { ProductScreen } from "@/components/shop/screens/product";
 import { MobilePick, MobileCard, MobileExtras, MobileCheckout } from "@/components/shop/screens/flow";
 import { MobileSuccess, DesktopSuccess } from "@/components/shop/screens/success";
 import { PayModal } from "@/components/shop/screens/pay-modal";
@@ -24,6 +25,9 @@ import { GiftExperience } from "@/components/shop/screens/gift-experience";
 import { MobileTrack, DesktopTrack } from "@/components/shop/screens/track";
 import { AdminScreen } from "@/components/shop/screens/admin";
 import { PayGateway } from "@/components/shop/screens/pay-gateway";
+import { StoriesScreen } from "@/components/shop/screens/stories";
+import { BlogIndex, PostScreen } from "@/components/shop/screens/blog";
+import { LegalPage } from "@/components/shop/screens/legal";
 import {
   AboutPage,
   MissionPage,
@@ -52,6 +56,30 @@ function Splash() {
   );
 }
 
+// ── Persian 404 — unknown hash routes land here (parseHash fallback) ──
+function NotFoundScreen() {
+  return (
+    <div className="flex min-h-[70vh] flex-col items-center justify-center gap-5 px-6 py-16 text-center">
+      <span className="text-6xl" aria-hidden="true">
+        🧸
+      </span>
+      <h1 className="text-2xl font-black text-[#04202E]">این صفحه پیدا نشد!</h1>
+      <p className="max-w-sm text-sm leading-7 text-[#4A6572]">
+        انگار یه دوست پشمالو گم شده… آدرسی که اومدی اینجا وجود نداره یا جابه‌جا شده.
+      </p>
+      <button
+        type="button"
+        onClick={() => {
+          window.location.hash = "#/home";
+        }}
+        className="rounded-full bg-[#04202E] px-6 py-3 text-sm font-bold text-white transition-transform hover:scale-[1.03] active:scale-95"
+      >
+        برگرد به خانه
+      </button>
+    </div>
+  );
+}
+
 function PishnamScreens() {
   const { route, query } = useHashRoute();
   const standalone = route === "gift" || route === "pay-gateway";
@@ -71,6 +99,8 @@ function PishnamScreens() {
             <DesktopHome />
           </>
         );
+      case "product":
+        return <ProductScreen />;
       case "pick":
         return (
           <>
@@ -140,6 +170,14 @@ function PishnamScreens() {
         );
       case "admin":
         return <AdminScreen />;
+      case "stories":
+        return <StoriesScreen />;
+      case "blog":
+        return <BlogIndex />;
+      case "post":
+        return <PostScreen slug={query.get("slug") ?? ""} />;
+      case "legal":
+        return <LegalPage doc={query.get("doc") ?? "privacy"} />;
       case "about":
         return <AboutPage />;
       case "mission":
@@ -150,6 +188,8 @@ function PishnamScreens() {
         return <ReviewsPage />;
       case "shipping":
         return <ShippingPage />;
+      case "not-found":
+        return <NotFoundScreen />;
       default:
         return (
           <>

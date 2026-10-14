@@ -72,7 +72,7 @@ function BrandOnDark({ size = 40 }: { size?: number }) {
   return (
     <div className="flex items-center gap-2.5">
       <Logo size={size} showName={false} />
-      <span className="text-xl font-black text-white">پیشتم</span>
+      <span className="text-xl font-black text-white">پیشنام</span>
     </div>
   );
 }
@@ -87,7 +87,7 @@ function InfoFooter() {
       </div>
       <div className="mt-[22px] grid grid-cols-2 gap-x-[14px] gap-y-5 text-[14.5px] font-semibold">
         <div className="flex flex-col gap-2.5">
-          <span className="text-[15px] font-extrabold text-[#00ABE7]">پیشتم</span>
+          <span className="text-[15px] font-extrabold text-[#00ABE7]">پیشنام</span>
           <FooterLinkMobile label="ماموریت" route="mission" />
           <FooterLinkMobile label="درباره‌ی ما" route="about" />
           <FooterLinkMobile label="دفتر مهربونی" route="impact" />
@@ -101,11 +101,11 @@ function InfoFooter() {
       </div>
       <div className="mt-[22px] flex flex-col gap-2 text-[14.5px] font-semibold">
         <span className="text-[15px] font-extrabold text-[#00ABE7]">ما رو دنبال کن</span>
-        <span>پیشتم@ اینستاگرام</span>
-        <span>پیشتم@ تلگرام</span>
+        <span>پیشنام@ اینستاگرام</span>
+        <span>پیشنام@ تلگرام</span>
       </div>
       <div className="mt-4 border-t border-[#0E3C52] pt-4 text-center text-[12.5px] font-medium text-[#BFE9F8]">
-        پیشتم · همه‌ی حقوق محفوظ است
+        پیشنام · همه‌ی حقوق محفوظ است
       </div>
     </footer>
   );
@@ -121,7 +121,7 @@ function InfoFooterDesktop() {
           <span className="text-[15px] font-bold text-[#BFE9F8]">یه بغل، تو یه جعبه</span>
         </div>
         <div className="flex flex-col gap-2.5 text-[15px] font-semibold">
-          <span className="text-base font-extrabold text-[#00ABE7]">پیشتم</span>
+          <span className="text-base font-extrabold text-[#00ABE7]">پیشنام</span>
           <FooterLinkDesktop label="ماموریت" route="mission" />
           <FooterLinkDesktop label="درباره‌ی ما" route="about" />
           <FooterLinkDesktop label="دفتر مهربونی" route="impact" />
@@ -134,14 +134,46 @@ function InfoFooterDesktop() {
         </div>
         <div className="flex flex-col gap-2.5 text-[15px] font-semibold">
           <span className="text-base font-extrabold text-[#00ABE7]">ما رو دنبال کن</span>
-          <span>پیشتم@ اینستاگرام</span>
-          <span>پیشتم@ تلگرام</span>
+          <span>پیشنام@ اینستاگرام</span>
+          <span>پیشنام@ تلگرام</span>
         </div>
       </div>
       <div className="border-t border-[#0E3C52] px-6 py-[18px] text-center text-[13px] font-medium text-[#BFE9F8]">
-        پیشتم · همه‌ی حقوق محفوظ است
+        پیشنام · همه‌ی حقوق محفوظ است
       </div>
     </footer>
+  );
+}
+
+// Phase C cross-links row: blog / UGC stories / legal pages (surgical — no restructuring)
+function PishnamLinksRow({ desktop = false }: { desktop?: boolean }) {
+  const links: { label: string; go: () => void }[] = [
+    { label: "بلاگ", go: () => navigate("blog") },
+    { label: "تجربه مخاطب", go: () => navigate("stories") },
+    { label: "قوانین", go: () => navigate("legal", { doc: "terms" }) },
+    { label: "حریم خصوصی", go: () => navigate("legal", { doc: "privacy" }) },
+    { label: "مرجوعی", go: () => navigate("legal", { doc: "refund" }) },
+  ];
+  return (
+    <div
+      className={
+        desktop
+          ? "mx-auto box-border flex w-full max-w-[1200px] flex-wrap items-center gap-2.5 px-6 pt-12"
+          : "flex flex-wrap items-center gap-2 px-4 pt-9"
+      }
+    >
+      <span className="text-[13px] font-extrabold text-[#4A6572]">بیشتر بخون:</span>
+      {links.map((l) => (
+        <button
+          key={l.label}
+          type="button"
+          onClick={l.go}
+          className="rounded-full border-[1.5px] border-[#CFE6EF] bg-white px-3.5 py-1.5 text-[12.5px] font-extrabold text-[#04202E] transition-colors hover:border-[#00ABE7]"
+        >
+          {l.label}
+        </button>
+      ))}
+    </div>
   );
 }
 
@@ -222,16 +254,16 @@ const TEAM_CARDS: { kind: PlushKind; bg: string; label: string }[] = [
 export function AboutPage() {
   return (
     <>
-      {/* ───── mobile (09-درباره‌ی پیشتم) ───── */}
+      {/* ───── mobile (09-درباره‌ی پیشنام) ───── */}
       <InfoShell>
         {/* hero */}
         <section className="flex flex-col gap-4 bg-[#00ABE7] px-4 pb-[34px] pt-3.5">
           <span className="self-start rounded-[14px] bg-[#04202E] px-3.5 py-[7px] text-[13px] font-bold text-white">
-            درباره‌ی پیشتم
+            درباره‌ی پیشنام
           </span>
           <h1 className="m-0 text-[30px] font-black leading-[1.5]">یه دوست پشمالو، یه قلب بزرگ</h1>
           <p className="m-0 text-[15px] font-semibold leading-[1.95]">
-            پیشتم از یه ایده‌ی ساده شروع شد: هدیه دادن نباید فقط برای خوشحال کردن خودمون باشه.
+            پیشنام از یه ایده‌ی ساده شروع شد: هدیه دادن نباید فقط برای خوشحال کردن خودمون باشه.
             می‌خوایم هر کسی بتونه با یه جعبه‌ی کوچیک، دل یکی رو گرم کنه.
           </p>
           <div className="relative mt-1.5 flex h-[240px] items-end justify-center overflow-hidden rounded-[32px] bg-[#66CDF1]">
@@ -272,17 +304,17 @@ export function AboutPage() {
             دست‌دوز، یه یادداشت کوتاه، یه عروسک که کنار تخت یکی می‌خوابه.
           </p>
           <p className="m-0 text-[15.5px] font-medium leading-[2.05] text-[#1F3E4D]">
-            پیشتم رو ساختیم که این حس رو راحت‌تر به دست بیاری. قیمت‌ها یکی‌ان، چون مهربونی وزن
+            پیشنام رو ساختیم که این حس رو راحت‌تر به دست بیاری. قیمت‌ها یکی‌ان، چون مهربونی وزن
             نداره و نمی‌خوایم کسی با هدیه‌ی گران‌تر فخر بفروشه.
           </p>
-          <div className="text-base font-black">نگار، بنیانگذار پیشتم</div>
+          <div className="text-base font-black">نگار، بنیانگذار پیشنام</div>
           <div className="flex flex-col gap-3 rounded-[28px] bg-[#CFEFFB] p-[18px]">
             <div className="flex h-[170px] items-end justify-center gap-1">
               <Plush kind="bear" size={130} />
               <Plush kind="bunny" size={104} />
             </div>
             <div className="text-[13.5px] font-bold leading-[1.8] text-[#1F3E4D]">
-              اولین جعبه‌های پیشتم همین‌جا، با دست و با کلی دقت بسته‌بندی شدن.
+              اولین جعبه‌های پیشنام همین‌جا، با دست و با کلی دقت بسته‌بندی شدن.
             </div>
           </div>
         </section>
@@ -382,23 +414,25 @@ export function AboutPage() {
           </div>
         </section>
 
+        <PishnamLinksRow />
+
         <InfoFooter />
       </InfoShell>
 
-      {/* ───── desktop (04-درباره‌ی پیشتم) ───── */}
+      {/* ───── desktop (04-درباره‌ی پیشنام) ───── */}
       <InfoDesktop>
         {/* hero */}
         <section className="mt-1.5 bg-[#00ABE7]">
           <div className="mx-auto box-border flex w-full max-w-[1200px] flex-wrap items-center gap-10 px-6 pb-[72px] pt-[60px]">
             <div className="flex min-w-0 flex-[1_1_460px] flex-col items-start gap-5">
               <span className="rounded-[16px] bg-[#04202E] px-4 py-2 text-[13.5px] font-bold text-white">
-                درباره‌ی پیشتم
+                درباره‌ی پیشنام
               </span>
               <h1 className="m-0 text-[clamp(38px,5vw,62px)] font-black leading-[1.35]">
                 یه دوست پشمالو، یه قلب بزرگ
               </h1>
               <p className="m-0 max-w-[560px] text-[19px] font-medium leading-[2]">
-                پیشتم از یه ایده‌ی ساده شروع شد: هدیه دادن نباید فقط برای خوشحال کردن خودمون باشه.
+                پیشنام از یه ایده‌ی ساده شروع شد: هدیه دادن نباید فقط برای خوشحال کردن خودمون باشه.
                 می‌خوایم هر کسی بتونه با یه جعبه‌ی کوچیک، دل یکی رو گرم کنه.
               </p>
               <div className="mt-1 flex flex-wrap gap-3">
@@ -449,10 +483,10 @@ export function AboutPage() {
                 دست‌دوز، یه یادداشت کوتاه، یه عروسک که کنار تخت یکی می‌خوابه.
               </p>
               <p className="m-0 text-[16.5px] font-medium leading-[2.1] text-[#1F3E4D]">
-                پیشتم رو ساختیم که این حس رو راحت‌تر به دست بیاری. قیمت‌ها یکی‌ان، چون مهربونی وزن
+                پیشنام رو ساختیم که این حس رو راحت‌تر به دست بیاری. قیمت‌ها یکی‌ان، چون مهربونی وزن
                 نداره و نمی‌خوایم کسی با هدیه‌ی گران‌تر فخر بفروشه.
               </p>
-              <div className="mt-1.5 text-[17px] font-black">نگار، بنیانگذار پیشتم</div>
+              <div className="mt-1.5 text-[17px] font-black">نگار، بنیانگذار پیشنام</div>
             </div>
             <div className="flex min-w-0 flex-[1_1_380px] flex-col gap-4">
               <div className="flex flex-col gap-4 rounded-[32px] bg-[#CFEFFB] p-7">
@@ -461,7 +495,7 @@ export function AboutPage() {
                   <Plush kind="bunny" size={120} />
                 </div>
                 <div className="text-sm font-bold text-[#1F3E4D]">
-                  اولین جعبه‌های پیشتم همین‌جا، با دست و با کلی دقت بسته‌بندی شدن.
+                  اولین جعبه‌های پیشنام همین‌جا، با دست و با کلی دقت بسته‌بندی شدن.
                 </div>
               </div>
             </div>
@@ -583,6 +617,8 @@ export function AboutPage() {
           </div>
         </section>
 
+        <PishnamLinksRow desktop />
+
         <InfoFooterDesktop />
       </InfoDesktop>
     </>
@@ -618,7 +654,7 @@ const MISSION_PARTS = [
 export function MissionPage() {
   return (
     <>
-      {/* ───── mobile (10-ماموریت پیشتم) ───── */}
+      {/* ───── mobile (10-ماموریت پیشنام) ───── */}
       <InfoShell>
         <section className="mx-4 mt-1.5 flex flex-col items-start gap-3.5 rounded-[32px] bg-[#00ABE7] p-[26px_22px_22px]">
           <span className="rounded-[14px] bg-[#04202E] px-3.5 py-[7px] text-[13px] font-bold text-white">
@@ -691,7 +727,7 @@ export function MissionPage() {
         <InfoFooter />
       </InfoShell>
 
-      {/* ───── desktop (05-ماموریت پیشتم) ───── */}
+      {/* ───── desktop (05-ماموریت پیشنام) ───── */}
       <InfoDesktop>
         <section className="mx-auto box-border w-full max-w-[1200px] px-6 pt-6">
           <div className="flex flex-wrap items-center gap-9 rounded-[40px] bg-[#00ABE7] p-[64px_56px]">
@@ -1025,7 +1061,7 @@ const CONTACT_ROWS = [
 export function ContactPage() {
   return (
     <>
-      {/* ───── mobile (11-تماس با پیشتم) ───── */}
+      {/* ───── mobile (11-تماس با پیشنام) ───── */}
       <InfoShell>
         <section className="flex flex-col gap-[18px] px-4 pt-3.5">
           <div className="flex flex-col gap-2">
@@ -1072,7 +1108,7 @@ export function ContactPage() {
         <InfoFooter />
       </InfoShell>
 
-      {/* ───── desktop (06-تماس با پیشتم) ───── */}
+      {/* ───── desktop (06-تماس با پیشنام) ───── */}
       <InfoDesktop>
         <div className="mx-auto box-border flex w-full max-w-[1200px] flex-wrap items-start gap-9 px-6 pt-10">
           <div className="flex min-w-0 flex-[1_1_360px] flex-col gap-[22px]">
@@ -1388,7 +1424,7 @@ function ReviewForm({
               rows={4}
               value={text}
               onChange={(e) => setText(e.target.value.slice(0, 400))}
-              placeholder="تجربه‌ت از پیشتم رو تعریف کن…"
+              placeholder="تجربه‌ت از پیشنام رو تعریف کن…"
               className={`${FIELD} resize-y p-3 leading-[1.85]`}
             />
             <span className="self-end text-[11.5px] font-semibold text-[#4A6572]">

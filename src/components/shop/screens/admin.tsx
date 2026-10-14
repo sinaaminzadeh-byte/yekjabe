@@ -8,7 +8,7 @@ import { useEffect, useMemo, useState } from "react";
 import { navigate } from "@/lib/hash-route";
 import { Plush } from "@/components/shop/plush";
 import { ForwardIcon } from "@/components/shop/icons";
-import { PLUSH_MAP, type PlushKind } from "@/lib/pishnam-data";
+import { PLUSH_MAP, OCCASIONS, type PlushKind } from "@/lib/pishnam-data";
 import { fa, faPrice, money } from "@/lib/fa";
 import { MobileTopBar } from "@/components/shop/nav";
 import { useToast } from "@/hooks/use-toast";
@@ -253,7 +253,7 @@ interface AdminReview {
   createdAt: string;
 }
 
-type Tab = "orders" | "payments" | "reviews";
+type Tab = "orders" | "payments" | "reviews" | "stories" | "blog";
 
 export function AdminScreen() {
   const [unlocked, setUnlocked] = useState(() => {
@@ -292,6 +292,8 @@ export function AdminScreen() {
               { key: "orders", label: "سفارش‌ها" },
               { key: "payments", label: "رسیدهای کارت‌به‌کارت" },
               { key: "reviews", label: "نظرها" },
+              { key: "stories", label: "تجربه‌ها" },
+              { key: "blog", label: "بلاگ" },
             ] as { key: Tab; label: string }[]
           ).map((t) => {
             const on = tab === t.key;
@@ -317,6 +319,8 @@ export function AdminScreen() {
         {tab === "orders" && <OrdersTab />}
         {tab === "payments" && <PaymentsTab />}
         {tab === "reviews" && <ReviewsTab />}
+        {tab === "stories" && <StoriesModTab />}
+        {tab === "blog" && <BlogTab />}
 
         <div className="mt-7 flex justify-center">
           <button
@@ -801,6 +805,537 @@ function ReviewsTab() {
           </div>
         </div>
       ))}
+    </div>
+  );
+}
+
+/* ═══════════ TAB 4 — STORIES MODERATION (Phase C) ═══════════ */
+type ExpFilter = "pending" | "published" | "rejected";
+
+interface AdminExperience {
+  id: string;
+  name: string;
+  city: string;
+  occasion: number;
+  body: string;
+  photoKey: string;
+  status: string;
+  createdAt: string;
+}
+
+const EXP_FILTERS: { key: ExpFilter; label: string }[] = [
+  { key: "pending", label: "در انتظار تأیید" },
+  { key: "published", label: "منتشرشده" },
+  { key: "rejected", label: "ردشده" },
+];
+
+function StoriesModTab() {
+  const [filter, setFilter] = useState<ExpFilter>("pending");
+  const [exps, setExps] = useState<AdminExperience[] | null>(null);
+  const [error, setError] = useState(false);
+  const { toast } = useToast();
+
+  const load = (f: ExpFilter) => {
+    fetch(`/api/admin/experiences?status=${f}`, { cache: "no-store" })
+      .then((r) => {
+        if (!r.ok) throw new Error();
+        return r.json();
+      })
+      .then((j: { experiences?: AdminExperience[] }) => {
+        setExps(j.experiences ?? []);
+        setError(false);
+      })
+      .catch(() => setError(true));
+  };
+
+  useEffect(() => {
+    load(filter);
+  }, [filter]);
+
+  const act = async (e: AdminExperience, action: "publish" | "reject") => {
+    // optimistic flip, then refetch the current filter to stay honest
+    const optimistic = action === "publish" ? "published" : "rejected";
+    setExps((prev) => prev?.map((x) => (x.id === e.id ? { ...x, status: optimistic } : x)) ?? prev);
+    try {
+      const res = await fetch(`/api/admin/experiences/${e.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action }),
+      });
+      if (!res.ok) throw new Error();
+      toast({
+        title: action === "publish" ? "تجربه منتشر شد ✓" : "تجربه مخفی شد",
+        description: `${e.name} — ${action === "publish" ? "الان تو «تجربه مخاطب» می‌بیننش." : "دیگه جایی نمایش داده نمی‌شه."}`,
+      });
+    } catch {
+      toast({ title: "انجام نشد!", description: "دوباره تلاش کن." });
+    }
+    load(filter);
+  };
+
+  if (error) {
+    return (
+      <div className="rounded-[24px] border-2 border-dashed border-[#F0B7C9] bg-[#FFF7FA] px-6 py-10 text-center text-[14px] font-bold text-[#B02A52]">
+        اتصال به سرور برقرار نشد.
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-3">
+      {/* filter chips */}
+      <div className="no-scrollbar flex gap-2 overflow-x-auto">
+        {EXP_FILTERS.map((f) => {
+          const on = filter === f.key;
+          return (
+            <button
+              key={f.key}
+              type="button"
+              aria-pressed={on}
+              onClick={() => setFilter(f.key)}
+              className="h-10 shrink-0 rounded-full px-4 text-[13px] font-bold transition-all"
+              style={{
+                background: on ? "#04202E" : "#fff",
+                border: `1.5px solid ${on ? "#04202E" : "#CFE6EF"}`,
+                color: on ? "#fff" : "#04202E",
+              }}
+            >
+              {f.label}
+            </button>
+          );
+        })}
+      </div>
+
+      {exps === null ? (
+        <div className="flex flex-col gap-3">
+          {[0, 1].map((i) => (
+            <div key={i} className="h-[110px] animate-pulse rounded-[20px] bg-white/70" />
+          ))}
+        </div>
+      ) : exps.length === 0 ? (
+        <div className="flex flex-col items-center gap-3 rounded-[24px] border-2 border-dashed border-[#99D6EE] bg-white/60 px-6 py-12 text-center">
+          <span className="text-[40px]">🎁</span>
+          <p className="m-0 text-[14.5px] font-bold">
+            {filter === "pending" ? "صف تجربه‌ها خالیه — همه بررسی شدن!" : "این فیلتر خالیه."}
+          </p>
+        </div>
+      ) : (
+        exps.map((e) => (
+          <div key={e.id} className="rounded-[20px] border border-[#DDEEF5] bg-white p-4 md:p-5">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-[14px] font-black">
+                  {e.name}
+                  {e.city ? <span className="font-semibold text-[#4A6572]"> · {e.city}</span> : null}
+                </span>
+                <span className="rounded-full bg-[#FFF3C9] px-2.5 py-0.5 text-[11px] font-extrabold text-[#8A6D1F]">
+                  {OCCASIONS[e.occasion] ?? OCCASIONS[0]}
+                </span>
+                {e.photoKey && <span title="با عکس همراه بوده">📷</span>}
+                <span
+                  className="rounded-full px-3 py-1 text-[11px] font-extrabold"
+                  style={{
+                    background: e.status === "published" ? "#D7F5E4" : e.status === "pending" ? "#FFF3C9" : "#FFE9F0",
+                    color: e.status === "published" ? "#2E7D53" : e.status === "pending" ? "#8A6D1F" : "#B02A52",
+                  }}
+                >
+                  {e.status === "published" ? "منتشرشده" : e.status === "pending" ? "در انتظار" : "ردشده"}
+                </span>
+              </div>
+              <span className="text-[11.5px] font-semibold text-[#4A6572]">
+                {new Intl.DateTimeFormat("fa-IR", { dateStyle: "short" }).format(new Date(e.createdAt))}
+              </span>
+            </div>
+            <p className="mb-0 mt-2 whitespace-pre-line text-[13px] font-medium leading-[1.95] text-[#1F3E4D]">{e.body}</p>
+            <div className="mt-3 flex flex-wrap gap-2 border-t border-[#EDF6FA] pt-3">
+              {(e.status === "pending" || e.status === "rejected") && (
+                <button
+                  type="button"
+                  onClick={() => void act(e, "publish")}
+                  className="h-10 rounded-full bg-[#D7F5E4] px-4 text-[12.5px] font-extrabold text-[#2E7D53] active:scale-95"
+                >
+                  انتشار
+                </button>
+              )}
+              {(e.status === "pending" || e.status === "published") && (
+                <button
+                  type="button"
+                  onClick={() => void act(e, "reject")}
+                  className="h-10 rounded-full bg-[#FFE9F0] px-4 text-[12.5px] font-extrabold text-[#B02A52] active:scale-95"
+                >
+                  {e.status === "published" ? "لغو انتشار" : "رد"}
+                </button>
+              )}
+            </div>
+          </div>
+        ))
+      )}
+    </div>
+  );
+}
+
+/* ═══════════ TAB 5 — BLOG AUTHORING (Phase C) ═══════════ */
+
+interface PublicPost {
+  slug: string;
+  title: string;
+  excerpt: string;
+  tags: string;
+  publishedAt: string;
+}
+
+interface SessionPost {
+  id: string;
+  title: string;
+  slug: string;
+  excerpt: string;
+  tags: string;
+  content: string;
+  published: boolean;
+}
+
+const SLUG_RE = /^[a-z0-9-]{3,60}$/;
+
+function BlogTab() {
+  const [publicPosts, setPublicPosts] = useState<PublicPost[] | null>(null);
+  const [drafts, setDrafts] = useState<SessionPost[]>([]); // posts created/edited this session (id known)
+  const [editing, setEditing] = useState<SessionPost | null>(null);
+  const [title, setTitle] = useState("");
+  const [slug, setSlug] = useState("");
+  const [excerpt, setExcerpt] = useState("");
+  const [tags, setTags] = useState("");
+  const [content, setContent] = useState("");
+  const [publish, setPublish] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState("");
+  const { toast } = useToast();
+
+  const load = () => {
+    fetch("/api/posts", { cache: "no-store" })
+      .then((r) => {
+        if (!r.ok) throw new Error();
+        return r.json();
+      })
+      .then((j: { posts?: PublicPost[] }) => setPublicPosts(j.posts ?? []))
+      .catch(() => setPublicPosts([]));
+  };
+
+  useEffect(() => {
+    load();
+  }, []);
+
+  const resetForm = () => {
+    setEditing(null);
+    setTitle("");
+    setSlug("");
+    setExcerpt("");
+    setTags("");
+    setContent("");
+    setPublish(false);
+    setErr("");
+  };
+
+  const startEdit = (p: SessionPost) => {
+    setEditing(p);
+    setTitle(p.title);
+    setSlug(p.slug);
+    setExcerpt(p.excerpt);
+    setTags(p.tags);
+    setContent(p.content);
+    setPublish(p.published);
+    setErr("");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  const submit = async () => {
+    if (busy) return;
+    setErr("");
+    if (title.trim().length < 3) {
+      setErr("عنوان حداقل ۳ حرف.");
+      return;
+    }
+    if (content.trim().length < 50) {
+      setErr("متن پست حداقل ۵۰ حرف.");
+      return;
+    }
+    if (slug && !SLUG_RE.test(slug)) {
+      setErr("اسلاگ فقط حروف کوچک انگلیسی، عدد و خط تیره (۳ تا ۶۰ کاراکتر).");
+      return;
+    }
+    setBusy(true);
+    try {
+      const payload = {
+        title: title.trim(),
+        ...(slug ? { slug } : {}),
+        excerpt: excerpt.trim(),
+        content: content.trim(),
+        tags: tags.trim(),
+        publish,
+      };
+      const res = await fetch(editing ? `/api/admin/posts/${editing.id}` : "/api/admin/posts", {
+        method: editing ? "PATCH" : "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const b = (await res.json().catch(() => ({}))) as {
+        ok?: boolean;
+        error?: string;
+        post?: { id: string; slug: string; published: boolean };
+      };
+      if (res.status === 409) {
+        setErr("این اسلاگ قبلاً استفاده شده — یه اسلاگ دیگه بزن یا خالی بذار.");
+        return;
+      }
+      if (!res.ok || !b.post) {
+        setErr("ذخیره نشد — فیلدها رو چک کن (عنوان ≥۳، متن ≥۵۰ حرف).");
+        return;
+      }
+      const saved: SessionPost = {
+        id: b.post.id,
+        slug: b.post.slug,
+        title: title.trim(),
+        excerpt: excerpt.trim(),
+        tags: tags.trim(),
+        content: content.trim(),
+        published: b.post.published,
+      };
+      setDrafts((prev) => {
+        const without = prev.filter((d) => d.id !== saved.id);
+        return [saved, ...without];
+      });
+      toast({
+        title: editing ? "پست به‌روز شد ✓" : publish ? "پست منتشر شد ✓" : "پیش‌نویس ذخیره شد ✓",
+        description: publish ? `#/post?slug=${saved.slug}` : "وقتی منتشرش کنی تو بلاگ می‌افته.",
+      });
+      resetForm();
+      load();
+    } catch {
+      setErr("خطای شبکه — دوباره تلاش کن.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const togglePublish = async (p: SessionPost) => {
+    try {
+      const res = await fetch(`/api/admin/posts/${p.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ publish: !p.published }),
+      });
+      const b = (await res.json().catch(() => ({}))) as { post?: { published: boolean } };
+      if (!res.ok || !b.post) throw new Error();
+      setDrafts((prev) => prev.map((d) => (d.id === p.id ? { ...d, published: b.post!.published } : d)));
+      toast({ title: b.post.published ? "پست منتشر شد ✓" : "پست از بلاگ برداشته شد" });
+      load();
+    } catch {
+      toast({ title: "انجام نشد!", description: "دوباره تلاش کن." });
+    }
+  };
+
+  const removePost = async (p: SessionPost) => {
+    if (!window.confirm(`پست «${p.title}» برای همیشه حذف بشه؟`)) return;
+    try {
+      const res = await fetch(`/api/admin/posts/${p.id}`, { method: "DELETE" });
+      if (!res.ok) {
+        toast({ title: "حذف نشد!", description: "حذف پست فقط با حساب مالک ممکنه." });
+        return;
+      }
+      setDrafts((prev) => prev.filter((d) => d.id !== p.id));
+      toast({ title: "پست حذف شد" });
+      load();
+    } catch {
+      toast({ title: "خطای شبکه", description: "دوباره تلاش کن." });
+    }
+  };
+
+  // list = this-session posts (full control) + public posts not shadowed by them
+  const rows: (
+    | { kind: "session"; p: SessionPost }
+    | { kind: "public"; p: PublicPost }
+  )[] = [
+    ...drafts.map((p) => ({ kind: "session" as const, p })),
+    ...(publicPosts ?? [])
+      .filter((p) => !drafts.some((d) => d.slug === p.slug))
+      .map((p) => ({ kind: "public" as const, p })),
+  ];
+
+  return (
+    <div className="flex flex-col gap-5">
+      {/* editor */}
+      <div className="rounded-[20px] border border-[#DDEEF5] bg-white p-4 md:p-5">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h3 className="m-0 text-[16px] font-black">{editing ? "ویرایش پست" : "پست جدید"}</h3>
+          {editing && (
+            <button type="button" onClick={resetForm} className="text-[12.5px] font-extrabold text-[#00779F] underline">
+              لغو ویرایش
+            </button>
+          )}
+        </div>
+        <div className="mt-3 grid gap-3 md:grid-cols-2">
+          <input
+            type="text"
+            value={title}
+            onChange={(e) => setTitle(e.target.value.slice(0, 120))}
+            placeholder="عنوان پست (حداقل ۳ حرف)"
+            aria-label="عنوان پست"
+            className="h-11 rounded-[14px] border-[1.5px] border-[#CFE6EF] bg-white px-3.5 text-[14px] font-semibold text-[#04202E] outline-none focus:border-[#00ABE7]"
+          />
+          <input
+            type="text"
+            dir="ltr"
+            value={slug}
+            onChange={(e) => setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "-").slice(0, 60))}
+            placeholder="slug — خالی بذار: از روی عنوان ساخته می‌شه"
+            aria-label="اسلاگ پست"
+            className="h-11 rounded-[14px] border-[1.5px] border-[#CFE6EF] bg-white px-3.5 text-left font-mono text-[13px] text-[#04202E] outline-none focus:border-[#00ABE7]"
+          />
+          <input
+            type="text"
+            value={excerpt}
+            onChange={(e) => setExcerpt(e.target.value.slice(0, 300))}
+            placeholder="خلاصه (اختیاری — تو کارت بلاگ نمایش داده می‌شه)"
+            aria-label="خلاصه پست"
+            className="h-11 rounded-[14px] border-[1.5px] border-[#CFE6EF] bg-white px-3.5 text-[14px] font-semibold text-[#04202E] outline-none focus:border-[#00ABE7]"
+          />
+          <input
+            type="text"
+            value={tags}
+            onChange={(e) => setTags(e.target.value.slice(0, 120))}
+            placeholder="تگ‌ها با ویرگول: هدیه، یلدا"
+            aria-label="تگ‌های پست"
+            className="h-11 rounded-[14px] border-[1.5px] border-[#CFE6EF] bg-white px-3.5 text-[14px] font-semibold text-[#04202E] outline-none focus:border-[#00ABE7]"
+          />
+        </div>
+        <textarea
+          value={content}
+          onChange={(e) => setContent(e.target.value.slice(0, 20_000))}
+          rows={10}
+          placeholder="متن پست (حداقل ۵۰ حرف)…"
+          aria-label="متن پست"
+          className="mt-3 w-full resize-y rounded-[14px] border-[1.5px] border-[#CFE6EF] bg-[#F8FDFF] px-3.5 py-3 font-mono text-[13px] leading-[2] text-[#04202E] outline-none focus:border-[#00ABE7]"
+        />
+        <div className="mt-1.5 flex flex-wrap items-center justify-between gap-2">
+          <span className="text-[11.5px] font-semibold text-[#4A6572]">
+            مارک‌داون ساده: # تیتر · **پررنگ** · *کج* · - لیست · [متن](https://لینک)
+          </span>
+          <span className="text-[11.5px] font-extrabold text-[#4A6572]" dir="ltr">
+            {fa(content.trim().length)} / {fa(20_000)}
+          </span>
+        </div>
+        {err && <span className="mt-2 block text-[12.5px] font-bold text-[#B02A52]">{err}</span>}
+        <div className="mt-3 flex flex-wrap items-center gap-3 border-t border-[#EDF6FA] pt-3">
+          <label className="flex cursor-pointer items-center gap-2 text-[13px] font-extrabold text-[#04202E]">
+            <input
+              type="checkbox"
+              checked={publish}
+              onChange={(e) => setPublish(e.target.checked)}
+              className="h-5 w-5 accent-[#00ABE7]"
+            />
+            انتشار در بلاگ
+          </label>
+          <button
+            type="button"
+            onClick={() => void submit()}
+            disabled={busy}
+            className="flex h-11 flex-1 items-center justify-center rounded-full bg-[#04202E] px-6 text-[13.5px] font-extrabold text-white transition-transform active:scale-95 disabled:opacity-60 md:flex-none"
+          >
+            {busy ? "در حال ذخیره…" : editing ? "ذخیره‌ی تغییرات" : "ذخیره‌ی پست"}
+          </button>
+        </div>
+      </div>
+
+      {/* list */}
+      {publicPosts === null ? (
+        <div className="h-[120px] animate-pulse rounded-[20px] bg-white/70" />
+      ) : rows.length === 0 ? (
+        <div className="flex flex-col items-center gap-3 rounded-[24px] border-2 border-dashed border-[#99D6EE] bg-white/60 px-6 py-12 text-center">
+          <span className="text-[40px]">✍️</span>
+          <p className="m-0 text-[14.5px] font-bold">هنوز پستی نیست — اولین پست رو از فرم بالا بنویس.</p>
+        </div>
+      ) : (
+        <div className="flex flex-col gap-3">
+          {rows.map((row) =>
+            row.kind === "session" ? (
+              <div key={`s-${row.p.id}`} className="rounded-[20px] border border-[#DDEEF5] bg-white p-4">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <span className="text-[14.5px] font-black">{row.p.title}</span>
+                  <div className="flex items-center gap-2">
+                    <span
+                      className="rounded-full px-3 py-1 text-[11px] font-extrabold"
+                      style={{ background: row.p.published ? "#D7F5E4" : "#FFF3C9", color: row.p.published ? "#2E7D53" : "#8A6D1F" }}
+                    >
+                      {row.p.published ? "منتشرشده" : "پیش‌نویس"}
+                    </span>
+                    <span className="rounded-[10px] bg-[#F2F7F9] px-2 py-0.5 font-mono text-[10.5px] text-[#4A6572]" dir="ltr">
+                      {row.p.slug}
+                    </span>
+                  </div>
+                </div>
+                {row.p.excerpt && (
+                  <p className="mb-0 mt-1.5 text-[12.5px] font-medium leading-[1.9] text-[#4A6572]">{row.p.excerpt}</p>
+                )}
+                <div className="mt-3 flex flex-wrap gap-2 border-t border-[#EDF6FA] pt-3">
+                  <button
+                    type="button"
+                    onClick={() => startEdit(row.p)}
+                    className="h-10 rounded-full bg-[#E3F6FD] px-4 text-[12.5px] font-extrabold text-[#006387] active:scale-95"
+                  >
+                    ویرایش
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void togglePublish(row.p)}
+                    className="h-10 rounded-full bg-[#D7F5E4] px-4 text-[12.5px] font-extrabold text-[#2E7D53] active:scale-95"
+                  >
+                    {row.p.published ? "لغو انتشار" : "انتشار"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void removePost(row.p)}
+                    className="h-10 rounded-full bg-[#FFE9F0] px-4 text-[12.5px] font-extrabold text-[#B02A52] active:scale-95"
+                  >
+                    حذف
+                  </button>
+                  {row.p.published && (
+                    <button
+                      type="button"
+                      onClick={() => navigate("post", { slug: row.p.slug })}
+                      className="h-10 rounded-full px-3 text-[12.5px] font-extrabold text-[#00779F] underline"
+                    >
+                      دیدن در بلاگ ↗
+                    </button>
+                  )}
+                </div>
+              </div>
+            ) : (
+              <div key={`p-${row.p.slug}`} className="rounded-[20px] border border-[#DDEEF5] bg-white p-4">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <span className="text-[14.5px] font-black">{row.p.title}</span>
+                  <div className="flex items-center gap-2">
+                    <span className="rounded-full bg-[#D7F5E4] px-3 py-1 text-[11px] font-extrabold text-[#2E7D53]">منتشرشده</span>
+                    <span className="text-[11.5px] font-semibold text-[#4A6572]">
+                      {new Intl.DateTimeFormat("fa-IR", { dateStyle: "medium" }).format(new Date(row.p.publishedAt))}
+                    </span>
+                  </div>
+                </div>
+                {row.p.excerpt && (
+                  <p className="mb-0 mt-1.5 text-[12.5px] font-medium leading-[1.9] text-[#4A6572]">{row.p.excerpt}</p>
+                )}
+                <div className="mt-3 border-t border-[#EDF6FA] pt-3">
+                  <button
+                    type="button"
+                    onClick={() => navigate("post", { slug: row.p.slug })}
+                    className="h-10 rounded-full bg-[#E3F6FD] px-4 text-[12.5px] font-extrabold text-[#006387] active:scale-95"
+                  >
+                    دیدن در بلاگ ↗
+                  </button>
+                </div>
+              </div>
+            ),
+          )}
+        </div>
+      )}
     </div>
   );
 }

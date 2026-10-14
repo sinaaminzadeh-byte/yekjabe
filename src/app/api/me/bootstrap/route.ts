@@ -29,7 +29,7 @@ export async function GET() {
       }),
       db.adminUser.findUnique({ where: { phone: session.phone } }),
       db.order.findMany({
-        where: { OR: [{ sessionPhone: session.phone }, { userPhone: session.phone }, { recipientPhone: session.phone }] },
+        where: { OR: [{ sessionPhone: session.phone }, { userPhone: session.phone }, { senderPhone: session.phone }, { recipientPhone: session.phone }] },
         orderBy: { createdAt: "desc" },
         take: 50,
         include: { items: { include: { variant: { include: { product: true } } }, take: 1 } },

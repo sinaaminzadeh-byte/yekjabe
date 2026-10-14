@@ -154,12 +154,12 @@ export function MobileHome() {
             key={p.kind}
             role="button"
             tabIndex={0}
-            aria-label={`انتخاب ${p.name}`}
-            onClick={() => navigate("pick")}
+            aria-label={`دیدن ${p.name}`}
+            onClick={() => navigate("product", { slug: p.kind })}
             onKeyDown={(e) => {
               if (e.key === "Enter" || e.key === " ") {
                 e.preventDefault();
-                navigate("pick");
+                navigate("product", { slug: p.kind });
               }
             }}
             className="relative flex w-40 shrink-0 cursor-pointer flex-col gap-1.5 rounded-3xl border border-[#DDEEF5] bg-white p-2.5 pb-3.5 text-right text-[#04202E] outline-none transition-transform focus-visible:ring-2 focus-visible:ring-[#00ABE7] active:scale-[0.97]"
@@ -228,7 +228,7 @@ export function MobileHome() {
       </div>
 
       <div className="px-5 pt-[26px] pb-6 text-center text-[12.5px] font-medium text-[#4A6572]">
-        پیشتم · یه بغل، تو یه جعبه · تا حالا {fa(done)} قلب و پنجه ثبت شده
+        پیشنام · یه بغل، تو یه جعبه · تا حالا {fa(done)} قلب و پنجه ثبت شده
       </div>
     </div>
   );
@@ -392,12 +392,12 @@ export function DesktopHome() {
               key={p.kind}
               role="button"
               tabIndex={0}
-              aria-label={`انتخاب ${p.name}`}
-              onClick={() => navigate("pick")}
+              aria-label={`دیدن ${p.name}`}
+              onClick={() => navigate("product", { slug: p.kind })}
               onKeyDown={(e) => {
                 if (e.key === "Enter" || e.key === " ") {
                   e.preventDefault();
-                  navigate("pick");
+                  navigate("product", { slug: p.kind });
                 }
               }}
               className="group relative flex min-w-0 cursor-pointer flex-[1_1_170px] flex-col gap-1.5 rounded-[28px] border border-[#DDEEF5] bg-white p-3 pb-[18px] text-right text-[#04202E] outline-none transition-all focus-visible:ring-2 focus-visible:ring-[#00ABE7] hover:-translate-y-1 hover:shadow-[0_12px_28px_rgba(4,32,46,0.08)]"
@@ -521,7 +521,7 @@ export function DesktopHome() {
             <span className="text-[15px] font-bold text-[#BFE9F8]">یه بغل، تو یه جعبه</span>
           </div>
           <div className="flex flex-col gap-2.5 text-[15px] font-semibold">
-            <span className="text-base font-extrabold text-[#00ABE7]">پیشتم</span>
+            <span className="text-base font-extrabold text-[#00ABE7]">پیشنام</span>
             <FooterLink label="چطوری کار می‌کنه؟" target="how" />
             <FooterLink label="دوست‌های پشمالو" target="friends" />
             <FooterLink label="دفتر مهربونی" target="love" />
@@ -535,13 +535,13 @@ export function DesktopHome() {
           </div>
           <div className="flex flex-col gap-2.5 text-[15px] font-semibold">
             <span className="text-base font-extrabold text-[#00ABE7]">ما رو دنبال کن</span>
-            <span>پیشتم@ اینستاگرام</span>
-            <span>پیشتم@ تلگرام</span>
+            <span>پیشنام@ اینستاگرام</span>
+            <span>پیشنام@ تلگرام</span>
             <span>نماد اعتماد الکترونیکی</span>
           </div>
         </div>
         <div className="border-t border-[#0E3C52] px-6 py-[18px] text-center text-[13px] font-medium text-[#BFE9F8]">
-          پیشتم · همه‌ی حقوق محفوظ است
+          پیشنام · همه‌ی حقوق محفوظ است
         </div>
       </footer>
     </div>
