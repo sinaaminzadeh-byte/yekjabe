@@ -174,7 +174,7 @@ export const PAGES: PageDef[] = [
   {
     "slug": "m-about",
     "dc": "M-About.dc.html",
-    "title": "درباره‌ی پیشنام",
+    "title": "درباره‌ی یک دوست",
     "label": "موبایل · درباره‌ی ما",
     "w": 390,
     "h": 2600,
@@ -185,7 +185,7 @@ export const PAGES: PageDef[] = [
   {
     "slug": "m-mission",
     "dc": "M-Mission.dc.html",
-    "title": "ماموریت پیشنام",
+    "title": "ماموریت یک دوست",
     "label": "موبایل · ماموریت",
     "w": 390,
     "h": 2200,
@@ -196,7 +196,7 @@ export const PAGES: PageDef[] = [
   {
     "slug": "m-contact",
     "dc": "M-Contact.dc.html",
-    "title": "تماس با پیشنام",
+    "title": "تماس با یک دوست",
     "label": "موبایل · تماس",
     "w": 390,
     "h": 1500,
@@ -300,7 +300,7 @@ export const PAGES: PageDef[] = [
     "w": 1440,
     "h": 3000,
     "cat": "web",
-    "desc": "درباره‌ی پیشنام در وب",
+    "desc": "درباره‌ی یک دوست در وب",
     "src": "/pages/desktop-about.html"
   },
   {
@@ -361,7 +361,7 @@ export const PAGES: PageDef[] = [
   {
     "slug": "comp-logo",
     "dc": "Logo.dc.html",
-    "title": "لوگوی پیشنام",
+    "title": "لوگوی یک دوست",
     "label": "جزء · لوگو",
     "w": 240,
     "h": 72,
@@ -372,7 +372,7 @@ export const PAGES: PageDef[] = [
   {
     "slug": "print-identity",
     "dc": "Print-Identity.dc.html",
-    "title": "هویت چاپی پیشنام",
+    "title": "هویت چاپی یک دوست",
     "label": "هویت چاپی",
     "w": 1280,
     "h": 900,

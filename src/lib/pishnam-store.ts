@@ -235,7 +235,11 @@ export const usePishnam = create<PishnamState>()(
       addVideo: () => set({ videoAdded: true }),
 
       login: (phone, name) => set({ user: { phone, name: name || "دوست مهربون" } }),
-      logout: () => set({ user: null }),
+      // logout also drops every local order row AND the pending checkout key:
+      // gift data belongs to the logged-in account — nothing may stay visible
+      // on a shared device once the session is gone (server rows re-arrive on
+      // the next bootstrap). A stale key would 422 the next fresh checkout.
+      logout: () => set({ user: null, orders: [], pendingOrder: null }),
 
       // ── catalog (variantIds come from the server; never hardcode) ──
       loadCatalog: async () => {
@@ -314,7 +318,9 @@ export const usePishnam = create<PishnamState>()(
           if (!e) return { ok: false, error: "catalog_unavailable" };
           if (!e.inStock) return { ok: false, error: "sold_out" };
 
-          // one idempotency key per checkout attempt (kept for ACK polling)
+          // one idempotency key per checkout attempt (kept for ACK polling).
+          // A stale key from an EARLIER order (logout/restore/shared device)
+          // would 422 on submit — we self-heal below by rotating exactly once.
           let pending = get().pendingOrder;
           if (!pending?.key || pending.status === "paid") {
             const key = crypto.randomUUID();
@@ -342,11 +348,22 @@ export const usePishnam = create<PishnamState>()(
             },
             paymentMethod: s.paymentMethod,
           };
-          const res = await fetch("/api/checkout", {
-            method: "POST",
-            headers: { "Content-Type": "application/json", "Idempotency-Key": pending.key },
-            body: JSON.stringify(payload),
-          });
+          const post = (key: string) =>
+            fetch("/api/checkout", {
+              method: "POST",
+              headers: { "Content-Type": "application/json", "Idempotency-Key": key },
+              body: JSON.stringify(payload),
+            });
+          let res = await post(pending.key);
+          if (res.status === 422) {
+            // server says THIS key already created a different order → the local
+            // key is stale (survived a logout / restore). Rotate once and retry:
+            // a true replay of the same payload would have returned the prior
+            // order instead of this error, so a fresh order is the right move.
+            pending = { key: crypto.randomUUID() };
+            set({ pendingOrder: pending });
+            res = await post(pending.key);
+          }
           if (!res.ok) {
             const body = (await res.json().catch(() => ({}))) as { error?: string; details?: Record<string, unknown> };
             return { ok: false, error: body.error ?? `http_${res.status}`, details: body.details };

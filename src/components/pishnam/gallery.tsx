@@ -152,7 +152,7 @@ export function Gallery({
               دیزاین‌سیستم کامل
             </Badge>
             <h1 className="mt-3 text-2xl sm:text-3xl font-black leading-relaxed">
-              پیشنام — وب‌اپ هدیه‌ی دوستانه
+              یک دوست — وب‌اپ هدیه‌ی دوستانه
             </h1>
             <p className="mt-2 text-[13.5px] sm:text-[15px] leading-8 text-white/80 max-w-2xl font-medium">
               همه‌ی {PAGES.length} صفحه‌ای که کلود کد توی سیستم دیزاین طراحی کرده، از هم جدا شدن، مرتب شدن و دوباره
@@ -362,7 +362,7 @@ export function Gallery({
         })}
 
         <footer className="pt-4 pb-8 text-center text-[11.5px] font-bold text-[#4A6572]/70">
-          پیشنام 🧸 — {PAGES.length} صفحه، یک داستان: «می‌خوای یه رو دو تا هدیه بگیری؟»
+          یک دوست 🧸 — {PAGES.length} صفحه، یک داستان: «می‌خوای یه رو دو تا هدیه بگیری؟»
         </footer>
       </div>
     </div>

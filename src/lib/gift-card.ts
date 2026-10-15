@@ -149,7 +149,7 @@ export async function downloadGiftCard(
   /* ── brand row ── */
   ctx.fillStyle = "#04202E";
   ctx.font = "900 54px Vazirmatn, sans-serif";
-  ctx.fillText("پیشنام ♥", right, 176);
+  ctx.fillText("یک دوست ♥", right, 176);
 
   // gift-number chip on the opposite corner
   chip(ctx, 132, 186, `هدیه‌ی شماره‌ی ${fa(o.no)}`, "#04202E", "#FFFFFF");
@@ -248,7 +248,7 @@ export async function downloadGiftCard(
   ctx.fillStyle = "#8FB3C0";
   ctx.font = "600 22px Vazirmatn, sans-serif";
   ctx.textAlign = "center";
-  ctx.fillText("با ♥ ساخته شده در پیشنام · yegh.bagh", cx, H - 152);
+  ctx.fillText("با ♥ ساخته شده در یک دوست · yekdoost.ir", cx, H - 152);
   ctx.textAlign = "right";
 
   /* ── download ── */
@@ -259,7 +259,7 @@ export async function downloadGiftCard(
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
         a.href = url;
-        a.download = `pishnam-gift-${o.no}.png`;
+        a.download = `yekdoost-gift-${o.no}.png`;
         document.body.appendChild(a);
         a.click();
         a.remove();

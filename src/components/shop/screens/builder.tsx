@@ -12,7 +12,7 @@ import {
   PlusSmall,
   BackIcon,
 } from "../icons";
-import { navigate, type Route } from "@/lib/hash-route";
+import { navigate, useHashRoute, type Route } from "@/lib/hash-route";
 import { usePishnam, useCharityDone } from "@/lib/pishnam-store";
 import { fa, money } from "@/lib/fa";
 import { FavHeart, FavFilterChips, SurpriseButton } from "../fav";
@@ -24,6 +24,7 @@ import {
   OCCASIONS,
   OCCASION_HOLDERS,
   CHARITY_TARGET,
+  type PlushKind,
 } from "@/lib/pishnam-data";
 import { PROVINCES } from "@/lib/orders/provinces";
 import { useEffect, useState } from "react";
@@ -34,6 +35,14 @@ export function DesktopBuilder({ step }: { step: 1 | 2 | 3 | 4 }) {
   const favorites = usePishnam((s) => s.favorites);
   const [favOnly, setFavOnly] = useState(false);
   const list = favOnly ? PLUSHES.filter((p) => favorites.includes(p.kind)) : PLUSHES;
+  // deep-link preselect: #/pick?kind=bear (product/friends pages CTA)
+  const { query } = useHashRoute();
+  const qKind = query.get("kind");
+  useEffect(() => {
+    if (qKind && PLUSHES.some((p) => p.kind === qKind) && kind !== qKind) {
+      setKind(qKind as PlushKind);
+    }
+  }, [qKind, kind, setKind]);
   const occ = usePishnam((s) => s.occasion);
   const setOcc = usePishnam((s) => s.setOccasion);
   const message = usePishnam((s) => s.message);

@@ -901,7 +901,46 @@ function MobileOrderCard({ o }: { o: GiftOrder }) {
   );
 }
 
+/* ── login gate: gift data belongs to the ACCOUNT, never to a guest menu ──
+ * Owner directive (۱۴۰۵/۰۸/۲۴): «هدیه‌هام» only exists after login. The server
+ * side was already session-guarded (guests get [] from bootstrap); the screen
+ * itself is what leaked stale localStorage rows — so it now requires a user. */
+function GiftsLoginGate({ desktop = false }: { desktop?: boolean }) {
+  return (
+    <div
+      className={
+        desktop
+          ? "flex min-h-[64vh] flex-col items-center justify-center gap-5 px-6 text-center md:flex"
+          : "flex min-h-[64vh] flex-col items-center justify-center gap-5 px-6 pb-10 text-center md:hidden"
+      }
+    >
+      <span className="flex h-20 w-20 items-center justify-center rounded-[26px] border border-[#D3E8F0] bg-white text-4xl shadow-[0_8px_22px_rgba(4,32,46,0.06)]" aria-hidden="true">
+        🔒
+      </span>
+      <h1 className={`m-0 font-black text-[#04202E] ${desktop ? "text-[30px]" : "text-[23px]"}`}>هدیه‌هام مال حساب کاربریه</h1>
+      <p className={`m-0 max-w-[420px] font-medium leading-[2.1] text-[#4A6572] ${desktop ? "text-[14.5px]" : "text-[13px]"}`}>
+        برای دیدن هدیه‌هایی که فرستادی یا گرفتی، اول وارد حسابت شو؛ بعد از ورود، هدیه‌هات امن از سرور میاد.
+      </p>
+      <button
+        type="button"
+        onClick={() => navigate("login")}
+        className="flex h-[52px] items-center gap-2 rounded-full bg-[#04202E] px-7 text-[15px] font-extrabold text-white transition-transform hover:scale-[1.03] active:scale-95"
+      >
+        ورود به حساب کاربری
+      </button>
+      <button
+        type="button"
+        onClick={() => navigate("pick")}
+        className="text-[12.5px] font-bold text-[#006387] underline underline-offset-4"
+      >
+        حساب نداری؟ اول یه هدیه بساز — موقع ثبت سفارش می‌تونی وارد شی
+      </button>
+    </div>
+  );
+}
+
 export function MobileMyGifts() {
+  const user = usePishnam((s) => s.user);
   const orders = usePishnam((s) => s.orders);
   const [tab, setTab] = useState<"sent" | "recv">("sent");
   const list = orders.filter((o) => o.dir === tab);
@@ -912,6 +951,8 @@ export function MobileMyGifts() {
   const awaiting = orders.filter((o) => o.dir === "sent" && o.v2 && o.status2 === "awaiting_payment").length;
   const doneCount = list.filter((o) => (o.status2 ? o.status2 === "delivered" : o.status === "delivered")).length;
   const openedCount = list.filter((o) => o.opened).length;
+
+  if (!user) return <GiftsLoginGate />;
 
   return (
     <div className="flex min-h-screen flex-col bg-[#F2FAFD] pb-6 md:hidden">
@@ -1055,6 +1096,7 @@ function DesktopOrderCard({ o }: { o: GiftOrder }) {
 }
 
 export function DesktopMyGifts() {
+  const user = usePishnam((s) => s.user);
   const orders = usePishnam((s) => s.orders);
   const [tab, setTab] = useState<"sent" | "recv">("sent");
   const list = orders.filter((o) => o.dir === tab);
@@ -1065,6 +1107,8 @@ export function DesktopMyGifts() {
   const awaiting = orders.filter((o) => o.dir === "sent" && o.v2 && o.status2 === "awaiting_payment").length;
   const doneCount = list.filter((o) => (o.status2 ? o.status2 === "delivered" : o.status === "delivered")).length;
   const openedCount = list.filter((o) => o.opened).length;
+
+  if (!user) return <GiftsLoginGate desktop />;
 
   return (
     <div className="hidden min-h-screen flex-col bg-[#F2FAFD] md:flex">
@@ -1630,7 +1674,7 @@ function LoginFlowBlock({ flow }: { flow: OtpFlow }) {
             onKeyDown={(e) => e.key === "Enter" && flow.submitLogin()}
           />
           <button type="button" onClick={flow.submitLogin} className={PRIMARY_BTN_CLS}>
-            ورود به پیشنام
+            ورود به یک دوست
           </button>
         </div>
       )}
@@ -1688,7 +1732,7 @@ function LoggedInBlock() {
           {user.name.slice(0, 1) || "پ"}
         </span>
         <div className="flex min-w-0 flex-col gap-1">
-          <span className="text-[17px] font-extrabold">{user.name || "دوست پیشنامی"}</span>
+          <span className="text-[17px] font-extrabold">{user.name || "رفیق یک دوستی"}</span>
           <span dir="ltr" className="text-[13.5px] font-semibold text-[#4A6572]">
             {fa(user.phone)}
           </span>
@@ -1741,8 +1785,14 @@ function LoggedInBlock() {
       <button
         type="button"
         onClick={() => {
-          logout();
-          toast({ title: "از حساب خارج شدی", description: "هر وقت خواستی دوباره بیا." });
+          // server first: kill the HttpOnly cookie + DB session, then wipe the
+          // local store (orders + pending key) — order matters for safety
+          void fetch("/api/auth/logout", { method: "POST" })
+            .catch(() => {})
+            .finally(() => {
+              logout();
+              toast({ title: "از حساب خارج شدی", description: "هر وقت خواستی دوباره بیا." });
+            });
         }}
         className={GHOST_BTN_CLS}
       >
@@ -1868,7 +1918,7 @@ function DesktopFooter({ compact = false }: { compact?: boolean }) {
           <span className="text-[15px] font-bold text-[#BFE9F8]">یه بغل، تو یه جعبه</span>
         </div>
         <div className="flex flex-col gap-2.5 text-[15px] font-semibold">
-          <span className="text-base font-extrabold text-[#00ABE7]">پیشنام</span>
+          <span className="text-base font-extrabold text-[#00ABE7]">یک دوست</span>
           <FooterLink label="ماموریت" route="mission" />
           <FooterLink label="درباره‌ی ما" route="about" />
           <FooterLink label="دفتر مهربونی" route="impact" />
@@ -1881,12 +1931,12 @@ function DesktopFooter({ compact = false }: { compact?: boolean }) {
         </div>
         <div className="flex flex-col gap-2.5 text-[15px] font-semibold">
           <span className="text-base font-extrabold text-[#00ABE7]">ما رو دنبال کن</span>
-          <span>پیشنام@ اینستاگرام</span>
-          <span>پیشنام@ تلگرام</span>
+          <span>یک دوست@ اینستاگرام</span>
+          <span>یک دوست@ تلگرام</span>
         </div>
       </div>
       <div className="border-t border-[#0E3C52] px-6 py-[18px] text-center text-[13px] font-medium text-[#BFE9F8]">
-        پیشنام · همه‌ی حقوق محفوظ است
+        یک دوست · همه‌ی حقوق محفوظ است
       </div>
     </footer>
   );

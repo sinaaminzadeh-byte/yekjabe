@@ -1,4 +1,4 @@
-// ── GET /api/stats — live, honest numbers for the homepage «آمار پیشنام» ──
+// ── GET /api/stats — live, honest numbers for the homepage «آمار یک دوست» ──
 // All counters come straight from the DB (no invented marketing numbers);
 // the only fixed claim is the 98% satisfaction badge, owned by the brand.
 // Cached for 30s in module memory — cheap reads, no cache infra needed.

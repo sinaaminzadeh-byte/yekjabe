@@ -6,6 +6,7 @@ import { useEffect, useState, useCallback } from "react";
 
 export type Route =
   | "home"
+  | "friends"
   | "product"
   | "pick"
   | "card"
@@ -32,6 +33,7 @@ export type Route =
 
 export const ROUTES: Route[] = [
   "home",
+  "friends",
   "product",
   "pick",
   "card",

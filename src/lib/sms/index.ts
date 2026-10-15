@@ -14,15 +14,15 @@ export interface SmsTemplate {
 
 // ۹ قالب ۱-سگمنتی (≤۷۰ کاراکتر) — بلوک ۱۳-د §۹
 export const SMS_TEMPLATES: Record<string, SmsTemplate> = {
-  order_confirm: { key: "order_confirm", render: (p) => `پیشنام: سفارش ${p.code} ثبت شد. پیگیری: pishnam.ir/track` },
-  paid: { key: "paid", render: (p) => `پیشنام: پرداخت سفارش ${p.code} تأیید شد؛ به‌زودی ارسال می‌شه.` },
-  receipt_received: { key: "receipt_received", render: (p) => `پیشنام: رسید سفارش ${p.code} رسید؛ تا ۱۲ ساعت بررسی می‌شه.` },
-  rejected: { key: "rejected", render: (p) => `پیشنام: رسید سفارش ${p.code} تأیید نشد${p.reason ? `؛ ${p.reason}` : ""}.` },
-  cancelled: { key: "cancelled", render: (p) => `پیشنام: سفارش ${p.code} لغو شد. اگه سؤالی داری تماس بگیر.` },
-  shipped: { key: "shipped", render: (p) => `پیشنام: سفارش ${p.code} تحویل پست شد${p.tracking ? `؛ کد رهگیری ${p.tracking}` : ""}.` },
-  delivered: { key: "delivered", render: (p) => `پیشنام: سفارش ${p.code} تحویل داده شد. جعبه رو باز کن!` },
-  abandoned_cart: { key: "abandoned_cart", render: (p) => `پیشنام: جعبه‌ت منتظره! سفارش ${p.code} تا امشب اعتبار داره.` },
-  admin_alert: { key: "admin_alert", render: (p) => `پیشنام: ${p.text}` },
+  order_confirm: { key: "order_confirm", render: (p) => `یک دوست: سفارش ${p.code} ثبت شد. پیگیری: yekdoost.ir/track` },
+  paid: { key: "paid", render: (p) => `یک دوست: پرداخت سفارش ${p.code} تأیید شد؛ به‌زودی ارسال می‌شه.` },
+  receipt_received: { key: "receipt_received", render: (p) => `یک دوست: رسید سفارش ${p.code} رسید؛ تا ۱۲ ساعت بررسی می‌شه.` },
+  rejected: { key: "rejected", render: (p) => `یک دوست: رسید سفارش ${p.code} تأیید نشد${p.reason ? `؛ ${p.reason}` : ""}.` },
+  cancelled: { key: "cancelled", render: (p) => `یک دوست: سفارش ${p.code} لغو شد. اگه سؤالی داری تماس بگیر.` },
+  shipped: { key: "shipped", render: (p) => `یک دوست: سفارش ${p.code} تحویل پست شد${p.tracking ? `؛ کد رهگیری ${p.tracking}` : ""}.` },
+  delivered: { key: "delivered", render: (p) => `یک دوست: سفارش ${p.code} تحویل داده شد. جعبه رو باز کن!` },
+  abandoned_cart: { key: "abandoned_cart", render: (p) => `یک دوست: جعبه‌ت منتظره! سفارش ${p.code} تا امشب اعتبار داره.` },
+  admin_alert: { key: "admin_alert", render: (p) => `یک دوست: ${p.text}` },
 };
 
 export function renderSms(template: string, params: Record<string, string> = {}): string {

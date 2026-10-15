@@ -9,6 +9,7 @@ import { MobileNav, DesktopHeader } from "@/components/shop/nav";
 import { Logo } from "@/components/shop/logo";
 import { MobileHome, DesktopHome } from "@/components/shop/screens/home";
 import { ProductScreen } from "@/components/shop/screens/product";
+import { FriendsScreen } from "@/components/shop/screens/friends";
 import { MobilePick, MobileCard, MobileExtras, MobileCheckout } from "@/components/shop/screens/flow";
 import { MobileSuccess, DesktopSuccess } from "@/components/shop/screens/success";
 import { PayModal } from "@/components/shop/screens/pay-modal";
@@ -83,6 +84,9 @@ function NotFoundScreen() {
 function PishnamScreens() {
   const { route, query } = useHashRoute();
   const standalone = route === "gift" || route === "pay-gateway";
+  // the 4-step wizard has its own back button, step bar and sticky CTA —
+  // the global bottom nav would sit on top of the CTA (both stick to bottom)
+  const wizard = route === "pick" || route === "card" || route === "extras" || route === "checkout";
 
   // boot-time server sync: merge orders persisted in SQLite into the local
   // store (global board first, then the logged-in account's bound orders)
@@ -99,6 +103,8 @@ function PishnamScreens() {
             <DesktopHome />
           </>
         );
+      case "friends":
+        return <FriendsScreen />;
       case "product":
         return <ProductScreen />;
       case "pick":
@@ -210,11 +216,7 @@ function PishnamScreens() {
         </>
       )}
       <main className="contents">{screen}</main>
-      {!standalone && (
-        <>
-          <MobileNav active={route} />
-        </>
-      )}
+      {!standalone && !wizard && <MobileNav active={route} />}
       <PayModal />
     </div>
   );

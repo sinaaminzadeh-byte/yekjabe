@@ -76,14 +76,27 @@ export async function destroySession(kind: SessionKind): Promise<void> {
   jar.set(COOKIE[kind], "", { httpOnly: true, path: "/", maxAge: 0 });
 }
 
-/** CSRF: for mutating requests, reject a mismatched Origin header (guide §4.2). */
+/**
+ * CSRF: for mutating requests, reject a mismatched Origin header (guide §4.2).
+ * Proxy-aware: behind a reverse proxy (sandbox gateway / Coolify / Caddy) the
+ * browser's public host reaches us via X-Forwarded-Host / Host while req.url
+ * keeps the internal bind host — so ALL of those are legitimate matches for
+ * the Origin. A cross-site attacker's Origin never equals the site's own
+ * public host, so the guard stays meaningful in production.
+ */
 export function assertSameOrigin(req: Request): void {
   const origin = req.headers.get("origin");
   if (!origin) return; // curl / server-to-server — cookie-less callers anyway
   try {
     const o = new URL(origin);
     const site = new URL(env.SITE_URL);
-    if (o.host !== site.host && o.host !== new URL(req.url).host) {
+    const allowed = new Set<string>([site.host.toLowerCase(), new URL(req.url).host.toLowerCase()]);
+    // first hop of the proxy chain carries the public host the browser used
+    const fwd = (req.headers.get("x-forwarded-host") ?? "").split(",")[0].trim().toLowerCase();
+    if (fwd) allowed.add(fwd);
+    const host = (req.headers.get("host") ?? "").trim().toLowerCase();
+    if (host) allowed.add(host);
+    if (!allowed.has(o.host.toLowerCase())) {
       throw new AppError(403, "cross_origin");
     }
   } catch (e) {

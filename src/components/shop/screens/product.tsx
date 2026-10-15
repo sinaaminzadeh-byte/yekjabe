@@ -277,7 +277,7 @@ function MobileProduct({
       </section>
 
       {/* sticky CTA bar */}
-      <div className="sticky bottom-0 mt-auto flex items-center justify-between gap-3.5 border-t border-[#D3E8F0] bg-white/95 px-5 pb-[max(14px,env(safe-area-inset-bottom))] pt-3.5 backdrop-blur">
+      <div className="sticky bottom-[var(--pn-mnav-h)] mt-auto flex items-center justify-between gap-3.5 border-t border-[#D3E8F0] bg-white/95 px-5 pb-[max(14px,env(safe-area-inset-bottom))] pt-3.5 backdrop-blur">
         <div className="flex shrink-0 flex-col">
           <span className="text-[17px] font-black leading-[1.3]">{faPrice(BOX_PRICE)}</span>
           <span className="text-[11px] font-bold text-[#4A6572]">یه قیمت برای همه</span>
@@ -319,7 +319,7 @@ function DesktopProduct({
           </div>
           <div className="flex min-w-0 flex-[1_1_460px] flex-col items-start gap-4">
             <span className="self-start rounded-2xl bg-[#04202E] px-4 py-2 text-[13.5px] font-bold text-white">
-              جعبه‌ی هدیه‌ی پیشنام
+              جعبه‌ی هدیه‌ی یک دوست
             </span>
             <h1 className="m-0 text-[40px] font-black leading-[1.35]">{product.nameFa}</h1>
             <p className="m-0 text-[19px] font-bold text-[#006387]">{product.shortTagline}</p>

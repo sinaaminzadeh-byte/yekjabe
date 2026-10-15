@@ -131,6 +131,20 @@ async function fetchBootstrap(): Promise<BootstrapPayload | null> {
 function applyBootstrap(data: BootstrapPayload): number {
   const sessionPhone = data.user?.phone ?? null;
   const incoming = Array.isArray(data.orders) ? data.orders : [];
+  // server says GUEST: a stale localStorage user (dead cookie, shared device)
+  // must not keep the account UI alive — clear it and drop account-bound rows.
+  // Guest mirror rows (userPhone="") stay — the checkout flow still needs them.
+  if (!sessionPhone) {
+    const st = usePishnam.getState();
+    const accountRows = st.orders.filter((o) => o.v2 && o.userPhone);
+    if (st.user || accountRows.length > 0) {
+      const dropIds = new Set(accountRows.map((o) => o.id));
+      usePishnam.setState({
+        user: null,
+        orders: st.orders.filter((o) => !dropIds.has(o.id)),
+      });
+    }
+  }
   // hydrate the account from the session — a live cookie must mean a live
   // «حساب من» (favorites sync + LoggedInBlock) even after a cold reload
   if (data.user) {

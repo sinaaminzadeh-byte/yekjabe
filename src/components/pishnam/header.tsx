@@ -54,7 +54,7 @@ export function Header({
             </SheetTrigger>
             <SheetContent side="right" className="p-0 w-[300px] bg-white">
               <SheetTitle className="sr-only">فهرست صفحه‌های طراحی</SheetTitle>
-              <SheetDescription className="sr-only">جست‌وجو و باز کردن صفحه‌های دیزاین‌سیستم پیشنام</SheetDescription>
+              <SheetDescription className="sr-only">جست‌وجو و باز کردن صفحه‌های دیزاین‌سیستم یک دوست</SheetDescription>
               {sidebarSlot}
             </SheetContent>
           </Sheet>
@@ -64,7 +64,7 @@ export function Header({
       <div className="flex items-center gap-2.5 min-w-0">
         <Logo />
         <div className="min-w-0">
-          <h1 className="text-[15px] sm:text-base font-black text-[#04202E] leading-5">پیشنام</h1>
+          <h1 className="text-[15px] sm:text-base font-black text-[#04202E] leading-5">یک دوست</h1>
           <p className="hidden sm:block text-[10.5px] font-bold text-[#4A6572] leading-4">
             استودیوی صفحات طراحی — وب‌اپ هدیه‌ی دوستانه
           </p>

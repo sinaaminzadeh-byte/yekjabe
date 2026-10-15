@@ -1,6 +1,6 @@
 "use client";
 
-// ── Home sections: «آمار پیشنام» (live counters) + «از وبلاگ» (latest posts) ──
+// ── Home sections: «آمار یک دوست» (live counters) + «از وبلاگ» (latest posts) ──
 // Stats come straight from /api/stats (real DB numbers, no invented figures);
 // posts from /api/posts (published only). Rendered on both mobile & desktop
 // home — responsive by Tailwind, the hidden twin just mirrors the fetch.
@@ -72,7 +72,7 @@ function useInView<T extends HTMLElement>() {
   return { ref, seen };
 }
 
-/* ═══════════ آمار پیشنام ═══════════ */
+/* ═══════════ آمار یک دوست ═══════════ */
 
 function StatTile({ icon, value, suffix, label, note }: { icon: string; value: number; suffix?: string; label: string; note?: string }) {
   const { ref, seen } = useInView<HTMLDivElement>();
@@ -109,16 +109,16 @@ export function HomeStats() {
         { icon: "🧸", value: s.products, label: "دوست پشمالوی منتخب", note: "همه یک سایز، یه قیمت" },
         { icon: "🎁", value: s.giftsNo, label: "هدیه‌ی شماره‌دار", note: "هر جعبه یه شماره‌ی خودش" },
         { icon: "💗", value: s.stories, label: "تجربه‌ی ثبت‌شده", note: "از زبان مخاطب‌های خودمون" },
-        { icon: "⭐", value: s.satisfaction, suffix: "٪", label: "رضایت مشتری‌ها", note: s.reviews > 0 ? `میانگین ${fa(s.avgStars)} از ۵ در ${fa(s.reviews)} نظر` : "قول کیفیتی پیشنام" },
+        { icon: "⭐", value: s.satisfaction, suffix: "٪", label: "رضایت مشتری‌ها", note: s.reviews > 0 ? `میانگین ${fa(s.avgStars)} از ۵ در ${fa(s.reviews)} نظر` : "قول کیفیتی یک دوست" },
       ]
     : [];
 
   return (
-    <section aria-label="آمار پیشنام" className="mx-auto w-full max-w-[1200px] px-5 pt-[30px] box-border md:px-6 md:pt-[88px]">
+    <section aria-label="آمار یک دوست" className="mx-auto w-full max-w-[1200px] px-5 pt-[30px] box-border md:px-6 md:pt-[88px]">
       <div className="mb-4 flex flex-wrap items-end justify-between gap-3 md:mb-7">
         <div className="flex flex-col gap-1.5 md:gap-2">
           <span className="text-[13px] font-extrabold text-[#006387] md:text-sm">آمار زنده</span>
-          <h2 className="m-0 text-[22px] font-black leading-[1.4] md:text-[38px]">پیشنام با عدد و رقم</h2>
+          <h2 className="m-0 text-[22px] font-black leading-[1.4] md:text-[38px]">یک دوست با عدد و رقم</h2>
         </div>
         <span className="flex items-center gap-2 rounded-full border border-[#DDEEF5] bg-white px-3.5 py-2 text-[11.5px] font-bold text-[#006387] md:text-[13px]">
           <span className="relative flex h-2 w-2">
@@ -158,7 +158,7 @@ export function HomeBlog() {
   if (posts !== null && posts.length === 0) return null; // no empty section on the landing page
 
   return (
-    <section aria-label="بلاگ پیشنام" className="mx-auto w-full max-w-[1200px] px-5 pt-[30px] box-border md:px-6 md:pt-[88px]">
+    <section aria-label="بلاگ یک دوست" className="mx-auto w-full max-w-[1200px] px-5 pt-[30px] box-border md:px-6 md:pt-[88px]">
       <div className="mb-4 flex flex-wrap items-end justify-between gap-3 md:mb-7">
         <div className="flex flex-col gap-1.5 md:gap-2">
           <span className="text-[13px] font-extrabold text-[#006387] md:text-sm">بلاگ</span>

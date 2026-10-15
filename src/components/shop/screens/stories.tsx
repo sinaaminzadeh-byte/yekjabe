@@ -195,7 +195,7 @@ function StoryForm() {
         <Plush kind="bunny" size={120} />
         <span className="text-[20px] font-black text-[#04202E]">دریافت شد! بعد از تأیید منتشر می‌شه 💚</span>
         <span className="max-w-[420px] text-[13.5px] font-medium leading-[1.95] text-[#4A6572]">
-          تجربه‌ات اول دست تیم پیشنام می‌رسه؛ به محض تأیید، همین صفحه با اسم و شهری که نوشتی پُر می‌شه.
+          تجربه‌ات اول دست تیم یک دوست می‌رسه؛ به محض تأیید، همین صفحه با اسم و شهری که نوشتی پُر می‌شه.
         </span>
         <button
           type="button"
@@ -223,7 +223,7 @@ function StoryForm() {
         <h2 className="m-0 text-[20px] font-black text-[#04202E] md:text-[24px]">تجربه‌ات رو بنویس</h2>
       </div>
       <p className="m-0 text-[13.5px] font-medium leading-[1.95] text-[#4A6572]">
-        اگه تا حالا برات یه جعبه‌ی پیشنام اومده، حس اون لحظه رو برامون بنویس. قشنگ‌ترین‌ها با اسم و
+        اگه تا حالا برات یه جعبه‌ی یک دوست اومده، حس اون لحظه رو برامون بنویس. قشنگ‌ترین‌ها با اسم و
         شهرت همین‌جا منتشر می‌شن.
       </p>
 
@@ -313,7 +313,7 @@ function StoryForm() {
           className="mt-1 h-5 w-5 shrink-0 accent-[#00ABE7]"
         />
         <span className="text-[13px] font-semibold leading-[1.95] text-[#1F3E4D]">
-          با تأیید این کادر قبول می‌کنم که تجربه‌ام بعد از تأیید دستی تیم پیشنام، همراه با اسم و شهری
+          با تأیید این کادر قبول می‌کنم که تجربه‌ام بعد از تأیید دستی تیم یک دوست، همراه با اسم و شهری
           که نوشتم تو صفحه‌ی «تجربه مخاطب» منتشر بشه.
         </span>
       </label>
@@ -340,7 +340,7 @@ function StoryForm() {
 export function StoriesScreen() {
   useDocumentMeta({
     title: "تجربه مخاطب",
-    description: "تجربه‌ی کسانی که با پیشنام برای عزیزشون یه بغل پشمالو فرستادن — و فرم نوشتن تجربه‌ی تو.",
+    description: "تجربه‌ی کسانی که با یک دوست برای عزیزشون یه بغل پشمالو فرستادن — و فرم نوشتن تجربه‌ی تو.",
   });
 
   const [stories, setStories] = useState<Story[] | null>(null);
@@ -389,7 +389,7 @@ export function StoriesScreen() {
             قصه‌ی بغل‌هایی که رسیدن
           </h1>
           <p className="m-0 max-w-[640px] text-[15px] font-medium leading-[2] text-[#1F3E4D] md:text-[16.5px]">
-            این‌جا جاییه که گیرنده‌ها و فرستنده‌ها می‌گن وقتی جعبه‌ی پیشنام باز شد چه اتفاقی افتاد.
+            این‌جا جاییه که گیرنده‌ها و فرستنده‌ها می‌گن وقتی جعبه‌ی یک دوست باز شد چه اتفاقی افتاد.
             اگه تو هم یه قصه داری، پایین بنویسش — بعد از تأیید منتشر می‌شه.
           </p>
         </section>

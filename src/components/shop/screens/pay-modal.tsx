@@ -28,6 +28,9 @@ const ERROR_FA: Record<string, string> = {
   too_many_attempts: "سه بار رسید رد شده؛ این سفارش قابل پیگیری تلفنی است.",
   bad_order_status: "وضعیت سفارش اجازه‌ی آپلود رسید نمی‌ده.",
   payment_window_expired: "مهلت ۱۰ دقیقه‌ای رزرو تموم شد و موجودی آزاد شد.",
+  cross_origin: "اتصال امن برقرار نشد؛ صفحه رو یه بار رفرش کن و دوباره امتحان کن.",
+  bad_origin: "اتصال امن برقرار نشد؛ صفحه رو یه بار رفرش کن و دوباره امتحان کن.",
+  http_403: "دسترسی داده نشد؛ صفحه رو رفرش کن و دوباره امتحان کن.",
 };
 
 export function PayModal() {
@@ -135,7 +138,7 @@ export function PayModal() {
             </span>
           </DialogTitle>
           <DialogDescription className="sr-only">
-            پرداخت سفارش هدیه پیشنام
+            پرداخت سفارش هدیه یک دوست
           </DialogDescription>
         </DialogHeader>
 

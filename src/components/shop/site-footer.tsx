@@ -1,7 +1,7 @@
 "use client";
 
 // ── SiteFooter — one footer for mobile + desktop (replaces the legacy
-// desktop-only footer). Columns: brand / quick access / پیشنام / راهنما /
+// desktop-only footer). Columns: brand / quick access / یک دوست / راهنما /
 // contact, plus a bottom bar with © and the password-protected admin door.
 import { Logo } from "./logo";
 import { navigate } from "@/lib/hash-route";
@@ -20,18 +20,18 @@ function homeAnchor(anchor: string) {
 
 const QUICK: LinkItem[] = [
   { label: "خانه", go: () => navigate("home") },
-  { label: "دوست‌های پشمالو", go: () => navigate("pick") },
+  { label: "دوستای پشمالو", go: () => navigate("friends") },
   { label: "ساخت هدیه", go: () => navigate("card") },
-  { label: "هدیه‌هام", go: () => navigate("my-gifts") },
+  { label: "حساب کاربری", go: () => navigate("login") },
   { label: "پیگیری سفارش", go: () => navigate("track") },
 ];
 
 const PISHNAM: LinkItem[] = [
-  { label: "وبلاگ پیشنام", go: () => navigate("blog") },
+  { label: "وبلاگ یک دوست", go: () => navigate("blog") },
   { label: "تجربه‌های مهربونی", go: () => navigate("stories") },
   { label: "نظرهای مشتری‌ها", go: () => navigate("reviews") },
   { label: "دفتر مهربونی", go: () => navigate("impact") },
-  { label: "درباره‌ی پیشنام", go: () => navigate("about") },
+  { label: "درباره‌ی یک دوست", go: () => navigate("about") },
 ];
 
 const GUIDE: LinkItem[] = [
@@ -83,30 +83,30 @@ export function SiteFooter() {
         </div>
 
         <Col title="دسترسی سریع" items={QUICK} />
-        <Col title="پیشنام" items={PISHNAM} />
+        <Col title="یک دوست" items={PISHNAM} />
         <Col title="راهنما" items={GUIDE} />
 
         {/* contact */}
         <div className="flex min-w-[150px] flex-col gap-2.5">
           <span className="text-[15.5px] font-extrabold text-[#00ABE7] md:text-base">ما رو دنبال کن</span>
           <a
-            href="https://instagram.com/pishnam"
+            href="https://instagram.com/yekdoost"
             target="_blank"
             rel="noreferrer noopener"
             className="text-[14px] font-semibold text-[#BFE9F8] transition-colors hover:text-[#00ABE7] md:text-[15px]"
           >
-            اینستاگرام پیشنام@
+            اینستاگرام یک دوست@
           </a>
           <a
-            href="https://t.me/pishnam"
+            href="https://t.me/yekdoost"
             target="_blank"
             rel="noreferrer noopener"
             className="text-[14px] font-semibold text-[#BFE9F8] transition-colors hover:text-[#00ABE7] md:text-[15px]"
           >
-            تلگرام پیشنام@
+            تلگرام یک دوست@
           </a>
           <span className="text-[14px] font-semibold text-[#BFE9F8] md:text-[15px]" dir="ltr">
-            hello@pishnam.ir
+            hello@yekdoost.ir
           </span>
         </div>
       </div>
@@ -115,7 +115,7 @@ export function SiteFooter() {
       <div className="border-t border-[#0E3C52]">
         <div className="mx-auto flex w-full max-w-[1200px] flex-wrap items-center justify-between gap-2 px-5 py-4 md:px-6">
           <span className="text-[12.5px] font-medium text-[#7FA9BC]">
-            پیشنام · همه‌ی حقوق محفوظ است · ۱۴۰۴
+            یک دوست · همه‌ی حقوق محفوظ است · ۱۴۰۴
           </span>
           <button
             type="button"

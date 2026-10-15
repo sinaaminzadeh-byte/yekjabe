@@ -60,8 +60,8 @@ function MobileBar({ back, label }: { back: "home" | "blog"; label?: string }) {
 
 export function BlogIndex() {
   useDocumentMeta({
-    title: "بلاگ پیشنام",
-    description: "راهنمای هدیه دادن، ایده‌های عروسک پولیشی و قصه‌های پشمالوی پیشنام — متن‌های کوتاه برای بهانه‌های قشنگ.",
+    title: "بلاگ یک دوست",
+    description: "راهنمای هدیه دادن، ایده‌های عروسک پولیشی و قصه‌های پشمالوی یک دوست — متن‌های کوتاه برای بهانه‌های قشنگ.",
   });
 
   const [posts, setPosts] = useState<PostRow[] | null>(null);
@@ -88,7 +88,7 @@ export function BlogIndex() {
         {/* hero */}
         <section className="flex flex-col items-start gap-3">
           <span className="rounded-[14px] bg-[#04202E] px-3.5 py-[7px] text-[13px] font-bold text-white">
-            بلاگ پیشنام
+            بلاگ یک دوست
           </span>
           <h1 className="m-0 text-[30px] font-black leading-[1.45] text-[#04202E] md:text-[40px]">
             از هدیه دادن، با حروف
@@ -206,7 +206,7 @@ export function PostScreen({ slug }: { slug: string }) {
   }, [slug]);
 
   useDocumentMeta({
-    title: show?.post?.title ?? "بلاگ پیشنام",
+    title: show?.post?.title ?? "بلاگ یک دوست",
     description: show?.post?.excerpt || undefined,
   });
 

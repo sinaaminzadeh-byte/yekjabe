@@ -23,7 +23,7 @@ const SETTINGS: Record<string, string> = {
   low_stock_threshold: "5",
   manual_card_number: "6037-9975-1234-5678",
   manual_card_sheba: "IR820540102680020817909002",
-  manual_card_name: "شرکت پیشنام",
+  manual_card_name: "یک دوست",
   manual_approval_sla_hours: "12",
 };
 

@@ -378,7 +378,7 @@ function CopyGiftButton({ o, dark = false }: { o: GiftOrder; dark?: boolean }) {
       type="button"
       onClick={async () => {
         const link = `${window.location.origin}/#/gift`;
-        const text = `یه بغل از پیشنام ♥\nهدیه‌ی شماره‌ی ${fa(o.no)} برای ${o.to}${o.password ? `\nرمز کارت: ${o.password}` : ""}\n${link}`;
+        const text = `یه بغل از یک دوست ♥\nهدیه‌ی شماره‌ی ${fa(o.no)} برای ${o.to}${o.password ? `\nرمز کارت: ${o.password}` : ""}\n${link}`;
         const ok = await copyText(text);
         if (ok) setBurst((n) => n + 1);
         toast(
@@ -567,7 +567,7 @@ export function MobileTrack() {
           </div>
 
           {/* actions */}
-          <div className="sticky bottom-0 mt-auto flex flex-col gap-2.5 border-t border-[#D3E8F0] bg-white/95 px-5 pb-[max(14px,env(safe-area-inset-bottom))] pt-3.5">
+          <div className="sticky bottom-[var(--pn-mnav-h)] mt-auto flex flex-col gap-2.5 border-t border-[#D3E8F0] bg-white/95 px-5 pb-[max(14px,env(safe-area-inset-bottom))] pt-3.5">
             <div className="flex gap-3">
               {o.dir === "recv" && (
                 <button

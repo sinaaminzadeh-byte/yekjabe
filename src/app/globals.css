@@ -393,3 +393,13 @@
 .pishnam-row-flash {
   animation: pishnam-row-flash 0.95s ease-out;
 }
+
+/* ── MobileNav height (bars in product/track stick above it; 0 on desktop) ── */
+:root {
+  --pn-mnav-h: calc(95px + env(safe-area-inset-bottom));
+}
+@media (min-width: 768px) {
+  :root {
+    --pn-mnav-h: 0px;
+  }
+}

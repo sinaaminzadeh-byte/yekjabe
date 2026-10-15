@@ -6,7 +6,7 @@ import { SITE } from "@/lib/seo/site";
 export const metadata: Metadata = {
   metadataBase: new URL(SITE.url),
   title: {
-    default: "پیشنام — یه بغل، تو یه جعبه",
+    default: "یک دوست — یه بغل، تو یه جعبه",
     template: SITE.titleTemplate,
   },
   description: SITE.description,

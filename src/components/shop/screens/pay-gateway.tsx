@@ -46,7 +46,7 @@ export function PayGateway({ authority }: { authority: string }) {
         <div className="flex flex-col gap-3 pt-5">
           <div className="flex items-center justify-between rounded-2xl bg-[#E3F6FD] px-4 py-3">
             <span className="text-[13px] font-bold text-[#4A6572]">پذیرنده</span>
-            <span className="text-[13.5px] font-extrabold">پیشنام — جعبه هدیه عروسک پولیشی</span>
+            <span className="text-[13.5px] font-extrabold">یک دوست — جعبه هدیه عروسک پولیشی</span>
           </div>
           <div className="flex items-center justify-between rounded-2xl bg-[#F8FDFF] px-4 py-3">
             <span className="text-[13px] font-bold text-[#4A6572]">مبلغ</span>

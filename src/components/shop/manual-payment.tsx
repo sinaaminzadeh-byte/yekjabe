@@ -20,6 +20,9 @@ const ERROR_FA: Record<string, string> = {
   bad_file_type: "فقط عکس با فرمت JPG یا PNG یا WebP قبوله.",
   rate_limited: "چند دقیقه صبر کن و دوباره امتحان کن.",
   network: "اینترنت قطعه؛ اتصالت رو چک کن و دوباره بزن.",
+  cross_origin: "اتصال امن برقرار نشد؛ صفحه رو یه بار رفرش کن و دوباره امتحان کن.",
+  bad_origin: "اتصال امن برقرار نشد؛ صفحه رو یه بار رفرش کن و دوباره امتحان کن.",
+  http_403: "دسترسی داده نشد؛ صفحه رو رفرش کن و دوباره امتحان کن.",
 };
 
 /** Live seconds-left for the reservation window; ticks every second. */

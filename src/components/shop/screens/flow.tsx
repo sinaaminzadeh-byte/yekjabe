@@ -14,7 +14,7 @@ import {
   MinusIcon,
   PlusSmall,
 } from "../icons";
-import { navigate } from "@/lib/hash-route";
+import { navigate, useHashRoute } from "@/lib/hash-route";
 import {
   usePishnam,
   useCharityDone,
@@ -27,6 +27,7 @@ import {
   OCCASIONS,
   OCCASION_HOLDERS,
   CHARITY_TARGET,
+  type PlushKind,
 } from "@/lib/pishnam-data";
 import { PROVINCES } from "@/lib/orders/provinces";
 import { useEffect, useState } from "react";
@@ -41,6 +42,14 @@ export function MobilePick() {
   const favorites = usePishnam((s) => s.favorites);
   const [favOnly, setFavOnly] = useState(false);
   const [stageKey, setStageKey] = useState(0);
+  // deep-link preselect: #/pick?kind=bear (product/friends pages CTA)
+  const { query } = useHashRoute();
+  const qKind = query.get("kind");
+  useEffect(() => {
+    if (qKind && PLUSHES.some((p) => p.kind === qKind) && picked !== qKind) {
+      setKind(qKind as PlushKind);
+    }
+  }, [qKind, picked, setKind]);
   const sel = PLUSHES.find((p) => p.kind === picked) ?? PLUSHES[0];
   const list = favOnly ? PLUSHES.filter((p) => favorites.includes(p.kind)) : PLUSHES;
 
@@ -744,7 +753,7 @@ export function MobileCheckout() {
       </div>
 
       <div className="px-6 pt-3.5 text-center text-[12.5px] font-medium leading-[1.9] text-[#4A6572]">
-        با پرداخت، قوانین و شرایط پیشنام رو قبول می‌کنی. رسید قلب‌ها و پنجه‌ها بعد از ارسال
+        با پرداخت، قوانین و شرایط یک دوست رو قبول می‌کنی. رسید قلب‌ها و پنجه‌ها بعد از ارسال
         هدیه‌ها تو دفتر مهربونی ثبت می‌شه.
       </div>
 
@@ -772,6 +781,8 @@ export function MobileCheckout() {
           برای پرداخت، اسم، موبایل و آدرس گیرنده رو کامل کن
         </div>
       )}
+      {/* scroll spacer: at max scroll the sticky CTA must cover NOTHING */}
+      <div className="h-[86px]" aria-hidden="true" />
     </div>
   );
 }

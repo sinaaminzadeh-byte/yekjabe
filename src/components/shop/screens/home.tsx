@@ -143,7 +143,7 @@ export function MobileHome() {
         <h2 className="m-0 text-[22px] font-extrabold">دوست‌های پشمالو</h2>
         <button
           type="button"
-          onClick={() => navigate("pick")}
+          onClick={() => navigate("friends")}
           className="text-sm font-bold text-[#006387]"
         >
           همه‌شون ›
@@ -420,6 +420,15 @@ export function DesktopHome() {
               <div className="text-[14.5px] font-extrabold text-[#006387]">{money(BOX_PRICE)} تومان</div>
             </div>
           ))}
+        </div>
+        <div className="mt-6 flex justify-center">
+          <button
+            type="button"
+            onClick={() => navigate("friends")}
+            className="flex h-12 items-center gap-2 rounded-full border-2 border-[#04202E] bg-white px-6 text-[14.5px] font-extrabold text-[#04202E] transition-colors hover:bg-[#04202E] hover:text-white"
+          >
+            صفحه‌ی دوستای پشمالو و پروسه‌ی کارمون
+          </button>
         </div>
         <FavoritesStrip desktop />
       </section>
