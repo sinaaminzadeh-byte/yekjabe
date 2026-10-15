@@ -1,0 +1,714 @@
+# پیشنام — راهنمای نهایی فنی برای لانچ (PostgreSQL + Coolify)
+
+> نقش: Principal Engineer review + دستور کار اجرایی برای ایجنت‌های برنامه‌نویس.
+> مبنا: اسناد 13-d / 13-e / 13-f / 13-g / 13-h + پرسکریپت + ۴۶ پاسخ مالک.
+> **تذکر صداقت:** این بازبینی روی اسناد و گزارش‌های ایجنت‌های قبلی انجام شده، نه روی خود سورس. هر «ایراد» با فایل مشخص شده؛ قبل از رفع، با `grep` در ریپو تأیید کنید.
+
+---
+
+## ۰. تصمیم‌های جدید که اسناد قبلی را باطل می‌کنند
+
+| موضوع | سند قبلی | تصمیم قطعی جدید | پیامد |
+|---|---|---|---|
+| دیتابیس | SQLite WAL | **PostgreSQL** | حذف `withWriteRetry`، Litestream، pragmaهای WAL. بازگشت به enumهای واقعی PG، `Json`، `@db.Text` |
+| استقرار | systemd + Caddy، «بدون Docker» | **Coolify (Docker)** | Dockerfile لازم است؛ Caddy/Traefik را خود Coolify می‌دهد؛ timerهای systemd ← Scheduled Tasks کولیفای |
+| بکاپ | Litestream + `.backup` | **pg_dump زمان‌بندی‌شده → آروان S3** (قابلیت Backup داخل Coolify) | RPO = فاصله بکاپ (نه ۵ ثانیه). برای RPO کمتر: WAL archiving (فاز بعد) |
+
+### ⚠️ هشدارهای واقعی درباره‌ی این تغییرها (نادیده نگیرید)
+
+1. **RAM:** سرور ۲ گیگ + Coolify (~۴۰۰–۷۰۰MB) + Docker + PostgreSQL (~۲۰۰–۳۰۰MB با تنظیم) + Next.js (~۴۵۰MB) = **عملاً سقف**. توصیه‌ی جدی: **حداقل ۴ گیگ RAM** (یا Postgres مدیریت‌شده داخل ایران). اگر مجبورید روی ۲ گیگ بمانید: swap ۲GB، `shared_buffers=128MB`، `max_connections=30`، بیلد فقط بیرون از سرور.
+2. **Docker Hub از ایران:** pull ایمیج‌ها ممکن است شکست بخورد. از mirror آروان/داخلی استفاده کنید یا ایمیج را روی registry خصوصی/GHCR از قبل بسازید و pull کنید. `npm`/`prisma` هم باید در زمان بیلد دسترسی داشته باشند → بیلد را روی ماشین/CI خارج از ایران بسازید و ایمیج را به registry قابل‌دسترس از سرور ایران push کنید. **الزام اقامت داده فقط برای داده‌ی مشتری است، نه برای بیلد.**
+3. **تک‌ریپلیکا بماند:** rate-limit درون‌پردازشی فقط با یک instance درست کار می‌کند. در Coolify تعداد replica = 1 (در زمان deploy چند ثانیه همپوشانی طبیعی است و قابل‌قبول).
+4. **Coolify خودش یک سرویس پرمصرف است.** اگر می‌توانید، Coolify را روی سرور جدا و اپ/PG را روی سرور هدف (remote server) بگذارید.
+
+---
+
+## ۱. نتیجه‌ی بازبینی — ایرادهای فاجعه‌ساز (به ترتیب شدت)
+
+> «فاجعه» = اگر با همین کد لانچ شود: نشت داده، از دست رفتن پول یا سفارش، یا شکایت قانونی.
+
+| # | شدت | ایراد | فایل/بخش | چرا فاجعه است |
+|---|---|---|---|---|
+| 1 | 🔴 P0 | `GET /api/orders` بدون احراز هویت تا ۲۰۰ سفارش با **پیام، آدرس، تلفن، رمز کارت** برمی‌گرداند | `src/app/api/orders/route.ts` | نشت PII؛ خلاف قانون حمایت داده و تهدید اینماد |
+| 2 | 🔴 P0 | `bootSync()` همین dump را برای **هر بازدیدکننده در هر لود** می‌کشد | `src/lib/pishnam-sync.ts` | تبدیل نشت به فراگیر + بار بیهوده |
+| 3 | 🔴 P0 | هر endpoint به `phone` بدنه/کوئری اعتماد می‌کند (IDOR) — orders، favorites، reviews، `PATCH /api/orders/[id]` | `src/app/api/**` | هرکسی سفارش دیگران را بخواند/تغییر وضعیت دهد |
+| 4 | 🔴 P0 | `total` از کلاینت پذیرفته می‌شود؛ ارسال نمایش داده می‌شود ولی اخذ نمی‌شود؛ جمع ×۴ جا محاسبه می‌شود | `flow.tsx` (×2)، `pay-modal.tsx`, `store.placeOrder` | سفارش ۱ تومانی؛ ضرر مستقیم مالی |
+| 5 | 🔴 P0 | پرداخت شبیه‌سازی (timer ۱.۸ث)، سفارش از `paid` شروع می‌شود | `pay-modal.tsx`, `schema.prisma` | سفارش بدون پول |
+| 6 | 🔴 P0 | شماره سفارش سمت کلاینت + `no @unique` → در همزمانی، سفارش بی‌صدا گم می‌شود | `GiftOrder`, `store.placeOrder` | مشتری «موفق» می‌بیند، سرور ندارد |
+| 7 | 🔴 P0 | OTP: `Math.random` ۴رقمی، متن ساده در DB، بدون سقف تلاش، `devCode` همیشه در پاسخ | `api/auth/request`, `api/auth/verify`, `AuthCode` | تصاحب هر حساب + سوختن اعتبار SMS |
+| 8 | 🔴 P0 | PIN ادمین `1398` در باندل JS؛ سرور نقش ادمین نمی‌شناسد | `admin.tsx` | هرکس ادمین است |
+| 9 | 🟠 P1 | `PATCH /api/orders/[id]` هر وضعیتی را در هر جهت می‌پذیرد | `api/orders/[id]/route.ts` | دور زدن چرخه، بدون audit |
+| 10 | 🟠 P1 | نظرها فوراً عمومی (بدون moderation) | `api/reviews` | اسپم/افترا روی صفحه عمومی |
+| 11 | 🟠 P1 | درهای پشتی دمو: رمز پیش‌فرض «بهار»، کد «۱۲۳۴»، ۳۱۸ نظر ثابت | `gift-experience.tsx`, login flow | ورود/باز کردن هدیه بدون اعتبار |
+| 12 | 🟠 P1 | رمز کارت هدیه plaintext و کم‌آنتروپی روی سطح عمومی `/g/[no]` | `GiftOrder.password` | brute-force |
+| 13 | 🟡 P2 | `ignoreBuildErrors: true`، لاگ کوئری در prod، `db:push --accept-data-loss` | `next.config.ts`, `db.ts`, scripts | خطای تایپ پنهان؛ حذف داده با یک دستور |
+| 14 | 🟡 P2 | ۱۷ مسیر پشت `#` → سئو صفر | `hash-route.ts` | مخالف هدف «سئو = ستون رشد» |
+| 15 | 🟡 P2 | برند «پیشتم» هنوز در `layout.tsx`/کپی‌ها | `layout.tsx` | عنوان/OG اشتباه |
+
+---
+
+## ۲. اصول معماری (قانون‌های غیرقابل‌مذاکره)
+
+1. **سرور تنها منبع حقیقت.** کلاینت فقط `variantId + qty + addons + فیلدهای فرم` می‌فرستد. هیچ مبلغ، کد سفارش، وضعیت، یا تخفیفی از کلاینت پذیرفته نمی‌شود.
+2. **هویت = کوکی HttpOnly → Session در DB.** هیچ `phone` از بدنه/کوئری هرگز به‌عنوان هویت استفاده نمی‌شود.
+3. **هر نوشتن مهم = یک تراکنش PostgreSQL** (سفارش + کسر موجودی + event + SmsOutbox).
+4. **تغییر وضعیت فقط از یک تابع** (`transitionOrder`) با guard شرطی روی وضعیت فعلی.
+5. **پول = `Int` تومان.** ضرب ×۱۰ برای ریال فقط در آداپتور زرین‌پال؛ ×۱۰ در JSON-LD فقط در builder.
+6. **هیچ باینری در DB.** رسید/صدا/عکس → آروان S3 خصوصی.
+7. **Migration با `prisma migrate`**، نه `db:push`.
+
+ساختار پیشنهادی `src/lib`:
+
+```
+src/lib/
+  db.ts                 # PrismaClient singleton
+  env.ts                # zod-validated env (fail fast)
+  auth/
+    session.ts          # createSession / requireSession / requireAdmin / destroySession
+    otp.ts              # issue / verify (hash, attempts)
+    phone.ts            # normPhone  (تنها نسخه)
+  rate-limit.ts
+  orders/
+    status.ts           # transition map + labels + customer-track map
+    transition.ts       # transitionOrder()
+    pricing.ts          # computeQuote()  (تنها محل محاسبه پول)
+    checkout.ts         # createOrder()  (تراکنش اصلی)
+    code.ts             # nextOrderCode()
+  payments/
+    types.ts zarinpal.ts manual.ts reconcile.ts
+  storage/s3.ts         # presign PUT/GET + sniff
+  sms/{provider.ts,templates.ts,outbox.ts}
+  jobs/*.ts
+  errors.ts             # AppError + httpError mapper
+```
+
+---
+
+## ۳. اسکیما — Prisma برای PostgreSQL
+
+بر پایه‌ی 13-e، اما با قابلیت‌های واقعی PG (enum، `Json`، `Text`، `@db.Timestamptz`). نکته: `AdminLog`/`StockMove` حذف و داخل `OrderEvent` ادغام شده‌اند (نتیجه‌ی ۱۳-h). برای event‌های غیرسفارشی (تنظیمات)، `AuditEvent` عمومی کوچک نگه می‌داریم.
+
+```prisma
+generator client { provider = "prisma-client-js" }
+datasource db { provider = "postgresql"; url = env("DATABASE_URL") }
+
+enum OrderStatus {
+  awaiting_payment
+  payment_under_review
+  paid
+  preparing
+  shipped
+  delivered
+  failed
+  cancelled
+  expired
+  refund_requested
+  refunded
+}
+enum PaymentMethod { zarinpal manual_transfer }
+enum PaymentStatus { initiated pending_review verified rejected failed }
+enum ActorType { system admin customer psp }
+enum SmsStatus { queued sent failed dead }
+enum ModerationStatus { pending approved rejected }
+enum AdminRole { owner operator }
+
+model Product {
+  id String @id @default(cuid())
+  family String            // bear|bunny|cat|duck|panda|sheep
+  slug String @unique
+  nameFa String
+  taglineFa String @default("")
+  descriptionFa String @default("") @db.Text
+  coverImage String @default("")
+  isActive Boolean @default(true)
+  sortOrder Int @default(0)
+  createdAt DateTime @default(now()) @db.Timestamptz
+  updatedAt DateTime @updatedAt @db.Timestamptz
+  variants ProductVariant[]
+  @@index([isActive, sortOrder])
+}
+
+model ProductVariant {
+  id String @id @default(cuid())
+  productId String
+  size String                       // S | L
+  sku String @unique
+  priceToman Int
+  stock Int @default(0)
+  lowStockThreshold Int @default(3)
+  isActive Boolean @default(true)
+  product Product @relation(fields: [productId], references: [id], onDelete: Restrict)
+  items OrderItem[]
+  @@unique([productId, size])
+  // قید سلامت: موجودی هرگز منفی نشود (اضافه در migration دستی)
+}
+// migration SQL: ALTER TABLE "ProductVariant" ADD CONSTRAINT stock_nonneg CHECK (stock >= 0);
+
+model Order {
+  id String @id @default(cuid())
+  code String @unique                     // PN-YYMMDD-####
+  idempotencyKey String? @unique
+  requestHash String @default("")         // sha256 بدنه‌ی canonical — تشخیص reuse کلید با بدنه‌ی متفاوت
+  status OrderStatus @default(awaiting_payment)
+  senderName String @default("")
+  senderPhone String @default("")
+  recipientName String @default("")
+  recipientPhone String @default("")
+  province String @default("")
+  city String @default("")
+  address String @default("") @db.Text
+  postalCode String @default("")
+  occasion String @default("just_because")
+  cardMessage String @default("") @db.Text
+  cardPasswordHash String @default("")    // scrypt/argon2 — هرگز plaintext
+  giftOpenAttempts Int @default(0)
+  giftLockedAt DateTime? @db.Timestamptz
+  anonymous Boolean @default(false)
+  hearts Int @default(0)
+  paws Int @default(0)
+  carrier String @default("")
+  trackingCode String @default("")
+  subtotalToman Int @default(0)
+  shippingToman Int @default(0)
+  discountToman Int @default(0)
+  totalToman Int @default(0)
+  paymentMethod PaymentMethod
+  paymentAttempts Int @default(0)
+  cancelReason String @default("")
+  smsAbandonedAt DateTime? @db.Timestamptz
+  marketingConsent Boolean @default(false)
+  userPhone String @default("")           // "" = مهمان
+  sessionPhone String @default("")
+  expiresAt DateTime @db.Timestamptz       // createdAt + 24h
+  createdAt DateTime @default(now()) @db.Timestamptz
+  updatedAt DateTime @updatedAt @db.Timestamptz
+  items OrderItem[]
+  events OrderEvent[]
+  payments Payment[]
+  sms SmsOutbox[]
+  @@index([status, createdAt])
+  @@index([status, expiresAt])
+  @@index([senderPhone])
+  @@index([userPhone])
+}
+
+model OrderItem {
+  id String @id @default(cuid())
+  orderId String
+  variantId String
+  kind String
+  size String
+  title String
+  qty Int @default(1)
+  unitPriceToman Int
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  variant ProductVariant @relation(fields: [variantId], references: [id], onDelete: Restrict)
+  @@index([orderId])
+}
+
+model OrderEvent {                     // ستون ممیزی واحد
+  id String @id @default(cuid())
+  orderId String
+  type String                          // created|status_changed|payment_*|stock_adjust|admin_note|...
+  fromStatus OrderStatus?
+  toStatus OrderStatus?
+  actor ActorType
+  actorId String @default("")          // adminPhone / userPhone
+  note String @default("") @db.Text
+  meta Json?
+  createdAt DateTime @default(now()) @db.Timestamptz
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  @@index([orderId, createdAt])
+}
+
+model Payment {
+  id String @id @default(cuid())
+  orderId String
+  method PaymentMethod
+  status PaymentStatus @default(initiated)
+  amountToman Int
+  authority String? @unique
+  refId String?
+  cardLast4 String @default("")
+  receiptKey String @default("")
+  receiptHash String @default("")
+  reviewedBy String @default("")
+  reviewedAt DateTime? @db.Timestamptz
+  note String @default("") @db.Text
+  createdAt DateTime @default(now()) @db.Timestamptz
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  @@index([orderId])
+  @@index([status, createdAt])
+  @@index([receiptHash])
+}
+
+model SmsOutbox {
+  id String @id @default(cuid())
+  phone String
+  template String
+  body String
+  status SmsStatus @default(queued)
+  attempts Int @default(0)
+  lastError String @default("")
+  orderId String?
+  sendAfter DateTime @default(now()) @db.Timestamptz
+  sentAt DateTime? @db.Timestamptz
+  createdAt DateTime @default(now()) @db.Timestamptz
+  order Order? @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  @@index([status, sendAfter])
+}
+
+model DailyCounter { day String @id  value Int }   // کلید: YYYYMMDD به وقت تهران
+
+model Session {
+  id String @id                         // sha256(token) — نه خود توکن
+  phone String
+  kind String @default("customer")      // customer | admin
+  expiresAt DateTime @db.Timestamptz
+  lastSeenAt DateTime @default(now()) @db.Timestamptz
+  createdAt DateTime @default(now()) @db.Timestamptz
+  @@index([phone]) @@index([expiresAt])
+}
+
+model AuthCode {
+  id String @id @default(cuid())
+  phone String
+  codeHash String
+  attempts Int @default(0)
+  ip String @default("")
+  expiresAt DateTime @db.Timestamptz
+  used Boolean @default(false)
+  createdAt DateTime @default(now()) @db.Timestamptz
+  @@index([phone, createdAt])
+}
+
+model AppUser { id String @id @default(cuid()) phone String @unique name String? createdAt DateTime @default(now()) lastLoginAt DateTime @default(now()) }
+model AdminUser { id String @id @default(cuid()) phone String @unique name String @default("") role AdminRole @default(operator) isActive Boolean @default(true) lastLoginAt DateTime? }
+model Setting { key String @id value String updatedAt DateTime @updatedAt }
+model RateBucket { key String @id  count Int  resetAt DateTime @db.Timestamptz }   // اختیاری، بخش ۷
+model JobRun { id String @id @default(cuid()) name String startedAt DateTime @default(now()) finishedAt DateTime? ok Boolean @default(false) detail String @default("") }
+// Experience, Post, VoiceNote, Favorite, Review (+approved Boolean), ContactMessage → از 13-e با enum ModerationStatus
+```
+
+اقدامات:
+- [ ] `prisma migrate dev --name init` روی PG لوکال؛ در prod فقط `migrate deploy`.
+- [ ] CHECK constraintها (stock ≥ 0، totalToman ≥ 0، qty > 0) را در SQL migration دستی اضافه کن.
+- [ ] `GiftOrder` را **حذف** کن (نه «freeze»). با PG از صفر شروع می‌کنیم؛ داده‌ی دمو منتقل نمی‌شود.
+
+---
+
+## ۴. هسته‌ی کد — الگوهای دقیق
+
+### ۴.۱ `db.ts`
+
+```ts
+import { PrismaClient } from "@prisma/client";
+const g = globalThis as unknown as { prisma?: PrismaClient };
+export const db = g.prisma ?? new PrismaClient({
+  log: process.env.NODE_ENV === "production" ? ["error"] : ["warn", "error"],
+});
+if (process.env.NODE_ENV !== "production") g.prisma = db;
+// DATABASE_URL=postgresql://user:pass@postgres:5432/pishnam?connection_limit=5&pool_timeout=10
+```
+
+### ۴.۲ Session و احراز هویت
+
+```ts
+// auth/session.ts
+import { cookies } from "next/headers";
+import { createHash, randomBytes } from "crypto";
+import { db } from "../db";
+
+const sha = (s: string) => createHash("sha256").update(s).digest("hex");
+const COOKIE = { customer: "__Host-pn_session", admin: "__Host-pn_admin" } as const;
+const TTL = { customer: 30 * 864e5, admin: 8 * 36e5 };
+
+export async function createSession(phone: string, kind: "customer" | "admin") {
+  const token = randomBytes(32).toString("base64url");
+  await db.session.create({ data: { id: sha(token), phone, kind, expiresAt: new Date(Date.now() + TTL[kind]) } });
+  (await cookies()).set(COOKIE[kind], token, {
+    httpOnly: true, secure: true, sameSite: "lax", path: "/",
+    maxAge: TTL[kind] / 1000,
+  });
+}
+export async function getSession(kind: "customer" | "admin") {
+  const token = (await cookies()).get(COOKIE[kind])?.value;
+  if (!token) return null;
+  const s = await db.session.findUnique({ where: { id: sha(token) } });
+  if (!s || s.kind !== kind || s.expiresAt < new Date()) return null;
+  return s;
+}
+export async function requireSession() { const s = await getSession("customer"); if (!s) throw new AppError(401, "unauthenticated"); return s; }
+export async function requireAdmin(min: "operator" | "owner" = "operator") {
+  const s = await getSession("admin"); if (!s) throw new AppError(401, "unauthenticated");
+  const a = await db.adminUser.findUnique({ where: { phone: s.phone } });
+  if (!a?.isActive) throw new AppError(403, "forbidden");
+  if (min === "owner" && a.role !== "owner") throw new AppError(403, "owner_only");
+  return a;
+}
+```
+
+قوانین:
+- `__Host-` پیشوند نیازمند `Secure` و `Path=/` و بدون `Domain` است؛ در dev روی http کار نمی‌کند → در dev از نام ساده استفاده کن (env flag).
+- **CSRF:** `SameSite=Lax` + برای همه‌ی POST/PUT/PATCH/DELETE بررسی `Origin` با `SITE_URL` در یک `assertSameOrigin(req)`.
+- logout = حذف ردیف Session + پاک کردن کوکی. ادمین غیرفعال = قطع فوری.
+- ادمین‌ها از `ADMIN_SEED_PHONES` در seed ساخته می‌شوند، ورود با همان OTP ولی `kind=admin`.
+
+### ۴.۳ OTP
+
+```ts
+// auth/otp.ts
+import { randomInt, createHmac, timingSafeEqual } from "crypto";
+const h = (phone: string, code: string) => createHmac("sha256", env.SESSION_SECRET).update(`${phone}:${code}`).digest("hex");
+
+export async function issueOtp(phone: string, ip: string) {
+  await rateLimit("otp_phone_cooldown", phone, 1, 60);
+  await rateLimit("otp_phone_hour", phone, 3, 3600);
+  await rateLimit("otp_ip_day", ip, 10, 86400);
+  const code = String(randomInt(100000, 1000000));
+  await db.$transaction([
+    db.authCode.updateMany({ where: { phone, used: false }, data: { used: true } }),   // کدهای قبلی باطل
+    db.authCode.create({ data: { phone, codeHash: h(phone, code), ip, expiresAt: new Date(Date.now() + 5 * 60_000) } }),
+  ]);
+  await enqueueSms({ phone, template: "otp", params: { code } });
+  return env.SMS_DEV_ECHO === "1" && process.env.NODE_ENV === "development" ? { devCode: code } : {};
+}
+
+export async function verifyOtp(phone: string, code: string) {
+  await rateLimit("otp_verify", phone, 10, 900);
+  const row = await db.authCode.findFirst({ where: { phone, used: false, expiresAt: { gt: new Date() } }, orderBy: { createdAt: "desc" } });
+  if (!row || row.attempts >= 5) throw new AppError(400, "invalid_code");
+  const ok = timingSafeEqual(Buffer.from(h(phone, code)), Buffer.from(row.codeHash));
+  if (!ok) { await db.authCode.update({ where: { id: row.id }, data: { attempts: { increment: 1 } } }); throw new AppError(400, "invalid_code"); }
+  // مصرف اتمیک (جلوگیری از دو verify موازی)
+  const used = await db.authCode.updateMany({ where: { id: row.id, used: false }, data: { used: true } });
+  if (used.count !== 1) throw new AppError(400, "invalid_code");
+  await db.appUser.upsert({ where: { phone }, update: { lastLoginAt: new Date() }, create: { phone } });
+}
+```
+
+- [ ] `devCode` را از **همه** پاسخ‌های production حذف کن. fallback «۱۲۳۴» و رمز «بهار» را از کلاینت کاملاً حذف کن.
+- [ ] پاسخ `request` همیشه یکسان باشد (جلوگیری از enumeration).
+
+### ۴.۴ Rate limit (تک‌نود، درون‌پردازشی)
+
+```ts
+const buckets = new Map<string, { n: number; reset: number }>();
+export async function rateLimit(scope: string, id: string, max: number, windowSec: number) {
+  const k = `${scope}:${id}`, now = Date.now();
+  let b = buckets.get(k);
+  if (!b || b.reset < now) b = { n: 0, reset: now + windowSec * 1000 };
+  if (++b.n > max) throw new AppError(429, "rate_limited", { retryAfter: Math.ceil((b.reset - now) / 1000) });
+  buckets.set(k, b);
+}
+// پاکسازی: setInterval(() => purge expired, 60_000).unref()
+```
+
+| scope | حد |
+|---|---|
+| otp_phone_cooldown | ۱ / ۶۰ث |
+| otp_phone_hour | ۳ / ساعت |
+| otp_ip_day | ۱۰ / روز |
+| otp_verify | ۱۰ / ۱۵د (+ ۵ تلاش per code) |
+| checkout (ip) | ۵ / ۱۰د |
+| review | ۲ / ساعت |
+| receipt (order) | ۶ / ساعت |
+| contact | ۳ / ساعت |
+| **gift_open (code+ip)** | **۵ / ۱۵د + قفل سفارش بعد از ۱۰ تلاش کل** |
+
+IP واقعی: پشت Traefik کولیفای از `x-forwarded-for` (اولین مقدار) استفاده کن و **فقط** وقتی که پروکسی مورد اعتماد است. اگر روزی بیش از ۱ replica شد → جدول `RateBucket` با `INSERT ... ON CONFLICT DO UPDATE`.
+
+### ۴.۵ قیمت‌گذاری سرور (تنها محل محاسبه)
+
+```ts
+// orders/pricing.ts
+export async function computeQuote(tx: Tx, input: CheckoutInput) {
+  const variants = await tx.productVariant.findMany({
+    where: { id: { in: input.items.map(i => i.variantId) }, isActive: true }, include: { product: true } });
+  if (variants.length !== new Set(input.items.map(i => i.variantId)).size) throw new AppError(400, "bad_variant");
+  const s = await getSettings(tx, ["charm_price_toman", "ship_fee_tehran_toman", "ship_fee_other_toman"]);
+  const subtotalItems = input.items.reduce((a, i) => a + variants.find(v => v.id === i.variantId)!.priceToman * i.qty, 0);
+  const charms = (input.addons.charmHearts + input.addons.charmPaws) * Number(s.charm_price_toman);
+  const shipping = input.recipient.province === "تهران" ? Number(s.ship_fee_tehran_toman) : Number(s.ship_fee_other_toman); // هرگز رایگان
+  const discount = 0;                                   // قرارداد: coupon بعداً اینجا
+  return { subtotal: subtotalItems + charms, shipping, discount, total: subtotalItems + charms + shipping - discount, variants };
+}
+```
+اعتبارسنجی ورودی با **zod** : `qty` 1..10، `charm*` 0..20، `phone` بعد از `normPhone`، استان از لیست ثابت ۳۱ تایی، `address ≤ 400`، `cardMessage ≤ 500`.
+
+### ۴.۶ کد سفارش (PostgreSQL، بدون race)
+
+```ts
+// orders/code.ts — داخل همان تراکنش checkout
+export async function nextOrderCode(tx: Tx) {
+  const day = tehranYYYYMMDD();                         // با Intl/ساعت Asia/Tehran + unit test
+  const rows = await tx.$queryRaw<{ value: number }[]>`
+    INSERT INTO "DailyCounter"(day, value) VALUES (${day}, 1)
+    ON CONFLICT (day) DO UPDATE SET value = "DailyCounter".value + 1
+    RETURNING value`;
+  return `PN-${day.slice(2)}-${String(rows[0].value).padStart(4, "0")}`;
+}
+```
+`ON CONFLICT DO UPDATE` ردیف را قفل می‌کند؛ دو تراکنش همزمان هرگز عدد یکسان نمی‌گیرند. `code @unique` فقط backstop است.
+
+### ۴.۷ Checkout — تراکنش اصلی (اتمیک + idempotent)
+
+```ts
+// orders/checkout.ts
+export async function createOrder(raw: unknown, ctx: { key: string; session?: Session; ip: string }) {
+  const input = checkoutSchema.parse(raw);
+  const requestHash = sha256(canonicalJson(input));
+
+  // ۱) idempotency سریع
+  const prior = await db.order.findUnique({ where: { idempotencyKey: ctx.key } });
+  if (prior) return replay(prior, requestHash);          // اگر hash متفاوت → 422 idempotency_key_reuse
+
+  try {
+    return await db.$transaction(async (tx) => {
+      const q = await computeQuote(tx, input);
+
+      // ۲) کسر موجودی اتمیک؛ ترتیب ثابت variantId (جلوگیری از deadlock)
+      for (const it of [...input.items].sort((a, b) => a.variantId.localeCompare(b.variantId))) {
+        const r = await tx.productVariant.updateMany({
+          where: { id: it.variantId, isActive: true, stock: { gte: it.qty } },
+          data: { stock: { decrement: it.qty } },
+        });
+        if (r.count === 0) throw new AppError(409, "sold_out", { variantId: it.variantId });
+      }
+
+      // ۳) سفارش + آیتم‌ها (snapshot) + event + SMS outbox
+      const code = await nextOrderCode(tx);
+      const order = await tx.order.create({
+        data: {
+          code, idempotencyKey: ctx.key, requestHash,
+          status: "awaiting_payment", paymentMethod: input.paymentMethod,
+          ...mapParties(input),
+          cardPasswordHash: await hashGiftPassword(input.cardPassword),
+          subtotalToman: q.subtotal, shippingToman: q.shipping, discountToman: q.discount, totalToman: q.total,
+          userPhone: ctx.session?.phone ?? "", sessionPhone: ctx.session?.phone ?? "",
+          expiresAt: new Date(Date.now() + 24 * 36e5),
+          items: { create: buildItemSnapshots(input, q.variants) },
+          events: { create: { type: "created", toStatus: "awaiting_payment", actor: "customer", actorId: input.sender.phone } },
+        },
+      });
+      return { order: { code: order.code, status: order.status, total: order.totalToman } };
+    }, { timeout: 10_000 });
+  } catch (e) {
+    if (isUniqueViolation(e, "idempotencyKey")) return replay(await db.order.findUniqueOrThrow({ where: { idempotencyKey: ctx.key } }), requestHash);
+    throw e;
+  }
+}
+```
+
+نکات حیاتی:
+- `updateMany ... stock >= qty` در PG روی ردیف lock می‌گیرد؛ تراکنش دوم صبر می‌کند و مقدار جدید را می‌بیند → oversell غیرممکن. سطح ایزولیشن پیش‌فرض (Read Committed) کافی است.
+- `idempotencyKey` از هدر `Idempotency-Key` (UUID) می‌آید؛ کلاینت آن را **یک‌بار** می‌سازد و در `localStorage.pendingOrder` نگه می‌دارد.
+- پاسخ شامل `payment` (redirect URL زرین‌پال یا دستورالعمل کارت‌به‌کارت) از `PaymentProvider.createPayment` است — **بعد از commit**، نه داخل تراکنش (تماس شبکه‌ای داخل تراکنش ممنوع).
+- صفحه‌ی موفقیت تا ACK سرور صبر کند: `GET /api/checkout/{key}/status` (فقط `{code,status,total}`).
+- **حذف کن:** `store.placeOrder` محاسبه‌گر، هر ۴ نسخه‌ی total در کلاینت. UI فقط `quote` برگشتی را نمایش می‌دهد (`POST /api/checkout/quote` برای نمایش پیش‌محاسبه).
+
+### ۴.۸ ماشین وضعیت
+
+```ts
+// orders/status.ts
+export const TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
+  awaiting_payment:     ["paid", "payment_under_review", "failed", "cancelled", "expired"],
+  payment_under_review: ["paid", "awaiting_payment", "cancelled"],
+  failed:               ["awaiting_payment", "expired"],
+  paid:                 ["preparing", "cancelled"],          // cancel فقط owner
+  preparing:            ["shipped", "cancelled"],            // cancel فقط owner
+  shipped:              ["delivered", "refund_requested"],
+  delivered:            ["refund_requested"],
+  refund_requested:     ["refunded", "delivered"],
+  cancelled: [], expired: [], refunded: [],
+};
+const RELEASE_STOCK: OrderStatus[] = ["cancelled", "expired"];
+
+// orders/transition.ts
+export async function transitionOrder(orderId: string, to: OrderStatus, a: { actor: ActorType; actorId?: string; note?: string; meta?: object; expectFrom?: OrderStatus }) {
+  return db.$transaction(async (tx) => {
+    const cur = await tx.order.findUniqueOrThrow({ where: { id: orderId }, include: { items: true } });
+    if (!TRANSITIONS[cur.status].includes(to)) throw new AppError(409, "invalid_transition");
+    // guard شرطی: اگر وضعیت بین خواندن و نوشتن عوض شده باشد count=0
+    const r = await tx.order.updateMany({ where: { id: orderId, status: cur.status }, data: { status: to } });
+    if (r.count !== 1) throw new AppError(409, "concurrent_update");
+    if (RELEASE_STOCK.includes(to) && !isPostPaid(cur.status) /* فقط اگر هنوز آزاد نشده */) {
+      for (const it of cur.items)
+        await tx.productVariant.update({ where: { id: it.variantId }, data: { stock: { increment: it.qty } } });
+    }
+    await tx.orderEvent.create({ data: { orderId, type: "status_changed", fromStatus: cur.status, toStatus: to, actor: a.actor, actorId: a.actorId ?? "", note: a.note ?? "", meta: a.meta } });
+    await enqueueSmsForTransition(tx, cur, to);          // outbox در همان تراکنش
+  });
+}
+```
+- [ ] **PATCH عمومی وضعیت را حذف کن.** مشتری فقط می‌تواند `opened=true` کند (روی سفارش خودش، یا با code+password در `/g/[no]`).
+- [ ] مرجوعی فقط وقتی `shipped|delivered` و ≤ ۷ روز.
+- [ ] نقشه‌ی مشتری برای `/track`: ۱۱ وضعیت ← ۵ مرحله فارسی؛ `payment_under_review` هرگز به مشتری لو نرود («در حال بررسی پرداخت» یا همان «در انتظار پرداخت»).
+
+### ۴.۹ پرداخت
+
+**زرین‌پال**
+1. `createPayment`: `POST request` با `amount = order.totalToman * 10` (ریال)، `callback_url`، `description` شامل کد سفارش؛ **قبل از redirect** `Payment{authority}` را ذخیره کن.
+2. `GET /api/payment/zarinpal/callback?Authority&Status`: پیدا کردن Payment با authority؛ اگر `Status !== "OK"` → `failed`.
+3. `verify` با مبلغ **از DB** (`payment.amountToman * 10`)، نه مبلغ برگشتی. mismatch → `failed` + هشدار.
+4. idempotent: اگر قبلاً `verified` است، فوراً 200/redirect به صفحه موفقیت.
+5. mark paid با guard: `payment.updateMany({ where: { id, status: "initiated" }, ... })` سپس `transitionOrder(..., "paid", { actor: "psp" })` در یک تراکنش.
+6. **Reconcile job ساعتی:** Paymentهای `initiated` قدیمی‌تر از ۱ ساعت را verify کن (timeout verify). دکمه‌ی «بررسی مجدد پرداخت» در صفحه موفقیت.
+7. تست با sandbox merchant قبل از لانچ؛ واحد ×۱۰ را با یک تست واحد قفل کن.
+
+**کارت‌به‌کارت/بله‌پی**
+- شماره کارت/شبا/نام از `Setting` با دکمه کپی؛ مبلغ + کد سفارش کنار هم.
+- آپلود رسید: چون presigned PUT بایت‌ها را از Node عبور نمی‌دهد، **sniff باید بعد از آپلود** انجام شود:
+  1. `POST /api/payment/manual/receipt/init` → presigned PUT (`Content-Type` محدود، کلید `receipts/{code}/{uuid}`, ≤ ۵MB با `ContentLengthRange` در presigned POST ترجیح دارد).
+  2. `POST .../confirm {key}` → `HeadObject` (سایز) + `GetObject` Range `bytes=0-15` → بررسی magic bytes (`FF D8 FF`، `89 50 4E 47`، `RIFF....WEBP`) → SHA-256 کل فایل (stream) → dedupe: رد اگر hash روی Payment دیگری با `verified|pending_review` باشد (بعد از `rejected` مجاز).
+  3. اگر نامعتبر: `DeleteObject` و 400.
+  4. موفق: `Payment{pending_review}` + `transitionOrder → payment_under_review`.
+- حداکثر ۳ تلاش (`paymentAttempts`)؛ بعد از رد سوم `cancelled` + SMS؛ **reopen فقط owner**.
+- نمایش رسید به ادمین فقط با presigned GET ۱۵ دقیقه‌ای (`Content-Disposition: attachment`).
+- SLA: به مشتری «تا ۱۲ ساعت»، هدف عملیاتی ۲ ساعت کاری؛ صف ادمین سن قدیمی‌ترین رسید را نشان دهد.
+
+### ۴.۱۰ SMS
+
+- `enqueueSms` همیشه در همان تراکنش تغییر وضعیت.
+- `jobs/sms-flush` هر ۲ دقیقه: `SELECT ... FOR UPDATE SKIP LOCKED` روی `queued & sendAfter<=now` (محافظ در برابر اجرای همزمان)، backoff ۱د→۵د→۳۰د، بعد `dead`.
+- قالب‌ها ≤ ۷۰ کاراکتر (unit test). از ~۱۵۰ سفارش/روز: حذف `order_confirm` برای زرین‌پال، اعلان ادمین به تلگرام.
+- رضایت خبرنامه: چک‌باکس صریح در تسویه → `marketingConsent`؛ بدون آن هیچ پیامک تبلیغاتی.
+
+### ۴.۱۱ `/g/[no]` (باز کردن هدیه)
+
+- رمز با `crypto.scrypt` (بدون وابستگی native) ذخیره/مقایسه با `timingSafeEqual`.
+- `rateLimit("gift_open", code+ip, 5, 900)` + `giftOpenAttempts++` ؛ ≥ ۱۰ → `giftLockedAt` + SMS هشدار به فرستنده/ادمین.
+- پاسخ فقط پیام/نام لازم برای گیرنده؛ هرگز آدرس/تلفن.
+- OG: فقط شماره + برند؛ `noindex,follow`؛ در robots **Disallow نشود**.
+
+### ۴.۱۲ مسیرهای داده‌ای که باید جایگزین شوند
+
+| قدیمی | جدید |
+|---|---|
+| `GET /api/orders?phone=` | **حذف**. `GET /api/me/bootstrap` (سشن‌محور: user، ≤۵۰ سفارش، favorites). مهمان → خالی |
+| `bootSync()` + `pullOrders()` + `mergeRemote()` | حذف؛ تک‌فچ bootstrap |
+| `POST /api/orders` (upsert کلاینتی) | `POST /api/checkout` |
+| `PATCH /api/orders/[id]` | `POST /api/orders/{code}/open` (محدود) + `POST /api/admin/orders/{id}/transition` |
+| صفحات «board» عمومی | `GET /api/gifts/public` (فقط kind/hearts/paws/code) |
+| `PUT /api/favorites`, `POST /api/reviews` | هویت از سشن؛ reviews با `approved=false` تا تأیید |
+
+### ۴.۱۳ جاب‌ها (Coolify Scheduled Tasks)
+
+مسیر `POST /api/jobs/{name}` با هدر `x-cron-secret` (مقایسه constant-time). در Coolify → Application → *Scheduled Tasks* دستور:
+`curl -fsS -X POST -H "x-cron-secret: $CRON_SECRET" http://localhost:3000/api/jobs/expire-unpaid`
+
+| جاب | تناوب | کار |
+|---|---|---|
+| expire-unpaid | */10 | `awaiting_payment/failed` با `expiresAt<now` → `expired` + آزادسازی موجودی (از `transitionOrder`) |
+| sms-flush | */2 | ارسال outbox |
+| abandon-cart | ساعتی | سفارش `awaiting_payment` > ۶ساعت و `smsAbandonedAt IS NULL` → یک بار |
+| low-stock | ساعتی | اعلان |
+| reconcile-payments | ساعتی | verify مجدد زرین‌پال |
+| purge | روزانه ۰۴:۰۰ | AuthCode/Session منقضی، JobRun قدیمی |
+
+همه idempotent و با `JobRun` لاگ شوند. `TZ=Asia/Tehran` در env کانتینر.
+
+---
+
+## ۵. زیرساخت — Coolify
+
+**Dockerfile** (multi-stage، `output: "standalone"`، Node 22 LTS، کاربر non-root، `HEALTHCHECK`).
+بیلد: ترجیحاً CI خارج از ایران ← registry ← Coolify «Docker Image». اگر بیلد روی Coolify انجام می‌شود، منبع کافی (۲GB+ آزاد) لازم است.
+
+**سرویس‌ها در Coolify**
+1. PostgreSQL 16 (resource خود Coolify) — شبکه‌ی داخلی، **بدون پورت عمومی**.
+2. اپ Next.js — ۱ replica، `/api/health` برای healthcheck.
+3. Backup: Coolify → Database → Scheduled Backups → S3 آروان، روزانه ۰۳:۳۰ + نگه‌داری ۳۰ روز + **drill ماهانه restore** (روی DB موقت).
+4. دامنه و TLS خودکار (Let's Encrypt) از Coolify؛ هدرها در `next.config` (X-Frame-Options، nosniff، Referrer-Policy، Permissions-Policy، CSP پایه، HSTS).
+
+**Pre-deploy command:** `npx prisma migrate deploy` (حتماً قبل از start؛ شکست = deploy متوقف).
+
+**`/api/health`:** `SELECT 1` + نسخه‌ی release؛ بدون PII.
+
+**ENV (همه با zod در `env.ts`، نبودن = crash در استارت)**
+```
+DATABASE_URL  SESSION_SECRET  CRON_SECRET  SITE_URL  NODE_ENV=production  TZ=Asia/Tehran
+KAVENEGAR_API_KEY  KAVENEGAR_SENDER  OWNER_MOBILE  SMS_DEV_ECHO=0
+ZARINPAL_MERCHANT_ID  ZARINPAL_SANDBOX=0
+S3_ENDPOINT  S3_BUCKET_PRIVATE  S3_BUCKET_PUBLIC  S3_ACCESS_KEY  S3_SECRET_KEY  S3_REGION
+ADMIN_SEED_PHONES  
+```
+هرگز `NEXT_PUBLIC_*` برای راز. `.env` در git نباشد؛ مقادیر در Coolify (Secrets).
+
+**PostgreSQL tuning برای RAM کم:** `shared_buffers=128MB`(۲GB) / `256MB`(۴GB)، `max_connections=30`، `work_mem=4MB`، `effective_cache_size=768MB`. Prisma `connection_limit=5`.
+
+**اقامت داده:** PG، S3 رسید/صدا و بکاپ همه داخل ایران. Coolify/Docker registry خارج از ایران فقط کد/ایمیج می‌بینند، نه داده مشتری.
+
+---
+
+## ۶. سئو (خلاصه — جزئیات در 13-f)
+- مسیرهای واقعی App Router: `/`, `/product/[slug]` ×۱۲ (`bear-s`…`sheep-l`)، `/stories`, `/blog`, اطلاعاتی، `/legal/*`، `/g/[no]`، `/build` (noindex)، `/admin` (noindex).
+- `sitemap.ts` + `robots.ts` (Disallow فقط `/admin`, `/api/`, `/build`).
+- JSON-LD: Product با `price = toman*10`, `priceCurrency="IRR"` فقط داخل builder؛ AggregateRating فقط با ≥۵ نظر واقعی تأییدشده.
+- shim هش→مسیر در کلاینت (بدون ۳۰۱؛ فرگمنت به سرور نمی‌رسد).
+- sweep برند «پیشتم»→«پیشنام» قبل از موج دیپلوی.
+
+---
+
+## ۷. دستور کار ایجنت‌ها (چک‌لیست قابل اجرا)
+
+> هر فاز یک PR/commit جدا. قبل از شروع هر فاز: `grep` برای تأیید وجود ایراد. بعد از هر فاز: `tsc --noEmit`، `lint`، و تست‌های همان فاز.
+
+### فاز A — پایه و امنیت (قبل از هر چیز) 
+- [ ] A1. `docker compose` لوکال با PostgreSQL 16؛ `schema.prisma` را طبق بخش ۳ بنویس؛ `prisma migrate dev --name init`؛ CHECK constraintها.
+- [ ] A2. `env.ts` (zod)، `errors.ts` (`AppError` + mapper یکسان JSON `{error, details?}`)، `db.ts`.
+- [ ] A3. `normPhone` یکتا؛ حذف ۳ کپی.
+- [ ] A4. `session.ts` + `requireSession/requireAdmin` + `assertSameOrigin`.
+- [ ] A5. `otp.ts` + `rate-limit.ts`؛ بازنویسی `api/auth/*`؛ حذف `devCode`، `1234`، «بهار».
+- [ ] A6. `/api/me/bootstrap`؛ حذف `GET /api/orders` عمومی، `bootSync` کامل، `pullOrders/mergeRemote`؛ اسکوپ favorites/reviews با سشن.
+- [ ] A7. حذف `ADMIN_PIN`؛ `AdminUser` seed؛ ورود ادمین با OTP (`kind=admin`)؛ همه‌ی `/api/admin/*` با `requireAdmin`.
+- [ ] A8. `next.config`: `ignoreBuildErrors:false`، هدرهای امنیتی؛ رفع خطاهای تایپ.
+- [ ] A9. reviews: `approved=false` پیش‌فرض + صف ادمین.
+- **پذیرش A:** ماتریس curl بدون کوکی → هیچ PII؛ سشن کاربر A ← سفارش B = 404/403؛ OTP پس از ۵ تلاش غلط سوخته؛ `grep -r "1398\|devCode\|1234"` در سورس = صفر.
+
+### فاز B — هسته‌ی تجارت
+- [ ] B1. seed: ۶ Product + ۱۲ Variant (قیمت L از مالک؛ موقتاً ۱.۴×S) + Setting + AdminUser.
+- [ ] B2. `pricing.ts`، `code.ts`، `checkout.ts` طبق ۴.۵–۴.۷؛ `POST /api/checkout` + `/quote` + `/{key}/status`.
+- [ ] B3. `status.ts` + `transitionOrder` + endpointهای ادمین + `OrderEvent`.
+- [ ] B4. کلاینت: حذف همه‌ی محاسبات مبلغ؛ `Idempotency-Key` در `pendingOrder`؛ صفحه‌ی موفقیت با ACK/poll؛ fallback `/track` (code+phone).
+- [ ] B5. `PaymentProvider` + زرین‌پال (sandbox) + reconcile.
+- [ ] B6. کارت‌به‌کارت: S3 presign/confirm/sniff/dedupe، صف ادمین، ۳ تلاش، reopen.
+- [ ] B7. SmsOutbox + Kavenegar + قالب‌ها + `sms-flush` (SKIP LOCKED).
+- [ ] B8. جاب‌ها (۴.۱۳) + `JobRun`.
+- [ ] B9. `/g/[no]` (scrypt، قفل، rate-limit)، مرجوعی (damage-only، عکس ≤۳، شامل هزینه ارسال در خسارت حمل).
+- **پذیرش B (تست‌های خودکار — بنویسید و در CI نگه دارید):**
+  1. ۵۰ `POST /api/checkout` همزمان برای variant با stock=10 → دقیقاً ۱۰ موفق، ۴۰ × 409، stock=0 (هرگز منفی).
+  2. همان Idempotency-Key ۲۰ بار موازی → ۱ سفارش.
+  3. ۲ callback زرین‌پال همزمان → یک `paid`، یک event.
+  4. ۲ transition همزمان روی یک سفارش → یکی 409.
+  5. `expire-unpaid` موجودی را دقیقاً یک‌بار برمی‌گرداند (دوبار اجرا = همان نتیجه).
+  6. دستکاری `total` در بدنه نادیده گرفته می‌شود.
+  7. مبلغ ریال زرین‌پال = تومان×۱۰ (unit test).
+  8. شمارنده کد: ۱۰۰ همزمان → ۱۰۰ کد یکتا و پیوسته.
+
+### فاز C — محتوا و سئو
+- [ ] C1. روت‌های واقعی + `generateMetadata` + `sitemap/robots` + JSON-LD builderها + کامپوننت `<JsonLd/>`.
+- [ ] C2. Experience (فرم، رضایت صریح، صف تأیید، `/stories`), Post + ادیتور markdown ادمین + ISR + `revalidatePath`.
+- [ ] C3. صفحات قانونی (privacy/terms/refund با استثنای هدیه شخصی)، badge اینماد.
+- [ ] C4. sweep برند؛ 404/500 فارسی؛ Fathom Lite (کوکی‌لس) پشت basicauth.
+- **پذیرش C:** Lighthouse SEO > ۹۰ روی `/product/bear-s`؛ نبودن URL برای draft؛ `/g/x` در robots نباشد.
+
+### فاز D — دیپلوی و لانچ
+- [ ] D1. Dockerfile + Coolify (PG، اپ، دامنه، env، pre-deploy migrate، healthcheck، scheduled tasks).
+- [ ] D2. بکاپ PG→آروان + یک drill واقعی ثبت‌شده.
+- [ ] D3. k6 **از ماشین دیگر**: ۵۰۰ VU مرور + ۵۰ چک‌اوت همزمان؛ p95 < ۸۰۰ms، صفر سفارش گم/تکراری.
+- [ ] D4. پاک‌سازی نهایی داده تست؛ چرخش همه‌ی secretهای dev؛ تست واقعی: kill کانتینر → ری‌استارت → هشدار.
+- [ ] D5. چک‌لیست مالک: دامنه، عکس ۱۲ محصول، OTP واقعی، زرین‌پال live، متن قوانین، قالب‌های پیامک تأییدشده، شارژ پنل.
+
+---
+
+## ۸. سؤال‌های باز (فقط مالک جواب می‌دهد — پیش‌فرض‌ها فعال‌اند)
+1. قیمت سایز L (پیش‌فرض ۱.۴×S) · 2. ثبت دامنه · 3. SLA کارت‌به‌کارت (۱۲ساعت نمایشی/۲ساعت عملیاتی) · 4. نگه‌داری رسید ۱۲ ماه + CSV حسابدار · 5. خبرنامه پیامکی با رضایت صریح · **6. (جدید) ارتقای RAM به ۴GB یا PG مدیریت‌شده** — بدون آن، PG+Coolify روی ۲GB ریسک OOM در پیک یلدا/ولنتاین دارد.
+
+---
+
+## ۹. ریسک‌های باقی‌مانده (صادقانه)
+- RPO با `pg_dump` شبانه تا ۲۴ ساعت است. اگر از دست رفتن چند ساعت سفارش قابل‌قبول نیست: بکاپ هر ۶ ساعت، یا WAL-G/pgBackRest به آروان.
+- Rate-limit درون‌پردازشی با ری‌استارت ریست می‌شود (پذیرفته‌شده، تک‌نود).
+- هزینه‌ی SMS بزرگ‌ترین قلم بودجه است؛ از ~۱۵۰ سفارش/روز سیاست ۲ پیامک/سفارش را فعال کنید.
+- اگر Coolify/Docker registry از سرور ایران در دسترس نبود، پیش از D1 راه‌حل mirror/registry داخلی را تست کنید.
