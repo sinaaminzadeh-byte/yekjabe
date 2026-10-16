@@ -323,7 +323,7 @@ interface AdminReview {
   createdAt: string;
 }
 
-type Tab = "orders" | "payments" | "reviews" | "stories" | "blog";
+type Tab = "orders" | "payments" | "renewals" | "products" | "reviews" | "stories" | "blog";
 
 export function AdminScreen() {
   const [unlocked, setUnlocked] = useState(() => {
@@ -361,6 +361,8 @@ export function AdminScreen() {
             [
               { key: "orders", label: "سفارش‌ها" },
               { key: "payments", label: "رسیدهای کارت‌به‌کارت" },
+              { key: "renewals", label: "تمدید نگهداری" },
+              { key: "products", label: "محصولات" },
               { key: "reviews", label: "نظرها" },
               { key: "stories", label: "تجربه‌ها" },
               { key: "blog", label: "بلاگ" },
@@ -388,6 +390,8 @@ export function AdminScreen() {
 
         {tab === "orders" && <OrdersTab />}
         {tab === "payments" && <PaymentsTab />}
+        {tab === "products" && <ProductsTab />}
+        {tab === "renewals" && <RenewalsTab />}
         {tab === "reviews" && <ReviewsTab />}
         {tab === "stories" && <StoriesModTab />}
         {tab === "blog" && <BlogTab />}
@@ -774,6 +778,419 @@ function PaymentsTab() {
           </div>
         </div>
       ))}
+    </div>
+  );
+}
+
+/* ═══════════ TAB 2.7 — RENEWALS («تمدید نگهداری» queue, mission §۴) ═══════════ */
+
+interface AdminRenewal {
+  id: string;
+  code: string;
+  orderCode: string;
+  plan: string;
+  priceToman: number;
+  status: string;
+  requestedByPhone: string;
+  receiptKey: string;
+  cancelReason: string;
+  createdAt: string;
+  order: {
+    recipientName: string;
+    recipientPhone: string;
+    retentionPlan: string;
+    messageExpiresAt: string | null;
+    messagePurgeStatus: string;
+    orderStatus: string;
+  };
+}
+
+function RenewalsTab() {
+  const [renewals, setRenewals] = useState<AdminRenewal[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [filter, setFilter] = useState<"payment_under_review" | "paid" | "cancelled" | "awaiting_payment">("payment_under_review");
+  const { toast } = useToast();
+
+  const load = () => {
+    fetch(`/api/admin/renewals?status=${filter}`, { cache: "no-store" })
+      .then((r) => {
+        if (!r.ok) throw new Error();
+        return r.json();
+      })
+      .then((j: { renewals?: AdminRenewal[] }) => {
+        setRenewals(j.renewals ?? []);
+        setError(null);
+      })
+      .catch(() => setError("اتصال به سرور برقرار نشد."));
+  };
+
+  useEffect(() => {
+    load();
+  }, [filter]);
+
+  const act = async (r: AdminRenewal, action: "approve" | "reject") => {
+    try {
+      const res = await fetch(`/api/admin/renewals/${r.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action, reason: action === "reject" ? "رد توسط مدیر" : "" }),
+      });
+      const body = (await res.json().catch(() => ({}))) as { error?: string; expiresAt?: string };
+      if (!res.ok) {
+        toast({ title: "انجام نشد!", description: body.error === "purged_not_renewable" ? "محتوا قبل از تأیید حذف شده؛ تمدید لغو شد." : body.error ?? "خطای سرور" });
+        load();
+        return;
+      }
+      toast({
+        title: action === "approve" ? "تمدید تأیید شد ✓" : "تمدید رد شد",
+        description: action === "approve" ? `${r.code} — مهلت تا ${new Intl.DateTimeFormat("fa-IR", { day: "numeric", month: "long", year: "numeric" }).format(new Date(body.expiresAt ?? Date.now()))} تمدید شد.` : `${r.code} لغو شد.`,
+      });
+      load();
+    } catch {
+      toast({ title: "خطای شبکه", description: "دوباره تلاش کن." });
+    }
+  };
+
+  const FILTERS = [
+    { key: "payment_under_review", label: "در انتظار بررسی" },
+    { key: "awaiting_payment", label: "منتظر واریز" },
+    { key: "paid", label: "تأییدشده" },
+    { key: "cancelled", label: "لغوشده" },
+  ] as const;
+
+  return (
+    <div className="flex flex-col gap-4">
+      <p className="m-0 text-[13px] font-semibold leading-[2] text-[#4A6572]">
+        تمدیدهای پولی نگهداری پیام — فقط بعد از چکِ واریز واقعی، «تأیید» بزن. تأیید یعنی مهلت پیام همان‌جا تمدید می‌شود.
+      </p>
+      <div className="flex flex-wrap gap-2">
+        {FILTERS.map((f) => (
+          <button
+            key={f.key}
+            type="button"
+            aria-pressed={filter === f.key}
+            onClick={() => setFilter(f.key)}
+            className="h-10 rounded-full px-4 text-[12.5px] font-extrabold transition-all"
+            style={{
+              background: filter === f.key ? "#04202E" : "#fff",
+              border: `1.5px solid ${filter === f.key ? "#04202E" : "#CFE6EF"}`,
+              color: filter === f.key ? "#fff" : "#04202E",
+            }}
+          >
+            {f.label}
+          </button>
+        ))}
+      </div>
+
+      {error && (
+        <div className="rounded-[24px] border-2 border-dashed border-[#F0B7C9] bg-[#FFF7FA] px-6 py-10 text-center text-[14px] font-bold text-[#B02A52]">
+          {error}
+        </div>
+      )}
+      {!error && renewals === null && (
+        <div className="flex flex-col gap-3">
+          {[0, 1].map((i) => (
+            <div key={i} className="h-[100px] animate-pulse rounded-[20px] bg-white/70" />
+          ))}
+        </div>
+      )}
+      {!error && renewals?.length === 0 && (
+        <div className="flex flex-col items-center gap-3 rounded-[24px] border-2 border-dashed border-[#99D6EE] bg-white/60 px-6 py-12 text-center">
+          <span className="text-[40px]">⏳</span>
+          <p className="m-0 text-[14.5px] font-bold">چیزی در این وضعیت نیست.</p>
+        </div>
+      )}
+      {renewals?.map((r) => {
+        const purged = r.order.messagePurgeStatus === "purged";
+        return (
+          <div key={r.id} className="rounded-[20px] border border-[#DDEEF5] bg-white p-4 md:p-5">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="flex items-center gap-2.5">
+                <span className="rounded-[12px] bg-[#04202E] px-2.5 py-1 text-[12px] font-extrabold text-white" dir="ltr">
+                  {r.code}
+                </span>
+                <span className="text-[13.5px] font-black">{money(r.priceToman)} تومان</span>
+                <span className="rounded-full bg-[#E3F6FD] px-2.5 py-1 text-[11px] font-extrabold text-[#006387]">
+                  پلن {r.plan === "12m" ? "۱ ساله" : "۶ ماهه"}
+                </span>
+              </div>
+              <span className="text-[11.5px] font-bold text-[#4A6572]" dir="ltr">
+                {new Intl.DateTimeFormat("fa-IR", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }).format(new Date(r.createdAt))}
+              </span>
+            </div>
+            <div className="mt-2 flex flex-wrap gap-x-5 gap-y-1 text-[12.5px] font-semibold text-[#4A6572]">
+              <span>سفارش: <b dir="ltr">{r.orderCode}</b></span>
+              <span>گیرنده: {r.order.recipientName}</span>
+              <span dir="ltr">{r.requestedByPhone}</span>
+              <span>پلن فعلی سفارش: {r.order.retentionPlan === "1m" ? "۱ ماه" : r.order.retentionPlan === "6m" ? "۶ ماه" : "۱ سال"}</span>
+              {r.order.messageExpiresAt && <span>انقضای فعلی: {new Intl.DateTimeFormat("fa-IR", { day: "numeric", month: "long", year: "numeric" }).format(new Date(r.order.messageExpiresAt))}</span>}
+              {purged && <span className="font-extrabold text-[#B02A52]">⚠️ محتوا حذف شده — تأیید بدون اثر است</span>}
+            </div>
+            <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-[#EDF6FA] pt-3">
+              {["payment_under_review", "awaiting_payment"].includes(r.status) && (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => void act(r, "approve")}
+                    className="flex h-10 items-center gap-1.5 rounded-full bg-[#D7F5E4] px-4 text-[12.5px] font-extrabold text-[#2E7D53] transition-all hover:bg-[#C4EED6] active:scale-95"
+                  >
+                    تأیید — تمدید اعمال شود
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void act(r, "reject")}
+                    className="flex h-10 items-center gap-1.5 rounded-full bg-[#FFE9F0] px-4 text-[12.5px] font-extrabold text-[#B02A52] transition-all hover:bg-[#FFDCE7] active:scale-95"
+                  >
+                    رد
+                  </button>
+                </>
+              )}
+              {r.receiptKey && (
+                <a
+                  href={`/api/admin/renewals/${r.id}/receipt`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex h-10 items-center gap-1.5 rounded-full bg-[#E3F6FD] px-4 text-[12.5px] font-extrabold text-[#006387] hover:bg-[#D6F1FB]"
+                >
+                  دیدن رسید ⤢
+                </a>
+              )}
+              {r.status === "cancelled" && r.cancelReason && (
+                <span className="text-[11.5px] font-bold text-[#B02A52]">لغو: {r.cancelReason}</span>
+              )}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+/* ═══════════ TAB 2.5 — PRODUCTS («افزودنی‌ها» shelf, mission §۵) ═══════════ */
+
+interface AdminProduct {
+  id: string;
+  slug: string;
+  name: string;
+  description: string;
+  kind: "main_gift" | "addon";
+  emoji: string;
+  isActive: boolean;
+  variant: { id: string; sku: string; priceToman: number; stock: number; isActive: boolean } | null;
+}
+
+function ProductsTab() {
+  const [products, setProducts] = useState<AdminProduct[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [creating, setCreating] = useState(false);
+  const [draft, setDraft] = useState({ name: "", emoji: "🎁", price: "", stock: "20", description: "" });
+  const [busy, setBusy] = useState(false);
+  const { toast } = useToast();
+
+  const load = () => {
+    fetch("/api/admin/products", { cache: "no-store" })
+      .then((r) => {
+        if (!r.ok) throw new Error();
+        return r.json();
+      })
+      .then((j: { products?: AdminProduct[] }) => {
+        setProducts(j.products ?? []);
+        setError(null);
+      })
+      .catch(() => setError("اتصال به سرور برقرار نشد."));
+  };
+
+  useEffect(() => {
+    load();
+  }, []);
+
+  const patch = async (p: AdminProduct, body: Record<string, unknown>) => {
+    setBusy(true);
+    try {
+      const res = await fetch(`/api/admin/products/${p.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) throw new Error();
+      toast({ title: "ذخیره شد ✓" });
+      load();
+    } catch {
+      toast({ title: "ذخیره نشد — دوباره امتحان کن" });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const createAddon = async () => {
+    const price = Number(draft.price.replace(/[۰-۹]/g, (d) => String("۰۱۲۳۴۵۶۷۸۹".indexOf(d))).replace(/\D/g, ""));
+    if (draft.name.trim().length < 2 || !Number.isFinite(price) || price <= 0) {
+      toast({ title: "اسم و قیمت معتبر لازمه" });
+      return;
+    }
+    setBusy(true);
+    try {
+      const res = await fetch("/api/admin/products", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: draft.name.trim(),
+          kind: "addon",
+          emoji: draft.emoji.trim() || "🎁",
+          description: draft.description.trim(),
+          priceToman: price,
+          stock: Number(draft.stock.replace(/\D/g, "")) || 0,
+        }),
+      });
+      if (!res.ok) throw new Error();
+      toast({ title: "افزودنی جدید ثبت شد ✓", description: "از الان تو سبد خرید مشتری‌ها می‌افته." });
+      setDraft({ name: "", emoji: "🎁", price: "", stock: "20", description: "" });
+      setCreating(false);
+      load();
+    } catch {
+      toast({ title: "ثبت نشد — دوباره امتحان کن" });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  if (error) {
+    return (
+      <div className="rounded-[22px] bg-[#FFE9F0] px-5 py-4 text-[13.5px] font-bold text-[#B02A52]">{error}</div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-4">
+      {/* create form */}
+      <div className="rounded-[24px] border border-[#DDEEF5] bg-white p-5">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex flex-col gap-0.5">
+            <span className="text-[16px] font-black">افزودنی جدید</span>
+            <span className="text-[12.5px] font-medium text-[#4A6572]">
+              محصولات مکمل (دستبند، عروسک، ساعت و…) بدون هیچ تغییر کدی وارد سبد خرید می‌شن.
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setCreating((v) => !v)}
+            className="h-11 rounded-full bg-[#04202E] px-5 text-[13.5px] font-extrabold text-white"
+          >
+            {creating ? "بستن فرم" : "+ افزودنی تازه"}
+          </button>
+        </div>
+        {creating && (
+          <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-6">
+            <input
+              value={draft.emoji}
+              onChange={(e) => setDraft({ ...draft, emoji: e.target.value })}
+              placeholder="📿"
+              aria-label="ایموجی"
+              className="h-12 rounded-2xl border-[1.5px] border-[#CFE6EF] bg-[#F8FDFF] px-3 text-center text-xl md:col-span-1"
+            />
+            <input
+              value={draft.name}
+              onChange={(e) => setDraft({ ...draft, name: e.target.value })}
+              placeholder="اسم افزودنی (مثلاً دستبند مهربونی)"
+              aria-label="نام محصول"
+              className="h-12 rounded-2xl border-[1.5px] border-[#CFE6EF] bg-[#F8FDFF] px-3 text-[14px] font-bold md:col-span-2"
+            />
+            <input
+              value={draft.price}
+              onChange={(e) => setDraft({ ...draft, price: e.target.value })}
+              placeholder="قیمت (تومان)"
+              aria-label="قیمت به تومان"
+              inputMode="numeric"
+              className="h-12 rounded-2xl border-[1.5px] border-[#CFE6EF] bg-[#F8FDFF] px-3 text-[14px] font-bold md:col-span-1"
+            />
+            <input
+              value={draft.stock}
+              onChange={(e) => setDraft({ ...draft, stock: e.target.value })}
+              placeholder="موجودی"
+              aria-label="موجودی"
+              inputMode="numeric"
+              className="h-12 rounded-2xl border-[1.5px] border-[#CFE6EF] bg-[#F8FDFF] px-3 text-[14px] font-bold md:col-span-1"
+            />
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => void createAddon()}
+              className="h-12 rounded-full bg-[#00ABE7] text-[14px] font-extrabold text-[#04202E] disabled:opacity-60 md:col-span-1"
+            >
+              ثبت
+            </button>
+            <input
+              value={draft.description}
+              onChange={(e) => setDraft({ ...draft, description: e.target.value })}
+              placeholder="توضیح کوتاه (اختیاری)"
+              aria-label="توضیح"
+              className="h-12 rounded-2xl border-[1.5px] border-[#CFE6EF] bg-[#F8FDFF] px-3 text-[14px] md:col-span-6"
+            />
+          </div>
+        )}
+      </div>
+
+      {/* list */}
+      {products === null ? (
+        <div className="rounded-[22px] bg-white px-5 py-6 text-center text-[13px] font-bold text-[#4A6572]">در حال بارگذاری…</div>
+      ) : (
+        <div className="flex flex-col gap-2.5">
+          {products.map((p) => (
+            <div key={p.id} className="flex flex-wrap items-center gap-3 rounded-[22px] border border-[#DDEEF5] bg-white px-4 py-3.5">
+              <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[16px] bg-[#F2FAFD] text-2xl" aria-hidden="true">
+                {p.emoji || "🎁"}
+              </span>
+              <div className="flex min-w-[160px] flex-1 flex-col gap-0.5">
+                <span className="flex items-center gap-2 text-[14.5px] font-extrabold">
+                  {p.name}
+                  <span
+                    className="rounded-full px-2 py-0.5 text-[9.5px] font-extrabold"
+                    style={{ background: p.kind === "addon" ? "#E3F6FD" : "#F2F7F9", color: p.kind === "addon" ? "#006387" : "#4A6572" }}
+                  >
+                    {p.kind === "addon" ? "افزودنی" : "هدیه اصلی"}
+                  </span>
+                </span>
+                <span className="font-mono text-[11px] text-[#4A6572]" dir="ltr">{p.variant?.sku ?? p.slug}</span>
+              </div>
+              <label className="flex items-center gap-1.5 text-[11.5px] font-bold text-[#4A6572]">
+                قیمت
+                <input
+                  defaultValue={p.variant?.priceToman ?? 0}
+                  onBlur={(e) => {
+                    const v = Number(e.target.value.replace(/\D/g, ""));
+                    if (Number.isFinite(v) && v !== p.variant?.priceToman) void patch(p, { priceToman: v });
+                  }}
+                  aria-label={`قیمت ${p.name}`}
+                  inputMode="numeric"
+                  className="h-10 w-[110px] rounded-xl border-[1.5px] border-[#CFE6EF] bg-[#F8FDFF] px-2 text-center text-[13px] font-bold"
+                />
+              </label>
+              <label className="flex items-center gap-1.5 text-[11.5px] font-bold text-[#4A6572]">
+                موجودی
+                <input
+                  defaultValue={p.variant?.stock ?? 0}
+                  onBlur={(e) => {
+                    const v = Number(e.target.value.replace(/\D/g, ""));
+                    if (Number.isFinite(v) && v !== p.variant?.stock) void patch(p, { stock: v });
+                  }}
+                  aria-label={`موجودی ${p.name}`}
+                  inputMode="numeric"
+                  className="h-10 w-[72px] rounded-xl border-[1.5px] border-[#CFE6EF] bg-[#F8FDFF] px-2 text-center text-[13px] font-bold"
+                />
+              </label>
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => void patch(p, { isActive: !p.isActive })}
+                className="h-10 rounded-full px-4 text-[12px] font-extrabold disabled:opacity-60"
+                style={{ background: p.isActive ? "#DDF3EA" : "#F2F7F9", color: p.isActive ? "#0B6E4F" : "#4A6572" }}
+              >
+                {p.isActive ? "فعال" : "غیرفعال"}
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

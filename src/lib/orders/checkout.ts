@@ -40,7 +40,13 @@ export const checkoutSchema = z.object({
     message: z.string().max(500),
     password: z.string().min(4).max(24),
     occasion: z.number().int().min(0).max(3),
-    anonymous: z.boolean(),
+    // legacy boolean — kept in sync (true ⇔ senderDisplay === "anon") for old rows
+    anonymous: z.boolean().optional().default(false),
+    // sender privacy per order (mission §۳): show name | custom phrase | anonymous
+    senderDisplay: z.enum(["name", "phrase", "anon"]).optional().default("name"),
+    senderPhrase: z.string().trim().max(40).optional().default(""),
+    // نگهداری پیام (mission §۴) — قیمت فقط سمت سرور از Setting می‌آید
+    retention: z.enum(["1m", "6m", "12m"]).optional().default("1m"),
   }),
   paymentMethod: z.enum(["zarinpal", "manual_transfer"]),
   marketingConsent: z.boolean().optional().default(false),
@@ -57,7 +63,23 @@ export function parseCheckout(raw: unknown): CheckoutInput {
   const recipientPhone = validPhone(v.recipient.phone);
   if (!recipientPhone) throw new AppError(400, "bad_input", { fields: ["recipient.phone: invalid mobile"] });
   const senderPhone = v.sender.phone ? validPhone(v.sender.phone) ?? "" : "";
-  return { ...v, sender: { ...v.sender, phone: senderPhone }, recipient: { ...v.recipient, phone: recipientPhone } };
+  // privacy invariants: phrase mode needs a real phrase; anon syncs the legacy flag
+  let senderDisplay = v.gift.senderDisplay;
+  let senderPhrase = v.gift.senderPhrase;
+  if (senderDisplay === "phrase" && senderPhrase.length < 2) {
+    // empty phrase → fall back to showing the name (never a blank card)
+    senderDisplay = "name";
+    senderPhrase = "";
+  }
+  if (senderDisplay === "anon") senderPhrase = "";
+  const anonymous = v.gift.anonymous || senderDisplay === "anon";
+  if (anonymous) senderDisplay = "anon";
+  return {
+    ...v,
+    sender: { ...v.sender, phone: senderPhone },
+    recipient: { ...v.recipient, phone: recipientPhone },
+    gift: { ...v.gift, senderDisplay, senderPhrase, anonymous },
+  };
 }
 
 export interface CheckoutCtx {
@@ -106,6 +128,7 @@ export async function createOrder(raw: unknown, ctx: CheckoutCtx): Promise<Check
         charmHearts: input.addons.charmHearts,
         charmPaws: input.addons.charmPaws,
         province: input.recipient.province,
+        retention: input.gift.retention,
       });
 
       // ۲) atomic stock decrement — fixed variantId order prevents deadlocks
@@ -139,6 +162,9 @@ export async function createOrder(raw: unknown, ctx: CheckoutCtx): Promise<Check
           cardPasswordHash: hashGiftPassword(input.gift.password),
           occasion: input.gift.occasion,
           anonymous: input.gift.anonymous,
+          senderDisplay: input.gift.senderDisplay,
+          senderPhrase: input.gift.senderPhrase,
+          retentionPlan: input.gift.retention,
           charmHearts: input.addons.charmHearts,
           charmPaws: input.addons.charmPaws,
           subtotalToman: q.subtotal,
@@ -157,7 +183,13 @@ export async function createOrder(raw: unknown, ctx: CheckoutCtx): Promise<Check
           items: {
             create: input.items.map((i) => {
               const v = q.lines.find((l) => l.variantId === i.variantId)!;
-              return { variantId: i.variantId, titleSnapshot: `${v.productName}، دوست پشمالو`, unitPriceToman: v.unitPriceToman, qty: i.qty };
+              const isAddon = v.sku.startsWith("AD-");
+              return {
+                variantId: i.variantId,
+                titleSnapshot: isAddon ? v.productName : `${v.productName}، دوست پشمالو`,
+                unitPriceToman: v.unitPriceToman,
+                qty: i.qty,
+              };
             }),
           },
           events: {

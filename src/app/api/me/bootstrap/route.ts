@@ -7,6 +7,7 @@ import { toErrorResponse } from "@/lib/errors";
 import { getSession } from "@/lib/auth/session";
 import { legacyStep, type OrderStatus } from "@/lib/orders/status";
 import { codeSuffixNo } from "@/lib/orders/code";
+import { isViewableStatus, senderLabelFor } from "@/lib/orders/gift-view";
 
 export async function GET() {
   try {
@@ -38,6 +39,11 @@ export async function GET() {
 
     const mappedNew = newOrders.map((o) => {
       const isRecv = o.recipientPhone === session.phone && o.userPhone !== session.phone;
+      // privacy (mission §۳): the received-gifts surface gets the COMPUTED
+      // label only — in anon mode the real senderName never leaves the server;
+      // the message TEXT is not part of the panel either (only the dedicated
+      // display endpoint may serve it — that's where the retention clock starts).
+      const recvLabel = isRecv ? senderLabelFor(o) : null;
       return {
         id: `o-${o.id}`,
         code: o.code,
@@ -48,17 +54,32 @@ export async function GET() {
         // PII guard: the address belongs to the SENDER — receivers never get it
         address: isRecv ? "" : o.address,
         phone: isRecv ? "" : o.recipientPhone,
-        message: o.message,
+        // message text only for the sender's own board (they wrote it)
+        message: isRecv ? "" : o.message,
         occasion: o.occasion,
         password: "", // the hash never leaves the server
         anonymous: o.anonymous,
-        senderName: o.senderName,
+        // anon/phrase-safe: recv gets the computed label, sent gets the real one
+        senderName: isRecv ? (recvLabel?.label ?? "") : o.senderName,
+        senderMode: recvLabel?.mode ?? o.senderDisplay,
         hearts: o.charmHearts,
         paws: o.charmPaws,
         total: o.totalToman,
         date: new Intl.DateTimeFormat("fa-IR", { day: "numeric", month: "long" }).format(o.createdAt),
         status: legacyStep(o.status as OrderStatus), // 4-step for legacy chips
         status2: o.status, // raw 11-state for new components
+        // retention snapshot for the panel chips (no content here — never starts the clock)
+        retentionPlan: o.retentionPlan,
+        messageState:
+          o.messagePurgeStatus === "purged"
+            ? "purged"
+            : o.messageShownAt
+              ? o.messageExpiresAt && o.messageExpiresAt.getTime() <= Date.now()
+                ? "expired"
+                : "active"
+              : "unopened",
+        messageExpiresAt: o.messageExpiresAt ? o.messageExpiresAt.toISOString() : null,
+        mediaCount: o.mediaCount,
         // payment reservation (dashboard «تکمیل پرداخت» panel): sent/owned
         // orders carry the hold deadline + their own idempotency key so the
         // manual card-to-card panel works from any device of the same account
@@ -70,6 +91,7 @@ export async function GET() {
         paymentMethod: o.paymentMethod,
         opened: o.giftOpened,
         dir: isRecv ? ("recv" as const) : ("sent" as const),
+        viewable: isViewableStatus(o.status),
         userPhone: o.userPhone,
         v2: true,
       };

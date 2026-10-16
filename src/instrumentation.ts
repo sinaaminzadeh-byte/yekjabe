@@ -20,6 +20,12 @@ export async function register() {
     try {
       const expired = await expireDueOrders(50);
       if (expired > 0) console.log(`[tick] expired ${expired} unpaid order(s)`);
+      // پاک‌سازی پیام‌های منقضی + خالی‌کردن صف پیامک (sandbox/self-box safety net)
+      const { purgeExpiredMessages } = await import("@/lib/orders/retention");
+      const pr = await purgeExpiredMessages(25);
+      if (pr.scanned > 0) console.log(`[tick] purge-messages scanned ${pr.scanned} purged ${pr.purged} failed ${pr.failed}`);
+      const { flushSms } = await import("@/lib/sms");
+      await flushSms(20);
     } catch {
       /* DB not ready yet — next minute */
     } finally {

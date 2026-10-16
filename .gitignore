@@ -1,2 +1,22 @@
-skills/
+# deps & build
 node_modules/
+.next/
+out/
+
+# env & secrets — NEVER commit
+.env
+.env.*
+!.env.example
+
+# runtime data (sandbox db, private media, receipts, logs)
+.data/
+db/custom.db
+db/*.db-journal
+dev.log
+*.log
+
+# tooling
+skills/
+.zscripts/
+tool-results/
+agent-ctx/

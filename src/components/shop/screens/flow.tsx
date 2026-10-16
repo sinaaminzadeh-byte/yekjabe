@@ -18,6 +18,8 @@ import { navigate, useHashRoute } from "@/lib/hash-route";
 import {
   usePishnam,
   useCharityDone,
+  type SenderDisplayMode,
+  type RetentionPlanKey,
 } from "@/lib/pishnam-store";
 import { fa, money } from "@/lib/fa";
 import {
@@ -30,7 +32,7 @@ import {
   type PlushKind,
 } from "@/lib/pishnam-data";
 import { PROVINCES } from "@/lib/orders/provinces";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { FavHeart, FavFilterChips, SurpriseButton } from "@/components/shop/fav";
 import { MessageIdeas } from "@/components/shop/ideas";
@@ -165,19 +167,27 @@ export function MobileCard() {
   const setOcc = usePishnam((s) => s.setOccasion);
   const message = usePishnam((s) => s.message);
   const setMessage = usePishnam((s) => s.setMessage);
-  const anonymous = usePishnam((s) => s.anonymous);
-  const setAnonymous = usePishnam((s) => s.setAnonymous);
+  const senderDisplay = usePishnam((s) => s.senderDisplay);
+  const setSenderDisplay = usePishnam((s) => s.setSenderDisplay);
+  const senderPhrase = usePishnam((s) => s.senderPhrase);
+  const setSenderPhrase = usePishnam((s) => s.setSenderPhrase);
   const senderName = usePishnam((s) => s.senderName);
   const setSenderName = usePishnam((s) => s.setSenderName);
   const cardPassword = usePishnam((s) => s.cardPassword);
   const setCardPassword = usePishnam((s) => s.setCardPassword);
-  const photoAdded = usePishnam((s) => s.photoAdded);
-  const addPhoto = usePishnam((s) => s.addPhoto);
-  const videoAdded = usePishnam((s) => s.videoAdded);
-  const addVideo = usePishnam((s) => s.addVideo);
+  const mediaFiles = usePishnam((s) => s.mediaFiles);
+  const addMediaFile = usePishnam((s) => s.addMediaFile);
+  const removeMediaFile = usePishnam((s) => s.removeMediaFile);
   const nextNo = usePishnam((s) => s.nextNo);
   const user = usePishnam((s) => s.user);
   const { toast } = useToast();
+  const mediaInputRef = useRef<HTMLInputElement>(null);
+
+  const PRIVACY_OPTIONS: { key: SenderDisplayMode; title: string; sub: string; emoji: string }[] = [
+    { key: "name", title: "اسمم نمایش داده بشه", sub: senderName || user?.name || "اسم خودت", emoji: "🙂" },
+    { key: "phrase", title: "یه عبارت دلخواه", sub: senderPhrase || "مثلاً: از طرف همسرت", emoji: "✍️" },
+    { key: "anon", title: "کاملاً ناشناس", sub: "یک هدیه برای تو", emoji: "🎁" },
+  ];
 
   return (
     <div className="flex min-h-screen flex-col bg-[#F2FAFD] md:hidden">
@@ -239,31 +249,57 @@ export function MobileCard() {
         <MessageIdeas occ={occ} onPick={setMessage} />
       </div>
 
-      <div className="flex gap-3 px-5 pt-3">
+      {/* پیامِ رسانه‌ای واقعی — عکس/ویدیو/ویس خصوصی، فقط برای گیرنده (mission §۱/§۴) */}
+      <div className="px-5 pt-3">
+        <input
+          ref={mediaInputRef}
+          type="file"
+          accept="image/jpeg,image/png,image/webp,video/mp4,video/webm,audio/mpeg,audio/mp4,audio/wav,audio/ogg,audio/webm"
+          className="hidden"
+          onChange={(e) => {
+            const f = e.target.files?.[0];
+            if (f) {
+              const r = addMediaFile(f);
+              if (!r.ok) {
+                toast({
+                  title: r.error === "file_too_large" ? "حجم فایل بیشتر از ۱۰ مگابایته" : r.error === "too_many_files" ? "بیشتر از ۳ فایل نمی‌شه" : "این فرمت قبول نیست",
+                  description: "عکس JPG/PNG/WebP، ویدیو MP4/WebM یا صدای MP3/WAV/M4A",
+                });
+              }
+            }
+            e.target.value = "";
+          }}
+        />
         <button
           type="button"
-          onClick={() => {
-            addPhoto();
-            toast({ title: "عکس اضافه شد", description: "عکس تو پیامت، روی کارت QR چاپ می‌شه." });
-          }}
-          className="flex h-28 flex-1 flex-col items-center justify-center gap-1.5 rounded-[22px] border-2 border-dashed bg-[#E3F6FD] text-sm font-bold text-[#04202E]"
-          style={{ borderColor: photoAdded ? "#04202E" : "#00ABE7", borderStyle: photoAdded ? "solid" : "dashed" }}
+          onClick={() => mediaInputRef.current?.click()}
+          className="flex h-[74px] w-full items-center justify-center gap-3 rounded-[22px] border-2 border-dashed border-[#B5E3F5] bg-[#E3F6FD] text-sm font-bold text-[#04202E]"
         >
-          {photoAdded ? <CheckIcon size={28} stroke="#04202E" /> : <PhotoIcon />}
-          {photoAdded ? "عکس اضافه شد ✓" : "افزودن عکس"}
+          <PhotoIcon />
+          <span>عکس، ویدیو یا ویس پیامت رو اضافه کن</span>
         </button>
-        <button
-          type="button"
-          onClick={() => {
-            addVideo();
-            toast({ title: "ویدیو اضافه شد", description: "ویدیو کنار پیامت روی کارت قرار می‌گیره." });
-          }}
-          className="flex h-28 flex-1 flex-col items-center justify-center gap-1.5 rounded-[22px] border-2 border-dashed bg-[#FFE9F0] text-sm font-bold text-[#04202E]"
-          style={{ borderColor: videoAdded ? "#04202E" : "#F0426B", borderStyle: videoAdded ? "solid" : "dashed" }}
-        >
-          {videoAdded ? <CheckIcon size={28} stroke="#04202E" /> : <VideoIcon />}
-          {videoAdded ? "ویدیو اضافه شد ✓" : "افزودن ویدیو"}
-        </button>
+        {mediaFiles.length > 0 && (
+          <div className="mt-2 flex flex-col gap-1.5">
+            {mediaFiles.map((m) => (
+              <div key={m.id} className="flex items-center gap-2.5 rounded-[16px] border border-[#CFE6EF] bg-white px-3 py-2">
+                <span className="text-lg" aria-hidden="true">{m.kind === "image" ? "🖼️" : m.kind === "video" ? "🎬" : "🎙️"}</span>
+                <span className="min-w-0 flex-1 truncate text-[12.5px] font-bold text-[#04202E]" dir="ltr">{m.name}</span>
+                <span className="text-[11px] font-semibold text-[#4A6572]">{fa(Math.round(m.size / 1024))} کیلوبایت</span>
+                <button
+                  type="button"
+                  aria-label={`حذف ${m.name}`}
+                  onClick={() => removeMediaFile(m.id)}
+                  className="rounded-lg bg-[#FFE9F0] px-2 py-1 text-[10.5px] font-extrabold text-[#B02A52]"
+                >
+                  حذف
+                </button>
+              </div>
+            ))}
+            <span className="text-[11.5px] font-medium leading-[1.8] text-[#4A6572]">
+              حداکثر ۳ فایل، هرکدوم تا ۱۰ مگ — فقط گیرنده‌ی تأییدشده می‌بینه؛ بعد از پایان مهلت نگهداری حذف می‌شن.
+            </span>
+          </div>
+        )}
       </div>
 
       <div className="mx-5 mt-[18px] flex flex-col gap-2">
@@ -279,35 +315,73 @@ export function MobileCard() {
           className="box-border h-[54px] rounded-[18px] border-[1.5px] border-[#CFE6EF] bg-white px-4 text-base text-[#04202E] outline-none focus:border-[#00ABE7]"
         />
         <span className="text-[12.5px] font-medium leading-[1.8] text-[#4A6572]">
-          فقط کسی که این رمز رو بدونه می‌تونه پیامت رو ببینه. رمز رو بهش بگو یا یه سرنخ بهش
-          بده.
+          راه دوم باز کردن کارت: هرکی رمز رو بدونه می‌تونه پیامت رو ببینه — حتی بدون اسکن QR.
         </span>
       </div>
 
-      <div className="mx-5 mt-[18px] rounded-3xl border border-[#DDEEF5] bg-white px-4 py-1.5">
-        <div className="flex items-center justify-between gap-3 py-3">
-          <div className="flex flex-col gap-0.5">
-            <span className="text-[15px] font-extrabold">ناشناس بفرست</span>
-            <span className="text-[12.5px] font-medium text-[#4A6572]">توی جعبه هیچ اسمی نمی‌ذاریم</span>
-          </div>
-          <button
-            type="button"
-            role="switch"
-            aria-checked={anonymous}
-            aria-label="ارسال ناشناس"
-            onClick={() => setAnonymous(!anonymous)}
-            className="relative h-8 w-[54px] shrink-0 rounded-full border-none p-0"
-            style={{ background: anonymous ? "#00ABE7" : "#C7DCE5" }}
-          >
-            <span
-              className="absolute top-[3px] h-[26px] w-[26px] rounded-full bg-white shadow-[0_2px_5px_rgba(4,32,46,0.28)] transition-all"
-              style={anonymous ? { left: 3 } : { right: 3 }}
-            />
-          </button>
+      {/* محرمانگی هویت فرستنده — برای هر سفارش جدا انتخاب می‌شه (mission §۳) */}
+      <div className="mx-5 mt-[18px] rounded-3xl border border-[#DDEEF5] bg-white px-4 py-3.5">
+        <span className="text-sm font-extrabold">اسم چطوری دیده بشه؟</span>
+        <span className="mt-1 block text-[12px] font-medium leading-[1.8] text-[#4A6572]">
+          انتخابت فقط برای همین سفارشه؛ برای هر هدیه می‌تونی متفاوت انتخاب کنی. تو حالت ناشناس،
+          هیچ اطلاعاتی از تو به گیرنده نمی‌رسه — نه رو کارت، نه توی سیستم.
+        </span>
+        <div className="mt-2.5 flex flex-col gap-2">
+          {PRIVACY_OPTIONS.map((opt) => {
+            const on = senderDisplay === opt.key;
+            return (
+              <button
+                key={opt.key}
+                type="button"
+                role="radio"
+                aria-checked={on}
+                onClick={() => setSenderDisplay(opt.key)}
+                className="flex items-center gap-3 rounded-[18px] border-2 px-3.5 py-2.5 text-right transition-colors"
+                style={{ borderColor: on ? "#00ABE7" : "#DDEEF5", background: on ? "#F2FAFD" : "white" }}
+              >
+                <span className="flex h-[24px] w-[24px] shrink-0 items-center justify-center rounded-full border-2 border-[#04202E]" style={{ background: on ? "#00ABE7" : "white" }}>
+                  {on && <CheckIcon size={13} stroke="#04202E" />}
+                </span>
+                <span aria-hidden="true" className="text-lg">{opt.emoji}</span>
+                <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+                  <span className="text-[14px] font-extrabold text-[#04202E]">{opt.title}</span>
+                  <span className="truncate text-[11.5px] font-medium text-[#4A6572]">{opt.sub}</span>
+                </span>
+              </button>
+            );
+          })}
         </div>
-        {!anonymous && (
-          <div className="flex flex-col gap-2 border-t border-[#E3F0F5] py-3 pb-3.5">
-            <label htmlFor="nm" className="text-sm font-extrabold">
+        {senderDisplay === "phrase" && (
+          <div className="mt-3 flex flex-col gap-2 border-t border-[#E3F0F5] pt-3">
+            <label htmlFor="phrase" className="text-[12.5px] font-extrabold">
+              عبارت دلخواهت
+            </label>
+            <input
+              id="phrase"
+              type="text"
+              maxLength={40}
+              value={senderPhrase}
+              onChange={(e) => setSenderPhrase(e.target.value)}
+              placeholder="مثلاً: از طرف همسرت"
+              className="box-border h-[48px] rounded-2xl border-[1.5px] border-[#CFE6EF] bg-[#F8FDFF] px-4 text-[15px] text-[#04202E] outline-none focus:border-[#00ABE7]"
+            />
+            <div className="flex flex-wrap gap-1.5">
+              {["از طرف همسرت", "از طرف مامانت", "از یه دوست قدیمی", "از طرف همکلاسی‌هات"].map((p) => (
+                <button
+                  key={p}
+                  type="button"
+                  onClick={() => setSenderPhrase(p)}
+                  className="rounded-full border border-[#CFE6EF] bg-[#F2FAFD] px-3 py-1.5 text-[11.5px] font-bold text-[#04202E]"
+                >
+                  {p}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+        {senderDisplay === "name" && (
+          <div className="mt-3 flex flex-col gap-2 border-t border-[#E3F0F5] pt-3">
+            <label htmlFor="nm" className="text-[12.5px] font-extrabold">
               اسم تو
             </label>
             <input
@@ -316,7 +390,7 @@ export function MobileCard() {
               value={senderName}
               onChange={(e) => setSenderName(e.target.value)}
               placeholder={user ? user.name : "اسمت چیه؟"}
-              className="box-border h-[50px] rounded-2xl border-[1.5px] border-[#CFE6EF] bg-[#F8FDFF] px-4 text-base text-[#04202E] outline-none focus:border-[#00ABE7]"
+              className="box-border h-[48px] rounded-2xl border-[1.5px] border-[#CFE6EF] bg-[#F8FDFF] px-4 text-[15px] text-[#04202E] outline-none focus:border-[#00ABE7]"
             />
           </div>
         )}
@@ -324,13 +398,14 @@ export function MobileCard() {
 
       <div className="mx-5 mt-[18px] flex items-center gap-4 rounded-[26px] bg-[#D6F1FB] p-[18px]">
         <div className="flex h-[98px] w-32 shrink-0 rotate-[-3deg] items-center justify-center rounded-xl border-[2.5px] border-[#04202E] bg-white">
-          <PostcardQr />
+          {/* THE real postcard QR — same SVG every box ships with (mission §۱) */}
+          <RealVerifyQr />
         </div>
         <div className="flex flex-col gap-1.5">
           <span className="text-base font-extrabold">کارت پستالِ تو</span>
           <span className="text-[13px] font-medium leading-[1.85] text-[#1F3E4D]">
             روی کارت فقط همین QR هست. شماره‌ی هدیه‌ی تو، <b>{fa(nextNo)}</b>، روی خود جعبه
-            می‌شینه.
+            می‌شینه. گیرنده با شماره‌ی خودش تأیید می‌شه و پیامت رو می‌بینه.
           </span>
         </div>
       </div>
@@ -356,6 +431,23 @@ export function MobileExtras() {
   const setHearts = usePishnam((s) => s.setHearts);
   const setPaws = usePishnam((s) => s.setPaws);
   const nextNo = usePishnam((s) => s.nextNo);
+  // «افزودنی‌ها» (mission §۵) + پلن‌های نگهداری (mission §۴)
+  const catalogAddons = usePishnam((s) => s.catalogAddons);
+  const addonLines = usePishnam((s) => s.addonLines);
+  const addAddon = usePishnam((s) => s.addAddon);
+  const removeAddon = usePishnam((s) => s.removeAddon);
+  const retention = usePishnam((s) => s.retention);
+  const setRetention = usePishnam((s) => s.setRetention);
+  const retentionPrices = usePishnam((s) => s.retentionPrices);
+  const loadCatalog = usePishnam((s) => s.loadCatalog);
+  useEffect(() => {
+    void loadCatalog();
+  }, [loadCatalog]);
+  const addonQty = (variantId: string) => addonLines.find((l) => l.variantId === variantId)?.qty ?? 0;
+  const addonsTotal = addonLines.reduce((acc, l) => {
+    const a = catalogAddons.find((x) => x.variantId === l.variantId);
+    return acc + (a ? a.priceToman * l.qty : 0);
+  }, 0);
   const done = useCharityDone();
   const doneNow = done;
   const barPct = Math.min(100, Math.round((doneNow / CHARITY_TARGET) * 100));
@@ -377,7 +469,8 @@ export function MobileExtras() {
   const shown = all.slice(0, cap);
   const hasMore = all.length > cap;
   const more = all.length - cap;
-  const total = BOX_PRICE + (hearts + paws) * CHARM_PRICE;
+  const retentionFee = retention === "6m" ? retentionPrices.m6 : retention === "12m" ? retentionPrices.m12 : 0;
+  const total = BOX_PRICE + (hearts + paws) * CHARM_PRICE + addonsTotal + retentionFee;
 
   return (
     <div className="flex min-h-screen flex-col bg-[#F2FAFD] md:hidden">
@@ -444,6 +537,101 @@ export function MobileExtras() {
         </div>
       </div>
 
+      {/* «افزودنی‌ها» — همراه هدیه اصلی، از مدیریت محصولات (mission §۵) */}
+      {catalogAddons.length > 0 && (
+        <div className="px-5 pt-5">
+          <div className="flex items-baseline justify-between">
+            <h2 className="m-0 text-lg font-black">افزودنی‌ها</h2>
+            <span className="text-[12px] font-bold text-[#4A6572]">کنار هدیه‌ت بذاریم تو جعبه</span>
+          </div>
+          <div className="mt-2.5 flex flex-col gap-2">
+            {catalogAddons.map((a) => {
+              const q = addonQty(a.variantId);
+              const out = !a.inStock;
+              return (
+                <div
+                  key={a.variantId}
+                  className="flex items-center gap-3 rounded-[22px] border-[1.5px] bg-white px-3.5 py-3"
+                  style={{ borderColor: q > 0 ? "#00ABE7" : "#DDEEF5", opacity: out ? 0.55 : 1 }}
+                >
+                  <div className="flex h-[52px] w-[52px] shrink-0 items-center justify-center rounded-[16px] bg-[#F2FAFD] text-2xl" aria-hidden="true">
+                    {a.emoji || "🎁"}
+                  </div>
+                  <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+                    <span className="text-[14.5px] font-extrabold text-[#04202E]">{a.name}</span>
+                    <span className="text-[12px] font-bold text-[#4A6572]">
+                      {out ? "ناموجود" : `${money(a.priceToman)} تومان`}
+                    </span>
+                  </div>
+                  {out ? (
+                    <span className="rounded-full bg-[#F2FAFD] px-3 py-1.5 text-[11px] font-extrabold text-[#4A6572]">ناموجوده</span>
+                  ) : q === 0 ? (
+                    <button
+                      type="button"
+                      onClick={() => addAddon(a.variantId)}
+                      className="rounded-full bg-[#00ABE7] px-4 py-2 text-[12.5px] font-extrabold text-[#04202E] transition-transform active:scale-95"
+                    >
+                      + اضافه کن
+                    </button>
+                  ) : (
+                    <Counter
+                      value={q}
+                      onMinus={() => (q === 1 ? removeAddon(a.variantId) : addAddon(a.variantId))}
+                      onPlus={() => addAddon(a.variantId)}
+                      minusLabel="کمتر"
+                      plusLabel="بیشتر"
+                      plusBg="#00ABE7"
+                      plusStroke="#04202E"
+                    />
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* پلن نگهداری پیام — ساعت از اولین نمایش موفق شروع می‌شه (mission §۴) */}
+      <div className="px-5 pt-5">
+        <h2 className="m-0 text-lg font-black">نگهداری پیام</h2>
+        <p className="mb-0 mt-1 text-[12.5px] font-medium leading-[1.85] text-[#4A6572]">
+          پیامت (متن، عکس و ویس) تا وقتی که انتخاب کنی نگه داشته می‌شه. ساعت از روزی شروع می‌شه
+          که گیرنده پیامت رو واقعاً می‌بینه — نه از روز خرید.
+        </p>
+        <div className="mt-2.5 grid grid-cols-3 gap-2">
+          {(
+            [
+              { key: "1m", title: "۱ ماهه", price: 0, tag: "رایگان" },
+              { key: "6m", title: "۶ ماهه", price: retentionPrices.m6, tag: null },
+              { key: "12m", title: "۱ ساله", price: retentionPrices.m12, tag: "پیشنهاد ویژه" },
+            ] as { key: RetentionPlanKey; title: string; price: number; tag: string | null }[]
+          ).map((p) => {
+            const on = retention === p.key;
+            return (
+              <button
+                key={p.key}
+                type="button"
+                role="radio"
+                aria-checked={on}
+                onClick={() => setRetention(p.key)}
+                className="relative flex flex-col items-center gap-1 rounded-[18px] border-2 px-2 py-3 transition-colors"
+                style={{ borderColor: on ? "#00ABE7" : "#DDEEF5", background: on ? "#E3F6FD" : "white" }}
+              >
+                {p.tag && (
+                  <span className="absolute -top-2 right-1/2 translate-x-1/2 rounded-full bg-[#F0426B] px-2 py-0.5 text-[9.5px] font-extrabold text-white">
+                    {p.tag}
+                  </span>
+                )}
+                <span className="text-[13.5px] font-black text-[#04202E]">{p.title}</span>
+                <span className="text-[11px] font-bold text-[#4A6572]">
+                  {p.price === 0 ? "رایگان" : `${money(p.price)} تومان`}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
       {/* box preview */}
       <div className="mx-5 mt-[18px]">
         <div className="pb-2.5 text-[15px] font-extrabold">روی جعبه‌ت این‌جوری می‌شینه</div>
@@ -491,7 +679,7 @@ export function MobileExtras() {
 
       <div className="sticky bottom-0 mt-auto flex items-center gap-3.5 border-t border-[#D3E8F0] bg-white/95 px-5 pb-[max(14px,env(safe-area-inset-bottom))] pt-3.5">
         <div className="flex flex-1 flex-col">
-          <span className="text-[13px] font-semibold text-[#4A6572]">جمع (جعبه + قلب و پنجه)</span>
+          <span className="text-[13px] font-semibold text-[#4A6572]">جمع (جعبه + افزودنی‌ها و قلب و پنجه)</span>
           <span className="text-lg font-black">{money(total)} تومان</span>
         </div>
         <button
@@ -554,6 +742,8 @@ export function MobileCheckout() {
   const kind = usePishnam((s) => s.kind);
   const hearts = usePishnam((s) => s.hearts);
   const paws = usePishnam((s) => s.paws);
+  const addonLines = usePishnam((s) => s.addonLines);
+  const retention = usePishnam((s) => s.retention);
   const receiver = usePishnam((s) => s.receiver);
   const setReceiver = usePishnam((s) => s.setReceiver);
   const quote = usePishnam((s) => s.quote);
@@ -565,17 +755,30 @@ export function MobileCheckout() {
   // server quote — the only payable number (guide §4.5)
   useEffect(() => {
     void fetchQuote();
-  }, [fetchQuote, kind, hearts, paws, receiver.province]);
+  }, [fetchQuote, kind, hearts, paws, receiver.province, addonLines, retention]);
 
   const sel = PLUSHES.find((p) => p.kind === kind) ?? PLUSHES[0];
   const total = quote?.total ?? 0;
 
-  interface CartRow { isHeart: boolean; bg: string; title: string; sub: string; amount: string; }
+  // cart rows straight from the SERVER quote lines — main gift + «افزودنی‌ها»
+  // (each addon is an independent item, mission §۵) + retention + shipping
+  interface CartRow { key: string; emoji?: string; plush?: boolean; bg: string; title: string; sub: string; amount: string; }
   const cartRows: CartRow[] = quote
     ? [
-        { isHeart: false, bg: sel.bg, title: `${sel.name}، دوست پشمالو`, sub: "جعبه‌ی کادویی + کارت پستال QR", amount: money(quote.total - quote.shipping - quote.charms) },
+        ...(quote.lines ?? []).map((l, i) => ({
+          key: l.variantId,
+          plush: i === 0,
+          emoji: i === 0 ? undefined : l.sku.startsWith("AD-") ? "🎁" : undefined,
+          bg: i === 0 ? sel.bg : "#F2FAFD",
+          title: l.productName,
+          sub: i === 0 ? "جعبه‌ی کادویی + کارت پستال QR" : `افزودنی × ${fa(l.qty)}`,
+          amount: money(l.lineToman),
+        })),
         ...(quote.charms > 0
-          ? [{ isHeart: true, bg: "#FFE9F0", title: `قلب و پنجه × ${fa(hearts + paws)}`, sub: "برای بچه‌های بی‌سرپرست و حیوونا", amount: money(quote.charms) }]
+          ? [{ key: "charms", emoji: "❤️", bg: "#FFE9F0", title: `قلب و پنجه × ${fa(hearts + paws)}`, sub: "برای بچه‌های بی‌سرپرست و حیوونا", amount: money(quote.charms) }]
+          : []),
+        ...(quote.retention > 0
+          ? [{ key: "retention", emoji: "💾", bg: "#E3F6FD", title: `نگهداری پیام ${quote.retentionPlan === "12m" ? "۱ ساله" : "۶ ماهه"}`, sub: "ساعت از اولین نمایش موفق پیام به گیرنده", amount: money(quote.retention) }]
           : []),
       ]
     : [];
@@ -611,16 +814,12 @@ export function MobileCheckout() {
       {/* items — amounts come from the SERVER quote */}
       <div className="mx-5 mt-4 rounded-[26px] border border-[#DDEEF5] bg-white px-4 py-2">
         {cartRows.map((r) => (
-          <div key={r.title} className="flex items-center gap-3 border-b border-[#E3F0F5] py-3">
+          <div key={r.key} className="flex items-center gap-3 border-b border-[#E3F0F5] py-3">
             <div
-              className="flex h-16 w-16 shrink-0 items-center justify-center rounded-[18px]"
-              style={{ background: r.isHeart ? "#FFE9F0" : sel.bg }}
+              className="flex h-16 w-16 shrink-0 items-center justify-center rounded-[18px] text-2xl"
+              style={{ background: r.bg }}
             >
-              {r.isHeart ? (
-                <HeartSticker size={26} fill="#F0426B" stroke="#04202E" strokeWidth={2.6} />
-              ) : (
-                <Plush kind={sel.kind} size={54} />
-              )}
+              {r.plush ? <Plush kind={sel.kind} size={54} /> : <span aria-hidden="true">{r.emoji ?? "🎁"}</span>}
             </div>
             <div className="flex flex-1 flex-col gap-0.5">
               <span className="text-[15px] font-extrabold">{r.title}</span>
@@ -812,6 +1011,22 @@ function Field({
         className="h-[30px] border-none bg-transparent text-base text-[#04202E] outline-none"
       />
     </div>
+  );
+}
+
+function RealVerifyQr() {
+  // the ONE postcard QR — same for every box; grants nothing by itself
+  const [failed, setFailed] = useState(false);
+  if (failed) return <PostcardQr />; // offline fallback: decorative
+  return (
+    <img
+      src="/api/qr/verify.svg"
+      alt="QR تأیید گیرنده هدیه — به صفحه تأیید شماره موبایل می‌رود"
+      width={76}
+      height={76}
+      onError={() => setFailed(true)}
+      className="h-[76px] w-[76px]"
+    />
   );
 }
 

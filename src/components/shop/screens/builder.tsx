@@ -13,7 +13,7 @@ import {
   BackIcon,
 } from "../icons";
 import { navigate, useHashRoute, type Route } from "@/lib/hash-route";
-import { usePishnam, useCharityDone } from "@/lib/pishnam-store";
+import { usePishnam, useCharityDone, type SenderDisplayMode, type RetentionPlanKey } from "@/lib/pishnam-store";
 import { fa, money } from "@/lib/fa";
 import { FavHeart, FavFilterChips, SurpriseButton } from "../fav";
 import { MessageIdeas } from "../ideas";
@@ -27,7 +27,64 @@ import {
   type PlushKind,
 } from "@/lib/pishnam-data";
 import { PROVINCES } from "@/lib/orders/provinces";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useToast } from "@/hooks/use-toast";
+
+/** Desktop message-media picker — photos/video/voice, private & per-gift. */
+function DesktopMediaPicker() {
+  const mediaFiles = usePishnam((s) => s.mediaFiles);
+  const addMediaFile = usePishnam((s) => s.addMediaFile);
+  const removeMediaFile = usePishnam((s) => s.removeMediaFile);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const { toast } = useToast();
+  return (
+    <div className="flex flex-col gap-2">
+      <input
+        ref={inputRef}
+        type="file"
+        accept="image/jpeg,image/png,image/webp,video/mp4,video/webm,audio/mpeg,audio/mp4,audio/wav,audio/ogg,audio/webm"
+        className="hidden"
+        onChange={(e) => {
+          const f = e.target.files?.[0];
+          if (f) {
+            const r = addMediaFile(f);
+            if (!r.ok) {
+              toast({
+                title: r.error === "file_too_large" ? "حجم فایل بیشتر از ۱۰ مگابایته" : r.error === "too_many_files" ? "بیشتر از ۳ فایل نمی‌شه" : "این فرمت قبول نیست",
+                description: "عکس JPG/PNG/WebP، ویدیو MP4/WebM یا صدای MP3/WAV/M4A",
+              });
+            }
+          }
+          e.target.value = "";
+        }}
+      />
+      <button
+        type="button"
+        onClick={() => inputRef.current?.click()}
+        className="box-border flex h-[84px] w-full items-center justify-center gap-2.5 rounded-[22px] border-2 border-dashed border-[#00ABE7] bg-[#E3F6FD] text-[15px] font-bold text-[#04202E]"
+      >
+        <PhotoIcon size={26} />
+        افزودن عکس، ویدیو یا ویس (حداکثر ۳ فایل)
+      </button>
+      {mediaFiles.length > 0 && (
+        <div className="flex flex-wrap gap-2">
+          {mediaFiles.map((m) => (
+            <span key={m.id} className="flex items-center gap-2 rounded-full border border-[#CFE6EF] bg-white px-3 py-1.5">
+              <span aria-hidden="true">{m.kind === "image" ? "🖼️" : m.kind === "video" ? "🎬" : "🎙️"}</span>
+              <span className="max-w-[220px] truncate text-[12px] font-bold" dir="ltr">{m.name}</span>
+              <button type="button" aria-label={`حذف ${m.name}`} onClick={() => removeMediaFile(m.id)} className="text-[11px] font-extrabold text-[#B02A52]">
+                حذف
+              </button>
+            </span>
+          ))}
+        </div>
+      )}
+      <span className="text-[11.5px] font-medium leading-[1.8] text-[#4A6572]">
+        فایل‌ها خصوصی ذخیره می‌شن و فقط گیرنده‌ی تأییدشده می‌بینه؛ بعد از پایان مهلت نگهداری کامل حذف می‌شن.
+      </span>
+    </div>
+  );
+}
 
 export function DesktopBuilder({ step }: { step: 1 | 2 | 3 | 4 }) {
   const kind = usePishnam((s) => s.kind);
@@ -47,12 +104,27 @@ export function DesktopBuilder({ step }: { step: 1 | 2 | 3 | 4 }) {
   const setOcc = usePishnam((s) => s.setOccasion);
   const message = usePishnam((s) => s.message);
   const setMessage = usePishnam((s) => s.setMessage);
-  const anonymous = usePishnam((s) => s.anonymous);
-  const setAnonymous = usePishnam((s) => s.setAnonymous);
+  const senderDisplay = usePishnam((s) => s.senderDisplay);
+  const setSenderDisplay = usePishnam((s) => s.setSenderDisplay);
+  const senderPhrase = usePishnam((s) => s.senderPhrase);
+  const setSenderPhrase = usePishnam((s) => s.setSenderPhrase);
   const senderName = usePishnam((s) => s.senderName);
   const setSenderName = usePishnam((s) => s.setSenderName);
   const cardPassword = usePishnam((s) => s.cardPassword);
   const setCardPassword = usePishnam((s) => s.setCardPassword);
+  // «افزودنی‌ها» + نگهداری (desktop steps 3)
+  const catalogAddons = usePishnam((s) => s.catalogAddons);
+  const addonLines = usePishnam((s) => s.addonLines);
+  const addAddon = usePishnam((s) => s.addAddon);
+  const removeAddon = usePishnam((s) => s.removeAddon);
+  const retention = usePishnam((s) => s.retention);
+  const setRetention = usePishnam((s) => s.setRetention);
+  const retentionPrices = usePishnam((s) => s.retentionPrices);
+  const loadCatalog = usePishnam((s) => s.loadCatalog);
+  const user = usePishnam((s) => s.user);
+  useEffect(() => {
+    void loadCatalog();
+  }, [loadCatalog]);
   const hearts = usePishnam((s) => s.hearts);
   const setHearts = usePishnam((s) => s.setHearts);
   const paws = usePishnam((s) => s.paws);
@@ -66,7 +138,7 @@ export function DesktopBuilder({ step }: { step: 1 | 2 | 3 | 4 }) {
   const fetchQuote = usePishnam((s) => s.fetchQuote);
   useEffect(() => {
     void fetchQuote();
-  }, [fetchQuote, kind, hearts, paws, receiver.province]);
+  }, [fetchQuote, kind, hearts, paws, receiver.province, addonLines, retention]);
   const total = quote?.total ?? 0;
   const sel = PLUSHES.find((p) => p.kind === kind) ?? PLUSHES[0];
   const valid = receiver.name.trim() !== "" && receiver.phone.trim().length >= 8 && receiver.address.trim() !== "";
@@ -220,22 +292,8 @@ export function DesktopBuilder({ step }: { step: 1 | 2 | 3 | 4 }) {
               </div>
             </div>
             <MessageIdeas occ={occ} onPick={setMessage} desktop />
-            <div className="flex flex-wrap gap-3">
-              <button
-                type="button"
-                className="box-border flex h-[84px] flex-[1_1_200px] items-center justify-center gap-2.5 rounded-[22px] border-2 border-dashed border-[#00ABE7] bg-[#E3F6FD] text-[15px] font-bold text-[#04202E]"
-              >
-                <PhotoIcon size={26} />
-                افزودن عکس
-              </button>
-              <button
-                type="button"
-                className="box-border flex h-[84px] flex-[1_1_200px] items-center justify-center gap-2.5 rounded-[22px] border-2 border-dashed border-[#F0426B] bg-[#FFE9F0] text-[15px] font-bold text-[#04202E]"
-              >
-                <VideoIcon size={26} />
-                افزودن ویدیو
-              </button>
-            </div>
+            {/* پیامِ رسانه‌ای واقعی — عکس/ویدیو/ویس خصوصی (mission §۱/§۴) */}
+            <DesktopMediaPicker />
             <div className="flex flex-wrap gap-4">
               <div className="flex min-w-0 flex-[1_1_260px] flex-col gap-2">
                 <label htmlFor="dpw" className="text-sm font-extrabold">
@@ -253,29 +311,64 @@ export function DesktopBuilder({ step }: { step: 1 | 2 | 3 | 4 }) {
                   فقط کسی که رمز رو بدونه، پیامت رو می‌بینه.
                 </span>
               </div>
-              <div className="flex min-w-0 flex-[1_1_260px] flex-col gap-2">
-                <div className="flex items-center justify-between gap-3">
-                  <span className="text-sm font-extrabold">ناشناس بفرست</span>
-                  <button
-                    type="button"
-                    role="switch"
-                    aria-checked={anonymous}
-                    aria-label="ارسال ناشناس"
-                    onClick={() => setAnonymous(!anonymous)}
-                    className="relative h-8 w-[54px] shrink-0 rounded-full border-none p-0"
-                    style={{ background: anonymous ? "#00ABE7" : "#C7DCE5" }}
-                  >
-                    <span
-                      className="absolute top-[3px] h-[26px] w-[26px] rounded-full bg-white shadow-[0_2px_5px_rgba(4,32,46,0.28)] transition-all"
-                      style={anonymous ? { left: 3 } : { right: 3 }}
-                    />
-                  </button>
+              <div className="flex min-w-0 flex-[1_1_340px] flex-col gap-2">
+                <span className="text-sm font-extrabold">اسم چطوری دیده بشه؟</span>
+                <span className="text-[12px] font-medium leading-[1.8] text-[#4A6572]">
+                  انتخابت فقط برای همین سفارشه؛ حالت ناشناس یه تغییر ظاهری نیست — اطلاعات واقعی‌ات
+                  از هیچ مسیری به گیرنده نمی‌رسه.
+                </span>
+                <div className="flex flex-wrap gap-2">
+                  {(
+                    [
+                      { key: "name", label: "نمایش اسمم", hint: senderName || user?.name || "اسم خودت" },
+                      { key: "phrase", label: "عبارت دلخواه", hint: senderPhrase || "مثلاً: از طرف همسرت" },
+                      { key: "anon", label: "کاملاً ناشناس", hint: "یک هدیه برای تو" },
+                    ] as { key: SenderDisplayMode; label: string; hint: string }[]
+                  ).map((opt) => {
+                    const on = senderDisplay === opt.key;
+                    return (
+                      <button
+                        key={opt.key}
+                        type="button"
+                        role="radio"
+                        aria-checked={on}
+                        title={opt.hint}
+                        onClick={() => setSenderDisplay(opt.key)}
+                        className="flex h-[46px] items-center gap-2 rounded-full border-2 px-4 text-[13.5px] font-extrabold transition-colors"
+                        style={{ borderColor: on ? "#00ABE7" : "#DDEEF5", background: on ? "#E3F6FD" : "white", color: "#04202E" }}
+                      >
+                        {on && <CheckIcon size={14} stroke="#04202E" />}
+                        {opt.label}
+                      </button>
+                    );
+                  })}
                 </div>
-                {anonymous ? (
-                  <span className="text-[12.5px] font-medium leading-[1.8] text-[#4A6572]">
-                    توی جعبه هیچ اسمی نمی‌ذاریم.
-                  </span>
-                ) : (
+                {senderDisplay === "phrase" && (
+                  <div className="flex flex-col gap-2">
+                    <input
+                      aria-label="عبارت دلخواه"
+                      type="text"
+                      maxLength={40}
+                      value={senderPhrase}
+                      onChange={(e) => setSenderPhrase(e.target.value)}
+                      placeholder="مثلاً: از طرف همسرت"
+                      className="box-border h-[54px] rounded-[18px] border-[1.5px] border-[#CFE6EF] bg-white px-4 text-base text-[#04202E] outline-none focus:border-[#00ABE7]"
+                    />
+                    <div className="flex flex-wrap gap-1.5">
+                      {["از طرف همسرت", "از طرف مامانت", "از یه دوست قدیمی"].map((p) => (
+                        <button
+                          key={p}
+                          type="button"
+                          onClick={() => setSenderPhrase(p)}
+                          className="rounded-full border border-[#CFE6EF] bg-[#F2FAFD] px-3 py-1.5 text-[11.5px] font-bold text-[#04202E]"
+                        >
+                          {p}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {senderDisplay === "name" && (
                   <input
                     aria-label="اسم تو"
                     type="text"
@@ -345,6 +438,87 @@ export function DesktopBuilder({ step }: { step: 1 | 2 | 3 | 4 }) {
                 </div>
               </div>
             </div>
+
+            {/* «افزودنی‌ها» — همراه هدیه اصلی، از مدیریت محصولات (mission §۵) */}
+            {catalogAddons.length > 0 && (
+              <div className="flex flex-col gap-2.5 rounded-3xl border border-[#DDEEF5] bg-white px-5 py-4">
+                <div className="flex items-baseline justify-between">
+                  <span className="text-[16px] font-black">افزودنی‌ها</span>
+                  <span className="text-[12px] font-bold text-[#4A6572]">کنار هدیه‌ت بذاریم تو جعبه</span>
+                </div>
+                <div className="flex flex-wrap gap-2.5">
+                  {catalogAddons.map((a) => {
+                    const q = addonLines.find((l) => l.variantId === a.variantId)?.qty ?? 0;
+                    const out = !a.inStock;
+                    return (
+                      <div
+                        key={a.variantId}
+                        className="flex min-w-[240px] flex-[1_1_240px] items-center gap-3 rounded-[20px] border-[1.5px] px-3.5 py-3"
+                        style={{ borderColor: q > 0 ? "#00ABE7" : "#DDEEF5", opacity: out ? 0.55 : 1 }}
+                      >
+                        <span className="flex h-[52px] w-[52px] shrink-0 items-center justify-center rounded-[16px] bg-[#F2FAFD] text-2xl" aria-hidden="true">{a.emoji || "🎁"}</span>
+                        <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+                          <span className="text-[14.5px] font-extrabold">{a.name}</span>
+                          <span className="text-[12px] font-bold text-[#4A6572]">{out ? "ناموجود" : `${money(a.priceToman)} تومان`}</span>
+                        </div>
+                        {out ? (
+                          <span className="rounded-full bg-[#F2FAFD] px-3 py-1.5 text-[11px] font-extrabold text-[#4A6572]">ناموجوده</span>
+                        ) : q === 0 ? (
+                          <button type="button" onClick={() => addAddon(a.variantId)} className="h-10 rounded-full bg-[#00ABE7] px-4 text-[12.5px] font-extrabold text-[#04202E]">
+                            + اضافه کن
+                          </button>
+                        ) : (
+                          <DC
+                            value={q}
+                            onMinus={() => (q === 1 ? removeAddon(a.variantId) : addAddon(a.variantId))}
+                            onPlus={() => addAddon(a.variantId)}
+                            plusBg="#00ABE7"
+                          />
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* پلن نگهداری پیام (mission §۴) */}
+            <div className="flex flex-col gap-2.5 rounded-3xl border border-[#DDEEF5] bg-[#F8FDFF] px-5 py-4">
+              <span className="text-[16px] font-black">نگهداری پیام</span>
+              <span className="text-[12.5px] font-medium leading-[1.85] text-[#4A6572]">
+                پیامت (متن، عکس و ویس) تا وقتی که انتخاب کنی نگه داشته می‌شه؛ ساعت از روزی شروع
+                می‌شه که گیرنده پیامت رو واقعاً می‌بینه — نه از روز خرید.
+              </span>
+              <div className="flex flex-wrap gap-2">
+                {(
+                  [
+                    { key: "1m", title: "۱ ماهه", price: 0, tag: "رایگان" },
+                    { key: "6m", title: "۶ ماهه", price: retentionPrices.m6, tag: null },
+                    { key: "12m", title: "۱ ساله", price: retentionPrices.m12, tag: "پیشنهاد ویژه" },
+                  ] as { key: RetentionPlanKey; title: string; price: number; tag: string | null }[]
+                ).map((p) => {
+                  const on = retention === p.key;
+                  return (
+                    <button
+                      key={p.key}
+                      type="button"
+                      role="radio"
+                      aria-checked={on}
+                      onClick={() => setRetention(p.key)}
+                      className="relative flex h-[64px] min-w-[150px] flex-[1_1_150px] flex-col items-center justify-center gap-0.5 rounded-[18px] border-2 transition-colors"
+                      style={{ borderColor: on ? "#00ABE7" : "#DDEEF5", background: on ? "#E3F6FD" : "white" }}
+                    >
+                      {p.tag && (
+                        <span className="absolute -top-2.5 right-1/2 translate-x-1/2 rounded-full bg-[#F0426B] px-2 py-0.5 text-[9.5px] font-extrabold text-white">{p.tag}</span>
+                      )}
+                      <span className="text-[14px] font-black">{p.title}</span>
+                      <span className="text-[11.5px] font-bold text-[#4A6572]">{p.price === 0 ? "رایگان" : `${money(p.price)} تومان`}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
             <div className="flex flex-col gap-2.5 rounded-3xl border border-[#DDEEF5] bg-[#F8FDFF] px-5 py-4">
               <div className="flex items-center justify-between">
                 <span className="text-[15px] font-extrabold">اولین بسته‌ی خیریه</span>
@@ -422,8 +596,14 @@ export function DesktopBuilder({ step }: { step: 1 | 2 | 3 | 4 }) {
           </div>
 
           <div className="flex flex-col gap-2">
-            <Row label={`${sel.name}، دوست پشمالو`} sub="جعبه‌ی کادویی + کارت پستال QR" amount={quote ? money(quote.total - quote.shipping - quote.charms) : "…"} />
+            <Row label={`${sel.name}، دوست پشمالو`} sub="جعبه‌ی کادویی + کارت پستال QR" amount={quote ? money(quote.lines?.[0]?.lineToman ?? 0) : "…"} />
+            {(quote?.lines ?? []).slice(1).map((l) => (
+              <Row key={l.variantId} label={l.productName} sub={`افزودنی × ${fa(l.qty)}`} amount={money(l.lineToman)} />
+            ))}
             {hearts + paws > 0 && <Row label={`قلب و پنجه × ${fa(hearts + paws)}`} sub="برای بچه‌های بی‌سرپرست و حیوونا" amount={quote ? money(quote.charms) : "…"} />}
+            {quote && quote.retention > 0 && (
+              <Row label={`نگهداری پیام ${quote.retentionPlan === "12m" ? "۱ ساله" : "۶ ماهه"}`} sub="ساعت از اولین نمایش موفق پیام" amount={money(quote.retention)} />
+            )}
             <Row label="هزینه‌ی ارسال" sub={receiver.province === "تهران" ? "تهران" : "شهرستان"} amount={quote ? money(quote.shipping) : "…"} muted />
           </div>
 

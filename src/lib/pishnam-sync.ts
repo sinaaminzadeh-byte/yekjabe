@@ -22,6 +22,7 @@ interface ServerOrder {
   password: string;
   anonymous: boolean;
   senderName: string;
+  senderMode?: "name" | "phrase" | "anon";
   hearts: number;
   paws: number;
   total: number;
@@ -34,6 +35,11 @@ interface ServerOrder {
   paymentHoldUntil?: string | null; // ISO — end of the 10-min reservation window
   paymentKey?: string; // idempotency key (sent/owned orders only)
   paymentMethod?: string; // zarinpal | manual_transfer
+  retentionPlan?: string;
+  messageState?: GiftOrder["messageState"];
+  messageExpiresAt?: string | null;
+  mediaCount?: number;
+  viewable?: boolean;
 }
 
 interface BootstrapPayload {
@@ -87,6 +93,15 @@ function mergeRemote(remote: ServerOrder[], adoptPhone?: string): number {
       const paymentHoldUntil = r.paymentHoldUntil ?? local.paymentHoldUntil ?? null;
       const paymentKey = r.paymentKey || local.paymentKey;
       const paymentMethod = r.paymentMethod || local.paymentMethod;
+      // privacy/retention snapshots always follow the server (single truth)
+      const senderMode = r.senderMode ?? local.senderMode;
+      const senderName = r.senderName ?? local.senderName;
+      const message = r.message ?? local.message;
+      const retentionPlan = r.retentionPlan ?? local.retentionPlan;
+      const messageState = r.messageState ?? local.messageState;
+      const messageExpiresAt = r.messageExpiresAt ?? local.messageExpiresAt;
+      const mediaCount = r.mediaCount ?? local.mediaCount;
+      const viewable = r.viewable ?? local.viewable;
       if (
         status !== local.status ||
         opened !== local.opened ||
@@ -94,9 +109,34 @@ function mergeRemote(remote: ServerOrder[], adoptPhone?: string): number {
         status2 !== local.status2 ||
         paymentHoldUntil !== local.paymentHoldUntil ||
         paymentKey !== local.paymentKey ||
-        paymentMethod !== local.paymentMethod
+        paymentMethod !== local.paymentMethod ||
+        senderMode !== local.senderMode ||
+        senderName !== local.senderName ||
+        message !== local.message ||
+        retentionPlan !== local.retentionPlan ||
+        messageState !== local.messageState ||
+        messageExpiresAt !== local.messageExpiresAt ||
+        mediaCount !== local.mediaCount ||
+        viewable !== local.viewable
       ) {
-        byId.set(r.id, { ...local, status, opened, userPhone, status2, paymentHoldUntil, paymentKey, paymentMethod });
+        byId.set(r.id, {
+          ...local,
+          status,
+          opened,
+          userPhone,
+          status2,
+          paymentHoldUntil,
+          paymentKey,
+          paymentMethod,
+          senderMode,
+          senderName,
+          message,
+          retentionPlan,
+          messageState,
+          messageExpiresAt,
+          mediaCount,
+          viewable,
+        });
         changed++;
       }
     }

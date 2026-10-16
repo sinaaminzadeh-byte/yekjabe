@@ -9,6 +9,7 @@ import { env } from "@/lib/env";
 import { transitionOrder } from "@/lib/orders/transition";
 import { flushSms, enqueueSms } from "@/lib/sms";
 import { zarinpalVerify } from "@/lib/orders/checkout";
+import { purgeExpiredMessages } from "@/lib/orders/retention";
 
 function checkSecret(req: Request): void {
   const got = req.headers.get("x-cron-secret") ?? "";
@@ -101,6 +102,12 @@ const JOBS: Record<string, () => Promise<string>> = {
       }
     }
     return `verified ${ok}, failed ${failed} of ${stale.length}`;
+  },
+
+  // پاک‌سازی محتوای پیام‌های منقضی‌شده (mission §۴) — idempotent, retry-safe
+  "purge-messages": async () => {
+    const r = await purgeExpiredMessages(100);
+    return `scanned ${r.scanned}, purged ${r.purged}, failed ${r.failed}`;
   },
 
   // پاک‌سازی روزانه ۰۴:۰۰ به وقت تهران

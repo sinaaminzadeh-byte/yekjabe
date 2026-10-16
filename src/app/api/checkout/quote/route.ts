@@ -17,10 +17,13 @@ export async function POST(req: Request) {
       charmHearts: input.addons.charmHearts,
       charmPaws: input.addons.charmPaws,
       province: input.recipient.province,
+      retention: input.gift.retention,
     });
     return NextResponse.json({
       subtotal: quote.subtotal,
       charms: quote.charms,
+      retention: quote.retention,
+      retentionPlan: quote.retentionPlan,
       shipping: quote.shipping,
       discount: quote.discount,
       total: quote.total,

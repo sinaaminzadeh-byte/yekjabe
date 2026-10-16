@@ -18,6 +18,8 @@ export type Route =
   | "impact"
   | "login"
   | "gift"
+  | "verify"
+  | "gift-view"
   | "about"
   | "mission"
   | "contact"
@@ -45,6 +47,8 @@ export const ROUTES: Route[] = [
   "impact",
   "login",
   "gift",
+  "verify",
+  "gift-view",
   "about",
   "mission",
   "contact",

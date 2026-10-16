@@ -28,6 +28,20 @@ export async function nextOrderCode(tx: Prisma.TransactionClient): Promise<strin
   return `PN-${day.slice(2)}-${String(v).padStart(4, "0")}`;
 }
 
+/** RR-YYMMDD-#### — renewal codes live in their OWN counter namespace
+ *  (`RR<day>` rows) so they can never collide with PN order codes. */
+export async function nextRenewalCode(tx: Prisma.TransactionClient): Promise<string> {
+  const day = tehranYYYYMMDD();
+  const dayKey = `RR${day}`;
+  const rows = await tx.$queryRaw<{ value: number }[]>`
+    INSERT INTO DailyCounter (day, value)
+    VALUES (${dayKey}, 1)
+    ON CONFLICT(day) DO UPDATE SET value = DailyCounter.value + 1
+    RETURNING value`;
+  const v = rows[0]?.value ?? 1;
+  return `RR-${day.slice(2)}-${String(v).padStart(4, "0")}`;
+}
+
 /** 251213-0007 → 7 (display helper; 0 when unparseable) */
 export function codeSuffixNo(code: string): number {
   const m = /(\d{4})$/.exec(code);

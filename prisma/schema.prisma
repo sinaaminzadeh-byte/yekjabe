@@ -177,9 +177,13 @@ model Review {
 
 model Product {
   id          String           @id @default(cuid())
-  slug        String           @unique // bear | bunny | cat | duck | panda | sheep
+  slug        String           @unique // bear | bunny | cat | duck | panda | sheep | addon-…
   name        String // Persian display name
   description String           @default("")
+  // main_gift = the 6 plush boxes; addon = «افزودنی‌ها» (bracelet, watch, …)
+  // managed from the admin «محصولات» tab — new addons never need code changes.
+  kind        String           @default("main_gift") // main_gift | addon
+  emoji       String           @default("🎁") // compact display glyph for addons
   isActive    Boolean          @default(true)
   createdAt   DateTime         @default(now())
   updatedAt   DateTime         @updatedAt
@@ -225,8 +229,27 @@ model Order {
   cardPasswordHash String      @default("") // scrypt, never plaintext
   occasion         Int         @default(0)
   anonymous        Boolean     @default(false)
+  // sender privacy — per-order choice (mission §۳):
+  //   name  = show the sender's real name
+  //   phrase= show a custom phrase like «از طرف همسرت»
+  //   anon  = fully anonymous → recipient-facing responses NEVER carry
+  //           senderName/senderPhone (stripped server-side, not CSS-hidden)
+  senderDisplay    String      @default("name") // name | phrase | anon
+  senderPhrase     String      @default("")
   charmHearts      Int         @default(0)
   charmPaws        Int         @default(0)
+  // private message media (photos/video/voice) — storage keys .data/messages/<code>/…
+  mediaKeys        String      @default("[]") // JSON array
+  mediaCount       Int         @default(0)
+  // message retention (mission §۴): the clock starts ONLY at the first
+  // successful authorized display to the recipient — never at order/payment/
+  // delivery/QR-scan time. Purge is idempotent and retry-safe.
+  retentionPlan      String    @default("1m") // 1m | 6m | 12m
+  messageShownAt     DateTime?
+  messageExpiresAt   DateTime?
+  messagePurgedAt    DateTime?
+  messagePurgeStatus String    @default("active") // active | purged | purge_failed
+  messagePurgeAttempts Int     @default(0)
   // money (toman — server-authoritative, computed in pricing.ts)
   subtotalToman    Int         @default(0)
   shippingToman    Int         @default(0)
@@ -252,11 +275,13 @@ model Order {
   items    OrderItem[]
   events   OrderEvent[]
   payments Payment[]
+  renewals RetentionRenewal[]
 
   @@index([sessionPhone, createdAt])
   @@index([userPhone])
   @@index([recipientPhone])
   @@index([status, expiresAt])
+  @@index([messagePurgeStatus, messageExpiresAt])
 }
 
 model OrderItem {
@@ -324,6 +349,34 @@ model SmsOutbox {
   createdAt DateTime  @default(now())
 
   @@index([status, sendAfter])
+}
+
+// ── Retention renewal (mission §۴ — تمدید نگهداری پیام) ──
+// A paid extension of messageExpiresAt. Applied ONLY after the admin verifies
+// the card-to-card receipt — never self-serve. If the message was already
+// purged when approval lands, the renewal is cancelled honestly (no fake
+// recovery) and the money path is manual refund by the owner.
+model RetentionRenewal {
+  id               String    @id @default(cuid())
+  code             String    @unique // RR-YYMMDD-#### (own DailyCounter namespace)
+  order            Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  orderId          String
+  plan             String // 6m | 12m (1m is free — nothing to renew)
+  priceToman       Int // snapshot from Setting at request time
+  status           String    @default("awaiting_payment") // awaiting_payment | payment_under_review | paid | cancelled
+  requestedByPhone String // session that requested it (sender OR recipient)
+  receiptKey       String    @default("") // same receipt store as manual payments
+  receiptHash      String    @default("") // sha256 — dedupe across payments+renewals
+  receiptMime      String    @default("")
+  receiptSize      Int       @default(0)
+  cancelReason     String    @default("")
+  paidAt           DateTime?
+  appliedAt        DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  @@index([status, createdAt])
+  @@index([orderId])
 }
 
 model Setting {

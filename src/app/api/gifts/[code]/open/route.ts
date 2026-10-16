@@ -7,6 +7,8 @@ import { AppError, toErrorResponse } from "@/lib/errors";
 import { assertSameOrigin } from "@/lib/auth/session";
 import { clientIp, isRateLimited, rateLimit } from "@/lib/rate-limit";
 import { verifyGiftPassword } from "@/lib/orders/crypto";
+import { isMessageExpired, markFirstDisplay } from "@/lib/orders/retention";
+import { isViewableStatus, senderLabelFor } from "@/lib/orders/gift-view";
 import { enqueueSms } from "@/lib/sms";
 import { env } from "@/lib/env";
 
@@ -65,9 +67,31 @@ export async function POST(req: Request, { params }: { params: Promise<{ code: s
         .catch(() => {});
     }
 
+    // expired/purged → honest state, ZERO content (mission §۴)
+    if (isMessageExpired(order)) {
+      return NextResponse.json({
+        state: order.messagePurgeStatus === "purged" ? "purged" : "expired",
+        to: order.recipientName,
+        kind: order.items[0]?.variant.product.slug ?? "bear",
+      });
+    }
+
+    // اولین نمایش واقعی برای گیرنده فقط وقتی جعبه در راه/رسیده است ساعت را
+    // شروع می‌کند — بازکردن آزمایشی فرستنده در paid/preparing شروعش نمی‌کند.
+    let clock: { shownAt: Date; expiresAt: Date } | null = null;
+    if (isViewableStatus(order.status)) {
+      clock = await markFirstDisplay(order.id);
+    }
+
+    // privacy (mission §۳): the recipient surface gets ONLY the computed
+    // label — phrase / name / «یک هدیه برای تو». senderPhone NEVER leaves;
+    // in anon mode senderName never leaves either.
+    const label = senderLabelFor(order);
     return NextResponse.json({
+      state: "ok",
       to: order.recipientName,
-      senderName: order.anonymous ? "" : order.senderName,
+      senderMode: label.mode,
+      senderLabel: label.label,
       anonymous: order.anonymous,
       message: order.message,
       occasion: order.occasion,
@@ -75,6 +99,10 @@ export async function POST(req: Request, { params }: { params: Promise<{ code: s
       hearts: order.charmHearts,
       paws: order.charmPaws,
       openedAt: order.giftOpenedAt ?? new Date(),
+      retention: {
+        shownAt: (clock?.shownAt ?? order.messageShownAt)?.toISOString() ?? null,
+        expiresAt: (clock?.expiresAt ?? order.messageExpiresAt)?.toISOString() ?? null,
+      },
     });
   } catch (e) {
     if (isRateLimited(e)) {

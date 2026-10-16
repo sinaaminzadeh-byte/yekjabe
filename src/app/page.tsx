@@ -23,6 +23,7 @@ import {
   DesktopLogin,
 } from "@/components/shop/screens/dashboards";
 import { GiftExperience } from "@/components/shop/screens/gift-experience";
+import { VerifyScreen, GiftViewScreen } from "@/components/shop/screens/verify";
 import { MobileTrack, DesktopTrack } from "@/components/shop/screens/track";
 import { AdminScreen } from "@/components/shop/screens/admin";
 import { PayGateway } from "@/components/shop/screens/pay-gateway";
@@ -83,7 +84,7 @@ function NotFoundScreen() {
 
 function PishnamScreens() {
   const { route, query } = useHashRoute();
-  const standalone = route === "gift" || route === "pay-gateway";
+  const standalone = route === "gift" || route === "pay-gateway" || route === "verify" || route === "gift-view";
   // the 4-step wizard has its own back button, step bar and sticky CTA —
   // the global bottom nav would sit on top of the CTA (both stick to bottom)
   const wizard = route === "pick" || route === "card" || route === "extras" || route === "checkout";
@@ -165,6 +166,10 @@ function PishnamScreens() {
         );
       case "gift":
         return <GiftExperience />;
+      case "verify":
+        return <VerifyScreen />;
+      case "gift-view":
+        return <GiftViewScreen code={query.get("code") ?? ""} />;
       case "pay-gateway":
         return <PayGateway authority={query.get("authority") ?? ""} />;
       case "track":

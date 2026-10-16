@@ -16,6 +16,8 @@ export interface QuoteLine {
 export interface Quote {
   subtotalItems: number;
   charms: number;
+  retention: number; // نگهداری پیام — 1m رایگان؛ 6m/12m از Setting
+  retentionPlan: string;
   subtotal: number;
   shipping: number;
   discount: number;
@@ -34,7 +36,13 @@ export async function getSettings(tx: Tx, keys: string[]): Promise<Record<string
 
 export async function computeQuote(
   tx: Tx,
-  input: { items: { variantId: string; qty: number }[]; charmHearts: number; charmPaws: number; province: string },
+  input: {
+    items: { variantId: string; qty: number }[];
+    charmHearts: number;
+    charmPaws: number;
+    province: string;
+    retention?: string; // "1m" | "6m" | "12m" — default 1m (رایگان)
+  },
 ): Promise<Quote> {
   const variants = await tx.productVariant.findMany({
     where: { id: { in: input.items.map((i) => i.variantId) }, isActive: true },
@@ -44,10 +52,24 @@ export async function computeQuote(
     throw new AppError(400, "bad_variant");
   }
 
-  const s = await getSettings(tx, ["charm_price_toman", "ship_fee_tehran_toman", "ship_fee_other_toman"]);
+  const s = await getSettings(tx, [
+    "charm_price_toman",
+    "ship_fee_tehran_toman",
+    "ship_fee_other_toman",
+    "retention_6m_price_toman",
+    "retention_12m_price_toman",
+  ]);
   const charmPrice = Number(s.charm_price_toman ?? 50000);
   const shipTehran = Number(s.ship_fee_tehran_toman ?? 49000);
   const shipOther = Number(s.ship_fee_other_toman ?? 69000);
+  // پلن‌های نگهداری از تنظیمات می‌آیند — هیچ قیمت‌ای در کد ثابت نیست (mission §۴)
+  const retentionPlan = input.retention === "6m" || input.retention === "12m" ? input.retention : "1m";
+  const retention =
+    retentionPlan === "6m"
+      ? Number(s.retention_6m_price_toman ?? 0)
+      : retentionPlan === "12m"
+        ? Number(s.retention_12m_price_toman ?? 0)
+        : 0;
 
   const subtotalItems = input.items.reduce((acc, i) => {
     const v = variants.find((x) => x.id === i.variantId);
@@ -75,10 +97,12 @@ export async function computeQuote(
   return {
     subtotalItems,
     charms,
-    subtotal: subtotalItems + charms,
+    retention,
+    retentionPlan,
+    subtotal: subtotalItems + charms + retention,
     shipping,
     discount,
-    total: subtotalItems + charms + shipping - discount,
+    total: subtotalItems + charms + retention + shipping - discount,
     lines,
   };
 }

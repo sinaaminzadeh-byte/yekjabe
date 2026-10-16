@@ -85,3 +85,201 @@ Mini-services startup completed. Started 0 service(s).
 
 Next.js dev server is running in background (PID: 1223).
 Use 'kill 1223' to stop it.
+==========================================
+[2026-10-16 13:53:28] Starting: bun install
+==========================================
+[BUN] Installing dependencies...
+[0.02ms] ".env"
+bun install v1.3.14 (0d9b296a)
+
++ date-fns@4.1.0
+
+1 package installed [283.00ms]
+==========================================
+[2026-10-16 13:53:28] Completed: bun install
+[LOG] Step: bun install | Duration: 0s
+==========================================
+
+==========================================
+[2026-10-16 13:53:28] Starting: bun run db:push
+==========================================
+[BUN] Setting up database...
+$ prisma db push --accept-data-loss
+Environment variables loaded from .env
+Prisma schema loaded from prisma/schema.prisma
+Datasource "db": SQLite database "custom.db" at "file:/home/z/my-project/db/custom.db"
+
+The database is already in sync with the Prisma schema.
+
+Running generate... (Use --skip-generate to skip the generators)
+[2K[1A[2K[GRunning generate... - Prisma Client
+[2K[1A[2K[G✔ Generated Prisma Client (v6.19.2) to ./node_modules/@prisma/client in 253ms
+┌─────────────────────────────────────────────────────────┐
+│  Update available 6.19.2 -> 8.0.0-rc.23                 │
+│                                                         │
+│  This is a major update - please follow the guide at    │
+│  https://pris.ly/d/major-version-upgrade                │
+│                                                         │
+│  Run the following to update                            │
+│    npm i --save-dev prisma@latest                       │
+│    npm i @prisma/client@latest                          │
+└─────────────────────────────────────────────────────────┘
+
+==========================================
+[2026-10-16 13:53:29] Completed: bun run db:push
+[LOG] Step: bun run db:push | Duration: 1s
+==========================================
+
+==========================================
+[2026-10-16 13:53:29] Starting: Starting Next.js dev server
+==========================================
+[BUN] Starting development server...
+==========================================
+$ next dev -p 3000 2>&1 | tee dev.log
+[2026-10-16 13:53:29] Completed: Starting Next.js dev server
+[LOG] Step: Starting Next.js dev server | Duration: 0s
+==========================================
+
+==========================================
+[2026-10-16 13:53:29] Starting: Waiting for Next.js dev server
+==========================================
+Waiting for Next.js dev server to be ready on localhost:3000...
+Attempt 1/60: Next.js dev server not ready yet, waiting...
+▲ Next.js 16.1.3 (Turbopack)
+- Local:         http://localhost:3000
+- Network:       http://21.0.9.105:3000
+- Environments: .env
+
+✓ Starting...
+✓ Ready in 825ms
+○ Compiling / ...
+Next.js dev server is ready!
+ GET / 200 in 3.7s (compile: 3.4s, render: 283ms)
+==========================================
+ GET / 200 in 3.5s (compile: 3.5s, render: 73ms)
+[2026-10-16 13:53:34] Completed: Waiting for Next.js dev server
+[LOG] Step: Waiting for Next.js dev server | Duration: 5s
+==========================================
+
+==========================================
+[2026-10-16 13:53:34] Starting: Health check
+==========================================
+[BUN] Performing health check...
+ GET / 200 in 25ms (compile: 2ms, render: 23ms)
+[BUN] Health check passed
+==========================================
+[2026-10-16 13:53:34] Completed: Health check
+[LOG] Step: Health check | Duration: 0s
+==========================================
+
+==========================================
+[2026-10-16 13:53:34] Starting: Starting mini-services
+==========================================
+Found mini-services directory, scanning for sub-services...
+Mini-services startup completed. Started 0 service(s).
+==========================================
+[2026-10-16 13:53:34] Completed: Starting mini-services
+[LOG] Step: Starting mini-services | Duration: 0s
+==========================================
+
+Next.js dev server is running in background (PID: 1127).
+Use 'kill 1127' to stop it.
+ GET / 200 in 37ms (compile: 3ms, render: 34ms)
+ GET /api/stats 200 in 546ms (compile: 500ms, render: 47ms)
+ GET /api/posts 200 in 120ms (compile: 108ms, render: 12ms)
+ GET /api/stats 200 in 12ms (compile: 9ms, render: 4ms)
+ GET /api/posts 200 in 11ms (compile: 4ms, render: 7ms)
+ GET /api/me/bootstrap 200 in 681ms (compile: 670ms, render: 11ms)
+ GET / 200 in 42ms (compile: 4ms, render: 38ms)
+ GET /api/posts 200 in 10ms (compile: 2ms, render: 8ms)
+ GET /api/stats 200 in 7ms (compile: 1618µs, render: 5ms)
+ GET /api/me/bootstrap 200 in 7ms (compile: 1641µs, render: 5ms)
+ GET /api/catalog 200 in 99ms (compile: 93ms, render: 6ms)
+ GET /api/posts 200 in 9ms (compile: 3ms, render: 7ms)
+ GET /api/stories 200 in 98ms (compile: 91ms, render: 7ms)
+ GET / 200 in 35ms (compile: 3ms, render: 32ms)
+ GET / 200 in 28ms (compile: 1901µs, render: 26ms)
+ GET /api/posts 200 in 12ms (compile: 3ms, render: 10ms)
+ GET /api/stats 200 in 14ms (compile: 6ms, render: 7ms)
+ GET /api/stats 200 in 5ms (compile: 2ms, render: 3ms)
+ GET /api/posts 200 in 11ms (compile: 8ms, render: 3ms)
+ GET /api/me/bootstrap 200 in 5ms (compile: 1754µs, render: 4ms)
+ GET / 200 in 37ms (compile: 2ms, render: 34ms)
+ GET /api/stats 200 in 12ms (compile: 4ms, render: 8ms)
+ GET /api/stats 200 in 8ms (compile: 5ms, render: 2ms)
+ GET /api/posts 200 in 5ms (compile: 1819µs, render: 4ms)
+ GET /api/posts 200 in 6ms (compile: 3ms, render: 4ms)
+ GET /api/me/bootstrap 200 in 5ms (compile: 1329µs, render: 4ms)
+ GET / 200 in 34ms (compile: 3ms, render: 31ms)
+ GET /api/stats 200 in 13ms (compile: 3ms, render: 10ms)
+ GET /api/posts 200 in 8ms (compile: 1988µs, render: 6ms)
+ GET /api/stats 200 in 4ms (compile: 1833µs, render: 3ms)
+ GET /api/posts 200 in 5ms (compile: 1500µs, render: 3ms)
+ GET /api/me/bootstrap 200 in 6ms (compile: 2ms, render: 4ms)
+ GET / 200 in 35ms (compile: 3ms, render: 33ms)
+ GET / 200 in 32ms (compile: 3ms, render: 29ms)
+ GET /api/stats 200 in 9ms (compile: 2ms, render: 7ms)
+ GET /api/posts 200 in 7ms (compile: 2ms, render: 5ms)
+ GET /api/stats 200 in 5ms (compile: 2ms, render: 3ms)
+ GET /api/posts 200 in 6ms (compile: 2ms, render: 4ms)
+ GET /api/me/bootstrap 200 in 8ms (compile: 3ms, render: 5ms)
+ GET / 200 in 31ms (compile: 2ms, render: 29ms)
+ GET /api/catalog 200 in 9ms (compile: 2ms, render: 6ms)
+ GET /api/stats 200 in 9ms (compile: 2ms, render: 6ms)
+ GET /api/posts 200 in 8ms (compile: 2ms, render: 6ms)
+ GET /api/stats 200 in 6ms (compile: 2ms, render: 3ms)
+ GET /api/posts 200 in 7ms (compile: 2ms, render: 5ms)
+ GET /api/me/bootstrap 200 in 7ms (compile: 2ms, render: 5ms)
+ GET / 200 in 36ms (compile: 3ms, render: 33ms)
+ GET /api/catalog 200 in 8ms (compile: 2ms, render: 6ms)
+ GET / 200 in 30ms (compile: 2ms, render: 28ms)
+ GET /api/stats 200 in 10ms (compile: 2ms, render: 7ms)
+ GET /api/posts 200 in 7ms (compile: 2ms, render: 5ms)
+ GET /api/stats 200 in 5ms (compile: 2ms, render: 3ms)
+ GET /api/posts 200 in 7ms (compile: 2ms, render: 5ms)
+ GET /api/me/bootstrap 200 in 6ms (compile: 2ms, render: 4ms)
+ GET /api/catalog 200 in 7ms (compile: 2ms, render: 5ms)
+ GET /api/posts 200 in 10ms (compile: 2ms, render: 8ms)
+ GET /api/stats 200 in 5ms (compile: 3ms, render: 2ms)
+ GET /api/posts 200 in 9ms (compile: 6ms, render: 4ms)
+ GET /api/stats 200 in 5ms (compile: 3ms, render: 2ms)
+ GET /api/me/bootstrap 200 in 6ms (compile: 1701µs, render: 4ms)
+ GET / 200 in 33ms (compile: 2ms, render: 31ms)
+ GET /api/stats 200 in 10ms (compile: 3ms, render: 7ms)
+ GET /api/stats 200 in 4ms (compile: 1894µs, render: 2ms)
+ GET /api/posts 200 in 8ms (compile: 5ms, render: 3ms)
+ GET /api/posts 200 in 6ms (compile: 3ms, render: 3ms)
+ GET /api/me/bootstrap 200 in 5ms (compile: 1403µs, render: 4ms)
+ GET /api/catalog 200 in 7ms (compile: 2ms, render: 5ms)
+ GET /api/catalog 200 in 8ms (compile: 3ms, render: 5ms)
+✓ Compiled in 356ms
+✓ Compiled in 179ms
+✓ Compiled in 193ms
+✓ Compiled in 440ms
+✓ Compiled in 234ms
+✓ Compiled in 219ms
+✓ Compiled in 364ms
+✓ Compiled in 149ms
+✓ Compiled in 349ms
+✓ Compiled in 158ms
+✓ Compiled in 137ms
+✓ Compiled in 324ms
+✓ Compiled in 156ms
+✓ Compiled in 351ms
+✓ Compiled in 253ms
+✓ Compiled in 254ms
+✓ Compiled in 237ms
+✓ Compiled in 261ms
+✓ Compiled in 267ms
+✓ Compiled in 229ms
+✓ Compiled in 151ms
+✓ Compiled in 216ms
+✓ Compiled in 366ms
+✓ Compiled in 251ms
+✓ Compiled in 281ms
+✓ Compiled in 85ms
+✓ Compiled in 207ms
+ GET /api/catalog 200 in 53ms (compile: 42ms, render: 11ms)
+ GET /api/catalog 200 in 11ms (compile: 3ms, render: 8ms)
+error: script "dev" was terminated by signal SIGTERM (Polite quit request)
+[?25h

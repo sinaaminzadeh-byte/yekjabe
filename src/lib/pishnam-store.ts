@@ -41,6 +41,7 @@ export interface GiftOrder {
   password: string;
   anonymous: boolean;
   senderName: string;
+  senderMode?: "name" | "phrase" | "anon"; // privacy-computed label mode (server)
   hearts: number;
   paws: number;
   total: number;
@@ -57,6 +58,30 @@ export interface GiftOrder {
   paymentHoldUntil?: string | null; // ISO deadline of the 10-min window
   paymentKey?: string; // idempotency key — the order owner may reuse it
   paymentMethod?: string; // zarinpal | manual_transfer
+  // retention snapshot (mission §۴) — panel chips only, NEVER the content
+  retentionPlan?: string; // 1m | 6m | 12m
+  messageState?: "unopened" | "active" | "expired" | "purged";
+  messageExpiresAt?: string | null; // ISO
+  mediaCount?: number;
+  viewable?: boolean; // status ∈ shipped|delivered (recipient may view)
+}
+
+/** A server-authorized received gift (GET /api/gifts/received). */
+export interface ReceivedGift {
+  code: string;
+  no: number;
+  kind: PlushKind;
+  to: string;
+  status: string;
+  opened: boolean;
+  occasion: number;
+  hearts: number;
+  paws: number;
+  senderMode: "name" | "phrase" | "anon";
+  senderLabel: string; // «یک هدیه برای تو» in anon — real name NEVER arrives
+  hasMessage: boolean;
+  mediaCount: number;
+  retention: { state: "unopened" | "active" | "expired" | "purged"; shownAt: string | null; expiresAt: string | null; purgeStatus: string };
 }
 
 export interface Receiver {
@@ -72,17 +97,33 @@ export type PaymentMethod = "zarinpal" | "manual_transfer";
 export interface Quote {
   subtotal: number;
   charms: number;
+  retention: number;
+  retentionPlan?: string;
   shipping: number;
   discount: number;
   total: number;
+  lines?: { variantId: string; sku: string; productSlug: string; productName: string; unitPriceToman: number; qty: number; lineToman: number }[];
 }
 
 export interface CatalogEntry {
   slug: PlushKind;
   name: string;
+  kind?: "main_gift" | "addon";
+  emoji?: string;
   variantId: string;
   priceToman: number;
   inStock: boolean;
+}
+
+export type SenderDisplayMode = "name" | "phrase" | "anon";
+export type RetentionPlanKey = "1m" | "6m" | "12m";
+
+export interface MediaFileMeta {
+  id: string;
+  name: string;
+  size: number;
+  type: string;
+  kind: "image" | "video" | "audio";
 }
 
 export interface CheckoutAck {
@@ -109,6 +150,15 @@ interface PishnamState {
   cardPassword: string;
   anonymous: boolean;
   senderName: string;
+  // sender privacy (mission §۳) — per-order choice
+  senderDisplay: SenderDisplayMode;
+  senderPhrase: string;
+  // نگهداری پیام (mission §۴)
+  retention: RetentionPlanKey;
+  // «افزودنی‌ها» (mission §۵) — companion products as extra cart lines
+  addonLines: { variantId: string; qty: number }[];
+  // message media (mission §۱/§۴) — meta only; File objects stay in memory
+  mediaFiles: MediaFileMeta[];
   hearts: number;
   paws: number;
   receiver: Receiver;
@@ -123,11 +173,18 @@ interface PishnamState {
   nextNo: number;
   selectedId: string | null;
 
+  // received gifts (mission §۲) — session-scoped, server-authorized
+  receivedGifts: ReceivedGift[];
+  receivedStatus: "idle" | "loading" | "ready" | "error";
+  fetchReceived: () => Promise<ReceivedGift[]>;
+
   // favorites (پشمالوهای محبوب)
   favorites: PlushKind[];
 
   // commerce (Phase B)
   catalog: Record<string, CatalogEntry>;
+  catalogAddons: CatalogEntry[];
+  retentionPrices: { m6: number; m12: number };
   catalogLoaded: boolean;
   quote: Quote | null;
   quoteStatus: "idle" | "loading" | "ready" | "error";
@@ -142,6 +199,14 @@ interface PishnamState {
   setCardPassword: (p: string) => void;
   setAnonymous: (a: boolean) => void;
   setSenderName: (n: string) => void;
+  setSenderDisplay: (m: SenderDisplayMode) => void;
+  setSenderPhrase: (p: string) => void;
+  setRetention: (r: RetentionPlanKey) => void;
+  addAddon: (variantId: string) => void;
+  removeAddon: (variantId: string) => void;
+  setAddonQty: (variantId: string, qty: number) => void;
+  addMediaFile: (file: File) => { ok: boolean; error?: string };
+  removeMediaFile: (id: string) => void;
   setHearts: (n: number) => void;
   setPaws: (n: number) => void;
   setReceiver: (r: Partial<Receiver>) => void;
@@ -165,6 +230,22 @@ interface PishnamState {
   resetBuilder: () => void;
   selectOrder: (id: string | null) => void;
   toggleFavorite: (k: PlushKind) => void;
+}
+
+/** File objects can't be serialized — they live here, keyed by meta id. */
+const mediaFileMap = new Map<string, File>();
+export function getMediaFile(id: string): File | undefined {
+  return mediaFileMap.get(id);
+}
+export function clearMediaFiles(): void {
+  mediaFileMap.clear();
+}
+
+function mediaKind(type: string): "image" | "video" | "audio" | null {
+  if (/^image\/(jpeg|png|webp)$/.test(type)) return "image";
+  if (/^video\/(mp4|webm)$/.test(type)) return "video";
+  if (/^audio\/(mpeg|mp3|wav|ogg|mp4|webm|x-m4a|m4a)$/.test(type) || type === "audio/x-m4a") return "audio";
+  return null;
 }
 
 const DEFAULT_RECEIVER: Receiver = { name: "", province: "تهران", city: "", address: "", phone: "" };
@@ -200,6 +281,11 @@ export const usePishnam = create<PishnamState>()(
       cardPassword: "",
       anonymous: false,
       senderName: "",
+      senderDisplay: "name",
+      senderPhrase: "",
+      retention: "1m",
+      addonLines: [],
+      mediaFiles: [],
       hearts: 5,
       paws: 3,
       receiver: DEFAULT_RECEIVER,
@@ -213,7 +299,29 @@ export const usePishnam = create<PishnamState>()(
       orders: [],
       nextNo: FIRST_GIFT_NO,
 
+      receivedGifts: [],
+      receivedStatus: "idle",
+      fetchReceived: async () => {
+        if (get().receivedStatus === "loading") return get().receivedGifts;
+        set({ receivedStatus: "loading" });
+        try {
+          const res = await fetch("/api/gifts/received", { cache: "no-store" });
+          if (!res.ok) {
+            set({ receivedStatus: "error" });
+            return get().receivedGifts;
+          }
+          const data = (await res.json()) as { gifts: ReceivedGift[] };
+          set({ receivedGifts: Array.isArray(data.gifts) ? data.gifts : [], receivedStatus: "ready" });
+          return get().receivedGifts;
+        } catch {
+          set({ receivedStatus: "error" });
+          return get().receivedGifts;
+        }
+      },
+
       catalog: {},
+      catalogAddons: [],
+      retentionPrices: { m6: 0, m12: 0 },
       catalogLoaded: false,
       quote: null,
       quoteStatus: "idle",
@@ -226,8 +334,43 @@ export const usePishnam = create<PishnamState>()(
       setOccasion: (i) => set({ occasion: i }),
       setMessage: (m) => set({ message: m }),
       setCardPassword: (p) => set({ cardPassword: p }),
-      setAnonymous: (a) => set({ anonymous: a }),
+      setAnonymous: (a) => set({ anonymous: a, senderDisplay: a ? "anon" : "name" }),
       setSenderName: (n) => set({ senderName: n }),
+      setSenderDisplay: (m) => set({ senderDisplay: m, anonymous: m === "anon" }),
+      setSenderPhrase: (p) => set({ senderPhrase: p.slice(0, 40) }),
+      setRetention: (r) => set({ retention: r }),
+      addAddon: (variantId) => {
+        const lines = get().addonLines;
+        const cur = lines.find((l) => l.variantId === variantId);
+        if (cur) {
+          set({ addonLines: lines.map((l) => (l.variantId === variantId ? { ...l, qty: Math.min(10, l.qty + 1) } : l)) });
+        } else {
+          set({ addonLines: [...lines, { variantId, qty: 1 }] });
+        }
+      },
+      removeAddon: (variantId) => set({ addonLines: get().addonLines.filter((l) => l.variantId !== variantId) }),
+      setAddonQty: (variantId, qty) => {
+        const q = Math.max(0, Math.min(10, qty));
+        if (q === 0) {
+          set({ addonLines: get().addonLines.filter((l) => l.variantId !== variantId) });
+        } else {
+          set({ addonLines: get().addonLines.map((l) => (l.variantId === variantId ? { ...l, qty: q } : l)) });
+        }
+      },
+      addMediaFile: (file) => {
+        const kind = mediaKind(file.type);
+        if (!kind) return { ok: false, error: "bad_file_type" };
+        if (file.size > 10 * 1024 * 1024) return { ok: false, error: "file_too_large" };
+        if (get().mediaFiles.length >= 3) return { ok: false, error: "too_many_files" };
+        const id = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+        mediaFileMap.set(id, file);
+        set({ mediaFiles: [...get().mediaFiles, { id, name: file.name, size: file.size, type: file.type, kind }] });
+        return { ok: true };
+      },
+      removeMediaFile: (id) => {
+        mediaFileMap.delete(id);
+        set({ mediaFiles: get().mediaFiles.filter((m) => m.id !== id) });
+      },
       setHearts: (n) => set({ hearts: Math.max(0, Math.min(99, n)) }),
       setPaws: (n) => set({ paws: Math.max(0, Math.min(99, n)) }),
       setReceiver: (r) => set({ receiver: { ...get().receiver, ...r } }),
@@ -247,10 +390,19 @@ export const usePishnam = create<PishnamState>()(
         try {
           const res = await fetch("/api/catalog", { cache: "no-store" });
           if (!res.ok) return;
-          const data = (await res.json()) as { products: CatalogEntry[] };
+          const data = (await res.json()) as { products: CatalogEntry[]; retention?: { m6: number; m12: number } };
           const map: Record<string, CatalogEntry> = {};
-          for (const p of data.products) map[p.slug] = p;
-          set({ catalog: map, catalogLoaded: true });
+          const addons: CatalogEntry[] = [];
+          for (const p of data.products) {
+            map[p.slug] = p;
+            if (p.kind === "addon") addons.push(p);
+          }
+          set({
+            catalog: map,
+            catalogAddons: addons,
+            retentionPrices: data.retention ?? { m6: 0, m12: 0 },
+            catalogLoaded: true,
+          });
         } catch {
           /* offline → retry on next call */
         }
@@ -271,8 +423,13 @@ export const usePishnam = create<PishnamState>()(
             }
           }
           const e = get().catalog[s.kind];
+          // main gift + «افزودنی‌ها» ride together as server-validated items
+          const items = [
+            { variantId: e!.variantId, qty: 1 },
+            ...s.addonLines.map((l) => ({ variantId: l.variantId, qty: l.qty })),
+          ];
           const payload = {
-            items: [{ variantId: e!.variantId, qty: 1 }],
+            items,
             addons: { charmHearts: s.hearts, charmPaws: s.paws },
             sender: { name: s.senderName || s.user?.name || "مهمان", phone: s.user?.phone ?? "" },
             recipient: {
@@ -288,6 +445,9 @@ export const usePishnam = create<PishnamState>()(
               password: s.cardPassword.length >= 4 ? s.cardPassword : "0000",
               occasion: s.occasion,
               anonymous: s.anonymous,
+              senderDisplay: s.senderDisplay,
+              senderPhrase: s.senderPhrase,
+              retention: s.retention,
             },
             paymentMethod: s.paymentMethod,
           };
@@ -329,7 +489,7 @@ export const usePishnam = create<PishnamState>()(
           }
 
           const payload = {
-            items: [{ variantId: e.variantId, qty: 1 }],
+            items: [{ variantId: e.variantId, qty: 1 }, ...s.addonLines.map((l) => ({ variantId: l.variantId, qty: l.qty }))],
             addons: { charmHearts: s.hearts, charmPaws: s.paws },
             sender: { name: s.senderName || s.user?.name || "مهمان", phone: s.user?.phone ?? "" },
             recipient: {
@@ -345,6 +505,9 @@ export const usePishnam = create<PishnamState>()(
               password: s.cardPassword,
               occasion: s.occasion,
               anonymous: s.anonymous,
+              senderDisplay: s.senderDisplay,
+              senderPhrase: s.senderPhrase,
+              retention: s.retention,
             },
             paymentMethod: s.paymentMethod,
           };
@@ -380,6 +543,27 @@ export const usePishnam = create<PishnamState>()(
             },
           });
 
+          // message media (mission §۱/§۴) — private upload BEFORE any redirect:
+          // the zarinpal path navigates away immediately, so files must land first.
+          const metas = get().mediaFiles;
+          if (metas.length > 0) {
+            await Promise.all(
+              metas.map(async (m) => {
+                const file = getMediaFile(m.id);
+                if (!file) return;
+                try {
+                  const form = new FormData();
+                  form.set("code", ack.code);
+                  form.set("key", pending.key);
+                  form.set("file", file);
+                  await fetch("/api/gifts/media", { method: "POST", body: form });
+                } catch {
+                  /* one file failing must not block the checkout */
+                }
+              }),
+            );
+          }
+
           // local mirror so «هدیه‌هام»/موفقیت work even before the next bootstrap
           const mirrored: GiftOrder = {
             id: `o-local-${ack.code}`,
@@ -393,7 +577,8 @@ export const usePishnam = create<PishnamState>()(
             occasion: s.occasion,
             password: s.cardPassword, // kept locally only — server stores a hash
             anonymous: s.anonymous,
-            senderName: s.anonymous ? "" : s.senderName || (s.user?.name ?? ""),
+            senderName: s.senderDisplay === "anon" ? "" : s.senderName || (s.user?.name ?? ""),
+            senderMode: s.senderDisplay,
             hearts: s.hearts,
             paws: s.paws,
             total: ack.total,
@@ -404,6 +589,9 @@ export const usePishnam = create<PishnamState>()(
             userPhone: s.user?.phone ?? "",
             code: ack.code,
             status2: ack.status,
+            retentionPlan: s.retention,
+            messageState: "unopened",
+            mediaCount: metas.length,
             v2: true,
           };
           const rest = get().orders.filter((o) => o.id !== mirrored.id);
@@ -460,7 +648,8 @@ export const usePishnam = create<PishnamState>()(
         syncOrderPatch(get, id, { opened: true });
       },
 
-      resetBuilder: () =>
+      resetBuilder: () => {
+        clearMediaFiles();
         set({
           kind: "bear",
           occasion: 0,
@@ -468,6 +657,11 @@ export const usePishnam = create<PishnamState>()(
           cardPassword: "",
           anonymous: false,
           senderName: "",
+          senderDisplay: "name",
+          senderPhrase: "",
+          retention: "1m",
+          addonLines: [],
+          mediaFiles: [],
           hearts: 5,
           paws: 3,
           receiver: DEFAULT_RECEIVER,
@@ -475,7 +669,8 @@ export const usePishnam = create<PishnamState>()(
           videoAdded: false,
           quote: null,
           quoteStatus: "idle",
-        }),
+        });
+      },
 
       selectOrder: (id) => set({ selectedId: id }),
       toggleFavorite: (k) => {
@@ -498,26 +693,35 @@ export const usePishnam = create<PishnamState>()(
     {
       name: "pishnam-app",
       storage: createJSONStorage(() => localStorage),
-      version: 2,
-      // v1→v2: receiver gained `province`; transient commerce fields stay out of storage
+      version: 3,
+      // v2→v3: sender privacy + retention + addons + media meta (fresh defaults)
       migrate: (state) => {
         const s = state as Partial<PishnamState>;
         return {
           ...s,
           receiver: { ...DEFAULT_RECEIVER, ...(s.receiver ?? {}) },
           catalog: s.catalog ?? {},
+          catalogAddons: [],
+          retentionPrices: { m6: 0, m12: 0 },
           catalogLoaded: false,
           quote: null,
           quoteStatus: "idle",
           paymentMethod: s.paymentMethod ?? "zarinpal",
           pendingOrder: null,
           checkoutBusy: false,
+          senderDisplay: s.senderDisplay ?? (s.anonymous ? "anon" : "name"),
+          senderPhrase: s.senderPhrase ?? "",
+          retention: s.retention ?? "1m",
+          addonLines: Array.isArray(s.addonLines) ? s.addonLines : [],
+          mediaFiles: [], // File objects never survive a reload
+          receivedGifts: [],
+          receivedStatus: "idle",
         } as PishnamState;
       },
       partialize: (state) => {
         // pendingOrder IS persisted (guide §4.7: the key lives in localStorage so
         // the success page can ACK-poll after the PSP redirect reload).
-        const { quote: _q, quoteStatus: _qs, checkoutBusy: _b, catalog: _c, catalogLoaded: _cl, ...rest } = state;
+        const { quote: _q, quoteStatus: _qs, checkoutBusy: _b, catalog: _c, catalogLoaded: _cl, receivedGifts: _rg, receivedStatus: _rs, ...rest } = state;
         return rest;
       },
     },

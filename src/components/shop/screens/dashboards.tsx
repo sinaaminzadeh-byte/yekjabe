@@ -18,7 +18,7 @@ import {
   MailIcon,
   PawIcon,
 } from "../icons";
-import { navigate, type Route } from "@/lib/hash-route";
+import { navigate, useHashRoute, type Route } from "@/lib/hash-route";
 import {
   usePishnam,
   useCharityDone,
@@ -404,7 +404,7 @@ function recvExtra(o: GiftOrder): string {
 function orderWho(o: GiftOrder): string {
   return o.dir === "sent"
     ? `برای ${o.to}`
-    : `از ${o.senderName || "یه دوست ناشناس"}`;
+    : `از ${o.senderName || (o.senderMode === "anon" ? "یک هدیه برای تو" : "یه دوست ناشناس")}`;
 }
 
 function orderExtra(o: GiftOrder): string {
@@ -586,6 +586,7 @@ function TabsPill({
   height = 42,
   fontSize = "14.5px",
   sentAlert = 0,
+  recvCount = 0,
 }: {
   tab: "sent" | "recv";
   onChange: (t: "sent" | "recv") => void;
@@ -594,6 +595,8 @@ function TabsPill({
   fontSize?: string;
   /** v2 sent orders that still need payment — amber attention badge. */
   sentAlert?: number;
+  /** real received gifts waiting — green badge on «دریافتی‌ها». */
+  recvCount?: number;
 }) {
   return (
     <div className={`flex gap-1.5 rounded-[22px] bg-[#E3F0F5] p-[5px] ${className}`}>
@@ -613,6 +616,14 @@ function TabsPill({
               className="flex h-[19px] min-w-[19px] items-center justify-center rounded-full bg-[#F0426B] px-1 text-[10.5px] font-black leading-none text-white"
             >
               {fa(sentAlert)}
+            </span>
+          )}
+          {t === "recv" && recvCount > 0 && (
+            <span
+              title={`${fa(recvCount)} هدیه دریافت شده`}
+              className="flex h-[19px] min-w-[19px] items-center justify-center rounded-full bg-[#00ABE7] px-1 text-[10.5px] font-black leading-none text-white"
+            >
+              {fa(recvCount)}
             </span>
           )}
         </button>
@@ -818,6 +829,165 @@ function BadgesRow({ className = "" }: { className?: string }) {
 
 /* ═══════════════ 1 · MOBILE MY GIFTS (02-هدیه‌هام) ═══════════════ */
 
+/** نگهداری پیام chip — honest 4-state (mission §۴): unopened/active/expired/purged. */
+function RetentionChip({
+  state,
+  expiresAt,
+  plan,
+  compact = false,
+}: {
+  state?: "unopened" | "active" | "expired" | "purged";
+  expiresAt?: string | null;
+  plan?: string;
+  compact?: boolean;
+}) {
+  if (!state || state === "unopened") return null;
+  const planFa = plan === "12m" ? "۱ساله" : plan === "6m" ? "۶ماهه" : "۱ماهه";
+  const fmt = (iso: string) => {
+    try {
+      return new Intl.DateTimeFormat("fa-IR", { day: "numeric", month: "long" }).format(new Date(iso));
+    } catch {
+      return "";
+    }
+  };
+  const cfg =
+    state === "purged"
+      ? { bg: "#F2F7F9", fg: "#4A6572", label: `پیام حذف شد` }
+      : state === "expired"
+        ? { bg: "#FFF3C9", fg: "#7A5C00", label: `پیام منقضی شد` }
+        : { bg: "#DDF3EA", fg: "#0B6E4F", label: expiresAt ? `پیام فعال تا ${fmt(expiresAt)} · ${planFa}` : `پیام فعال · ${planFa}` };
+  return (
+    <span className="rounded-[10px] px-2.5 py-1 text-[11.5px] font-bold" style={{ background: cfg.bg, color: cfg.fg }}>
+      {compact ? cfg.label : cfg.label}
+    </span>
+  );
+}
+
+/**
+ * «دریافتی‌ها» — the session's REAL received gifts from the server-authorized
+ * list (mission §۲). Every gift gets its own card; tapping opens the message
+ * viewer whose prev/next counter counts ONLY authorized, still-valid gifts.
+ * Legacy demo rows and anything the server didn't authorize are never shown.
+ */
+function ReceivedGiftsList({ desktop = false }: { desktop?: boolean }) {
+  const receivedGifts = usePishnam((s) => s.receivedGifts);
+  const receivedStatus = usePishnam((s) => s.receivedStatus);
+  const fetchReceived = usePishnam((s) => s.fetchReceived);
+  useEffect(() => {
+    void fetchReceived();
+  }, [fetchReceived]);
+
+  if (receivedStatus === "loading" || receivedStatus === "idle") {
+    return (
+      <div className={`flex items-center justify-center gap-3 rounded-[24px] border border-dashed border-[#99D6EE] bg-white/60 ${desktop ? "py-14" : "py-10"}`}>
+        <span className="h-7 w-7 animate-spin rounded-full border-[3px] border-[#CFE6EF] border-t-[#00ABE7]" />
+        <span className="text-[13px] font-bold text-[#4A6572]">داریم هدیه‌های دریافت‌شده رو میاریم…</span>
+      </div>
+    );
+  }
+
+  if (receivedGifts.length === 0) {
+    return (
+      <div className={`flex flex-col items-center gap-4 rounded-[28px] border-2 border-dashed border-[#99D6EE] bg-white/60 text-center ${desktop ? "w-full px-8 py-14" : "px-6 py-10"}`}>
+        <Plush kind="bunny" size={desktop ? 150 : 110} />
+        <div className="flex flex-col gap-2">
+          <span className={`${desktop ? "text-[20px]" : "text-[17px]"} font-black`}>هنوز هدیه‌ای دریافت نکردی</span>
+          <span className={`${desktop ? "text-[14.5px]" : "text-[13px]"} max-w-[430px] font-medium leading-[1.9] text-[#4A6572]`}>
+            وقتی یکی برای شماره‌ی موبایلت هدیه بفرسته و بسته برسه، پیام اختصاصی‌ش همین‌جا ظاهر
+            می‌شه. با اسکن QR روی کارت‌پستال یا از صفحه‌ی تأیید می‌تونی وارد شی.
+          </span>
+        </div>
+        <button
+          type="button"
+          onClick={() => navigate("verify")}
+          className={`flex items-center justify-center rounded-full bg-[#00ABE7] font-extrabold text-[#04202E] transition-transform hover:scale-[1.03] active:scale-95 ${desktop ? "h-[50px] px-7 text-[15px]" : "h-12 px-6 text-[14.5px]"}`}
+        >
+          تأیید شماره موبایل
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className={`flex flex-col gap-3 ${desktop ? "w-full" : ""}`}>
+      {receivedGifts.map((g) => {
+        const dead = g.retention.state === "expired" || g.retention.state === "purged";
+        const stCfg =
+          g.retention.state === "purged"
+            ? { bg: "#F2F7F9", label: "پیام حذف شده" }
+            : g.retention.state === "expired"
+              ? { bg: "#FFF3C9", label: "مهلت نگهداری تموم شد" }
+              : g.retention.state === "active"
+                ? { bg: "#DDF3EA", label: "پیام فعال" }
+                : { bg: "#E3F6FD", label: g.status === "delivered" ? "منتظر باز شدن" : "در راهه" };
+        return (
+          <div
+            key={g.code}
+            role="button"
+            tabIndex={0}
+            aria-label={`هدیه دریافتی ${fa(g.no)}`}
+            onClick={() => !dead && navigate("gift-view", { code: g.code })}
+            onKeyDown={(e) => {
+              if ((e.key === "Enter" || e.key === " ") && !dead) {
+                e.preventDefault();
+                navigate("gift-view", { code: g.code });
+              }
+            }}
+            className={`rounded-[24px] border border-[#DDEEF5] bg-white p-[16px] transition-all ${dead ? "opacity-75" : "cursor-pointer hover:border-[#00ABE7] hover:shadow-[0_6px_18px_rgba(4,32,46,0.06)]"} focus-visible:ring-2 focus-visible:ring-[#00ABE7] outline-none`}
+          >
+            <div className="flex items-center gap-[14px]">
+              <div className="flex shrink-0 items-center justify-center rounded-[18px]" style={{ width: desktop ? 88 : 64, height: desktop ? 88 : 64, background: PLUSH_MAP[g.kind]?.bg ?? "#F2FAFD" }}>
+                <Plush kind={g.kind} size={desktop ? 66 : 54} />
+              </div>
+              <div className="flex min-w-0 flex-1 flex-col gap-1">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="truncate text-[15.5px] font-extrabold">
+                    {g.senderMode === "anon" ? "یک هدیه برای تو 🎁" : `از ${g.senderLabel}`}
+                  </span>
+                  <span className="shrink-0 rounded-[12px] bg-[#04202E] px-2.5 py-[3px] text-[12px] font-extrabold text-white">{fa(g.no)}</span>
+                </div>
+                <span className="text-[12.5px] font-medium text-[#4A6572]">
+                  برای {g.to} · {g.mediaCount > 0 ? `${fa(g.mediaCount)} فایل همراه پیام` : "پیام متنی"}
+                </span>
+                <span className="flex flex-wrap items-center gap-1.5">
+                  <span className="rounded-[10px] px-2.5 py-1 text-[12px] font-bold" style={{ background: stCfg.bg }}>
+                    {stCfg.label}
+                  </span>
+                  {g.retention.state === "active" && g.retention.expiresAt && <RetentionChip state="active" expiresAt={g.retention.expiresAt} />}
+                </span>
+              </div>
+            </div>
+            <div className="mt-3 flex border-t border-[#EDF6FA] pt-3">
+              {dead ? (
+                <span className="flex h-10 flex-1 items-center justify-center rounded-full bg-[#F2F7F9] text-[13px] font-extrabold text-[#4A6572]">
+                  محتوای این پیام در دسترس نیست
+                </span>
+              ) : (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    navigate("gift-view", { code: g.code });
+                  }}
+                  className="flex h-10 flex-1 items-center justify-center gap-1.5 rounded-full bg-[#E3F6FD] text-[13px] font-extrabold text-[#006387] transition-transform active:scale-95"
+                >
+                  دیدن پیام
+                  <ForwardIcon size={16} stroke="#006387" />
+                </button>
+              )}
+            </div>
+          </div>
+        );
+      })}
+      {receivedGifts.length > 1 && (
+        <div className="rounded-[18px] bg-[#E3F6FD] px-4 py-3 text-center text-[12px] font-bold leading-[1.8] text-[#006387]">
+          تو صفحه‌ی پیام می‌تونی با «هدیه قبلی / بعدی» بین {fa(receivedGifts.length)} هدیه‌ات جابه‌جا شی.
+        </div>
+      )}
+    </div>
+  );
+}
+
 function MobileOrderCard({ o }: { o: GiftOrder }) {
   const advanceStatus = usePishnam((s) => s.advanceStatus);
   const selectOrder = usePishnam((s) => s.selectOrder);
@@ -868,13 +1038,25 @@ function MobileOrderCard({ o }: { o: GiftOrder }) {
             type="button"
             onClick={(e) => {
               e.stopPropagation();
-              navigate("gift");
+              if (o.v2 && o.code) navigate("gift-view", { code: o.code });
+              else navigate("gift");
             }}
             className="flex h-10 flex-1 items-center justify-center gap-1.5 rounded-full bg-[#E3F6FD] text-[13px] font-extrabold text-[#006387] transition-transform active:scale-95"
           >
             مشاهده‌ی پیام
             <ForwardIcon size={16} stroke="#006387" />
           </button>
+        </div>
+      )}
+
+      {o.dir === "sent" && o.messageState && o.messageState !== "unopened" && (
+        <div className="mt-3 flex flex-wrap items-center gap-1.5 border-t border-[#EDF6FA] pt-3">
+          <RetentionChip state={o.messageState} expiresAt={o.messageExpiresAt} plan={o.retentionPlan} />
+          {(o.mediaCount ?? 0) > 0 && (
+            <span className="rounded-[10px] bg-[#E3F6FD] px-2.5 py-1 text-[11.5px] font-bold text-[#006387]">
+              {fa(o.mediaCount ?? 0)} فایل پیوست
+            </span>
+          )}
         </div>
       )}
 
@@ -942,7 +1124,18 @@ function GiftsLoginGate({ desktop = false }: { desktop?: boolean }) {
 export function MobileMyGifts() {
   const user = usePishnam((s) => s.user);
   const orders = usePishnam((s) => s.orders);
-  const [tab, setTab] = useState<"sent" | "recv">("sent");
+  const receivedGifts = usePishnam((s) => s.receivedGifts);
+  const { query } = useHashRoute();
+  // deep-link «#/my-gifts?tab=recv» (verify flow lands here): the tab derives
+  // from the URL until the user clicks a pill — no effect-setState needed
+  const [userTab, setUserTab] = useState<"sent" | "recv" | null>(null);
+  const qTab = query.get("tab");
+  const tab: "sent" | "recv" = userTab ?? (qTab === "recv" ? "recv" : "sent");
+  const setTab = (t: "sent" | "recv") => setUserTab(t);
+  // «دریافتی‌ها» is server-authorized data (mission §۲) — a separate stream
+  useEffect(() => {
+    if (tab === "recv") void usePishnam.getState().fetchReceived();
+  }, [tab]);
   const list = orders.filter((o) => o.dir === tab);
   const charms = list.reduce((a, o) => a + o.hearts + o.paws, 0);
   const hearts = list.reduce((a, o) => a + o.hearts, 0);
@@ -950,7 +1143,7 @@ export function MobileMyGifts() {
   const anon = list.filter((o) => o.anonymous).length;
   const awaiting = orders.filter((o) => o.dir === "sent" && o.v2 && o.status2 === "awaiting_payment").length;
   const doneCount = list.filter((o) => (o.status2 ? o.status2 === "delivered" : o.status === "delivered")).length;
-  const openedCount = list.filter((o) => o.opened).length;
+  const recvCount = receivedGifts.length;
 
   if (!user) return <GiftsLoginGate />;
 
@@ -972,30 +1165,36 @@ export function MobileMyGifts() {
       </div>
 
       {/* tabs */}
-      <TabsPill tab={tab} onChange={setTab} className="mx-5 mt-2.5" sentAlert={awaiting} />
+      <TabsPill tab={tab} onChange={setTab} className="mx-5 mt-2.5" sentAlert={awaiting} recvCount={recvCount} />
 
       {/* stats */}
       <div className="flex gap-2.5 px-5 pt-3.5">
         <div className="flex flex-1 flex-col gap-0.5 rounded-[20px] border border-[#DDEEF5] bg-white p-3">
           <span className="text-[12px] font-semibold text-[#4A6572]">تعداد هدیه‌ها</span>
-          <span className="text-[22px] font-black">{fa(list.length)}</span>
+          <span className="text-[22px] font-black">{fa(tab === "recv" ? recvCount : list.length)}</span>
         </div>
         <div className="flex flex-1 flex-col gap-0.5 rounded-[20px] border border-[#F7C5D3] bg-[#FFE9F0] p-3">
           <span className="text-[12px] font-semibold text-[#4A6572]">قلب و پنجه‌ی تو</span>
-          <span className="text-[22px] font-black">{fa(charms)}</span>
+          <span className="text-[22px] font-black">{fa(tab === "recv" ? receivedGifts.reduce((a, g) => a + g.hearts + g.paws, 0) : charms)}</span>
         </div>
         <div className="flex flex-1 flex-col gap-0.5 rounded-[20px] border border-[#BFE5D3] bg-[#DDF3EA] p-3">
-          <span className="text-[12px] font-semibold text-[#4A6572]">{tab === "sent" ? "تحویل‌شده" : "پیام بازشده"}</span>
-          <span className="text-[22px] font-black">{fa(tab === "sent" ? doneCount : openedCount)}</span>
+          <span className="text-[12px] font-semibold text-[#4A6572]">{tab === "sent" ? "تحویل‌شده" : "پیام فعال"}</span>
+          <span className="text-[22px] font-black">{fa(tab === "sent" ? doneCount : receivedGifts.filter((g) => g.retention.state === "active").length)}</span>
         </div>
       </div>
 
       {/* charms summary chips */}
-      {list.length > 0 && <CharmChips hearts={hearts} paws={paws} anonymous={anon} className="px-5 pt-3" />}
+      {tab === "sent" && list.length > 0 && <CharmChips hearts={hearts} paws={paws} anonymous={anon} className="px-5 pt-3" />}
 
-      {/* orders list */}
+      {/* orders list — recv = server-authorized gifts, sent = the account's orders */}
       <div className="flex flex-col gap-3 px-5 pt-3.5">
-        {list.length === 0 ? <EmptyPanel tab={tab} /> : list.map((o) => <MobileOrderCard key={o.id} o={o} />)}
+        {tab === "recv" ? (
+          <ReceivedGiftsList />
+        ) : list.length === 0 ? (
+          <EmptyPanel tab={tab} />
+        ) : (
+          list.map((o) => <MobileOrderCard key={o.id} o={o} />)
+        )}
       </div>
 
       {/* favorites — the plushes this account hearted (self-hides when empty) */}
@@ -1069,12 +1268,16 @@ function DesktopOrderCard({ o }: { o: GiftOrder }) {
               type="button"
               onClick={(e) => {
                 e.stopPropagation();
-                navigate("gift");
+                if (o.v2 && o.code) navigate("gift-view", { code: o.code });
+                else navigate("gift");
               }}
               className="rounded-[10px] bg-[#E3F6FD] px-2.5 py-1 text-[11.5px] font-extrabold text-[#006387] transition-colors hover:bg-[#CDEFFB]"
             >
               مشاهده‌ی پیام
             </button>
+          )}
+          {o.dir === "sent" && o.messageState && o.messageState !== "unopened" && (
+            <RetentionChip state={o.messageState} expiresAt={o.messageExpiresAt} plan={o.retentionPlan} />
           )}
           <button
             type="button"
@@ -1098,7 +1301,15 @@ function DesktopOrderCard({ o }: { o: GiftOrder }) {
 export function DesktopMyGifts() {
   const user = usePishnam((s) => s.user);
   const orders = usePishnam((s) => s.orders);
-  const [tab, setTab] = useState<"sent" | "recv">("sent");
+  const receivedGifts = usePishnam((s) => s.receivedGifts);
+  const { query } = useHashRoute();
+  const [userTab, setUserTab] = useState<"sent" | "recv" | null>(null);
+  const qTab = query.get("tab");
+  const tab: "sent" | "recv" = userTab ?? (qTab === "recv" ? "recv" : "sent");
+  const setTab = (t: "sent" | "recv") => setUserTab(t);
+  useEffect(() => {
+    if (tab === "recv") void usePishnam.getState().fetchReceived();
+  }, [tab]);
   const list = orders.filter((o) => o.dir === tab);
   const charms = list.reduce((a, o) => a + o.hearts + o.paws, 0);
   const hearts = list.reduce((a, o) => a + o.hearts, 0);
@@ -1106,7 +1317,7 @@ export function DesktopMyGifts() {
   const anon = list.filter((o) => o.anonymous).length;
   const awaiting = orders.filter((o) => o.dir === "sent" && o.v2 && o.status2 === "awaiting_payment").length;
   const doneCount = list.filter((o) => (o.status2 ? o.status2 === "delivered" : o.status === "delivered")).length;
-  const openedCount = list.filter((o) => o.opened).length;
+  const recvCount = receivedGifts.length;
 
   if (!user) return <GiftsLoginGate desktop />;
 
@@ -1133,26 +1344,30 @@ export function DesktopMyGifts() {
 
         {/* tabs + stat cards */}
         <section className="flex flex-wrap items-center gap-4">
-          <TabsPill tab={tab} onChange={setTab} className="w-[380px] max-w-full" height={44} fontSize="15px" sentAlert={awaiting} />
+          <TabsPill tab={tab} onChange={setTab} className="w-[380px] max-w-full" height={44} fontSize="15px" sentAlert={awaiting} recvCount={recvCount} />
           <div className="ms-auto flex flex-wrap gap-4">
             <div className="flex min-w-[190px] flex-col gap-0.5 rounded-[22px] border border-[#DDEEF5] bg-white px-[18px] py-[14px]">
               <span className="text-[13px] font-semibold text-[#4A6572]">تعداد هدیه‌ها</span>
-              <span className="text-[26px] font-black">{fa(list.length)}</span>
+              <span className="text-[26px] font-black">{fa(tab === "recv" ? recvCount : list.length)}</span>
             </div>
             <div className="flex min-w-[190px] flex-col gap-0.5 rounded-[22px] border border-[#F7C5D3] bg-[#FFE9F0] px-[18px] py-[14px]">
               <span className="text-[13px] font-semibold text-[#4A6572]">قلب و پنجه‌ی تو</span>
-              <span className="text-[26px] font-black">{fa(charms)}</span>
+              <span className="text-[26px] font-black">{fa(tab === "recv" ? receivedGifts.reduce((a, g) => a + g.hearts + g.paws, 0) : charms)}</span>
             </div>
             <div className="flex min-w-[190px] flex-col gap-0.5 rounded-[22px] border border-[#BFE5D3] bg-[#DDF3EA] px-[18px] py-[14px]">
-              <span className="text-[13px] font-semibold text-[#4A6572]">{tab === "sent" ? "تحویل‌شده" : "پیام بازشده"}</span>
-              <span className="text-[26px] font-black">{fa(tab === "sent" ? doneCount : openedCount)}</span>
+              <span className="text-[13px] font-semibold text-[#4A6572]">{tab === "sent" ? "تحویل‌شده" : "پیام فعال"}</span>
+              <span className="text-[26px] font-black">{fa(tab === "sent" ? doneCount : receivedGifts.filter((g) => g.retention.state === "active").length)}</span>
             </div>
           </div>
-          {list.length > 0 && <CharmChips hearts={hearts} paws={paws} anonymous={anon} className="w-full" />}
+          {tab === "sent" && list.length > 0 && <CharmChips hearts={hearts} paws={paws} anonymous={anon} className="w-full" />}
         </section>
 
-        {/* orders grid */}
-        {list.length === 0 ? (
+        {/* orders grid — recv = server-authorized gift cards */}
+        {tab === "recv" ? (
+          <section>
+            <ReceivedGiftsList desktop />
+          </section>
+        ) : list.length === 0 ? (
           <section>
             <EmptyPanel tab={tab} desktop />
           </section>
