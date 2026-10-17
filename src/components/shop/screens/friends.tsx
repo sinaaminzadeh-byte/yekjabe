@@ -1,11 +1,12 @@
 "use client";
 
 // ── «دوستای پشمالو» — the product catalog screen (#/friends) ──
-// Owner request: a dedicated products page (6 today, grows with the catalog —
-// the list is driven by the SERVER catalog, not a hardcoded array) plus a rich
-// graphical «پروسه‌ی کار ما» section: 4-step illustrated journey with a dashed
-// rail, numbered nodes, QR-card visual and floating plush stickers.
-import { useEffect, useMemo } from "react";
+// Owner request (24-A): plush DOLLS first, then a SEPARATE «افزودنی‌ها» section
+// below them (mobile + desktop) — add-to-cart straight from here is fine because
+// checkout reads addonLines from the builder store; details open in the same
+// iPhone-style bottom Sheet the builder's extras step uses.
+// The list is driven by the SERVER catalog, not a hardcoded array.
+import { useEffect, useMemo, useState } from "react";
 import { Plush } from "../plush";
 import {
   ForwardIcon,
@@ -22,6 +23,8 @@ import { usePishnam, type CatalogEntry } from "@/lib/pishnam-store";
 import { BOX_PRICE, PLUSHES, PLUSH_MAP, HOME_TRUST, type PlushKind } from "@/lib/pishnam-data";
 import { fa, money } from "@/lib/fa";
 import { useDocumentMeta } from "@/lib/seo/metadata";
+import { useToast } from "@/hooks/use-toast";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 
 /* ── process content: «هدیه‌ات چطور ساخته و ارسال می‌شه؟» ── */
 const PROCESS_STEPS = [
@@ -71,9 +74,12 @@ type Item = {
 };
 
 /** Server catalog is the source of truth; art/names come from the local defs.
- * Unknown future slugs still render (generic card) — nothing hardcodes «۶». */
-function useCatalogList(): Item[] {
+ * Split per owner request: plush DOLLS (kind !== "addon", PLUSHES fallback) and
+ * ADDONS (store's catalogAddons selector) as two separate lists — nothing
+ * hardcodes «۶», unknown future slugs still render (generic card). */
+function useCatalogSplit(): { plush: Item[]; addons: CatalogEntry[] } {
   const catalog = usePishnam((s) => s.catalog);
+  const catalogAddons = usePishnam((s) => s.catalogAddons);
   const catalogLoaded = usePishnam((s) => s.catalogLoaded);
   const loadCatalog = usePishnam((s) => s.loadCatalog);
 
@@ -81,35 +87,37 @@ function useCatalogList(): Item[] {
     if (!catalogLoaded) void loadCatalog();
   }, [catalogLoaded, loadCatalog]);
 
-  return useMemo(() => {
+  const plush = useMemo<Item[]>(() => {
     const entries: CatalogEntry[] = Object.values(catalog);
-    const source: Item[] =
-      entries.length > 0
-        ? entries.map((e) => {
-            const def = PLUSH_MAP[e.slug as PlushKind];
-            return {
-              slug: e.slug,
-              name: def?.name ?? e.name,
-              chips: def?.chips ?? ["پشمالو", "مهربون", "بغلی"],
-              blurb: def?.blurb ?? "یه دوست پشمالوی تازه که به‌زودی اینجا معرفیش می‌کنیم.",
-              bg: def?.bg ?? "#E7E0FA",
-              price: e.priceToman,
-              inStock: e.inStock,
-              kind: def ? e.slug as PlushKind : null,
-            };
-          })
-        : PLUSHES.map((p) => ({
-            slug: p.kind,
-            name: p.name,
-            chips: p.chips,
-            blurb: p.blurb,
-            bg: p.bg,
-            price: BOX_PRICE,
-            inStock: true,
-            kind: p.kind,
-          }));
-    return source;
+    const main = entries.filter((e) => e.kind !== "addon");
+    if (main.length === 0) {
+      return PLUSHES.map((p) => ({
+        slug: p.kind,
+        name: p.name,
+        chips: p.chips,
+        blurb: p.blurb,
+        bg: p.bg,
+        price: BOX_PRICE,
+        inStock: true,
+        kind: p.kind,
+      }));
+    }
+    return main.map((e) => {
+      const def = PLUSH_MAP[e.slug as PlushKind];
+      return {
+        slug: e.slug,
+        name: def?.name ?? e.name,
+        chips: def?.chips ?? ["پشمالو", "مهربون", "بغلی"],
+        blurb: def?.blurb ?? "یه دوست پشمالوی تازه که به‌زودی اینجا معرفیش می‌کنیم.",
+        bg: def?.bg ?? "#E7E0FA",
+        price: e.priceToman,
+        inStock: e.inStock,
+        kind: def ? e.slug as PlushKind : null,
+      };
+    });
   }, [catalog]);
+
+  return { plush, addons: catalogAddons };
 }
 
 function StepArt({ icon, accent }: { icon: "paw" | "mail" | "box" | "heart"; accent: string }) {
@@ -175,10 +183,196 @@ function CtaBand() {
   );
 }
 
+/* ═══════════════ «افزودنی‌ها» — shared addon card + details Sheet ═══════════════ */
+
+/** One shared card for mobile & desktop (`desktop` prop). Adding straight from
+ * the friends page is fine: checkout reads addonLines from the builder store.
+ * In-cart state shows the compact «✓ کنار هدیه‌ته» chip instead of the CTA. */
+function AddonCard({ a, desktop = false }: { a: CatalogEntry; desktop?: boolean }) {
+  const { toast } = useToast();
+  const addonLines = usePishnam((s) => s.addonLines);
+  const addAddon = usePishnam((s) => s.addAddon);
+  const removeAddon = usePishnam((s) => s.removeAddon);
+  const [open, setOpen] = useState(false);
+  const qty = addonLines.find((l) => l.variantId === a.variantId)?.qty ?? 0;
+  const out = !a.inStock;
+
+  const add = () => {
+    addAddon(a.variantId);
+    toast({ title: "به سبد اضافه شد ✓", description: a.name });
+  };
+
+  const tile = (h: string, emojiSize: string) => (
+    <div
+      className={`flex ${h} shrink-0 items-center justify-center overflow-hidden rounded-[16px] bg-[#F2FAFD]`}
+    >
+      {a.image ? (
+        <img src={a.image} alt={a.name} className="h-full w-full object-cover" />
+      ) : (
+        <span className={emojiSize} aria-hidden="true">{a.emoji || "🎁"}</span>
+      )}
+    </div>
+  );
+
+  /* iPhone-style bottom sheet — same pattern as the builder's extras step */
+  const sheet = (
+    <Sheet open={open} onOpenChange={setOpen}>
+      <SheetContent side="bottom" className="rounded-t-[30px] border-[#DDEEF5] bg-white px-0 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-2">
+        <div className="flex flex-col gap-4 px-6 pt-2 text-right">
+          <span className="mx-auto h-1.5 w-12 rounded-full bg-[#DDEEF5]" aria-hidden="true" />
+          <div className="flex h-[190px] items-center justify-center overflow-hidden rounded-[24px] bg-[#F2FAFD]">
+            {a.image ? (
+              <img src={a.image} alt={a.name} className="h-full w-full object-cover" />
+            ) : (
+              <span className="text-6xl" aria-hidden="true">{a.emoji || "🎁"}</span>
+            )}
+          </div>
+          <SheetHeader className="gap-1 space-y-0 p-0 text-right">
+            <SheetTitle className="text-right text-[20px] font-black text-[#04202E]">{a.name}</SheetTitle>
+            <SheetDescription className="text-right text-[14px] font-extrabold text-[#006387]">
+              {out ? "فعلاً ناموجوده" : `${money(a.priceToman)} تومان`}
+            </SheetDescription>
+          </SheetHeader>
+          <p className="m-0 text-[13.5px] font-medium leading-[2] text-[#1F3E4D]">
+            {a.description || "برای این افزودنی هنوز توضیحی ثبت نشده — سوالی داری قبل از خرید بهمون پیام بده."}
+          </p>
+          {!out &&
+            (qty === 0 ? (
+              <button
+                type="button"
+                onClick={() => {
+                  add();
+                  setOpen(false);
+                }}
+                className="h-[52px] w-full rounded-full bg-[#00ABE7] text-[15px] font-extrabold text-[#04202E] transition-transform active:scale-[0.98]"
+              >
+                + بذارش کنار هدیه تو جعبه
+              </button>
+            ) : (
+              <div className="flex flex-col items-center gap-2 rounded-[20px] bg-[#E3F6FD] px-4 py-3">
+                <span className="text-[13.5px] font-extrabold text-[#006387]">
+                  ✓ کنار هدیه‌ته — تو قدم «یه ذره مهربونی اضافه کن» می‌بینیش
+                </span>
+                <button
+                  type="button"
+                  onClick={() => removeAddon(a.variantId)}
+                  className="text-[12px] font-extrabold text-[#B02A52] underline underline-offset-4"
+                >
+                  بردار از سبد
+                </button>
+              </div>
+            ))}
+        </div>
+      </SheetContent>
+    </Sheet>
+  );
+
+  if (desktop) {
+    return (
+      <>
+        <article
+          className="group flex w-[368px] flex-col overflow-hidden rounded-[28px] border border-[#DDEEF5] bg-white p-4 transition-all hover:-translate-y-1 hover:shadow-[0_16px_36px_rgba(4,32,46,0.10)]"
+          style={{ opacity: out ? 0.6 : 1 }}
+        >
+          <div className="relative flex h-[140px] items-center justify-center overflow-hidden rounded-[22px] bg-[#F2FAFD]">
+            {a.image ? (
+              <img
+                src={a.image}
+                alt={a.name}
+                className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+              />
+            ) : (
+              <span className="text-6xl" aria-hidden="true">{a.emoji || "🎁"}</span>
+            )}
+            {out ? (
+              <span className="absolute start-3 top-3 rounded-full bg-[#FFE9F0] px-2.5 py-1 text-[11px] font-extrabold text-[#B02A52]">فعلاً تموم شده</span>
+            ) : qty > 0 ? (
+              <span className="absolute start-3 top-3 rounded-full bg-[#00ABE7] px-2.5 py-1 text-[11px] font-extrabold text-[#04202E]">✓ کنار هدیه‌ته</span>
+            ) : null}
+          </div>
+          <h3 className="m-0 pb-1 pt-4 text-[17px] font-black text-[#04202E]">{a.name}</h3>
+          <p className="m-0 line-clamp-2 min-h-[50px] text-[12.5px] font-medium leading-[2] text-[#1F3E4D]">
+            {a.description || "برای این افزودنی هنوز توضیحی ثبت نشده — سوالی داری قبل از خرید بهمون پیام بده."}
+          </p>
+          <div className="flex items-center justify-between pb-3 pt-2">
+            <span className="text-[16px] font-black text-[#04202E]">
+              {out ? <span className="opacity-60">ناموجوده</span> : (
+                <>
+                  {money(a.priceToman)}
+                  <span className="ps-1 text-[11px] font-bold text-[#4A6572]">تومان</span>
+                </>
+              )}
+            </span>
+            <button
+              type="button"
+              onClick={() => setOpen(true)}
+              className="text-[12px] font-extrabold text-[#006387] underline underline-offset-4"
+            >
+              جزئیات و عکس
+            </button>
+          </div>
+          {out ? (
+            <span className="flex h-12 items-center justify-center rounded-full bg-[#F2FAFD] text-[13px] font-extrabold text-[#4A6572]">فعلاً ناموجوده</span>
+          ) : qty > 0 ? (
+            <span className="flex h-12 items-center justify-center rounded-full border-[1.5px] border-[#00ABE7] bg-[#E3F6FD] text-[13px] font-extrabold text-[#006387]">✓ کنار هدیه‌ته</span>
+          ) : (
+            <button
+              type="button"
+              onClick={add}
+              className="flex h-12 items-center justify-center rounded-full bg-[#00ABE7] text-[13.5px] font-extrabold text-[#04202E] transition-transform hover:scale-[1.02] active:scale-95"
+            >
+              + بذارش کنار هدیه
+            </button>
+          )}
+        </article>
+        {sheet}
+      </>
+    );
+  }
+
+  return (
+    <>
+      <div
+        className="flex items-center gap-3 rounded-[22px] border-[1.5px] bg-white px-3.5 py-3"
+        style={{ borderColor: qty > 0 ? "#00ABE7" : "#DDEEF5", opacity: out ? 0.55 : 1 }}
+      >
+        {tile("h-16 w-16", "text-2xl")}
+        <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+          <span className="text-[14.5px] font-extrabold text-[#04202E]">{a.name}</span>
+          <span className="text-[12px] font-bold text-[#4A6572]">
+            {out ? "ناموجوده" : `${money(a.priceToman)} تومان`}
+          </span>
+          <button
+            type="button"
+            onClick={() => setOpen(true)}
+            className="w-fit text-[11.5px] font-extrabold text-[#006387] underline underline-offset-4"
+          >
+            جزئیات و عکس
+          </button>
+        </div>
+        {out ? (
+          <span className="shrink-0 rounded-full bg-[#F2FAFD] px-3 py-1.5 text-[11px] font-extrabold text-[#4A6572]">ناموجوده</span>
+        ) : qty > 0 ? (
+          <span className="shrink-0 rounded-full bg-[#E3F6FD] px-3 py-1.5 text-[11px] font-extrabold text-[#006387]">✓ کنار هدیه‌ته</span>
+        ) : (
+          <button
+            type="button"
+            onClick={add}
+            className="shrink-0 rounded-full bg-[#00ABE7] px-4 py-2 text-[12px] font-extrabold text-[#04202E] transition-transform active:scale-95"
+          >
+            + بذارش کنار هدیه
+          </button>
+        )}
+      </div>
+      {sheet}
+    </>
+  );
+}
+
 /* ═══════════════ MOBILE ═══════════════ */
 
 export function FriendsMobile() {
-  const list = useCatalogList();
+  const { plush, addons } = useCatalogSplit();
   return (
     <div className="flex min-h-screen flex-col bg-[#F2FAFD] pb-8 md:hidden">
       {/* hero */}
@@ -187,7 +381,7 @@ export function FriendsMobile() {
         <span className="absolute left-16 top-24 -rotate-6 opacity-80" aria-hidden="true"><PawSticker size={34} /></span>
         <h1 className="m-0 text-[30px] font-black leading-[1.4]">دوستای پشمالو</h1>
         <p className="m-0 pt-1.5 text-[13.5px] font-medium leading-[2] text-[#4A6572]">
-          {fa(list.length || 6)} تا رفیق پشمالو، هرکدوم یه جور بغل می‌کنن. همه‌شون با یه جعبه‌ی کادویی، کارت پستال QR رمزدار و پیام صوتی به دست دوستت می‌رسن.
+          {fa(plush.length || 6)} تا رفیق پشمالو، هرکدوم یه جور بغل می‌کنن؛ با جعبه‌ی کادویی، کارت پستال QR رمزدار و پیام صوتی می‌رسن. یه کم پایین‌تر بخش افزودنی‌ها هم منتظره — اگه دلت خواست یه سورپرایز کوچیک هم کنار بغل بذار.
         </p>
         <div className="pointer-events-none flex items-end justify-center gap-1 pt-4" aria-hidden="true">
           {PLUSHES.map((p, i) => (
@@ -198,9 +392,9 @@ export function FriendsMobile() {
         </div>
       </header>
 
-      {/* product cards */}
+      {/* product cards — عروسک‌ها اول (owner request 24-A) */}
       <section aria-label="لیست دوستای پشمالو" className="flex flex-col gap-4 px-5 pt-2">
-        {list.map((p, i) => (
+        {plush.map((p, i) => (
           <article
             key={p.slug}
             className="relative overflow-hidden rounded-[26px] border border-[#DDEEF5] bg-white p-4"
@@ -254,6 +448,38 @@ export function FriendsMobile() {
           </article>
         ))}
       </section>
+
+      {/* «افزودنی‌ها» — سکشن جدا زیر عروسک‌ها (owner request 24-A):
+          اضافه‌کردن از اینجا مجازه، چکاوت addonLines رو مستقیم از استور می‌خونه */}
+      {addons.length > 0 && (
+        <section aria-label="افزودنی‌ها" className="px-5 pt-10">
+          <div className="flex items-baseline justify-between gap-2">
+            <h2 className="m-0 text-lg font-black">افزودنی‌ها</h2>
+            <span className="text-[12px] font-bold text-[#4A6572]">یه سورپرایز کوچیک کنار بغل بزرگ</span>
+          </div>
+          <p className="m-0 pt-1.5 text-[12.5px] font-medium leading-[1.9] text-[#4A6572]">
+            اکسسوری‌های قشنگ که کنار عروسک، تو جعبه می‌ذاریم.
+          </p>
+          <div className="mt-3 flex flex-col gap-2">
+            {addons.map((a) => (
+              <AddonCard key={a.variantId} a={a} />
+            ))}
+          </div>
+          <div className="mt-4 rounded-[22px] border border-dashed border-[#BFDDE8] bg-[#F8FDFF] px-4 py-3.5">
+            <p className="m-0 text-[12px] font-medium leading-[1.9] text-[#4A6572]">
+              سفارش هدیه‌ت رو کامل کن: بعد از انتخاب عروسک، افزودنی‌ها تو قدم «یه ذره مهربونی اضافه کن» کنار جعبه میان.
+            </p>
+            <button
+              type="button"
+              onClick={() => navigate("pick")}
+              className="mt-2.5 flex h-10 items-center gap-1.5 rounded-full border-2 border-[#04202E] bg-white px-5 text-[12.5px] font-extrabold text-[#04202E] transition-transform active:scale-95"
+            >
+              ساخت هدیه
+              <ForwardIcon size={14} />
+            </button>
+          </div>
+        </section>
+      )}
 
       <ProcessSection desktop={false} className="px-5 pt-10" />
       <TrustRow className="px-5 pt-7" />
@@ -347,7 +573,7 @@ function ProcessSection({ desktop, className = "" }: { desktop: boolean; classNa
 /* ═══════════════ DESKTOP ═══════════════ */
 
 export function FriendsDesktop() {
-  const list = useCatalogList();
+  const { plush, addons } = useCatalogSplit();
   return (
     <div className="hidden min-h-screen flex-col bg-[#F2FAFD] md:flex">
       {/* hero */}
@@ -357,8 +583,8 @@ export function FriendsDesktop() {
         <div className="mx-auto max-w-[640px] text-center">
           <h1 className="m-0 text-[38px] font-black leading-[1.5] text-[#04202E]">دوستای پشمالو</h1>
           <p className="m-0 pt-3 text-[15px] font-medium leading-[2.1] text-[#4A6572]">
-            {fa(list.length || 6)} تا رفیق پشمالو که هرکدوم یه جور بغل می‌کنن. انتخاب با دلت — قیمت همه‌شون یکیه:
-            {" "}<b className="text-[#04202E]">{money(BOX_PRICE)} تومان</b> با جعبه‌ی کادویی، کارت پستال QR رمزدار و پیام صوتی.
+            {fa(plush.length || 6)} تا رفیق پشمالو که هرکدوم یه جور بغل می‌کنن. انتخاب با دلت — قیمت همه‌شون یکیه:
+            {" "}<b className="text-[#04202E]">{money(BOX_PRICE)} تومان</b> با جعبه‌ی کادویی، کارت پستال QR رمزدار و پیام صوتی. پایین‌تر هم بخش افزودنی‌هاست؛ اکسسوری‌های قشنگی که کنار عروسک، تو جعبه می‌ذاریم.
           </p>
         </div>
         <div className="pointer-events-none flex items-end justify-center gap-4 pt-6" aria-hidden="true">
@@ -370,9 +596,9 @@ export function FriendsDesktop() {
         </div>
       </section>
 
-      {/* product grid */}
+      {/* product grid — عروسک‌ها اول (owner request 24-A) */}
       <section aria-label="لیست دوستای پشمالو" className="mx-auto flex w-full max-w-[1200px] flex-wrap justify-center gap-6 px-6 pb-2 pt-8">
-        {list.map((p) => (
+        {plush.map((p) => (
           <article
             key={p.slug}
             className="group flex w-[368px] flex-col overflow-hidden rounded-[28px] border border-[#DDEEF5] bg-white p-4 transition-all hover:-translate-y-1 hover:shadow-[0_16px_36px_rgba(4,32,46,0.10)]"
@@ -417,6 +643,36 @@ export function FriendsDesktop() {
           </article>
         ))}
       </section>
+
+      {/* «افزودنی‌ها» — سکشن جدا زیر گرید عروسک‌ها (owner request 24-A) */}
+      {addons.length > 0 && (
+        <section aria-label="افزودنی‌ها" className="mx-auto w-full max-w-[1200px] px-6 pt-14">
+          <div className="mx-auto max-w-[640px] text-center">
+            <h2 className="m-0 text-[26px] font-black text-[#04202E]">افزودنی‌ها</h2>
+            <p className="m-0 pt-2 text-[14px] font-medium leading-[2] text-[#4A6572]">
+              اکسسوری‌های قشنگ که کنار عروسک، تو جعبه می‌ذاریم — یه سورپرایز کوچیک کنار بغل بزرگ.
+            </p>
+          </div>
+          <div className="flex flex-wrap justify-center gap-6 pt-7">
+            {addons.map((a) => (
+              <AddonCard key={a.variantId} a={a} desktop />
+            ))}
+          </div>
+          <div className="mx-auto mt-8 flex w-full max-w-[640px] flex-col items-center gap-3 rounded-[24px] border border-dashed border-[#BFDDE8] bg-[#F8FDFF] px-6 py-4 text-center">
+            <p className="m-0 text-[12.5px] font-medium leading-[1.9] text-[#4A6572]">
+              سفارش هدیه‌ت رو کامل کن: بعد از انتخاب عروسک، افزودنی‌ها تو قدم «یه ذره مهربونی اضافه کن» کنار جعبه میان.
+            </p>
+            <button
+              type="button"
+              onClick={() => navigate("pick")}
+              className="flex h-11 items-center gap-1.5 rounded-full border-2 border-[#04202E] bg-white px-6 text-[13px] font-extrabold text-[#04202E] transition-colors hover:bg-[#F2FAFD]"
+            >
+              ساخت هدیه
+              <ForwardIcon size={14} />
+            </button>
+          </div>
+        </section>
+      )}
 
       <ProcessSection desktop className="mx-auto w-full max-w-[1100px] px-6 pb-2 pt-16" />
       <TrustRow className="px-6 pt-12" />

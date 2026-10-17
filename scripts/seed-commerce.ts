@@ -19,10 +19,10 @@ const STOCK = 40;
 // «افزودنی‌ها» — companion products (mission §۵). The admin can add/edit/disable
 // more from the «محصولات» tab; nothing here is referenced from code by slug.
 const ADDONS = [
-  { slug: "addon-bracelet", name: "دستبند مهربونی", emoji: "📿", description: "دستبند دست‌ساز با قلب کوچک", price: 149_000, stock: 60 },
-  { slug: "addon-doll", name: "عروسک کوچولو", emoji: "🧸", description: "عروسک پشمالوی مینی برای همنشینی دوستت", price: 249_000, stock: 50 },
-  { slug: "addon-watch", name: "ساعت مچی ساده", emoji: "⌚", description: "ساعت مچی مینیمال با بند چرمی", price: 399_000, stock: 30 },
-  { slug: "addon-choco", name: "شکلات تلخ هدیه", emoji: "🍫", description: "تابلوی شکلات تلخ ۷۰٪ با بسته‌بندی کادویی", price: 119_000, stock: 80 },
+  { slug: "addon-bracelet", name: "دستبند مهربونی", emoji: "📿", description: "دستبند دست‌ساز با یه قلب کوچیک؛ یادگاری‌ای که همیشه دست دوستت می‌مونه.", price: 149_000, stock: 60 },
+  { slug: "addon-doll", name: "عروسک کوچولو", emoji: "🧸", description: "یه عروسک پشمالوی کوچولو که کنار رفیق بزرگت تو جعبه جا می‌شه — همسفرِ همیشه.", price: 249_000, stock: 50 },
+  { slug: "addon-watch", name: "ساعت مچی ساده", emoji: "⌚", description: "ساعت مچی مینیمال با بند چرمی؛ ساده، شیک و همیشه سر وقت.", price: 399_000, stock: 30 },
+  { slug: "addon-choco", name: "شکلات تلخ هدیه", emoji: "🍫", description: "شکلات تلخ ۷۰٪ با بسته‌بندی کادویی؛ یه لذت خوشمزه کنار یه بغل آروم.", price: 119_000, stock: 80 },
 ];
 
 const SETTINGS: Record<string, string> = {

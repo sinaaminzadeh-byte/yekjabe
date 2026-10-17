@@ -108,8 +108,8 @@ export function VerifyScreen() {
 
   async function verifyCode() {
     const c = toEnDigits(code).replace(/\D/g, "");
-    if (!/^\d{6}$/.test(c)) {
-      setErr("کد ۶ رقمی رو کامل وارد کن");
+    if (!/^\d{4}$/.test(c)) {
+      setErr("کد ۴ رقمی رو کامل وارد کن");
       return;
     }
     setErr("");
@@ -220,7 +220,7 @@ export function VerifyScreen() {
 
       {step === "otp" && (
         <div className="flex w-full max-w-md flex-col gap-3 text-center">
-          <h1 className="m-0 text-[24px] font-black">کد ۶ رقمی رو وارد کن</h1>
+          <h1 className="m-0 text-[24px] font-black">کد ۴ رقمی رو وارد کن</h1>
           <p className="m-0 text-[13.5px] font-medium leading-[1.9] text-[#4A6572]">
             به <b dir="ltr">{fa(phone)}</b> پیامک شد
           </p>
@@ -232,12 +232,12 @@ export function VerifyScreen() {
           <input
             type="text"
             inputMode="numeric"
-            maxLength={6}
+            maxLength={4}
             autoFocus
             value={code}
             onChange={(e) => setCode(e.target.value)}
-            placeholder="――――――"
-            aria-label="کد تأیید ۶ رقمی"
+            placeholder="――――"
+            aria-label="کد تأیید ۴ رقمی"
             className="box-border h-[58px] rounded-[20px] border-[1.5px] border-[#CFE6EF] bg-white px-4 text-center text-2xl font-black tracking-[0.4em] text-[#04202E] outline-none focus:border-[#00ABE7]"
           />
           {err && <p className="m-0 text-[12.5px] font-bold text-[#B02A52]">{err}</p>}

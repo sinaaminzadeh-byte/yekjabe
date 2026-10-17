@@ -84,7 +84,7 @@ function AdminOtpGate({ onOk }: { onOk: () => void }) {
   const submit = async () => {
     const p = toEnDigits(phone.trim());
     const c = toEnDigits(code.trim());
-    if (!/^09\d{9}$/.test(p) || !/^\d{6}$/.test(c)) {
+    if (!/^09\d{9}$/.test(p) || !/^\d{4}$/.test(c)) {
       fail();
       return;
     }
@@ -151,7 +151,7 @@ function AdminOtpGate({ onOk }: { onOk: () => void }) {
               ? "رمز پنل رو بزن (فایل .env سرور: ADMIN_PANEL_PASSWORD)."
               : step === "phone"
                 ? "با شماره‌ی موبایلِ مدیریتت کد ورود بگیر."
-                : "کد ۶ رقمی پیامک‌شده رو بزن."}
+                : "کد ۴ رقمی پیامک‌شده رو بزن."}
           </p>
         </div>
         {mode === "password" ? (
@@ -187,12 +187,12 @@ function AdminOtpGate({ onOk }: { onOk: () => void }) {
             type="password"
             inputMode="numeric"
             dir="ltr"
-            maxLength={6}
+            maxLength={4}
             value={code}
-            onChange={(e) => setCode(e.target.value.replace(/[^\d۰-۹]/g, "").slice(0, 6))}
+            onChange={(e) => setCode(e.target.value.replace(/[^\d۰-۹]/g, "").slice(0, 4))}
             onKeyDown={(e) => e.key === "Enter" && !busy && void submit()}
-            placeholder="••••••"
-            aria-label="کد ورود شش‌رقمی"
+            placeholder="••••"
+            aria-label="کد ورود چهاررقمی"
             className={`h-[54px] w-full rounded-[18px] border-2 bg-white text-center text-[20px] font-black tracking-[0.4em] text-[#04202E] outline-none transition-shadow focus:shadow-[0_0_0_4px_rgba(0,171,231,0.15)] ${
               err ? "pishnam-shake border-[#F0426B]" : "border-[#04202E]"
             }`}

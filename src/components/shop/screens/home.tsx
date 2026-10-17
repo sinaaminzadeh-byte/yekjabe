@@ -212,18 +212,20 @@ export function MobileHome() {
         </button>
       </div>
 
-      {/* trust */}
-      <div className="flex gap-2.5 px-5 pt-[22px]">
+      {/* trust — stacked service rows (Digikala/Snapp style, no 3-line wraps) */}
+      <div className="flex flex-col gap-2.5 px-5 pt-[22px]">
         {HOME_TRUST.map((t) => (
           <div
             key={t.title}
-            className="flex flex-1 flex-col items-center gap-2 rounded-[22px] border border-[#DDEEF5] bg-white px-3 py-4 text-center box-border"
+            className="flex items-center gap-3.5 rounded-[20px] border border-[#DDEEF5] bg-white px-4 py-3.5"
           >
-            <div className="flex h-11 w-11 items-center justify-center rounded-full bg-[#D6F1FB] text-xl font-black text-[#04202E]">
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[#D6F1FB] text-xl font-black text-[#04202E]">
               {t.icon}
             </div>
-            <div className="text-sm font-extrabold">{t.title}</div>
-            <div className="text-xs font-medium leading-[1.7] text-[#4A6572]">{t.body}</div>
+            <div className="min-w-0 flex flex-col gap-0.5">
+              <div className="text-[15px] font-extrabold text-[#04202E]">{t.title}</div>
+              <div className="text-[12px] font-medium leading-[1.7] text-[#4A6572]">{t.body}</div>
+            </div>
           </div>
         ))}
       </div>

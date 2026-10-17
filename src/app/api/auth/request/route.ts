@@ -1,4 +1,4 @@
-// ── /api/auth/request — issue a 6-digit OTP (hardened; guide §4.3) ──
+// ── /api/auth/request — issue a 4-digit OTP (hardened; guide §4.3) ──
 // Rate-limited (60s cooldown / 3 per hour per phone / 10 per day per IP).
 // The code is HMAC-hashed in the DB. devCode is returned ONLY in dev-echo
 // mode — production responses never contain the code.

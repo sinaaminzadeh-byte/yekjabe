@@ -330,7 +330,7 @@ function StoryForm() {
         disabled={busy}
         className="flex h-[54px] items-center justify-center rounded-full bg-[#00ABE7] text-[16px] font-extrabold text-[#04202E] transition-transform hover:scale-[1.01] active:scale-95 disabled:opacity-60"
       >
-        {busy ? "در حال فرستادن…" : "فرستادن تجربه"}
+        {busy ? "در حال فرستادن…" : "فرستادن قصه‌ات"}
       </button>
     </div>
   );
@@ -339,8 +339,8 @@ function StoryForm() {
 /* ── screen ── */
 export function StoriesScreen() {
   useDocumentMeta({
-    title: "تجربه مخاطب",
-    description: "تجربه‌ی کسانی که با یک دوست برای عزیزشون یه بغل پشمالو فرستادن — و فرم نوشتن تجربه‌ی تو.",
+    title: "قصه‌ی شما — تجربه‌های یک دوستی",
+    description: "قصه‌ی کسانی که با یک دوست برای عزیزشون یه بغل پشمالو فرستادن — و جای نوشتن قصه‌ی تو.",
   });
 
   const [stories, setStories] = useState<Story[] | null>(null);
@@ -383,14 +383,14 @@ export function StoriesScreen() {
         {/* hero */}
         <section className="flex flex-col items-start gap-3">
           <span className="rounded-[14px] bg-[#04202E] px-3.5 py-[7px] text-[13px] font-bold text-white">
-            تجربه مخاطب
+            قصه‌ی شما
           </span>
           <h1 className="m-0 text-[30px] font-black leading-[1.45] text-[#04202E] md:text-[40px]">
             قصه‌ی بغل‌هایی که رسیدن
           </h1>
           <p className="m-0 max-w-[640px] text-[15px] font-medium leading-[2] text-[#1F3E4D] md:text-[16.5px]">
-            این‌جا جاییه که گیرنده‌ها و فرستنده‌ها می‌گن وقتی جعبه‌ی یک دوست باز شد چه اتفاقی افتاد.
-            اگه تو هم یه قصه داری، پایین بنویسش — بعد از تأیید منتشر می‌شه.
+            این‌جا قصه‌های واقعی گیرنده‌ها و فرستنده‌هاست؛ از لحظه‌ای که جعبه‌ی یک دوست باز شد و یه بغل
+            از راه رسید. قصه‌ی تو هم می‌تونه این‌جا بشینه — پایین بنویسش، بعد از تأیید منتشرش می‌کنیم.
           </p>
         </section>
 

@@ -15,7 +15,7 @@ export async function POST(req: Request) {
     const body = (await req.json().catch(() => ({}))) as Record<string, unknown>;
     const phone = validPhone(body.phone);
     const code = normCode(body.code);
-    if (!phone || !/^\d{6}$/.test(code)) throw new AppError(400, "invalid_input");
+    if (!phone || !/^\d{4}$/.test(code)) throw new AppError(400, "invalid_input");
 
     await verifyOtp(phone, code);
 

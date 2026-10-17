@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>گزارش مخزن و استقرار — یک دوست</title>
+<style>
+  :root {
+    --ink: #04202E; --cyan: #00ABE7; --cyan-soft: #E3F6FD; --bg: #F2FAFD;
+    --line: #DDEEF5; --muted: #4A6572; --pink: #F0426B; --green: #00A876;
+    --amber: #8A6D1F; --amber-bg: #FFF3C9; --red: #B02A52; --red-bg: #FFE9F0;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: Vazirmatn, "Segoe UI", Tahoma, sans-serif;
+    font-size: 15px; line-height: 2;
+  }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 24px 20px 80px; }
+  header.hero {
+    background: linear-gradient(135deg, #00ABE7 0%, #0487BD 100%);
+    border-radius: 28px; padding: 28px 28px 24px; color: #fff; margin-bottom: 24px;
+  }
+  header.hero h1 { margin: 0 0 6px; font-size: 26px; font-weight: 900; }
+  header.hero p { margin: 0; opacity: .95; font-size: 14px; }
+  .badge { display: inline-block; background: rgba(255,255,255,.2); border: 1px solid rgba(255,255,255,.45); border-radius: 999px; padding: 2px 14px; font-size: 12.5px; font-weight: 800; margin-top: 12px; }
+  h2 { font-size: 20px; font-weight: 900; margin: 34px 0 6px; }
+  h2 .n { color: var(--cyan); }
+  .sub { color: var(--muted); font-size: 13.5px; margin: 0 0 14px; }
+  .card { background: #fff; border: 1px solid var(--line); border-radius: 20px; padding: 18px 20px; margin-bottom: 14px; }
+  table { width: 100%; border-collapse: collapse; background: #fff; border: 1px solid var(--line); border-radius: 16px; overflow: hidden; font-size: 13.5px; }
+  th, td { padding: 10px 12px; text-align: right; border-bottom: 1px solid var(--line); }
+  th { background: var(--cyan-soft); font-size: 12.5px; font-weight: 900; }
+  tr:last-child td { border-bottom: none; }
+  td.num, th.num { text-align: left; direction: ltr; white-space: nowrap; }
+  .pill { display: inline-block; border-radius: 999px; padding: 1px 10px; font-size: 11.5px; font-weight: 800; white-space: nowrap; }
+  .pill.keep { background: #DDF3EA; color: var(--green); }
+  .pill.drop { background: var(--red-bg); color: var(--red); }
+  .pill.move { background: var(--amber-bg); color: var(--amber); }
+  .bar { height: 14px; border-radius: 999px; background: var(--cyan-soft); overflow: hidden; display: flex; margin: 8px 0 2px; }
+  .bar span { height: 100%; }
+  .legend { display: flex; flex-wrap: wrap; gap: 14px; font-size: 12px; color: var(--muted); margin-top: 6px; }
+  .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-left: 4px; }
+  code { background: #EFF8FC; border: 1px solid var(--line); border-radius: 8px; padding: 1px 8px; font-size: 12.5px; direction: ltr; display: inline-block; }
+  pre { background: var(--ink); color: #BFE9F8; border-radius: 14px; padding: 14px 18px; font-size: 12.5px; direction: ltr; text-align: left; overflow-x: auto; line-height: 1.9; }
+  .q { font-weight: 900; color: var(--cyan); }
+  ul { padding-right: 22px; margin: 6px 0; }
+  li { margin-bottom: 2px; }
+  .warn { border-right: 4px solid var(--amber); background: var(--amber-bg); border-radius: 12px; padding: 10px 14px; font-size: 13px; font-weight: 700; color: var(--amber); margin: 10px 0; }
+  .ok { border-right: 4px solid var(--green); background: #DDF3EA; border-radius: 12px; padding: 10px 14px; font-size: 13px; font-weight: 700; color: var(--green); margin: 10px 0; }
+  footer { margin-top: 40px; text-align: center; color: var(--muted); font-size: 12px; }
+  @media (max-width: 640px) { th, td { padding: 8px 8px; font-size: 12px; } header.hero h1 { font-size: 21px; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="hero">
+    <h1>📦 گزارش مخزن گیت‌هاب و فایل‌های لازم برای دیپلوی — فروشگاه «یک دوست»</h1>
+    <p>پاسخ به این سؤال که «چرا ۹۰٪ کد گیت‌هاب ما HTML است؟» + فهرست دقیق پوشه‌ها و صفحاتی که در استقرار (Deploy) لازم نیستند.</p>
+    <span class="badge">به‌روزرسانی: اسفند ۱۴۰۴ · اندازه‌ها از خود مخزن (git) اندازه‌گیری شده</span>
+  </header>
+
+  <!-- ─────────── پاسخ سؤال ─────────── -->
+  <h2><span class="n">۱)</span> چرا گیت‌هاب می‌گوید پروژه ۹۰٪ HTML است؟</h2>
+  <p class="sub">نوار زبان گیت‌هاب (Language Bar) درصد هر زبان را از «حجم بایت‌ها» حساب می‌کند، نه تعداد فایل‌ها. کل مخزن ≈ ۳۸ مگابایت است و از این مقدار:</p>
+
+  <div class="card">
+    <div class="bar">
+      <span style="width:45.5%; background:var(--pink)" title="public/pages"></span>
+      <span style="width:43.8%; background:#B5478B" title="upload/"></span>
+      <span style="width:4.0%; background:#E5A50A" title="tool-results"></span>
+      <span style="width:3.4%; background:var(--cyan)" title="src/ واقعی"></span>
+      <span style="width:3.3%; background:#9BB8C6" title="بقیه"></span>
+    </div>
+    <div class="legend">
+      <span><i style="background:var(--pink)"></i> public/pages/ — ۳۲ صفحه‌ی HTML دموی قدیمی ≈ ۱۷٫۳MB</span>
+      <span><i style="background:#B5478B"></i> upload/ — ۲ فایل باندل اصلی طراحی ≈ ۱۶٫۶MB</span>
+      <span><i style="background:#E5A50A"></i> tool-results/ ≈ ۱٫۵MB</span>
+      <span><i style="background:var(--cyan)"></i> src/ — کد واقعی برنامه ≈ ۱٫۳MB</span>
+      <span><i style="background:#9BB8C6"></i> بقیه (پیکربندی، اسکریپت‌ها، مستندات) ≈ ۱٫۳MB</span>
+    </div>
+  </div>
+
+  <div class="ok">
+    پس:<b> بله، حدس شما درست است.</b> تعداد فایل‌های HTML فقط ۳۷ عدد از ۲۹۹ فایل است (≈ ۱۲٪)؛ ولی چون حجم‌شان حدود ۳۴ مگابایت از ۳۸ مگابایت مخزن را گرفته (۲ فایل باندل طراحی ۱۶٫۶MB + ۳۲ صفحه‌ی دموی self-contained در <code>public/pages/</code> با ۱۷٫۳MB)، نمودار زبان گیت‌هاب ≈ ۹۰٪ HTML نشان می‌دهد. کد واقعی فروشگاه (TypeScript در <code>src/</code>) فقط ۱٫۳ مگابایت است.
+  </div>
+
+  <h2><span class="n">۲)</span> پوشه‌ی <code>public/page/</code> چیست؟ آیا در سایت استفاده می‌شود؟</h2>
+  <div class="card">
+    <ul>
+      <li>پوشه‌ای به نام <code>public/page</code> وجود ندارد؛ چیزی که هست <code>public/pages/</code> است.</li>
+      <li>این پوشه ۳۲ صفحه‌ی HTML خودکفا (self-contained) است که در ابتدای پروژه از دو فایل باندلِ طراحی («پیشتم — وباپ هدیه‌ی دوستانه») استخراج شد تا دموی طراحی مرور شود. <span class="q">فروشگاه فعلی هیچ‌جای خودش از این صفحات استفاده نمی‌کند</span> — تنها رفرنس‌های آن‌ها در کامپوننت‌های گالری قدیمی (<code>src/components/pishnam/*</code>، <code>src/data/pages.ts</code> و ۳ هوک <code>use-recent/notes/favorite-pages</code>) است که خودشان هم دیگر از هیچ صفحه‌ای import نمی‌شوند (کد مرده).</li>
+      <li>چون داخل <code>public/</code> است، <b>در هر بیلد و دیپلوی کپی و منتشر می‌شود</b> — یعنی ≈ ۱۷٫۳ مگابایت بار اضافه روی بیلد، بدون هیچ استفاده‌ای.</li>
+      <li>سه فایل <code>public/pishnam-architecture.html</code>، <code>public/pishnam-docs.html</code> و <code>public/pishnam-prescription.html</code> هم مستندات داخلی هستند که به‌اشتباه داخل public منتشر می‌شوند.</li>
+    </ul>
+  </div>
+
+  <!-- ─────────── جدول تصمیم ─────────── -->
+  <h2><span class="n">۳)</span> فهرست نهایی: چه چیزی در دیپلوی لازم نیست؟</h2>
+  <p class="sub">وضعیت هر مورد نسبت به دو چیز سنجیده شده: (الف) آیا در مخزن گیت لازم است؟ (ب) آیا در خروجی دیپلوی (بیلد Netlify/Coolify) لازم است؟</p>
+
+  <table>
+    <thead>
+      <tr><th>مسیر</th><th>حجم</th><th>چیست؟</th><th>در دیپلوی</th><th>در گیت</th><th>توصیه</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><code>public/pages/</code> (۳۲ فایل)</td><td class="num">17.3 MB</td>
+        <td>صفحات دموی طراحی (استخراج‌شده از باندل‌ها)</td>
+        <td><span class="pill drop">لازم نیست</span></td><td><span class="pill drop">لازم نیست</span></td>
+        <td><span class="pill move">حذف از مخزن</span></td>
+      </tr>
+      <tr>
+        <td><code>upload/</code> (۲ باندل HTML)</td><td class="num">16.6 MB</td>
+        <td>فایل‌های خام طراحی (ورودی اسکریپت استخراج)</td>
+        <td><span class="pill drop">لازم نیست</span></td><td><span class="pill move">بایگانی خارج از گیت</span></td>
+        <td><span class="pill move">حذف از مخزن</span></td>
+      </tr>
+      <tr>
+        <td><code>tool-results/</code> (۳۰ فایل)</td><td class="num">1.5 MB</td>
+        <td>لاگ ابزارهای عامل هوش مصنوعی</td>
+        <td><span class="pill drop">لازم نیست</span></td><td><span class="pill drop">لازم نیست</span></td>
+        <td><span class="pill move">حذف + gitignore</span></td>
+      </tr>
+      <tr>
+        <td><code>public/pishnam-*.html</code> (۳ فایل)</td><td class="num">~0.1 MB</td>
+        <td>مستندات داخلی معماری/پرسکریپشن</td>
+        <td><span class="pill drop">لازم نیست</span></td><td><span class="pill keep">نگه‌دار</span></td>
+        <td><span class="pill move">انتقال به docs/</span></td>
+      </tr>
+      <tr>
+        <td><code>src/components/pishnam/*</code> + <code>src/data/pages.ts</code> + ۳ هوک</td><td class="num">~0.1 MB</td>
+        <td>پوسته‌ی گالری طراحی (کد مرده — هیچ صفحه‌ای importشان نمی‌کند)</td>
+        <td><span class="pill drop">لازم نیست</span></td><td><span class="pill drop">لازم نیست</span></td>
+        <td><span class="pill move">حذف با public/pages</span></td>
+      </tr>
+      <tr>
+        <td><code>design-ref/</code></td><td class="num">0.36 MB</td>
+        <td>متن مرجع صفحات طراحی (برای مستندسازی)</td>
+        <td><span class="pill drop">لازم نیست</span></td><td><span class="pill keep">اختیاری</span></td>
+        <td><span class="pill keep">می‌ماند</span></td>
+      </tr>
+      <tr>
+        <td><code>docs/</code></td><td class="num">0.15 MB</td>
+        <td>مستندات + همین گزارش</td>
+        <td><span class="pill drop">لازم نیست</span></td><td><span class="pill keep">نگه‌دار</span></td>
+        <td><span class="pill keep">می‌ماند</span></td>
+      </tr>
+      <tr>
+        <td><code>src/</code> + <code>prisma/</code> + <code>scripts/</code> + <code>public/fonts/</code> + <code>public/logo.svg</code> + <code>public/robots.txt</code></td><td class="num">~1.6 MB</td>
+        <td>کد اصلی فروشگاه، اسکیمای دیتابیس، seed، فونت وزیرمتن</td>
+        <td><span class="pill keep">لازم است ✓</span></td><td><span class="pill keep">لازم است ✓</span></td>
+        <td><span class="pill keep">می‌ماند</span></td>
+      </tr>
+      <tr>
+        <td><code>db/</code> ، <code>.data/</code> ، <code>.env</code></td><td class="num">—</td>
+        <td>دیتابیس محلی، فایل‌های رسانه، رمزها</td>
+        <td><span class="pill keep">در بیلد seed می‌شود</span></td><td><span class="pill drop">gitignore ✓</span></td>
+        <td><span class="pill keep">خارج از گیت می‌ماند</span></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="warn">
+    نکته‌ی مهم: حذف موارد بالا <b>هیچ تأثیری روی عملکرد سایت ندارد</b> — فقط حجم گیت‌هاب را از ۳۸MB به ≈ ۲MB می‌رساند، نمودار زبان گیت‌هاب درست می‌شود (HTML از ≈۹۰٪ به زیر ۱۰٪ می‌رسد) و بیلد دیپلوی سبک‌تر می‌شود. فرمان‌های پیشنهادی (هر وقت صاحب پروژه تأیید کرد):
+  </div>
+
+  <pre>git rm -r --cached public/pages upload tool-results
+git rm -r --cached src/components/pishnam src/data/pages.ts
+git rm -r --cached src/hooks/use-favorite-pages.ts src/hooks/use-page-notes.ts src/hooks/use-recent-pages.ts
+git mv public/pishnam-architecture.html public/pishnam-docs.html public/pishnam-prescription.html docs/
+printf '\n# design-demo leftovers & agent logs\ntool-results/\n' >> .gitignore
+git commit -m "chore: remove design-demo pages and agent logs from repo"</pre>
+
+  <!-- ─────────── آناتومی دیپلوی ─────────── -->
+  <h2><span class="n">۴)</span> در دیپلوی (Netlify) واقعاً چه چیزی مصرف می‌شود؟</h2>
+  <div class="card">
+    <ul>
+      <li><b>کد سرور و صفحات:</b> <code>src/</code> → کامپایل به <code>.next/</code> (خروجی standalone + توابع API).</li>
+      <li><b>دیتابیس:</b> فایل <code>db/custom.db</code> در گیت نیست؛ فرمان بیلد در <code>netlify.toml</code> خودش دیتابیس تازه می‌سازد و seed می‌کند (<code>prisma generate → db push → seed-commerce → seed-blog</code>).</li>
+      <li><b>فایل‌های عمومی:</b> کل پوشه‌ی <code>public/</code> عیناً منتشر می‌شود — به همین دلیل <code>public/pages/</code> هم اکنون در <a href="https://yekdoost.netlify.app/pages/main.html" target="_blank" rel="noreferrer">yekdoost.netlify.app/pages/main.html</a> قابل بازشدن است ولی هیچ لینکی به آن‌ها نیست.</li>
+      <li><b>رسانه‌های داینامیک</b> (عکس افزودنی‌ها، رسیدها، پیام‌ها): روی فایل‌سیستم نمونه (<code>/tmp/.data</code>) ذخیره می‌شوند و به گیت ربطی ندارند.</li>
+      <li><b>رمزها:</b> همه در Environment Variables سرویس استقرار؛ <code>.env</code> در گیت نیست.</li>
+    </ul>
+  </div>
+
+  <footer>این گزارش توسط دستیار توسعه تولید شده — یک دوست · یه بغل، تو یه جعبه 🧡</footer>
+</div>
+</body>
+</html>

@@ -4,24 +4,28 @@
 // «حساب کاربری» (#/login) is THE customer panel entry — works logged-out
 // (OTP form) and logged-in (account panel). «هدیه‌هام» is only shown after
 // login: gift data belongs to the account, never to a guest menu.
+// Owner request (UI round): 5 bottom menus — «قصه‌ی شما» joins the bar.
+// Labels follow Digikala/Snapp convention: one short word per item, single
+// line, ≥44px touch targets, clear active color.
 import { Logo } from "./logo";
-import { CartIcon, HomeIcon, PawIcon, UserIcon } from "./icons";
+import { BookIcon, CartIcon, HomeIcon, PawIcon, UserIcon } from "./icons";
 import { navigate, type Route } from "@/lib/hash-route";
 import { usePishnam } from "@/lib/pishnam-store";
 
 export function MobileNav({ active }: { active: Route }) {
-  const items: { route: Route; label: string; icon: React.ReactNode }[] = [
-    { route: "home", label: "خانه", icon: <HomeIcon /> },
-    { route: "friends", label: "دوستای پشمالو", icon: <PawIcon size={24} /> },
-    { route: "login", label: "حساب کاربری", icon: <UserIcon /> },
+  const items: { route: Route; label: string; aria: string; icon: React.ReactNode; activeOn: Route[] }[] = [
+    { route: "home", label: "خانه", aria: "خانه", icon: <HomeIcon />, activeOn: ["home"] },
+    { route: "friends", label: "دوستا", aria: "دوستای پشمالو", icon: <PawIcon size={24} />, activeOn: ["friends", "product"] },
+    { route: "stories", label: "قصه‌ی شما", aria: "قصه‌ی شما — قصه‌های مشتری‌ها", icon: <BookIcon />, activeOn: ["stories"] },
+    { route: "login", label: "حساب", aria: "حساب کاربری", icon: <UserIcon />, activeOn: ["login", "my-gifts"] },
   ];
   return (
     <nav
       aria-label="ناوبری اصلی"
-      className="sticky bottom-0 z-40 flex items-end justify-between border-t border-[#D3E8F0] bg-white/95 px-3 pb-[max(8px,env(safe-area-inset-bottom))] pt-2 backdrop-blur md:hidden"
+      className="sticky bottom-0 z-40 flex items-end justify-between border-t border-[#D3E8F0] bg-white/95 px-2 pb-[max(8px,env(safe-area-inset-bottom))] pt-2 backdrop-blur md:hidden"
     >
       {items.slice(0, 2).map((it) => (
-        <NavItem key={it.route} {...it} active={active === it.route || (active === "product" && it.route === "friends") || (active === "pick" && it.route === "friends")} />
+        <NavItem key={it.route} {...it} active={it.activeOn.includes(active)} />
       ))}
       <button
         type="button"
@@ -29,30 +33,46 @@ export function MobileNav({ active }: { active: Route }) {
         onClick={() => navigate("pick")}
         className="flex flex-1 flex-col items-center gap-1"
       >
-        <span className="flex h-[58px] w-[58px] items-center justify-center rounded-full border-4 border-white bg-[#00ABE7] shadow-[0_6px_16px_rgba(0,171,231,0.35)]">
-          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#04202E" strokeWidth="2.6" strokeLinecap="round" aria-hidden="true">
+        <span className="flex h-[54px] w-[54px] items-center justify-center rounded-full border-4 border-white bg-[#00ABE7] shadow-[0_6px_16px_rgba(0,171,231,0.35)]">
+          <svg width="25" height="25" viewBox="0 0 24 24" fill="none" stroke="#04202E" strokeWidth="2.6" strokeLinecap="round" aria-hidden="true">
             <path d="M12 5v14M5 12h14" />
           </svg>
         </span>
         <span className="text-[11px] font-extrabold text-[#04202E]">بساز</span>
       </button>
       {items.slice(2).map((it) => (
-        <NavItem key={it.route} {...it} active={active === it.route || (active === "my-gifts" && it.route === "login")} />
+        <NavItem key={it.route} {...it} active={it.activeOn.includes(active)} />
       ))}
     </nav>
   );
 }
 
-function NavItem({ route, label, icon, active }: { route: Route; label: string; icon: React.ReactNode; active: boolean }) {
+function NavItem({
+  route,
+  label,
+  aria,
+  icon,
+  active,
+}: {
+  route: Route;
+  label: string;
+  aria: string;
+  icon: React.ReactNode;
+  active: boolean;
+}) {
   return (
     <button
       type="button"
+      aria-label={aria}
+      aria-current={active ? "page" : undefined}
       onClick={() => navigate(route)}
-      className="flex flex-1 flex-col items-center gap-[3px]"
+      className="flex min-h-[52px] flex-1 flex-col items-center gap-[3px] pt-1"
       style={{ color: active ? "#006387" : "#5B7482" }}
     >
-      {icon}
-      <span className={`text-center text-[10.5px] leading-[1.5] ${active ? "font-extrabold" : "font-bold"}`}>{label}</span>
+      <span className={active ? "scale-110 transition-transform" : "transition-transform"}>{icon}</span>
+      <span className={`whitespace-nowrap text-center text-[10.5px] leading-[1.5] ${active ? "font-extrabold" : "font-bold"}`}>
+        {label}
+      </span>
     </button>
   );
 }

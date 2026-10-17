@@ -6,11 +6,12 @@
 //   08-دفتر مهربونی (mobile) · 14-دفتر مهربونی (desktop)
 //   03-ورود یا ثبت‌نام (mobile) · 15-ورود یا ثبت‌نام (desktop)
 // with REAL store wiring (orders, charity counter, OTP login flow).
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Plush } from "../plush";
 import { Logo } from "../logo";
 import {
   BackIcon,
+  CheckIcon,
   ForwardIcon,
   GiftBoxIcon,
   HeartIcon,
@@ -1619,7 +1620,7 @@ function useOtpFlow(): OtpFlow {
 
   const norm = (s: string) => toEnDigits(s).replace(/\s/g, "");
   const setPhone = (v: string) => setPhoneRaw(fa(v.replace(/[^\d۰-۹]/g, "").slice(0, 11)));
-  const setOtp = (v: string) => setOtpRaw(fa(v.replace(/[^\d۰-۹]/g, "").slice(0, 6)));
+  const setOtp = (v: string) => setOtpRaw(fa(v.replace(/[^\d۰-۹]/g, "").slice(0, 4)));
 
   useEffect(() => {
     if (step !== "otp" || timer <= 0) return;
@@ -1628,9 +1629,10 @@ function useOtpFlow(): OtpFlow {
   }, [step, timer]);
 
   /**
-   * Asks the server for a 6-digit OTP (session flow, guide §4.3).
-   * No demo fallback code exists anymore — if the API is down we surface an
-   * honest error. Returns the dev-echo code in dev mode ("" otherwise).
+   * Asks the server for a 4-digit OTP (session flow, guide §4.3 — owner wants
+   * ALL verify codes 4-digit). No demo fallback code exists anymore — if the
+   * API is down we surface an honest error. Returns the dev-echo code in dev
+   * mode ("" otherwise).
    */
   const requestOtp = async (p: string): Promise<string> => {
     try {
@@ -1663,15 +1665,15 @@ function useOtpFlow(): OtpFlow {
       setStep("otp");
       setTimer(RESEND_SECONDS);
       if (!code) {
-        toast({ title: "کد پیامک شد", description: "کد ۶ رقمی به همین شماره پیامک می‌شه." });
+        toast({ title: "کد پیامک شد", description: "کد ۴ رقمی به همین شماره پیامک می‌شه." });
       }
     });
   };
 
   const submitOtp = () => {
     const c = norm(otp);
-    if (!/^\d{6}$/.test(c)) {
-      setError("کد شش‌رقمی رو کامل بزن.");
+    if (!/^\d{4}$/.test(c)) {
+      setError("کد چهاررقمی رو کامل بزن.");
       return;
     }
     if (busy) return;
@@ -1706,7 +1708,7 @@ function useOtpFlow(): OtpFlow {
     setOtpRaw("");
     void requestOtp(norm(phone)).then((code) => {
       setDevCode(code);
-      toast({ title: "کد دوباره فرستاده شد", description: code ? `کد نمایشی: ${fa(code)}` : "کد ۶ رقمی پیامک شد." });
+      toast({ title: "کد دوباره فرستاده شد", description: code ? `کد نمایشی: ${fa(code)}` : "کد ۴ رقمی پیامک شد." });
     });
   };
 
@@ -1776,9 +1778,9 @@ function useOtpFlow(): OtpFlow {
 function LoginHeading({ flow }: { flow: OtpFlow }) {
   const t =
     flow.step === "phone"
-      ? { h: "خوش اومدی", p: "با شماره‌ت وارد شو تا هدیه‌هات رو ببینی." }
+      ? { h: "خوش اومدی", p: "فقط شماره‌ی موبایلت رو بزن — اگه حساب نداشته باشی، همین‌جا خودکار برات ساخته می‌شه. نه رمز می‌خواد، نه فرم." }
       : flow.step === "otp"
-        ? { h: "کد تایید", p: `کد شش‌رقمی به شماره‌ی ${flow.phone} فرستاده شد.` }
+        ? { h: "کد تایید", p: `کد ۴ رقمی به شماره‌ی ${flow.phone} پیامک شد.` }
         : { h: "آخرین قدم", p: "اگه اسمت رو بگی، قشنگ‌تر خوش‌اومد می‌گیم! (اختیاری)" };
   return (
     <div className="flex flex-col gap-2.5">
@@ -1795,6 +1797,369 @@ function OrDivider() {
       یا
       <span className="h-[1.5px] flex-1 bg-[#CFE6EF]" />
     </div>
+  );
+}
+
+/* ── mobile login redesign (Task 24-B) — PRESENTATION ONLY ──
+ * Everything below is display-layer: the OTP logic lives untouched in
+ * useOtpFlow; these components just read flow state and call the same
+ * setters/submitters. Desktop keeps LoginFlowBlock (single OTP input); the
+ * four-box experience is mobile-only. */
+
+/** Tiny inline shield-check for the phone-step trust microcopy row. */
+function ShieldIcon({ size = 16 }: { size?: number }) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="#0B6E4F"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      className="mt-0.5 shrink-0"
+    >
+      <path d="M12 3l7 3v5c0 4.6-3 8.6-7 10-4-1.4-7-5.4-7-10V6z" />
+      <path d="M9 12l2 2 4-4" />
+    </svg>
+  );
+}
+
+const LOGIN_STEP_META = [
+  { key: "phone", label: "شماره" },
+  { key: "otp", label: "کد" },
+  { key: "name", label: "اسم" },
+] as const;
+
+/** Digikala-style 3-step pills (شماره → کد → اسم) above the mobile heading. */
+function LoginStepPills({ step }: { step: "phone" | "otp" | "name" }) {
+  const idx = LOGIN_STEP_META.findIndex((s) => s.key === step);
+  return (
+    <div className="flex items-center justify-center gap-1" role="group" aria-label="مراحل ورود">
+      {LOGIN_STEP_META.map((s, i) => {
+        const done = i < idx;
+        const active = i === idx;
+        return (
+          <span key={s.key} className="flex items-center gap-1">
+            <span
+              aria-current={active ? "step" : undefined}
+              className={`flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-extrabold transition-colors ${
+                active
+                  ? "bg-[#04202E] text-white"
+                  : done
+                    ? "bg-[#DDF3EA] text-[#0B6E4F]"
+                    : "border border-[#D3E8F0] bg-white text-[#8FA8B5]"
+              }`}
+            >
+              {done && <CheckIcon size={11} stroke="#0B6E4F" />}
+              {s.label}
+            </span>
+            {i < LOGIN_STEP_META.length - 1 && (
+              <span aria-hidden="true" className={`h-[2px] w-3.5 rounded-full ${done ? "bg-[#BFE5D3]" : "bg-[#D3E8F0]"}`} />
+            )}
+          </span>
+        );
+      })}
+    </div>
+  );
+}
+
+/** Soft illustrated hero band: floating bunny + bear, hearts, speech bubble. */
+function LoginHero() {
+  return (
+    <div
+      aria-hidden="true"
+      className="relative mt-4 h-[176px] overflow-hidden rounded-[30px] border border-[#BFE5F5] bg-gradient-to-bl from-[#CDEFFB] via-[#E9F7FD] to-[#F2FAFD]"
+    >
+      {/* deco */}
+      <span className="absolute -right-10 -top-12 h-36 w-36 rounded-full bg-white/70" />
+      <span className="absolute right-16 top-5 h-2 w-2 rounded-full bg-[#04202E]" />
+      <span className="absolute right-7 top-12 h-1.5 w-4 rotate-[30deg] rounded-full bg-[#04202E]/70" />
+      <span className="absolute left-6 top-5 h-3.5 w-3.5 rounded-full border-2 border-[#04202E] bg-[#FFE08A]" />
+      <span className="absolute bottom-16 right-5 rotate-12">
+        <HeartSticker size={20} fill="#F0426B" stroke="#04202E" strokeWidth={2.4} />
+      </span>
+      <span className="absolute left-24 top-10 -rotate-12">
+        <HeartSticker size={14} fill="#fff" stroke="#F0426B" strokeWidth={2.6} />
+      </span>
+      {/* speech bubble */}
+      <div className="absolute right-4 top-6 rotate-[3deg] rounded-[16px] rounded-bl-[4px] border border-[#D3E8F0] bg-white px-3.5 py-2 shadow-[0_6px_16px_rgba(4,32,46,0.08)]">
+        <span className="block text-[12.5px] font-extrabold text-[#04202E]">خوش اومدی! 👋</span>
+        <span className="block text-[10.5px] font-bold text-[#006387]">نه رمز، نه فرم</span>
+      </div>
+      {/* floating plushes */}
+      <div className="absolute bottom-0 left-2 flex items-end">
+        <div className="pishnam-float">
+          <Plush kind="bunny" size={112} className="-rotate-6" />
+        </div>
+        <div className="pishnam-float -ms-4" style={{ animationDelay: "0.55s" }}>
+          <Plush kind="bear" size={92} className="rotate-6" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** Mobile heading: «ورود ♥ ثبت‌نام» chips + the phone-is-enough message. */
+function MobileLoginHeading({ flow }: { flow: OtpFlow }) {
+  const p =
+    flow.step === "phone"
+      ? "فقط شماره‌ت رو بزن — اگه قبلاً حساب نداشته باشی، همین‌جا خودکار برات ساخته می‌شه. نه رمزی لازمه، نه فرم طولانی."
+      : flow.step === "otp"
+        ? `کد ۴ رقمی به شماره‌ی ${flow.phone} پیامک شد.`
+        : "آخرین قدم! اگه اسمت رو بگی، قشنگ‌تر خوش‌اومد می‌گیم — اختیاریه.";
+  return (
+    <div className="flex flex-col gap-2.5">
+      <h1 className="m-0 flex flex-wrap items-center gap-2 leading-[1.5]">
+        <span className="rounded-[14px] bg-[#E3F6FD] px-3 py-0.5 text-[24px] font-black text-[#00779F]">ورود</span>
+        <span aria-hidden="true" className="flex shrink-0">
+          <HeartSticker size={20} fill="#F0426B" stroke="#04202E" strokeWidth={2.4} />
+        </span>
+        <span className="rounded-[14px] bg-[#FFE9F0] px-3 py-0.5 text-[24px] font-black text-[#B02A52]">ثبت‌نام</span>
+      </h1>
+      <p className="m-0 text-[13.5px] font-medium leading-[1.95] text-[#1F3E4D]">{p}</p>
+    </div>
+  );
+}
+
+/**
+ * Four individual OTP boxes (mobile-only) wired to the SAME flow state:
+ * reads flow.otp (a single ≤4-char Persian-digit string) and writes it back
+ * through flow.setOtp — no local source of truth. Auto-advance on input,
+ * backspace walks back, paste/autofill distributes across the boxes.
+ */
+function OtpBoxes({ flow }: { flow: OtpFlow }) {
+  const boxRefs = useRef<(HTMLInputElement | null)[]>([null, null, null, null]);
+  const chars = flow.otp.padEnd(4, " ").slice(0, 4).split("");
+
+  const focusBox = (i: number) => {
+    const el = boxRefs.current[Math.max(0, Math.min(3, i))];
+    if (el) {
+      el.focus();
+      el.select();
+    }
+  };
+
+  /** One digit lands at dense position i — replace if occupied, append if new. */
+  const ingest = (i: number, raw: string) => {
+    const digits = toEnDigits(raw).replace(/\D/g, "");
+    if (!digits) return;
+    if (digits.length > 1) {
+      // paste / SMS-autofill: distribute the chunk starting at box i
+      const next = (flow.otp.slice(0, i) + digits).slice(0, 4);
+      flow.setOtp(next);
+      focusBox(Math.min(next.length, 3));
+      return;
+    }
+    const cur = flow.otp;
+    const next =
+      i < cur.length ? cur.slice(0, i) + digits + cur.slice(i + 1) : (cur + digits).slice(0, 4);
+    flow.setOtp(next);
+    // auto-advance: first empty box after the write
+    focusBox(i < cur.length ? Math.min(i + 1, 3) : Math.min(next.length, 3));
+  };
+
+  return (
+    <div dir="ltr" className="flex justify-center gap-2">
+      {chars.map((ch, i) => {
+        const filled = ch !== " ";
+        return (
+          <input
+            key={i}
+            ref={(el) => {
+              boxRefs.current[i] = el;
+            }}
+            id={i === 0 ? "pishnam-otp" : undefined}
+            type="tel"
+            inputMode="numeric"
+            dir="ltr"
+            maxLength={1}
+            autoComplete={i === 0 ? "one-time-code" : "off"}
+            placeholder="–"
+            aria-label={`رقم ${fa(i + 1)} از کد تایید`}
+            disabled={flow.busy}
+            autoFocus={i === 0}
+            value={filled ? ch : ""}
+            onChange={(e) => ingest(i, e.target.value)}
+            onPaste={(e) => {
+              e.preventDefault();
+              ingest(i, e.clipboardData.getData("text"));
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "Backspace") {
+                e.preventDefault();
+                if (i < flow.otp.length) flow.setOtp(flow.otp.slice(0, i) + flow.otp.slice(i + 1));
+                else focusBox(i - 1);
+              } else if (e.key === "ArrowLeft") {
+                e.preventDefault();
+                focusBox(i - 1);
+              } else if (e.key === "ArrowRight") {
+                e.preventDefault();
+                focusBox(i + 1);
+              } else if (e.key === "Enter") {
+                flow.submitOtp();
+              }
+            }}
+            onFocus={(e) => e.target.select()}
+            className={`h-14 w-12 rounded-[16px] border-2 bg-white text-center text-[22px] font-black text-[#04202E] outline-none transition-all placeholder:text-[#B9D3DE] focus:border-[#00ABE7] focus:shadow-[0_0_0_4px_rgba(0,171,231,0.18)] disabled:opacity-60 ${
+              filled ? "border-[#04202E]" : "border-[#CFE6F2]"
+            }`}
+          />
+        );
+      })}
+    </div>
+  );
+}
+
+/**
+ * Mobile variant of LoginFlowBlock — same flow wiring, same ids
+ * (pishnam-phone / pishnam-otp / pishnam-name), same navigate("home") guest
+ * escape, but with the illustrated phone field, 4-box OTP, avatar name step.
+ */
+function MobileFlowBlock({ flow }: { flow: OtpFlow }) {
+  return (
+    <>
+      {flow.step === "phone" && (
+        <div className="flex flex-col gap-3">
+          <label htmlFor="pishnam-phone" className="text-[14px] font-extrabold">
+            شماره‌ی موبایلت
+          </label>
+          <div className="relative">
+            {/* pure decoration: Iran flag chip + country code */}
+            <span
+              aria-hidden="true"
+              className="pointer-events-none absolute left-[14px] top-1/2 flex -translate-y-1/2 items-center gap-2"
+            >
+              <span className="flex h-[18px] w-[26px] flex-col overflow-hidden rounded-[5px] border border-[#E2EEF3]">
+                <span className="h-1/3 bg-[#239F40]" />
+                <span className="h-1/3 bg-white" />
+                <span className="h-1/3 bg-[#DA0000]" />
+              </span>
+              <span dir="ltr" className="text-[14px] font-extrabold text-[#4A6572]">
+                +۹۸
+              </span>
+            </span>
+            <input
+              id="pishnam-phone"
+              type="tel"
+              inputMode="numeric"
+              dir="ltr"
+              maxLength={11}
+              placeholder="۰۹۱۲ ۳۴۵ ۶۷۸۹"
+              className="h-[58px] w-full rounded-[20px] border-2 border-[#04202E] bg-white pl-[96px] pr-[18px] text-[18px] font-semibold text-[#04202E] outline-none transition-shadow focus:shadow-[0_0_0_4px_rgba(0,171,231,0.15)]"
+              style={{ textAlign: "left" }}
+              value={flow.phone}
+              onChange={(e) => flow.setPhone(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && flow.submitPhone()}
+            />
+          </div>
+          <span className="text-[11.5px] font-semibold text-[#4A6572]">
+            مثلاً <span dir="ltr" className="font-extrabold text-[#00779F]">۰۹۱۲ ۳۴۵ ۶۷۸۹</span> — با ۰۹ شروع می‌شه.
+          </span>
+          {flow.error && <span className="text-[12.5px] font-bold text-[#F0426B]">{flow.error}</span>}
+          <button
+            type="button"
+            onClick={flow.submitPhone}
+            disabled={flow.busy}
+            className={`${PRIMARY_BTN_CLS} disabled:opacity-60`}
+          >
+            {flow.busy ? "در حال فرستادن کد…" : "ادامه"}
+          </button>
+          {/* trust microcopy */}
+          <div className="flex items-start gap-2 rounded-[14px] bg-[#DDF3EA] px-3 py-2.5">
+            <ShieldIcon size={15} />
+            <span className="text-[11.5px] font-bold leading-[1.8] text-[#0B6E4F]">
+              شماره‌ت فقط برای حساب خودته — جایی منتشر نمی‌شه.
+            </span>
+          </div>
+        </div>
+      )}
+
+      {flow.step === "otp" && (
+        <div className="flex flex-col gap-3">
+          <label htmlFor="pishnam-otp" className="text-[14px] font-extrabold">
+            کد تایید
+          </label>
+          <OtpBoxes flow={flow} />
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <span className="rounded-full bg-[#E3F6FD] px-3 py-1.5 text-[12px] font-extrabold text-[#006387]">
+              {flow.devCode ? `کد نمایشی: ${fa(flow.devCode)}` : "در حال فرستادن کد…"}
+            </span>
+            {flow.timer > 0 ? (
+              <span className="text-[12px] font-bold text-[#4A6572]">ارسال دوباره تا {fa(flow.timer)} ثانیه</span>
+            ) : (
+              <button
+                type="button"
+                onClick={flow.resend}
+                className="text-[12px] font-extrabold text-[#00779F] underline underline-offset-4 transition-colors hover:text-[#04202E]"
+              >
+                ارسال دوباره‌ی کد
+              </button>
+            )}
+          </div>
+          {flow.error && <span className="text-[12.5px] font-bold text-[#F0426B]">{flow.error}</span>}
+          <button
+            type="button"
+            onClick={flow.submitOtp}
+            disabled={flow.busy}
+            className={`${PRIMARY_BTN_CLS} disabled:opacity-60`}
+          >
+            {flow.busy ? "در حال بررسی…" : "تایید و ادامه"}
+          </button>
+          <button
+            type="button"
+            onClick={flow.restart}
+            className="self-start text-[12.5px] font-bold text-[#4A6572] underline underline-offset-4 transition-colors hover:text-[#04202E]"
+          >
+            تغییر شماره
+          </button>
+        </div>
+      )}
+
+      {flow.step === "name" && (
+        <div className="flex flex-col gap-3">
+          <label htmlFor="pishnam-name" className="text-[14px] font-extrabold">
+            اسمت چیه؟ (اختیاری)
+          </label>
+          <div className="flex items-center gap-2.5">
+            {/* live avatar preview — first letter as they type */}
+            <span
+              aria-hidden="true"
+              className="flex h-[58px] w-[58px] shrink-0 items-center justify-center rounded-full border-2 border-[#F7C5D3] bg-[#FFE9F0] text-[22px] font-black text-[#F0426B]"
+            >
+              {flow.name.trim().slice(0, 1) || "؟"}
+            </span>
+            <input
+              id="pishnam-name"
+              type="text"
+              placeholder="مثلاً: سارا"
+              className={`${INPUT_CLS} flex-1`}
+              value={flow.name}
+              onChange={(e) => flow.setName(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && flow.submitLogin()}
+            />
+          </div>
+          <span className="text-[11.5px] font-semibold leading-[1.8] text-[#4A6572]">
+            اگه جا بذاری، «رفیق یک دوستی» صدات می‌کنیم.
+          </span>
+          <button type="button" onClick={flow.submitLogin} className={PRIMARY_BTN_CLS}>
+            ورود به یک دوست
+          </button>
+        </div>
+      )}
+
+      <OrDivider />
+
+      <button type="button" onClick={() => navigate("home")} className={GHOST_BTN_CLS}>
+        ورود به‌عنوان مهمان
+      </button>
+
+      <div className="text-center text-[12.5px] font-medium leading-[1.9] text-[#4A6572]">
+        با ادامه، <span className="font-extrabold text-[#006387]">قوانین و حریم خصوصی</span> رو قبول می‌کنی.
+      </div>
+    </>
   );
 }
 
@@ -1836,10 +2201,10 @@ function LoginFlowBlock({ flow }: { flow: OtpFlow }) {
             type="tel"
             inputMode="numeric"
             dir="ltr"
-            maxLength={6}
-            placeholder="●●●●●●"
+            maxLength={4}
+            placeholder="●●●●"
             className={INPUT_CLS}
-            style={{ textAlign: "right", letterSpacing: "0.35em" }}
+            style={{ textAlign: "right", letterSpacing: "0.45em" }}
             value={flow.otp}
             onChange={(e) => flow.setOtp(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && flow.submitOtp()}
@@ -2040,11 +2405,17 @@ export function MobileLogin() {
       <div className={`flex flex-1 flex-col ${user ? "justify-center gap-6 py-8" : ""}`}>
         {!user && (
           <>
-            <div className="mt-[26px]">
-              <LoginHeading flow={flow} />
+            {/* illustrated hero: floating bunny + bear (decorative) */}
+            <LoginHero />
+            {/* 3-step progress: شماره → کد → اسم */}
+            <div className="mt-4">
+              <LoginStepPills step={flow.step} />
             </div>
-            <div className="mt-[26px] flex flex-col gap-4">
-              <LoginFlowBlock flow={flow} />
+            <div className="mt-3.5">
+              <MobileLoginHeading flow={flow} />
+            </div>
+            <div className="mt-5 flex flex-col gap-4">
+              <MobileFlowBlock flow={flow} />
             </div>
           </>
         )}

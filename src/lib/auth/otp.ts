@@ -1,6 +1,7 @@
 // ── auth/otp.ts — hardened OTP (guide §4.3, critic MUST-FIX) ──
-// 6-digit crypto-random codes, HMAC-hashed at rest, attempt-capped,
-// atomically consumed, previous codes invalidated on re-issue.
+// 4-digit crypto-random codes (owner request: «همه‌ی کدهای وریفای ۴ عددی باشن»),
+// HMAC-hashed at rest, attempt-capped, atomically consumed, previous codes
+// invalidated on re-issue.
 import { randomInt, createHmac, timingSafeEqual } from "crypto";
 import { db } from "../db";
 import { env } from "../env";
@@ -18,7 +19,8 @@ export async function issueOtp(phone: string, ip: string): Promise<{ devCode?: s
   await rateLimit("otp_phone_cooldown", phone, 1, 60);
   await rateLimit("otp_phone_hour", phone, 3, 3600);
   await rateLimit("otp_ip_day", ip, 10, 86_400);
-  const code = String(randomInt(100_000, 1_000_000)); // 6 digits, crypto RNG
+  // 4 digits (1000–9999), crypto RNG — no leading-zero codes so SMS/OTPs read naturally
+  const code = String(randomInt(1_000, 10_000));
   await db.$transaction([
     db.authCode.updateMany({ where: { phone, used: false }, data: { used: true } }),
     db.authCode.create({

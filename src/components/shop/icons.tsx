@@ -129,6 +129,14 @@ export const UserIcon = ({ size = 26, className }: IP) => (
   </svg>
 );
 
+/** Open storybook — «قصه‌ی شما» nav item (customer stories). */
+export const BookIcon = ({ size = 26, className }: IP) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden="true">
+    <path d="M12 6.5C10.4 5 8 4.5 5.5 4.5c-.8 0-1.5.7-1.5 1.5v11c0 .8.7 1.5 1.5 1.5 2.5 0 4.9.5 6.5 2 1.6-1.5 4-2 6.5-2 .8 0 1.5-.7 1.5-1.5v-11c0-.8-.7-1.5-1.5-1.5C16 4.5 13.6 5 12 6.5z" />
+    <path d="M12 6.5v14" />
+  </svg>
+);
+
 export const PhotoIcon = ({ size = 28 }: { size?: number }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="#04202E" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
     <rect x="3" y="5" width="18" height="14" rx="3" />
