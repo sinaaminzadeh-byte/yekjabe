@@ -187,6 +187,10 @@ model Product {
   // managed from the admin «محصولات» tab — new addons never need code changes.
   kind        String           @default("main_gift") // main_gift | addon
   emoji       String           @default("🎁") // compact display glyph for addons
+  // catalog photo — storage key in .data/products/<stem>.<ext> (S3 at deploy);
+  // empty = no photo yet, UI falls back to the emoji. Uploaded from the admin
+  // «محصولات» tab via POST /api/admin/products/[id]/image (magic-byte sniffed).
+  imageKey    String           @default("")
   isActive    Boolean          @default(true)
   createdAt   DateTime         @default(now())
   updatedAt   DateTime         @updatedAt

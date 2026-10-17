@@ -322,7 +322,7 @@ function zarinBaseUrl(): string {
 }
 
 function zarinRedirectUrl(authority: string): string {
-  if (zarinpalSimulate()) return `${env.SITE_URL}/#/pay-gateway?authority=${authority}`;
+  if (zarinpalSimulate()) return `${env.SITE_URL}/pay-gateway?authority=${authority}`;
   const base = env.ZARINPAL_SANDBOX === "1" ? "https://sandbox.zarinpal.com/pg/StartPay" : "https://payment.zarinpal.com/pg/StartPay";
   return `${base}/${authority}`;
 }

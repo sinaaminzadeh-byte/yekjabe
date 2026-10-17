@@ -8,7 +8,6 @@ import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import {
   BOX_PRICE,
-  CHARM_PRICE,
   FIRST_GIFT_NO,
   CHARITY_BASE,
   type PlushKind,
@@ -110,6 +109,9 @@ export interface CatalogEntry {
   name: string;
   kind?: "main_gift" | "addon";
   emoji?: string;
+  // catalog photo (public) — null until the admin uploads one from the panel
+  image?: string | null;
+  description?: string | null;
   variantId: string;
   priceToman: number;
   inStock: boolean;
@@ -185,7 +187,12 @@ interface PishnamState {
   catalog: Record<string, CatalogEntry>;
   catalogAddons: CatalogEntry[];
   retentionPrices: { m6: number; m12: number };
+  // قلب قرمز/پنجه — قیمت و فعال‌بودن از تنظیمات ادمین می‌آید (کد ثابت نیست)
+  charmPrice: number;
+  charmsEnabled: boolean;
   catalogLoaded: boolean;
+  /** not persisted — last successful /api/catalog fetch (stale-after-60s) */
+  catalogFetchedAt?: number;
   quote: Quote | null;
   quoteStatus: "idle" | "loading" | "ready" | "error";
   paymentMethod: PaymentMethod;
@@ -286,8 +293,11 @@ export const usePishnam = create<PishnamState>()(
       retention: "1m",
       addonLines: [],
       mediaFiles: [],
-      hearts: 5,
-      paws: 3,
+      // BUGFIX (owner report: «خودکار محصول به سبد اضافه می‌شه»): the old
+      // defaults 5 hearts + 3 paws silently added 8 paid charms to EVERY
+      // fresh visit — including private windows. Charms are opt-in: start at 0.
+      hearts: 0,
+      paws: 0,
       receiver: DEFAULT_RECEIVER,
       photoAdded: false,
       videoAdded: false,
@@ -322,6 +332,8 @@ export const usePishnam = create<PishnamState>()(
       catalog: {},
       catalogAddons: [],
       retentionPrices: { m6: 0, m12: 0 },
+      charmPrice: 50000,
+      charmsEnabled: true,
       catalogLoaded: false,
       quote: null,
       quoteStatus: "idle",
@@ -385,23 +397,38 @@ export const usePishnam = create<PishnamState>()(
       logout: () => set({ user: null, orders: [], pendingOrder: null }),
 
       // ── catalog (variantIds come from the server; never hardcode) ──
+      // Fresh on first call, then cached — but admin edits (prices, charms
+      // on/off, addon photos) must reach an open session within a minute,
+      // so the cache goes stale after 60s and silently refetches.
       loadCatalog: async () => {
-        if (get().catalogLoaded) return;
+        const fetchedAt = (get() as { catalogFetchedAt?: number }).catalogFetchedAt ?? 0;
+        if (get().catalogLoaded && Date.now() - fetchedAt < 60_000) return;
         try {
           const res = await fetch("/api/catalog", { cache: "no-store" });
           if (!res.ok) return;
-          const data = (await res.json()) as { products: CatalogEntry[]; retention?: { m6: number; m12: number } };
+          const data = (await res.json()) as {
+            products: CatalogEntry[];
+            retention?: { m6: number; m12: number };
+            charms?: { enabled: boolean; priceToman: number };
+          };
           const map: Record<string, CatalogEntry> = {};
           const addons: CatalogEntry[] = [];
           for (const p of data.products) {
             map[p.slug] = p;
             if (p.kind === "addon") addons.push(p);
           }
+          const charms = data.charms ?? { enabled: true, priceToman: 50000 };
+          // admin disabled the charms → silently drop any locally-stashed counts
+          const clearCharms = !charms.enabled ? { hearts: 0, paws: 0 } : {};
           set({
             catalog: map,
             catalogAddons: addons,
             retentionPrices: data.retention ?? { m6: 0, m12: 0 },
+            charmPrice: charms.priceToman,
+            charmsEnabled: charms.enabled,
             catalogLoaded: true,
+            catalogFetchedAt: Date.now(),
+            ...clearCharms,
           });
         } catch {
           /* offline → retry on next call */
@@ -662,8 +689,8 @@ export const usePishnam = create<PishnamState>()(
           retention: "1m",
           addonLines: [],
           mediaFiles: [],
-          hearts: 5,
-          paws: 3,
+          hearts: 0,
+          paws: 0,
           receiver: DEFAULT_RECEIVER,
           photoAdded: false,
           videoAdded: false,
@@ -693,8 +720,10 @@ export const usePishnam = create<PishnamState>()(
     {
       name: "pishnam-app",
       storage: createJSONStorage(() => localStorage),
-      version: 3,
+      version: 4,
       // v2→v3: sender privacy + retention + addons + media meta (fresh defaults)
+      // v3→v4: BUGFIX — persisted 5 hearts/3 paws defaults auto-charged every
+      // visitor 8 paid charms; force them back to opt-in zero on upgrade.
       migrate: (state) => {
         const s = state as Partial<PishnamState>;
         return {
@@ -703,6 +732,10 @@ export const usePishnam = create<PishnamState>()(
           catalog: s.catalog ?? {},
           catalogAddons: [],
           retentionPrices: { m6: 0, m12: 0 },
+          charmPrice: 50000,
+          charmsEnabled: true,
+          hearts: 0,
+          paws: 0,
           catalogLoaded: false,
           quote: null,
           quoteStatus: "idle",
@@ -757,5 +790,6 @@ export function useBuilderTotal(): number {
   const quote = usePishnam((s) => s.quote);
   const hearts = usePishnam((s) => s.hearts);
   const paws = usePishnam((s) => s.paws);
-  return quote ? quote.total : BOX_PRICE + (hearts + paws) * CHARM_PRICE;
+  const charmPrice = usePishnam((s) => s.charmPrice);
+  return quote ? quote.total : BOX_PRICE + (hearts + paws) * charmPrice;
 }

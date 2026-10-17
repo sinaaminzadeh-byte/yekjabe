@@ -2,7 +2,7 @@
 
 // ── Pishnam — the real gift web-app (UI rebuilt in React from the design system) ──
 import { useEffect } from "react";
-import { useHashRoute } from "@/lib/hash-route";
+import { useHashRoute, navigate } from "@/lib/hash-route";
 import { useHasMounted } from "@/hooks/use-has-mounted";
 import { bootSync } from "@/lib/pishnam-sync";
 import { MobileNav, DesktopHeader } from "@/components/shop/nav";
@@ -72,7 +72,7 @@ function NotFoundScreen() {
       <button
         type="button"
         onClick={() => {
-          window.location.hash = "#/home";
+          navigate("home");
         }}
         className="rounded-full bg-[#04202E] px-6 py-3 text-sm font-bold text-white transition-transform hover:scale-[1.03] active:scale-95"
       >

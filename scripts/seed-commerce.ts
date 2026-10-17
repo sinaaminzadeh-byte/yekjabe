@@ -27,6 +27,7 @@ const ADDONS = [
 
 const SETTINGS: Record<string, string> = {
   charm_price_toman: "50000",
+  charms_enabled: "1",
   ship_fee_tehran_toman: "49000",
   ship_fee_other_toman: "69000",
   low_stock_threshold: "5",

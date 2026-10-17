@@ -54,12 +54,16 @@ export async function computeQuote(
 
   const s = await getSettings(tx, [
     "charm_price_toman",
+    "charms_enabled",
     "ship_fee_tehran_toman",
     "ship_fee_other_toman",
     "retention_6m_price_toman",
     "retention_12m_price_toman",
   ]);
-  const charmPrice = Number(s.charm_price_toman ?? 50000);
+  // قلب قرمز/پنجه — وقتی ادمین غیرفعالش کرده باشد، هر تعداد که کلاینت بفرستد
+  // صفر حساب می‌شود (server-authoritative; client UI هم سکشن را مخفی می‌کند).
+  const charmsOn = s.charms_enabled !== "0";
+  const charmPrice = charmsOn ? Number(s.charm_price_toman ?? 50000) : 0;
   const shipTehran = Number(s.ship_fee_tehran_toman ?? 49000);
   const shipOther = Number(s.ship_fee_other_toman ?? 69000);
   // پلن‌های نگهداری از تنظیمات می‌آیند — هیچ قیمت‌ای در کد ثابت نیست (mission §۴)
@@ -76,7 +80,8 @@ export async function computeQuote(
     if (!v) throw new AppError(400, "bad_variant");
     return acc + v.priceToman * i.qty;
   }, 0);
-  const charms = (input.charmHearts + input.charmPaws) * charmPrice;
+  const charmCount = charmsOn ? input.charmHearts + input.charmPaws : 0;
+  const charms = charmCount * charmPrice;
   // هرگز رایگان — shipping comes from Setting (critic MUST-FIX on free-shipping)
   const shipping = input.province === "تهران" ? shipTehran : shipOther;
   const discount = 0; // contract: coupons come later, exactly here

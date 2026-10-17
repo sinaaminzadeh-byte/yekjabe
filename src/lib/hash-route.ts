@@ -1,7 +1,11 @@
 "use client";
 
-// ── Tiny hash router (single-route sandbox constraint: everything lives on /) ──
-// Supports section anchors: `#/home@friends` scrolls to element#friends after render.
+// ── Tiny History-API router (SEO owner-request: NO «#/» in URLs) ──
+// The app is a single-route SPA: src/middleware.ts rewrites every page path
+// to /, and this router reads window.location.pathname to pick the screen.
+// Supports in-page anchors: `/home#friends` scrolls to element#friends after
+// render. Deep links (/verify, /track?code=…) work on dev, sandbox AND Netlify
+// because the middleware rewrite serves the SPA shell for every page path.
 import { useEffect, useState, useCallback } from "react";
 
 export type Route =
@@ -63,24 +67,45 @@ export const ROUTES: Route[] = [
   "not-found",
 ];
 
-function parseHash(): { route: Route; query: URLSearchParams; anchor: string | null } {
-  const h = window.location.hash.replace(/^#\/?/, "");
-  const [pathAndAnchor, qs] = h.split("?");
+/** Legacy «#/route?query@anchor» links (printed QRs, old SMS, shared chats)
+ * are silently upgraded to clean paths so nothing breaks after the SEO move. */
+function upgradeLegacyHash(): void {
+  const h = window.location.hash;
+  if (!h.startsWith("#/")) return;
+  const [pathAndAnchor, qs] = h.slice(2).split("?");
   const [path, anchorPart] = pathAndAnchor.split("@");
-  // empty hash → home; known path → its screen; anything else → Persian 404
+  const clean = `/${path === "home" ? "" : path}${qs ? `?${qs}` : ""}${anchorPart ? `#${anchorPart}` : ""}`;
+  history.replaceState({}, "", clean);
+}
+
+function parseLocation(): { route: Route; query: URLSearchParams; anchor: string | null } {
+  upgradeLegacyHash();
+  // "" or "/" → home; known path → its screen; anything else → Persian 404
+  const p = window.location.pathname.replace(/^\/+/, "").replace(/\/+$/, "");
   const route: Route =
-    path === "" ? "home" : (ROUTES as string[]).includes(path) ? (path as Route) : "not-found";
+    p === "" ? "home" : (ROUTES as string[]).includes(p) ? (p as Route) : "not-found";
+  const anchor = window.location.hash.length > 1 ? window.location.hash.slice(1) : null;
   return {
     route,
-    query: new URLSearchParams(qs ?? ""),
-    anchor: anchorPart && anchorPart.length > 0 ? anchorPart : null,
+    query: new URLSearchParams(window.location.search),
+    anchor: anchor && anchor.length > 0 ? anchor : null,
   };
 }
 
+/** Router-internal re-render event — pushState/replaceState fire no events. */
+const NAV_EVENT = "pnroute:navigate";
+
 export function navigate(route: Route, query?: Record<string, string>, anchor?: string) {
   const qs = query ? "?" + new URLSearchParams(query).toString() : "";
-  const at = anchor ? `@${anchor}` : "";
-  window.location.hash = `#/${route}${qs}${at}`;
+  const at = anchor ? `#${anchor}` : "";
+  // home lives on the clean root path — no "/home" in the address bar
+  const path = route === "home" ? "/" : `/${route}`;
+  const url = `${path}${qs}${at}`;
+  const now = window.location.pathname + window.location.search + window.location.hash;
+  if (now !== url) {
+    history.pushState({}, "", url);
+  }
+  window.dispatchEvent(new Event(NAV_EVENT));
 }
 
 export function useHashRoute(): {
@@ -88,8 +113,8 @@ export function useHashRoute(): {
   query: URLSearchParams;
   anchor: string | null;
 } {
-  // SSR-safe: always start at "home", sync the real hash after mount
-  // (reading location.hash during first client render causes hydration mismatch)
+  // SSR-safe: always start at "home", sync the real location after mount
+  // (reading location during first client render causes hydration mismatch)
   const [state, setState] = useState<{
     route: Route;
     query: URLSearchParams;
@@ -98,7 +123,7 @@ export function useHashRoute(): {
 
   useEffect(() => {
     const onChange = () => {
-      const next = parseHash();
+      const next = parseLocation();
       setState(next);
       if (next.anchor) {
         // wait one paint for the screen to mount, then glide to the section
@@ -112,8 +137,12 @@ export function useHashRoute(): {
       }
     };
     onChange();
-    window.addEventListener("hashchange", onChange);
-    return () => window.removeEventListener("hashchange", onChange);
+    window.addEventListener("popstate", onChange);
+    window.addEventListener(NAV_EVENT, onChange);
+    return () => {
+      window.removeEventListener("popstate", onChange);
+      window.removeEventListener(NAV_EVENT, onChange);
+    };
   }, []);
 
   return state;

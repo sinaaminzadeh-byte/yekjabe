@@ -35,6 +35,7 @@ export async function GET() {
         description: p.description,
         kind: p.kind,
         emoji: p.emoji,
+        image: p.imageKey ? `/api/products/${p.slug}/image?v=${p.updatedAt.getTime()}` : null,
         isActive: p.isActive,
         variant: p.variants[0]
           ? {

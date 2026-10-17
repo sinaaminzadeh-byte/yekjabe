@@ -11,7 +11,7 @@ function redirect(url: string): NextResponse {
 }
 
 function successUrl(code: string): string {
-  return `${process.env.SITE_URL ?? "http://localhost:3000"}/#/success?code=${encodeURIComponent(code)}`;
+  return `${process.env.SITE_URL ?? "http://localhost:3000"}/success?code=${encodeURIComponent(code)}`;
 }
 
 export async function GET(req: Request) {

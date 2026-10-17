@@ -31,7 +31,7 @@ export default function PishnamError({
         <button
           type="button"
           onClick={() => {
-            window.location.hash = "#/home";
+            window.location.assign("/");
             window.location.reload();
           }}
           className="rounded-full border-2 border-[#04202E]/15 px-6 py-3 text-sm font-bold text-[#04202E] transition-colors hover:bg-white"

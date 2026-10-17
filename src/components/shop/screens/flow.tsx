@@ -25,7 +25,6 @@ import { fa, money } from "@/lib/fa";
 import {
   PLUSHES,
   BOX_PRICE,
-  CHARM_PRICE,
   OCCASIONS,
   OCCASION_HOLDERS,
   CHARITY_TARGET,
@@ -34,6 +33,8 @@ import {
 import { PROVINCES } from "@/lib/orders/provinces";
 import { useEffect, useRef, useState } from "react";
 import { useToast } from "@/hooks/use-toast";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
+import type { CatalogEntry } from "@/lib/pishnam-store";
 import { FavHeart, FavFilterChips, SurpriseButton } from "@/components/shop/fav";
 import { MessageIdeas } from "@/components/shop/ideas";
 
@@ -431,6 +432,12 @@ export function MobileExtras() {
   const setHearts = usePishnam((s) => s.setHearts);
   const setPaws = usePishnam((s) => s.setPaws);
   const nextNo = usePishnam((s) => s.nextNo);
+  // قلب قرمز/پنجه — قیمت و فعال‌بودن از تنظیمات ادمین (owner request)
+  const charmPrice = usePishnam((s) => s.charmPrice);
+  const charmsEnabled = usePishnam((s) => s.charmsEnabled);
+  // دکمه «جزئیات» هر افزودنی → Bottom-Sheet آیفونی
+  const [detail, setDetail] = useState<CatalogEntry | null>(null);
+  const { toast } = useToast();
   // «افزودنی‌ها» (mission §۵) + پلن‌های نگهداری (mission §۴)
   const catalogAddons = usePishnam((s) => s.catalogAddons);
   const addonLines = usePishnam((s) => s.addonLines);
@@ -470,7 +477,7 @@ export function MobileExtras() {
   const hasMore = all.length > cap;
   const more = all.length - cap;
   const retentionFee = retention === "6m" ? retentionPrices.m6 : retention === "12m" ? retentionPrices.m12 : 0;
-  const total = BOX_PRICE + (hearts + paws) * CHARM_PRICE + addonsTotal + retentionFee;
+  const total = BOX_PRICE + (charmsEnabled ? (hearts + paws) * charmPrice : 0) + addonsTotal + retentionFee;
 
   return (
     <div className="flex min-h-screen flex-col bg-[#F2FAFD] md:hidden">
@@ -480,63 +487,10 @@ export function MobileExtras() {
       <div className="px-5 pb-1 pt-[22px]">
         <h1 className="m-0 text-[30px] font-black leading-[1.4]">یه ذره مهربونی اضافه کن</h1>
         <p className="mb-0 mt-2 text-[15px] font-medium leading-[1.9] text-[#1F3E4D]">
-          قلب قرمز و پنجه، استیکرای کوچیکی‌ان که روی جعبه می‌چسبن. پولشون می‌ره برای هدیه به
-          بچه‌های بی‌سرپرست و پناهگاه حیوونا. هر چندتا که دلت خواست.
+          هر هدیه رو با افزودنی‌ها کامل‌تر کن؛ اگه دلت خواست، یه قلب قرمز یا پنجه هم به جعبه
+          بچسبونیم — پولشون می‌ره برای هدیه به بچه‌های بی‌سرپرست و پناهگاه حیوونا.
         </p>
       </div>
-
-      <div className="flex flex-col gap-3 px-5 pt-3.5">
-        {/* hearts */}
-        <div className="flex flex-col gap-3.5 rounded-[28px] border-[1.5px] border-[#F7C5D3] bg-[#FFE9F0] p-4">
-          <div className="flex items-center gap-3.5">
-            <div className="flex h-[68px] w-[68px] shrink-0 items-center justify-center rounded-full bg-white">
-              <HeartSticker size={40} fill="#F0426B" stroke="#04202E" strokeWidth={2.4} />
-            </div>
-            <div className="flex flex-col gap-[3px]">
-              <span className="text-lg font-black">قلب قرمز</span>
-              <span className="text-[13px] font-medium text-[#1F3E4D]">برای هدیه به بچه‌های بی‌سرپرست</span>
-            </div>
-          </div>
-          <div className="flex items-center justify-between">
-            <span className="text-sm font-bold">هر کدوم {money(CHARM_PRICE)} تومان</span>
-            <Counter
-              value={hearts}
-              onMinus={() => setHearts(hearts - 1)}
-              onPlus={() => setHearts(hearts + 1)}
-              minusLabel="یکی کم کن"
-              plusLabel="یکی زیاد کن"
-              plusBg="#F0426B"
-              plusStroke="#fff"
-            />
-          </div>
-        </div>
-
-        {/* paws */}
-        <div className="flex flex-col gap-3.5 rounded-[28px] border-[1.5px] border-[#B5E3F5] bg-[#E3F6FD] p-4">
-          <div className="flex items-center gap-3.5">
-            <div className="flex h-[68px] w-[68px] shrink-0 items-center justify-center rounded-full bg-white">
-              <PawIcon size={38} />
-            </div>
-            <div className="flex flex-col gap-[3px]">
-              <span className="text-lg font-black">پنجه</span>
-              <span className="text-[13px] font-medium text-[#1F3E4D]">برای هدیه به پناهگاه حیوونا</span>
-            </div>
-          </div>
-          <div className="flex items-center justify-between">
-            <span className="text-sm font-bold">هر کدوم {money(CHARM_PRICE)} تومان</span>
-            <Counter
-              value={paws}
-              onMinus={() => setPaws(paws - 1)}
-              onPlus={() => setPaws(paws + 1)}
-              minusLabel="یکی کم کن"
-              plusLabel="یکی زیاد کن"
-              plusBg="#00ABE7"
-              plusStroke="#04202E"
-            />
-          </div>
-        </div>
-      </div>
-
       {/* «افزودنی‌ها» — همراه هدیه اصلی، از مدیریت محصولات (mission §۵) */}
       {catalogAddons.length > 0 && (
         <div className="px-5 pt-5">
@@ -554,14 +508,26 @@ export function MobileExtras() {
                   className="flex items-center gap-3 rounded-[22px] border-[1.5px] bg-white px-3.5 py-3"
                   style={{ borderColor: q > 0 ? "#00ABE7" : "#DDEEF5", opacity: out ? 0.55 : 1 }}
                 >
-                  <div className="flex h-[52px] w-[52px] shrink-0 items-center justify-center rounded-[16px] bg-[#F2FAFD] text-2xl" aria-hidden="true">
-                    {a.emoji || "🎁"}
+                  <div className="flex h-[52px] w-[52px] shrink-0 items-center justify-center overflow-hidden rounded-[16px] bg-[#F2FAFD] text-2xl">
+                    {a.image ? (
+                       
+                      <img src={a.image} alt={a.name} className="h-full w-full object-cover" />
+                    ) : (
+                      <span aria-hidden="true">{a.emoji || "🎁"}</span>
+                    )}
                   </div>
                   <div className="flex min-w-0 flex-1 flex-col gap-0.5">
                     <span className="text-[14.5px] font-extrabold text-[#04202E]">{a.name}</span>
                     <span className="text-[12px] font-bold text-[#4A6572]">
                       {out ? "ناموجود" : `${money(a.priceToman)} تومان`}
                     </span>
+                    <button
+                      type="button"
+                      onClick={() => setDetail(a)}
+                      className="w-fit text-[11.5px] font-extrabold text-[#006387] underline underline-offset-4"
+                    >
+                      جزئیات و عکس
+                    </button>
                   </div>
                   {out ? (
                     <span className="rounded-full bg-[#F2FAFD] px-3 py-1.5 text-[11px] font-extrabold text-[#4A6572]">ناموجوده</span>
@@ -590,6 +556,110 @@ export function MobileExtras() {
           </div>
         </div>
       )}
+
+
+      {/* قلب قرمز و پنجه — جدا از افزودنی‌ها، زیرشان؛ کنترل از تب تنظیمات ادمین */}
+      {charmsEnabled && (
+        <div className="px-5 pt-5">
+          <div className="flex items-baseline justify-between">
+            <h2 className="m-0 text-lg font-black">قلب قرمز و پنجه</h2>
+            <span className="text-[12px] font-bold text-[#4A6572]">هر کدوم {money(charmPrice)} تومان — برای کار خیر</span>
+          </div>
+          <div className="mt-2.5 flex flex-col gap-3">
+
+        {/* hearts */}
+        <div className="flex flex-col gap-3.5 rounded-[28px] border-[1.5px] border-[#F7C5D3] bg-[#FFE9F0] p-4">
+          <div className="flex items-center gap-3.5">
+            <div className="flex h-[68px] w-[68px] shrink-0 items-center justify-center rounded-full bg-white">
+              <HeartSticker size={40} fill="#F0426B" stroke="#04202E" strokeWidth={2.4} />
+            </div>
+            <div className="flex flex-col gap-[3px]">
+              <span className="text-lg font-black">قلب قرمز</span>
+              <span className="text-[13px] font-medium text-[#1F3E4D]">برای هدیه به بچه‌های بی‌سرپرست</span>
+            </div>
+          </div>
+          <div className="flex items-center justify-between">
+            <span className="text-sm font-bold">هر کدوم {money(charmPrice)} تومان</span>
+            <Counter
+              value={hearts}
+              onMinus={() => setHearts(hearts - 1)}
+              onPlus={() => setHearts(hearts + 1)}
+              minusLabel="یکی کم کن"
+              plusLabel="یکی زیاد کن"
+              plusBg="#F0426B"
+              plusStroke="#fff"
+            />
+          </div>
+        </div>
+
+        {/* paws */}
+        <div className="flex flex-col gap-3.5 rounded-[28px] border-[1.5px] border-[#B5E3F5] bg-[#E3F6FD] p-4">
+          <div className="flex items-center gap-3.5">
+            <div className="flex h-[68px] w-[68px] shrink-0 items-center justify-center rounded-full bg-white">
+              <PawIcon size={38} />
+            </div>
+            <div className="flex flex-col gap-[3px]">
+              <span className="text-lg font-black">پنجه</span>
+              <span className="text-[13px] font-medium text-[#1F3E4D]">برای هدیه به پناهگاه حیوونا</span>
+            </div>
+          </div>
+          <div className="flex items-center justify-between">
+            <span className="text-sm font-bold">هر کدوم {money(charmPrice)} تومان</span>
+            <Counter
+              value={paws}
+              onMinus={() => setPaws(paws - 1)}
+              onPlus={() => setPaws(paws + 1)}
+              minusLabel="یکی کم کن"
+              plusLabel="یکی زیاد کن"
+              plusBg="#00ABE7"
+              plusStroke="#04202E"
+            />
+          </div>
+        </div>
+          </div>
+        </div>
+      )}
+
+      {/* جزئیات افزودنی — Bottom-Sheet آیفونی (owner request) */}
+      <Sheet open={detail !== null} onOpenChange={(o) => !o && setDetail(null)}>
+        <SheetContent side="bottom" className="rounded-t-[30px] border-[#DDEEF5] bg-white px-0 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-2">
+          {detail && (
+            <div className="flex flex-col gap-4 px-6 pt-2 text-right">
+              <span className="mx-auto h-1.5 w-12 rounded-full bg-[#DDEEF5]" aria-hidden="true" />
+              <div className="flex h-[190px] items-center justify-center overflow-hidden rounded-[24px] bg-[#F2FAFD]">
+                {detail.image ? (
+                   
+                  <img src={detail.image} alt={detail.name} className="h-full w-full object-cover" />
+                ) : (
+                  <span className="text-6xl" aria-hidden="true">{detail.emoji || "🎁"}</span>
+                )}
+              </div>
+              <SheetHeader className="gap-1 space-y-0 p-0 text-right">
+                <SheetTitle className="text-right text-[20px] font-black text-[#04202E]">{detail.name}</SheetTitle>
+                <SheetDescription className="text-right text-[14px] font-extrabold text-[#006387]">
+                  {detail.inStock ? `${money(detail.priceToman)} تومان` : "فعلاً ناموجوده"}
+                </SheetDescription>
+              </SheetHeader>
+              <p className="m-0 text-[13.5px] font-medium leading-[2] text-[#1F3E4D]">
+                {detail.description || "برای این افزودنی هنوز توضیحی ثبت نشده — سوالی داری قبل از خرید بهمون پیام بده."}
+              </p>
+              {detail.inStock && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    addAddon(detail.variantId);
+                    setDetail(null);
+                    toast({ title: "به سبد اضافه شد ✓", description: detail.name });
+                  }}
+                  className="h-[52px] w-full rounded-full bg-[#00ABE7] text-[15px] font-extrabold text-[#04202E] transition-transform active:scale-[0.98]"
+                >
+                  + بذارش کنار هدیه تو جعبه
+                </button>
+              )}
+            </div>
+          )}
+        </SheetContent>
+      </Sheet>
 
       {/* پلن نگهداری پیام — ساعت از اولین نمایش موفق شروع می‌شه (mission §۴) */}
       <div className="px-5 pt-5">

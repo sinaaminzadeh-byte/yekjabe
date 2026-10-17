@@ -1,6 +1,8 @@
 "use client";
 
-// ═══ پنل همکاران — Phase B admin console (guide §B3/§B6) ═══
+// ═══ پنل مدیریت — Phase B admin console (guide §B3/§B6) ═══
+// Roles (owner request): ادمین = owner (full control + تنظیمات),
+// مدیر فروشگاه = operator (daily ops: orders/receipts/products/reviews).
 // Tabs: سفارش‌ها (transitions via /api/admin/orders/{id}/transition),
 // رسیدها (manual receipt queue approve/reject), نظرها (reviews moderation).
 // Gated behind AdminUser OTP (pn_admin cookie, guide A7).
@@ -143,12 +145,12 @@ function AdminOtpGate({ onOk }: { onOk: () => void }) {
           <Plush kind="bear" size={52} />
         </span>
         <div className="flex flex-col gap-1.5">
-          <h1 className="m-0 text-[22px] font-black">پنل همکاران</h1>
+          <h1 className="m-0 text-[22px] font-black">پنل مدیریت</h1>
           <p className="m-0 text-[13.5px] font-medium leading-[1.9] text-[#4A6572]">
             {mode === "password"
               ? "رمز پنل رو بزن (فایل .env سرور: ADMIN_PANEL_PASSWORD)."
               : step === "phone"
-                ? "با شماره‌ی موبایلِ همکاریت کد ورود بگیر."
+                ? "با شماره‌ی موبایلِ مدیریتت کد ورود بگیر."
                 : "کد ۶ رقمی پیامک‌شده رو بزن."}
           </p>
         </div>
@@ -175,7 +177,7 @@ function AdminOtpGate({ onOk }: { onOk: () => void }) {
             onChange={(e) => setPhone(e.target.value.replace(/[^\d۰-۹]/g, "").slice(0, 11))}
             onKeyDown={(e) => e.key === "Enter" && !busy && void sendCode()}
             placeholder="09xxxxxxxxx"
-            aria-label="شماره موبایل همکاری"
+            aria-label="شماره موبایل مدیریت"
             className={`h-[54px] w-full rounded-[18px] border-2 bg-white text-center text-[18px] font-black text-[#04202E] outline-none transition-shadow focus:shadow-[0_0_0_4px_rgba(0,171,231,0.15)] ${
               err ? "pishnam-shake border-[#F0426B]" : "border-[#04202E]"
             }`}
@@ -246,7 +248,7 @@ function AdminOtpGate({ onOk }: { onOk: () => void }) {
           {mode === "otp" ? "ورود با رمز عبور" : "ورود با کد پیامکی"}
         </button>
         <span className="rounded-full bg-[#FFF3C9] px-3.5 py-1.5 text-[11.5px] font-extrabold text-[#8A6D1F]">
-          فقط شماره‌های ثبت‌شده‌ی همکاری وارد می‌شن
+          ورود: ادمین و مدیر فروشگاه (شماره‌های ثبت‌شده یا رمز)
         </span>
       </div>
     </div>
@@ -323,7 +325,10 @@ interface AdminReview {
   createdAt: string;
 }
 
-type Tab = "orders" | "payments" | "renewals" | "products" | "reviews" | "stories" | "blog";
+type Tab = "orders" | "payments" | "renewals" | "products" | "reviews" | "stories" | "blog" | "settings";
+
+type AdminRole = "owner" | "operator";
+const ROLE_LABEL: Record<AdminRole, string> = { owner: "ادمین", operator: "مدیر فروشگاه" };
 
 export function AdminScreen() {
   const [unlocked, setUnlocked] = useState(() => {
@@ -334,11 +339,30 @@ export function AdminScreen() {
     }
   });
   const [tab, setTab] = useState<Tab>("orders");
+  // role chip + owner-only tabs — fetched right after the gate opens
+  const [role, setRole] = useState<AdminRole | null>(null);
+  const [adminName, setAdminName] = useState("");
+
+  useEffect(() => {
+    if (!unlocked) return;
+    let alive = true;
+    fetch("/api/admin/me", { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j: { admin?: { role?: string; name?: string } } | null) => {
+        if (!alive || !j?.admin) return;
+        if (j.admin.role === "owner" || j.admin.role === "operator") setRole(j.admin.role);
+        setAdminName(j.admin.name ?? "");
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, [unlocked]);
 
   if (!unlocked) {
     return (
       <div className="flex min-h-screen flex-col bg-[#F2FAFD]">
-        <MobileTopBar title="پنل همکاران" back="home" />
+        <MobileTopBar title="پنل مدیریت" back="home" />
         <AdminOtpGate onOk={() => setUnlocked(true)} />
       </div>
     );
@@ -346,13 +370,33 @@ export function AdminScreen() {
 
   return (
     <div className="flex min-h-screen flex-col bg-[#F2FAFD]">
-      <MobileTopBar title="پنل همکاران" back="home" />
+      <MobileTopBar title="پنل مدیریت" back="home" />
       <main className="mx-auto w-full max-w-[1200px] flex-1 px-4 pb-24 pt-5 md:px-6 md:pt-8">
-        <div className="mb-5 flex flex-col gap-1">
-          <h1 className="m-0 text-[26px] font-black md:text-[34px]">دفتر سفارش‌ها</h1>
-          <p className="m-0 text-[13.5px] font-medium text-[#4A6572] md:text-[15px]">
-            داده‌ی زنده از سرور — سفارش‌ها، رسیدهای کارت‌به‌کارت و نظرها
-          </p>
+        <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+          <div className="flex flex-col gap-1">
+            <h1 className="m-0 text-[26px] font-black md:text-[34px]">دفتر مدیریت فروشگاه</h1>
+            <p className="m-0 text-[13.5px] font-medium text-[#4A6572] md:text-[15px]">
+              داده‌ی زنده از سرور — سفارش‌ها، رسیدهای کارت‌به‌کارت، محصولات و تنظیمات
+            </p>
+          </div>
+          {role && (
+            <span
+              className="flex items-center gap-2 self-start rounded-full px-4 py-2 text-[12.5px] font-extrabold"
+              style={{
+                background: role === "owner" ? "#04202E" : "#E3F6FD",
+                color: role === "owner" ? "#fff" : "#006387",
+              }}
+              title={adminName || undefined}
+            >
+              <span
+                className="inline-block h-2 w-2 rounded-full"
+                style={{ background: role === "owner" ? "#7BE3B4" : "#00ABE7" }}
+                aria-hidden="true"
+              />
+              {ROLE_LABEL[role]}
+              {adminName ? ` — ${adminName}` : ""}
+            </span>
+          )}
         </div>
 
         {/* tabs */}
@@ -366,6 +410,8 @@ export function AdminScreen() {
               { key: "reviews", label: "نظرها" },
               { key: "stories", label: "تجربه‌ها" },
               { key: "blog", label: "بلاگ" },
+              // تنظیمات فقط برای ادمین (owner) — server-side هم owner-only است
+              ...(role === "owner" ? [{ key: "settings" as Tab, label: "تنظیمات" }] : []),
             ] as { key: Tab; label: string }[]
           ).map((t) => {
             const on = tab === t.key;
@@ -395,6 +441,7 @@ export function AdminScreen() {
         {tab === "reviews" && <ReviewsTab />}
         {tab === "stories" && <StoriesModTab />}
         {tab === "blog" && <BlogTab />}
+        {tab === "settings" && role === "owner" && <SettingsTab />}
 
         <div className="mt-7 flex justify-center">
           <button
@@ -975,9 +1022,16 @@ interface AdminProduct {
   description: string;
   kind: "main_gift" | "addon";
   emoji: string;
+  image: string | null;
   isActive: boolean;
   variant: { id: string; sku: string; priceToman: number; stock: number; isActive: boolean } | null;
 }
+
+const PLACEHOLDER_IMG =
+  "data:image/svg+xml;utf8," +
+  encodeURIComponent(
+    `<svg xmlns="http://www.w3.org/2000/svg" width="96" height="96"><rect width="96" height="96" rx="20" fill="#F2FAFD"/><text x="48" y="60" font-size="40" text-anchor="middle">🎁</text></svg>`,
+  );
 
 function ProductsTab() {
   const [products, setProducts] = useState<AdminProduct[] | null>(null);
@@ -985,6 +1039,9 @@ function ProductsTab() {
   const [creating, setCreating] = useState(false);
   const [draft, setDraft] = useState({ name: "", emoji: "🎁", price: "", stock: "20", description: "" });
   const [busy, setBusy] = useState(false);
+  const [openId, setOpenId] = useState<string | null>(null); // expanded edit card
+  const [edit, setEdit] = useState({ name: "", emoji: "", description: "", price: "", stock: "" });
+  const [uploadingId, setUploadingId] = useState<string | null>(null);
   const { toast } = useToast();
 
   const load = () => {
@@ -1004,7 +1061,7 @@ function ProductsTab() {
     load();
   }, []);
 
-  const patch = async (p: AdminProduct, body: Record<string, unknown>) => {
+  const patch = async (p: AdminProduct, body: Record<string, unknown>, okMsg = "ذخیره شد ✓") => {
     setBusy(true);
     try {
       const res = await fetch(`/api/admin/products/${p.id}`, {
@@ -1012,11 +1069,20 @@ function ProductsTab() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
-      if (!res.ok) throw new Error();
-      toast({ title: "ذخیره شد ✓" });
+      if (!res.ok) {
+        const b = (await res.json().catch(() => ({}))) as { error?: string };
+        toast({
+          title: "ذخیره نشد",
+          description: b.error === "bad_input" ? "مقدار واردشده معتبر نیست." : "خطای سرور — دوباره تلاش کن.",
+        });
+        return false;
+      }
+      toast({ title: okMsg });
       load();
+      return true;
     } catch {
       toast({ title: "ذخیره نشد — دوباره امتحان کن" });
+      return false;
     } finally {
       setBusy(false);
     }
@@ -1052,6 +1118,75 @@ function ProductsTab() {
     } finally {
       setBusy(false);
     }
+  };
+
+  // ── image upload / remove (owner request: عکس برای افزودنی‌ها) ──
+  const uploadImage = async (p: AdminProduct, file: File) => {
+    setUploadingId(p.id);
+    try {
+      const fd = new FormData();
+      fd.set("file", file);
+      const res = await fetch(`/api/admin/products/${p.id}/image`, { method: "POST", body: fd });
+      const b = (await res.json().catch(() => ({}))) as { error?: string; image?: string };
+      if (!res.ok) {
+        const msg =
+          b.error === "file_too_large"
+            ? "حجم عکس بیشتر از ۵ مگابایته."
+            : b.error === "bad_file_type"
+              ? "فقط عکس JPG / PNG / WebP قبوله."
+              : "آپلود نشد — دوباره تلاش کن.";
+        toast({ title: "عکس ذخیره نشد", description: msg });
+        return;
+      }
+      toast({ title: "عکس ثبت شد ✓", description: "تو صفحه خرید و جزئیات محصول نمایش داده می‌شه." });
+      load();
+    } catch {
+      toast({ title: "آپلود نشد — دوباره تلاش کن" });
+    } finally {
+      setUploadingId(null);
+    }
+  };
+
+  const removeImage = async (p: AdminProduct) => {
+    setUploadingId(p.id);
+    try {
+      const res = await fetch(`/api/admin/products/${p.id}/image`, { method: "DELETE" });
+      if (!res.ok) throw new Error();
+      toast({ title: "عکس حذف شد" });
+      load();
+    } catch {
+      toast({ title: "حذف نشد — دوباره تلاش کن" });
+    } finally {
+      setUploadingId(null);
+    }
+  };
+
+  const openEdit = (p: AdminProduct) => {
+    setOpenId(openId === p.id ? null : p.id);
+    setEdit({
+      name: p.name,
+      emoji: p.emoji,
+      description: p.description,
+      price: String(p.variant?.priceToman ?? 0),
+      stock: String(p.variant?.stock ?? 0),
+    });
+  };
+
+  const saveEdit = async (p: AdminProduct) => {
+    const price = Number(edit.price.replace(/[۰-۹]/g, (d) => String("۰۱۲۳۴۵۶۷۸۹".indexOf(d))).replace(/\D/g, ""));
+    const stock = Number(edit.stock.replace(/\D/g, ""));
+    const ok = await patch(
+      p,
+      {
+        name: edit.name.trim().length >= 2 ? edit.name.trim() : p.name,
+        emoji: edit.emoji.trim() || p.emoji,
+        description: edit.description.trim(),
+        ...(Number.isFinite(price) ? { priceToman: price } : {}),
+        ...(Number.isFinite(stock) ? { stock } : {}),
+      },
+      "محصول به‌روز شد ✓",
+    );
+    if (ok) setOpenId(null);
   };
 
   if (error) {
@@ -1122,7 +1257,7 @@ function ProductsTab() {
             <input
               value={draft.description}
               onChange={(e) => setDraft({ ...draft, description: e.target.value })}
-              placeholder="توضیح کوتاه (اختیاری)"
+              placeholder="توضیح کوتاه (اختیاری — تو صفحه جزئیات نمایش داده می‌شه)"
               aria-label="توضیح"
               className="h-12 rounded-2xl border-[1.5px] border-[#CFE6EF] bg-[#F8FDFF] px-3 text-[14px] md:col-span-6"
             />
@@ -1135,60 +1270,190 @@ function ProductsTab() {
         <div className="rounded-[22px] bg-white px-5 py-6 text-center text-[13px] font-bold text-[#4A6572]">در حال بارگذاری…</div>
       ) : (
         <div className="flex flex-col gap-2.5">
-          {products.map((p) => (
-            <div key={p.id} className="flex flex-wrap items-center gap-3 rounded-[22px] border border-[#DDEEF5] bg-white px-4 py-3.5">
-              <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[16px] bg-[#F2FAFD] text-2xl" aria-hidden="true">
-                {p.emoji || "🎁"}
-              </span>
-              <div className="flex min-w-[160px] flex-1 flex-col gap-0.5">
-                <span className="flex items-center gap-2 text-[14.5px] font-extrabold">
-                  {p.name}
-                  <span
-                    className="rounded-full px-2 py-0.5 text-[9.5px] font-extrabold"
-                    style={{ background: p.kind === "addon" ? "#E3F6FD" : "#F2F7F9", color: p.kind === "addon" ? "#006387" : "#4A6572" }}
-                  >
-                    {p.kind === "addon" ? "افزودنی" : "هدیه اصلی"}
+          {products.map((p) => {
+            const expanded = openId === p.id;
+            return (
+              <div key={p.id} className="flex flex-col rounded-[22px] border border-[#DDEEF5] bg-white px-4 py-3.5">
+                <div className="flex flex-wrap items-center gap-3">
+                  {/* photo / emoji */}
+                  <span className="relative flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-[16px] bg-[#F2FAFD]">
+                    {p.image ? (
+                       
+                      <img src={p.image} alt={p.name} className="h-full w-full object-cover" />
+                    ) : (
+                      <span className="text-2xl" aria-hidden="true">{p.emoji || "🎁"}</span>
+                    )}
+                    {uploadingId === p.id && (
+                      <span className="absolute inset-0 flex items-center justify-center bg-white/70 text-[10px] font-black text-[#006387]">…</span>
+                    )}
                   </span>
-                </span>
-                <span className="font-mono text-[11px] text-[#4A6572]" dir="ltr">{p.variant?.sku ?? p.slug}</span>
+                  <div className="flex min-w-[160px] flex-1 flex-col gap-0.5">
+                    <span className="flex items-center gap-2 text-[14.5px] font-extrabold">
+                      {p.name}
+                      <span
+                        className="rounded-full px-2 py-0.5 text-[9.5px] font-extrabold"
+                        style={{ background: p.kind === "addon" ? "#E3F6FD" : "#F2F7F9", color: p.kind === "addon" ? "#006387" : "#4A6572" }}
+                      >
+                        {p.kind === "addon" ? "افزودنی" : "هدیه اصلی"}
+                      </span>
+                    </span>
+                    <span className="font-mono text-[11px] text-[#4A6572]" dir="ltr">{p.variant?.sku ?? p.slug}</span>
+                  </div>
+                  <label className="flex items-center gap-1.5 text-[11.5px] font-bold text-[#4A6572]">
+                    قیمت
+                    <input
+                      defaultValue={p.variant?.priceToman ?? 0}
+                      onBlur={(e) => {
+                        const v = Number(e.target.value.replace(/\D/g, ""));
+                        if (Number.isFinite(v) && v !== p.variant?.priceToman) void patch(p, { priceToman: v });
+                      }}
+                      aria-label={`قیمت ${p.name}`}
+                      inputMode="numeric"
+                      className="h-10 w-[110px] rounded-xl border-[1.5px] border-[#CFE6EF] bg-[#F8FDFF] px-2 text-center text-[13px] font-bold"
+                    />
+                  </label>
+                  <label className="flex items-center gap-1.5 text-[11.5px] font-bold text-[#4A6572]">
+                    موجودی
+                    <input
+                      defaultValue={p.variant?.stock ?? 0}
+                      onBlur={(e) => {
+                        const v = Number(e.target.value.replace(/\D/g, ""));
+                        if (Number.isFinite(v) && v !== p.variant?.stock) void patch(p, { stock: v });
+                      }}
+                      aria-label={`موجودی ${p.name}`}
+                      inputMode="numeric"
+                      className="h-10 w-[72px] rounded-xl border-[1.5px] border-[#CFE6EF] bg-[#F8FDFF] px-2 text-center text-[13px] font-bold"
+                    />
+                  </label>
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => void patch(p, { isActive: !p.isActive })}
+                    className="h-10 rounded-full px-4 text-[12px] font-extrabold disabled:opacity-60"
+                    style={{ background: p.isActive ? "#DDF3EA" : "#F2F7F9", color: p.isActive ? "#0B6E4F" : "#4A6572" }}
+                  >
+                    {p.isActive ? "فعال" : "غیرفعال"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => openEdit(p)}
+                    aria-expanded={expanded}
+                    className="h-10 rounded-full border-[1.5px] border-[#CFE6EF] bg-white px-4 text-[12px] font-extrabold text-[#006387]"
+                  >
+                    {expanded ? "بستن" : "ویرایش"}
+                  </button>
+                </div>
+
+                {expanded && (
+                  <div className="mt-4 flex flex-col gap-4 border-t border-[#EFF6F9] pt-4">
+                    <div className="grid grid-cols-1 gap-4 md:grid-cols-[200px_1fr]">
+                      {/* photo picker */}
+                      <div className="flex flex-col items-center gap-2">
+                        <span className="flex h-[120px] w-[120px] items-center justify-center overflow-hidden rounded-[20px] border-[1.5px] border-dashed border-[#CFE6EF] bg-[#F8FDFF]">
+                          {p.image ? (
+                             
+                            <img src={p.image} alt={p.name} className="h-full w-full object-cover" />
+                          ) : (
+                            <span className="text-4xl" aria-hidden="true">{p.emoji || "🎁"}</span>
+                          )}
+                        </span>
+                        <label className="cursor-pointer rounded-full bg-[#04202E] px-4 py-2 text-[11.5px] font-extrabold text-white">
+                          {uploadingId === p.id ? "در حال آپلود…" : p.image ? "تغییر عکس" : "افزودن عکس"}
+                          <input
+                            type="file"
+                            accept="image/jpeg,image/png,image/webp"
+                            className="hidden"
+                            onChange={(e) => {
+                              const f = e.target.files?.[0];
+                              e.target.value = "";
+                              if (f) void uploadImage(p, f);
+                            }}
+                          />
+                        </label>
+                        {p.image && (
+                          <button
+                            type="button"
+                            onClick={() => void removeImage(p)}
+                            className="text-[11px] font-bold text-[#B02A52] underline"
+                          >
+                            حذف عکس
+                          </button>
+                        )}
+                        <span className="text-center text-[10.5px] font-medium leading-[1.7] text-[#4A6572]">
+                          JPG / PNG / WebP — حداکثر ۵ مگابایت
+                        </span>
+                      </div>
+
+                      {/* fields */}
+                      <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                        <label className="flex flex-col gap-1 text-[11.5px] font-bold text-[#4A6572]">
+                          نام محصول
+                          <input
+                            value={edit.name}
+                            onChange={(e) => setEdit({ ...edit, name: e.target.value })}
+                            className="h-11 rounded-xl border-[1.5px] border-[#CFE6EF] bg-[#F8FDFF] px-3 text-[13.5px] font-bold text-[#04202E]"
+                          />
+                        </label>
+                        <label className="flex flex-col gap-1 text-[11.5px] font-bold text-[#4A6572]">
+                          ایموجی (وقتی عکس نباشه نشون داده می‌شه)
+                          <input
+                            value={edit.emoji}
+                            onChange={(e) => setEdit({ ...edit, emoji: e.target.value })}
+                            className="h-11 rounded-xl border-[1.5px] border-[#CFE6EF] bg-[#F8FDFF] px-3 text-center text-lg"
+                          />
+                        </label>
+                        <label className="flex flex-col gap-1 text-[11.5px] font-bold text-[#4A6572] md:col-span-2">
+                          توضیحات (تو دکمه «جزئیات» صفحه خرید نمایش داده می‌شه)
+                          <textarea
+                            value={edit.description}
+                            onChange={(e) => setEdit({ ...edit, description: e.target.value })}
+                            rows={3}
+                            maxLength={300}
+                            className="rounded-xl border-[1.5px] border-[#CFE6EF] bg-[#F8FDFF] px-3 py-2 text-[13.5px] leading-[1.9] text-[#04202E]"
+                          />
+                        </label>
+                        <label className="flex flex-col gap-1 text-[11.5px] font-bold text-[#4A6572]">
+                          قیمت (تومان)
+                          <input
+                            value={edit.price}
+                            onChange={(e) => setEdit({ ...edit, price: e.target.value })}
+                            inputMode="numeric"
+                            className="h-11 rounded-xl border-[1.5px] border-[#CFE6EF] bg-[#F8FDFF] px-3 text-[13.5px] font-bold text-[#04202E]"
+                          />
+                        </label>
+                        <label className="flex flex-col gap-1 text-[11.5px] font-bold text-[#4A6572]">
+                          موجودی
+                          <input
+                            value={edit.stock}
+                            onChange={(e) => setEdit({ ...edit, stock: e.target.value })}
+                            inputMode="numeric"
+                            className="h-11 rounded-xl border-[1.5px] border-[#CFE6EF] bg-[#F8FDFF] px-3 text-[13.5px] font-bold text-[#04202E]"
+                          />
+                        </label>
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-end gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setOpenId(null)}
+                        className="h-11 rounded-full border-[1.5px] border-[#CFE6EF] bg-white px-5 text-[12.5px] font-extrabold text-[#4A6572]"
+                      >
+                        انصراف
+                      </button>
+                      <button
+                        type="button"
+                        disabled={busy}
+                        onClick={() => void saveEdit(p)}
+                        className="h-11 rounded-full bg-[#00ABE7] px-6 text-[12.5px] font-extrabold text-[#04202E] disabled:opacity-60"
+                      >
+                        ذخیره تغییرات
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
-              <label className="flex items-center gap-1.5 text-[11.5px] font-bold text-[#4A6572]">
-                قیمت
-                <input
-                  defaultValue={p.variant?.priceToman ?? 0}
-                  onBlur={(e) => {
-                    const v = Number(e.target.value.replace(/\D/g, ""));
-                    if (Number.isFinite(v) && v !== p.variant?.priceToman) void patch(p, { priceToman: v });
-                  }}
-                  aria-label={`قیمت ${p.name}`}
-                  inputMode="numeric"
-                  className="h-10 w-[110px] rounded-xl border-[1.5px] border-[#CFE6EF] bg-[#F8FDFF] px-2 text-center text-[13px] font-bold"
-                />
-              </label>
-              <label className="flex items-center gap-1.5 text-[11.5px] font-bold text-[#4A6572]">
-                موجودی
-                <input
-                  defaultValue={p.variant?.stock ?? 0}
-                  onBlur={(e) => {
-                    const v = Number(e.target.value.replace(/\D/g, ""));
-                    if (Number.isFinite(v) && v !== p.variant?.stock) void patch(p, { stock: v });
-                  }}
-                  aria-label={`موجودی ${p.name}`}
-                  inputMode="numeric"
-                  className="h-10 w-[72px] rounded-xl border-[1.5px] border-[#CFE6EF] bg-[#F8FDFF] px-2 text-center text-[13px] font-bold"
-                />
-              </label>
-              <button
-                type="button"
-                disabled={busy}
-                onClick={() => void patch(p, { isActive: !p.isActive })}
-                className="h-10 rounded-full px-4 text-[12px] font-extrabold disabled:opacity-60"
-                style={{ background: p.isActive ? "#DDF3EA" : "#F2F7F9", color: p.isActive ? "#0B6E4F" : "#4A6572" }}
-              >
-                {p.isActive ? "فعال" : "غیرفعال"}
-              </button>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>
@@ -1592,7 +1857,7 @@ function BlogTab() {
       });
       toast({
         title: editing ? "پست به‌روز شد ✓" : publish ? "پست منتشر شد ✓" : "پیش‌نویس ذخیره شد ✓",
-        description: publish ? `#/post?slug=${saved.slug}` : "وقتی منتشرش کنی تو بلاگ می‌افته.",
+        description: publish ? `آدرس پست: /post?slug=${saved.slug}` : "وقتی منتشرش کنی تو بلاگ می‌افته.",
       });
       resetForm();
       load();
@@ -1823,6 +2088,224 @@ function BlogTab() {
           )}
         </div>
       )}
+    </div>
+  );
+}
+
+/* ═══════════ TAB 6 — SETTINGS (owner-only, «تنظیمات») ═══════════ */
+// Everything here is server-consumed (pricing.ts / manual payments). The tab
+// is hidden from مدیر فروشگاه in the UI AND the PATCH endpoint is owner-only.
+
+interface SettingsShape {
+  charm_price_toman: string;
+  charms_enabled: string;
+  retention_6m_price_toman: string;
+  retention_12m_price_toman: string;
+  ship_fee_tehran_toman: string;
+  ship_fee_other_toman: string;
+  manual_card_number: string;
+  manual_card_sheba: string;
+  manual_card_name: string;
+  manual_approval_sla_hours: string;
+  low_stock_threshold: string;
+}
+
+const SETTINGS_DEFAULT: SettingsShape = {
+  charm_price_toman: "",
+  charms_enabled: "1",
+  retention_6m_price_toman: "",
+  retention_12m_price_toman: "",
+  ship_fee_tehran_toman: "",
+  ship_fee_other_toman: "",
+  manual_card_number: "",
+  manual_card_sheba: "",
+  manual_card_name: "",
+  manual_approval_sla_hours: "12",
+  low_stock_threshold: "5",
+};
+
+function SettingsRow({
+  label,
+  hint,
+  value,
+  onChange,
+  ltr = false,
+}: {
+  label: string;
+  hint?: string;
+  value: string;
+  onChange: (v: string) => void;
+  ltr?: boolean;
+}) {
+  return (
+    <label className="flex flex-col gap-1.5 text-[12.5px] font-bold text-[#4A6572]">
+      {label}
+      <input
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        dir={ltr ? "ltr" : undefined}
+        inputMode={ltr ? "numeric" : undefined}
+        className="h-12 rounded-2xl border-[1.5px] border-[#CFE6EF] bg-[#F8FDFF] px-3.5 text-[14px] font-bold text-[#04202E] outline-none focus:border-[#00ABE7]"
+      />
+      {hint && <span className="text-[11px] font-medium leading-[1.7] text-[#8FA6B0]">{hint}</span>}
+    </label>
+  );
+}
+
+function SettingsTab() {
+  const [s, setS] = useState<SettingsShape>(SETTINGS_DEFAULT);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const { toast } = useToast();
+
+  const load = () => {
+    fetch("/api/admin/settings", { cache: "no-store" })
+      .then((r) => {
+        if (!r.ok) throw new Error();
+        return r.json();
+      })
+      .then((j: { settings?: Record<string, string> }) => {
+        setS({ ...SETTINGS_DEFAULT, ...(j.settings ?? {}) });
+        setLoading(false);
+      })
+      .catch(() => {
+        toast({ title: "بارگذاری تنظیمات نشد" });
+        setLoading(false);
+      });
+  };
+
+  useEffect(() => {
+    load();
+     
+  }, []);
+
+  const set = (k: keyof SettingsShape) => (v: string) => setS((prev) => ({ ...prev, [k]: v }));
+
+  const save = async () => {
+    setSaving(true);
+    try {
+      const res = await fetch("/api/admin/settings", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ values: s }),
+      });
+      const b = (await res.json().catch(() => ({}))) as { error?: string; details?: { field?: string } };
+      if (!res.ok) {
+        toast({
+          title: "ذخیره نشد",
+          description:
+            b.error === "owner_only"
+              ? "این کار فقط با حساب ادمین انجام می‌شه."
+              : b.error === "bad_input"
+                ? `مقدار «${b.details?.field ?? "?"}» معتبر نیست.`
+                : "خطای سرور — دوباره تلاش کن.",
+        });
+        return;
+      }
+      toast({ title: "تنظیمات ذخیره شد ✓", description: "از همین لحظه روی سایت اعمال شد." });
+      load();
+    } catch {
+      toast({ title: "ذخیره نشد — دوباره تلاش کن" });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (loading) {
+    return <div className="rounded-[22px] bg-white px-5 py-6 text-center text-[13px] font-bold text-[#4A6572]">در حال بارگذاری…</div>;
+  }
+
+  const toEn = (v: string) => v.replace(/[۰-۹]/g, (d) => String("۰۱۲۳۴۵۶۷۸۹".indexOf(d))).replace(/\D/g, "");
+
+  return (
+    <div className="flex flex-col gap-4">
+      {/* قلب قرمز و پنجه */}
+      <section className="rounded-[24px] border border-[#F7C5D3] bg-[#FFF8FA] p-5">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+          <div className="flex flex-col gap-0.5">
+            <h2 className="m-0 text-[16px] font-black text-[#04202E]">قلب قرمز و پنجه</h2>
+            <span className="text-[12px] font-medium text-[#4A6572]">
+              استیکرهای جعبه — وقتی غیرفعال باشه، سکشن از صفحه‌ی ساخت هدیه حذف و هر تعداد ذخیره‌شده صفر حساب می‌شه.
+            </span>
+          </div>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={s.charms_enabled !== "0"}
+            onClick={() => set("charms_enabled")(s.charms_enabled === "0" ? "1" : "0")}
+            className="relative h-10 w-[92px] rounded-full transition-colors"
+            style={{ background: s.charms_enabled !== "0" ? "#0B6E4F" : "#CFE6EF" }}
+          >
+            <span
+              className="absolute top-1 flex h-8 items-center rounded-full bg-white px-3 text-[11px] font-black transition-all"
+              style={{ right: s.charms_enabled !== "0" ? "4px" : "46px", color: s.charms_enabled !== "0" ? "#0B6E4F" : "#4A6572" }}
+            >
+              {s.charms_enabled !== "0" ? "فعال" : "خاموش"}
+            </span>
+          </button>
+        </div>
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <SettingsRow
+            label="قیمت هر قلب / پنجه (تومان)"
+            hint="عدد به تومان و بدون ویرگول — بلافاصله روی سایت اعمال می‌شود."
+            value={s.charm_price_toman}
+            onChange={(v) => set("charm_price_toman")(toEn(v))}
+            ltr
+          />
+          <div className="flex items-end">
+            <span className="rounded-[16px] bg-white px-4 py-3 text-[12px] font-bold leading-[1.8] text-[#4A6572]">
+              پول قلب‌ها و پنجه‌ها بعد از ارسال، صرف هدیه به بچه‌های بی‌سرپرست و پناهگاه حیوونا می‌شه.
+            </span>
+          </div>
+        </div>
+      </section>
+
+      {/* نگهداری پیام */}
+      <section className="rounded-[24px] border border-[#DDEEF5] bg-white p-5">
+        <h2 className="m-0 text-[16px] font-black text-[#04202E]">نگهداری پیام</h2>
+        <p className="mb-4 mt-1 text-[12px] font-medium text-[#4A6572]">
+          پلن ۱ ماهه رایگان است؛ قیمت دو پلن دیگر اینجا تعیین می‌شه (تومان).
+        </p>
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <SettingsRow label="پلن ۶ ماهه (تومان)" value={s.retention_6m_price_toman} onChange={(v) => set("retention_6m_price_toman")(toEn(v))} ltr />
+          <SettingsRow label="پلن ۱ ساله (تومان)" value={s.retention_12m_price_toman} onChange={(v) => set("retention_12m_price_toman")(toEn(v))} ltr />
+        </div>
+      </section>
+
+      {/* ارسال */}
+      <section className="rounded-[24px] border border-[#DDEEF5] bg-white p-5">
+        <h2 className="m-0 text-[16px] font-black text-[#04202E]">هزینه ارسال</h2>
+        <p className="mb-4 mt-1 text-[12px] font-medium text-[#4A6572]">ارسال هیچ‌وقت رایگان نیست (قانون جعبه‌ی مهربونی).</p>
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <SettingsRow label="تهران (تومان)" value={s.ship_fee_tehran_toman} onChange={(v) => set("ship_fee_tehran_toman")(toEn(v))} ltr />
+          <SettingsRow label="سایر شهرها (تومان)" value={s.ship_fee_other_toman} onChange={(v) => set("ship_fee_other_toman")(toEn(v))} ltr />
+        </div>
+      </section>
+
+      {/* کارت به کارت */}
+      <section className="rounded-[24px] border border-[#DDEEF5] bg-white p-5">
+        <h2 className="m-0 text-[16px] font-black text-[#04202E]">پرداخت کارت‌به‌کارت</h2>
+        <p className="mb-4 mt-1 text-[12px] font-medium text-[#4A6572]">
+          این اطلاعات تو پنل پرداخت مشتری نمایش داده می‌شه — بعد از تغییر، اعتبارسنجی خودکار انجام می‌شه.
+        </p>
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <SettingsRow label="شماره کارت" value={s.manual_card_number} onChange={(v) => set("manual_card_number")(v)} ltr />
+          <SettingsRow label="شماره شبا" value={s.manual_card_sheba} onChange={(v) => set("manual_card_sheba")(v)} ltr />
+          <SettingsRow label="نام صاحب حساب" value={s.manual_card_name} onChange={(v) => set("manual_card_name")(v)} />
+          <SettingsRow label="حداکثر ساعت تأیید رسید" value={s.manual_approval_sla_hours} onChange={(v) => set("manual_approval_sla_hours")(toEn(v))} ltr />
+        </div>
+      </section>
+
+      <div className="flex justify-end">
+        <button
+          type="button"
+          disabled={saving}
+          onClick={() => void save()}
+          className="h-12 rounded-full bg-[#04202E] px-8 text-[14px] font-extrabold text-white disabled:opacity-60"
+        >
+          {saving ? "در حال ذخیره…" : "ذخیره تنظیمات"}
+        </button>
+      </div>
     </div>
   );
 }

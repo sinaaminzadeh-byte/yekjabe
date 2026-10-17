@@ -10,7 +10,8 @@ type LinkItem = { label: string; go: () => void };
 
 function homeAnchor(anchor: string) {
   return () => {
-    if (window.location.hash.startsWith("#/home") || window.location.hash === "" || window.location.hash === "#/") {
+    const p = window.location.pathname.replace(/\/+$/, "");
+    if (p === "" || p === "/home") {
       document.getElementById(anchor)?.scrollIntoView({ behavior: "smooth" });
     } else {
       navigate("home", undefined, anchor);

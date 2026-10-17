@@ -9,7 +9,12 @@ export const UPLOAD_MAX_BYTES = 5 * 1024 * 1024; // ۵ مگابایت
 const EXT: Record<string, string> = { "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp" };
 
 /** Writes the file under .data/<folder>/<stem>.<ext> and returns the storage key. */
-export async function storeMediaFile(folder: "experiences" | "refunds", stem: string, buf: Buffer, mime: string): Promise<string> {
+export async function storeMediaFile(
+  folder: "experiences" | "refunds" | "products",
+  stem: string,
+  buf: Buffer,
+  mime: string,
+): Promise<string> {
   const { mkdir, writeFile } = await import("fs/promises");
   const path = await import("path");
   const key = `${folder}/${stem}.${EXT[mime] ?? "bin"}`;
@@ -22,10 +27,27 @@ export async function storeMediaFile(folder: "experiences" | "refunds", stem: st
 export async function deleteMediaFile(key: string): Promise<void> {
   try {
     const { rm } = await import("fs/promises");
-    if (key.includes("..") || !(key.startsWith("experiences/") || key.startsWith("refunds/"))) return; // path-traversal guard
+    const allowed =
+      key.startsWith("experiences/") || key.startsWith("refunds/") || key.startsWith("products/");
+    if (key.includes("..") || !allowed) return; // path-traversal guard
     await rm(dataFile(key), { force: true });
   } catch {
     /* best effort */
+  }
+}
+
+const MIME_FROM_EXT: Record<string, string> = { jpg: "image/jpeg", png: "image/png", webp: "image/webp" };
+
+/** Reads a CATALOG product image (public marketing asset — not private UGC). */
+export async function readProductImage(key: string): Promise<{ buf: Buffer; mime: string } | null> {
+  if (key.includes("..") || !key.startsWith("products/")) return null; // traversal guard
+  try {
+    const { readFile } = await import("fs/promises");
+    const buf = await readFile(dataFile(key));
+    const ext = key.split(".").pop() ?? "";
+    return { buf, mime: MIME_FROM_EXT[ext] ?? "application/octet-stream" };
+  } catch {
+    return null;
   }
 }
 
