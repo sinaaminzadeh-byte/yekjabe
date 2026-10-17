@@ -20,6 +20,10 @@ const schema = z.object({
   // phase-B vars (declared now so deploy env is a single contract)
   KAVENEGAR_API_KEY: z.string().optional(),
   KAVENEGAR_SENDER: z.string().optional(),
+  // ippanel (ippanel.com) — pattern-based SMS (owner round: بخش پیامک)
+  // the API key itself never enters the repo (owner provides it via env)
+  IPPANEL_API_KEY: z.string().optional(),
+  IPPANEL_SENDER: z.string().optional(),
   OWNER_MOBILE: z.string().optional(),
   ZARINPAL_MERCHANT_ID: z.string().optional(),
   ZARINPAL_SANDBOX: z.string().default("0"),

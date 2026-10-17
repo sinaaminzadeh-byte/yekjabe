@@ -22,3 +22,4 @@ tool-results/
 agent-ctx/
 .netlify/
 tsconfig.tsbuildinfo
+upload/

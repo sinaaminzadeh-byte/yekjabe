@@ -18,6 +18,7 @@ import { navigate, useHashRoute } from "@/lib/hash-route";
 import {
   usePishnam,
   useCharityDone,
+  useOrdererVerified,
   type SenderDisplayMode,
   type RetentionPlanKey,
 } from "@/lib/pishnam-store";
@@ -821,6 +822,8 @@ export function MobileCheckout() {
   const fetchQuote = usePishnam((s) => s.fetchQuote);
   const paymentMethod = usePishnam((s) => s.paymentMethod);
   const setPaymentMethod = usePishnam((s) => s.setPaymentMethod);
+  // سفارش‌دهنده — گیتِ وریفای قبل از پرداخت (owner round)
+  const ordererVerified = useOrdererVerified();
 
   // server quote — the only payable number (guide §4.5)
   useEffect(() => {
@@ -854,6 +857,8 @@ export function MobileCheckout() {
     : [];
 
   const valid = receiver.name.trim() !== "" && receiver.phone.trim().length >= 8 && receiver.address.trim() !== "";
+  // پرداخت فقط با گیرنده‌ی کامل + شماره‌ی سفارش‌دهنده‌ی وریفای‌شده باز می‌شه
+  const canPay = valid && ordererVerified;
 
   return (
     <div className="flex min-h-screen flex-col bg-[#F2FAFD] md:hidden">
@@ -962,6 +967,9 @@ export function MobileCheckout() {
         </div>
       </div>
 
+      {/* سفارش‌دهنده — گیتِ وریفای پیامکی قبل از پرداخت */}
+      <OrdererSection />
+
       {/* coupon — honest: server discounts land later (contract: no fake codes) */}
       <div className="mx-5 mt-3.5 flex items-center gap-2.5 rounded-[22px] border border-dashed border-[#BFDDE8] bg-[#F8FDFF] py-3 pl-4 pr-4">
         <span className="text-lg">🎁</span>
@@ -972,7 +980,14 @@ export function MobileCheckout() {
 
       {/* payment method — server-authoritative quote per method */}
       <div className="px-5 pb-2 pt-[22px] text-lg font-extrabold">روش پرداخت</div>
-      <div className="mx-5 flex flex-col gap-2.5">
+      {!ordererVerified && (
+        <div className="mx-5 mb-2.5 flex items-center gap-2 rounded-[18px] bg-[#FFF3C9] px-4 py-2.5 text-[12.5px] font-bold leading-[1.8] text-[#7A5C00]">
+          <span aria-hidden="true">🔒</span>
+          <span>برای فعال شدن روش‌های پرداخت، اول شماره موبایلت رو بالا تأیید کن.</span>
+        </div>
+      )}
+      <div className={ordererVerified ? "" : "pointer-events-none opacity-50 select-none"} aria-disabled={!ordererVerified}>
+        <div className="mx-5 flex flex-col gap-2.5">
         <button
           type="button"
           onClick={() => setPaymentMethod("zarinpal")}
@@ -1019,6 +1034,7 @@ export function MobileCheckout() {
             <path d="M2 10h20M6 15h5" />
           </svg>
         </button>
+        </div>
       </div>
 
       <div className="px-6 pt-3.5 text-center text-[12.5px] font-medium leading-[1.9] text-[#4A6572]">
@@ -1033,21 +1049,25 @@ export function MobileCheckout() {
         </div>
         <button
           type="button"
-          disabled={!valid || !quote}
+          disabled={!canPay || !quote}
           onClick={() => {
             const evt = new CustomEvent("pishnam:pay");
             window.dispatchEvent(evt);
           }}
           className="flex h-[54px] flex-1 items-center justify-center gap-2 rounded-full text-base font-extrabold transition-all active:scale-95"
-          style={{ background: valid && quote ? "#00ABE7" : "#CFE6EF", color: "#04202E", opacity: valid && quote ? 1 : 0.7 }}
+          style={{ background: canPay && quote ? "#00ABE7" : "#CFE6EF", color: "#04202E", opacity: canPay && quote ? 1 : 0.7 }}
         >
           پرداخت و فرستادن
           <HeartSticker size={20} fill="#04202E" stroke="none" />
         </button>
       </div>
-      {!valid && (
+      {!canPay && (
         <div className="bg-[#FFF3C9] px-5 pb-3 pt-2 text-center text-xs font-bold text-[#7A5C00]">
-          برای پرداخت، اسم، موبایل و آدرس گیرنده رو کامل کن
+          {ordererVerified
+            ? "برای پرداخت، اسم، موبایل و آدرس گیرنده رو کامل کن"
+            : valid
+              ? "فقط یک قدم مونده: شماره موبایلت رو با کد پیامکی تأیید کن"
+              : "اطلاعات گیرنده رو کامل کن و شماره موبایل خودت رو تأیید کن"}
         </div>
       )}
       {/* scroll spacer: at max scroll the sticky CTA must cover NOTHING */}
@@ -1080,6 +1100,273 @@ function Field({
         placeholder={placeholder}
         className="h-[30px] border-none bg-transparent text-base text-[#04202E] outline-none"
       />
+    </div>
+  );
+}
+
+/* ── سفارش‌دهنده: نام + نام خانوادگی + موبایل خود مشتری، با تأیید پیامکی ──
+ * شماره سفارش‌دهنده مستقل از گیرنده است؛ تا تأیید موفق شماره، پرداخت باز
+ * نمی‌شود (هم UI و هم سرور). تأیید موفق = ساخت/اتصال حساب + لاگین (سشن ۳۰ روزه).
+ */
+function OrdererSection() {
+  const orderer = usePishnam((s) => s.orderer);
+  const setOrderer = usePishnam((s) => s.setOrderer);
+  const user = usePishnam((s) => s.user);
+  const login = usePishnam((s) => s.login);
+  const verified = useOrdererVerified();
+  const { toast } = useToast();
+
+  // prefill از حساب کاربری زنده — «اگه قبلاً حساب داری، از همون استفاده کن»
+  const prefilled = useRef(false);
+  useEffect(() => {
+    if (prefilled.current) return;
+    if (user && !orderer.firstName && !orderer.lastName) {
+      const parts = user.name.trim().split(/\s+/);
+      setOrderer({
+        firstName: orderer.firstName || parts[0] || "",
+        lastName: orderer.lastName || parts.slice(1).join(" ") || "",
+        phone: orderer.phone || user.phone,
+      });
+      prefilled.current = true;
+    }
+  }, [user, orderer.firstName, orderer.lastName, orderer.phone, setOrderer]);
+
+  // verify mini-flow
+  const [phase, setPhase] = useState<"idle" | "code">("idle");
+  const [code, setCode] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const [devCode, setDevCode] = useState("");
+  const [seconds, setSeconds] = useState(0);
+  useEffect(() => {
+    if (seconds <= 0) return;
+    const t = setInterval(() => setSeconds((s) => s - 1), 1000);
+    return () => clearInterval(t);
+  }, [seconds]);
+
+  const phoneReady = /^09\d{9}$/.test(orderer.phone.replace(/[۰-۹]/g, (d) => String("۰۱۲۳۴۵۶۷۸۹".indexOf(d))).replace(/\D/g, ""));
+  const nameReady = orderer.firstName.trim() !== "" && orderer.lastName.trim() !== "";
+
+  const requestCode = async () => {
+    setError("");
+    setBusy(true);
+    try {
+      const res = await fetch("/api/auth/request", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone: orderer.phone, purpose: "checkout_orderer" }),
+      });
+      const body = (await res.json().catch(() => ({}))) as { devCode?: string; error?: string; details?: { retryAfter?: number } };
+      if (!res.ok) {
+        if (body.error === "rate_limited") {
+          setSeconds(body.details?.retryAfter ?? 60);
+          setError("کد همین حالا فرستاده شده؛ چند لحظه دیگه دوباره بگیر.");
+        } else {
+          setError("ارسال کد نشد؛ شماره رو چک کن و دوباره بزن.");
+        }
+        return;
+      }
+      setPhase("code");
+      setCode("");
+      setSeconds(60);
+      if (body.devCode) setDevCode(body.devCode);
+    } catch {
+      setError("اینترنت قطعه؛ اتصالت رو چک کن.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const submitCode = async () => {
+    const digits = code.replace(/[۰-۹]/g, (d) => String("۰۱۲۳۴۵۶۷۸۹".indexOf(d))).trim();
+    if (!/^\d{4}$/.test(digits)) {
+      setError("کد ۴ رقمی پیامک‌شده رو کامل وارد کن.");
+      return;
+    }
+    setError("");
+    setBusy(true);
+    try {
+      const res = await fetch("/api/auth/verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          phone: orderer.phone,
+          code: digits,
+          purpose: "checkout_orderer",
+          name: `${orderer.firstName} ${orderer.lastName}`.trim(),
+        }),
+      });
+      const body = (await res.json().catch(() => ({}))) as { ok?: boolean; user?: { phone: string; name: string }; error?: string };
+      if (!res.ok || !body.ok) {
+        setError(body.error === "invalid_code" ? "کد اشتباهه یا منقضی شده؛ دوباره چک کن." : "تأیید نشد؛ چند لحظه بعد دوباره امتحان کن.");
+        return;
+      }
+      // حساب ساخته/وصل شد + لاگین (سشن ۳۰ روزه کوکی HttpOnly)
+      login(body.user?.phone ?? orderer.phone, body.user?.name ?? `${orderer.firstName} ${orderer.lastName}`.trim());
+      setPhase("idle");
+      setDevCode("");
+      toast({
+        title: "شماره‌ت تأیید شد ✓",
+        description: "حسابت آماده‌ست و این سفارش به همون ثبت می‌شه.",
+      });
+    } catch {
+      setError("اینترنت قطعه؛ اتصالت رو چک کن.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <>
+      <div className="flex items-center justify-between px-5 pb-2 pt-[22px]">
+        <span className="text-lg font-extrabold">اطلاعات سفارش‌دهنده</span>
+        <span className="rounded-full bg-[#E3F6FD] px-2.5 py-1 text-[10.5px] font-extrabold text-[#006387]">همینه که خرید می‌کنه</span>
+      </div>
+      <div className="mx-5 rounded-[26px] border border-[#DDEEF5] bg-white px-4 py-1">
+        <div className="pb-1 pt-3 text-[12.5px] font-medium leading-[1.9] text-[#4A6572]">
+          این سفارش به اسم خودت ثبت می‌شه — شماره‌ش می‌تونه با شماره گیرنده فرق کنه (هدیه برای دیگری).
+        </div>
+        <Field label="نام" value={orderer.firstName} onChange={(v) => setOrderer({ firstName: v })} placeholder="نام خودت" />
+        <Field label="نام خانوادگی" value={orderer.lastName} onChange={(v) => setOrderer({ lastName: v })} placeholder="نام خانوادگی خودت" />
+        <Field label="شماره‌ی موبایل سفارش‌دهنده" value={orderer.phone} onChange={(v) => setOrderer({ phone: v })} placeholder="۰۹۱۲ ۱۲۳ ۴۵۶۷" tel />
+        <div className="py-3.5">
+          {verified ? (
+            <div className="flex items-center gap-2 rounded-[18px] bg-[#E7F8EF] px-4 py-3 text-[12.5px] font-extrabold leading-[1.8] text-[#1E7A46]">
+              <CheckIcon size={16} stroke="#1E7A46" />
+              <span>شماره‌ت تأیید شد — سفارش به حساب کاربریت ثبت می‌شه و بعد از خرید لاگین می‌مونی.</span>
+            </div>
+          ) : phase === "code" ? (
+            <div className="flex flex-col gap-2.5">
+              <div className="text-[12.5px] font-bold leading-[1.9] text-[#4A6572]">
+                کد ۴ رقمی پیامک‌شده به <b dir="ltr">{orderer.phone}</b> رو بزن:
+              </div>
+              <MiniOtpBoxes value={code} onChange={setCode} onSubmit={() => void submitCode()} disabled={busy} />
+              {devCode && (
+                <div className="self-start rounded-xl bg-[#FFF3C9] px-2.5 py-1 text-[11px] font-extrabold text-[#7A5C00]">
+                  کد آزمایشی (محیط توسعه): {fa(devCode)}
+                </div>
+              )}
+              {error && <div className="text-[12px] font-bold text-[#B02A52]">{error}</div>}
+              <div className="flex items-center gap-2.5">
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => void submitCode()}
+                  className="flex h-[46px] flex-1 items-center justify-center rounded-full bg-[#04202E] text-[14px] font-extrabold text-white transition-transform active:scale-95 disabled:opacity-60"
+                >
+                  {busy ? "در حال تأیید…" : "تأیید و ادامه"}
+                </button>
+                <button
+                  type="button"
+                  disabled={busy || seconds > 0}
+                  onClick={() => void requestCode()}
+                  className="h-[46px] rounded-full border border-[#CFE6EF] px-4 text-[12px] font-bold text-[#006387] disabled:opacity-50"
+                >
+                  {seconds > 0 ? `ارسال دوباره تا ${fa(seconds)} ثانیه` : "ارسال دوباره کد"}
+                </button>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setPhase("idle");
+                  setError("");
+                }}
+                className="self-start text-[12px] font-bold text-[#006387] underline underline-offset-4"
+              >
+                تغییر شماره
+              </button>
+            </div>
+          ) : (
+            <div className="flex flex-col gap-2.5">
+              <div className="flex items-center gap-2 rounded-[18px] bg-[#F2FAFD] px-4 py-3 text-[12.5px] font-semibold leading-[1.8] text-[#4A6572]">
+                <span aria-hidden="true">📱</span>
+                <span>
+                  قبل از پرداخت، شماره‌ات رو با یه کد پیامکی تأیید می‌کنیم — حساب کاربریت هم همین‌جا خودکار ساخته می‌شه؛ نه رمزی، نه فرم اضافه.
+                </span>
+              </div>
+              {error && <div className="text-[12px] font-bold text-[#B02A52]">{error}</div>}
+              <button
+                type="button"
+                disabled={!phoneReady || !nameReady || busy}
+                onClick={() => void requestCode()}
+                className="flex h-[48px] items-center justify-center gap-2 rounded-full border-2 border-[#04202E] text-[14px] font-extrabold text-[#04202E] transition-transform active:scale-95 disabled:border-[#CFE6EF] disabled:text-[#7C99A7]"
+              >
+                {busy ? "در حال ارسال…" : "دریافت کد تأیید"}
+              </button>
+              {(!phoneReady || !nameReady) && (
+                <div className="text-center text-[11.5px] font-semibold text-[#7C99A7]">نام، نام خانوادگی و شماره موبایل خودت رو کامل کن</div>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+    </>
+  );
+}
+
+/** ۴ خانه‌ی کد تأیید — نسخه‌ی جمع‌وجور صفحه پرداخت (auto-advance + paste) */
+function MiniOtpBoxes({
+  value,
+  onChange,
+  onSubmit,
+  disabled,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  onSubmit: () => void;
+  disabled?: boolean;
+}) {
+  const refs = useRef<(HTMLInputElement | null)[]>([]);
+  const toEn = (v: string) => v.replace(/[۰-۹]/g, (d) => String("۰۱۲۳۴۵۶۷۸۹".indexOf(d)));
+  const chars = value.replace(/\D/g, "").slice(0, 4).padEnd(4, " ").split("");
+  const setChar = (i: number, ch: string) => {
+    const cur = value.replace(/\D/g, "").slice(0, 4).split("");
+    cur[i] = ch;
+    onChange(cur.join("").replace(/\s/g, ""));
+  };
+  return (
+    <div className="flex flex-row-reverse justify-end gap-2" dir="ltr">
+      {chars.map((c, i) => (
+        <input
+          key={i}
+          ref={(el) => {
+            refs.current[i] = el;
+          }}
+          inputMode="numeric"
+          autoComplete={i === 0 ? "one-time-code" : "off"}
+          maxLength={1}
+          disabled={disabled}
+          aria-label={`رقم ${fa(i + 1)} از کد تأیید`}
+          value={c.trim()}
+          onChange={(e) => {
+            const ch = toEn(e.target.value).replace(/\D/g, "").slice(-1);
+            if (ch) {
+              setChar(i, ch);
+              refs.current[Math.min(3, i + 1)]?.focus();
+            }
+          }}
+          onKeyDown={(e) => {
+            if (e.key === "Backspace") {
+              e.preventDefault();
+              if (c.trim()) setChar(i, "");
+              else if (i > 0) {
+                refs.current[i - 1]?.focus();
+                const cur = value.replace(/\D/g, "").slice(0, 4).split("");
+                cur[i - 1] = "";
+                onChange(cur.join("").replace(/\s/g, ""));
+              }
+            } else if (e.key === "Enter") {
+              onSubmit();
+            }
+          }}
+          onPaste={(e) => {
+            e.preventDefault();
+            const pasted = toEn(e.clipboardData.getData("text")).replace(/\D/g, "").slice(0, 4);
+            if (pasted) onChange(pasted);
+          }}
+          className="h-12 w-11 rounded-[14px] border-2 border-[#CFE6EF] bg-white text-center text-lg font-black text-[#04202E] outline-none focus:border-[#00ABE7] disabled:opacity-60"
+        />
+      ))}
     </div>
   );
 }

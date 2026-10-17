@@ -14,10 +14,17 @@ export async function GET(req: Request) {
 
     const where: {
       status?: string;
-      OR?: { code?: { contains: string }; recipientName?: { contains: string }; recipientPhone?: { contains: string } }[];
+      OR?: { code?: { contains: string }; recipientName?: { contains: string }; recipientPhone?: { contains: string }; ordererPhone?: { contains: string }; ordererFirstName?: { contains: string } }[];
     } = {};
     if (ORDER_STATUSES.includes(status as never)) where.status = status;
-    if (q) where.OR = [{ code: { contains: q } }, { recipientName: { contains: q } }, { recipientPhone: { contains: q } }];
+    if (q)
+      where.OR = [
+        { code: { contains: q } },
+        { recipientName: { contains: q } },
+        { recipientPhone: { contains: q } },
+        { ordererPhone: { contains: q } },
+        { ordererFirstName: { contains: q } },
+      ];
 
     const orders = await db.order.findMany({
       where,
@@ -36,6 +43,8 @@ export async function GET(req: Request) {
         paymentMethod: o.paymentMethod,
         recipientName: o.recipientName,
         recipientPhone: o.recipientPhone.replace(/^(\d{4})(\d{3})(\d{4})$/, "$1 *** $3"),
+        ordererName: [o.ordererFirstName, o.ordererLastName].filter(Boolean).join(" "),
+        ordererPhone: o.ordererPhone.replace(/^(\d{4})(\d{3})(\d{4})$/, "$1 *** $3"),
         province: o.province,
         city: o.city,
         totalToman: o.totalToman,

@@ -111,6 +111,8 @@ model AuthCode {
   codeHash  String   @default("") // HMAC-SHA256(phone:code, SESSION_SECRET)
   attempts  Int      @default(0)
   ip        String   @default("")
+  // login = ورود/ثبت‌نام حساب | checkout_orderer = تأیید شماره سفارش‌دهنده قبل از پرداخت
+  purpose   String   @default("login")
   expiresAt DateTime
   used      Boolean  @default(false)
   createdAt DateTime @default(now())
@@ -265,6 +267,11 @@ model Order {
   // bookkeeping
   userPhone        String      @default("")
   sessionPhone     String      @default("")
+  // سفارش‌دهنده (buyer identity — separate from the gift sender display):
+  // collected + OTP-verified before payment; independent from recipient fields
+  ordererFirstName String      @default("")
+  ordererLastName  String      @default("")
+  ordererPhone     String      @default("")
   // refund (damage-only — guide §4.8; shipped|delivered → refund_requested)
   refundReason      String    @default("")
   refundPhotos      String    @default("") // JSON array of storage keys
@@ -346,16 +353,37 @@ model Payment {
 model SmsOutbox {
   id        String    @id @default(cuid())
   phone     String
-  template  String // key into lib/sms templates (≤70 chars rendered)
+  template  String // key into SmsTemplate table (≤70 chars rendered fallback)
   params    String    @default("{}") // JSON string
   status    String    @default("queued") // queued | sent | failed | dead
   attempts  Int       @default(0)
+  provider  String    @default("") // ippanel_pattern | ippanel | echo
+  messageId String    @default("") // provider message id (ippanel)
   sendAfter DateTime  @default(now())
   sentAt    DateTime?
   error     String    @default("")
   createdAt DateTime  @default(now())
 
   @@index([status, sendAfter])
+}
+
+// ── SMS templates (owner round: بخش پیامک کامل) ──
+// Every outgoing message resolves its config from HERE at send time — so the
+// owner edits pattern codes / texts in the admin panel and the ippanel panel
+// keeps the pattern itself; no code change is ever needed. Sending is
+// pattern-first (ippanel pattern = fast, per docs.ippanel.com): when
+// patternCode is empty the fallbackText (with {placeholders}) goes as plain.
+model SmsTemplate {
+  key          String   @id // order_confirm | paid | otp_login | ...
+  label        String // Persian title in the admin panel
+  description  String   @default("") // when it fires
+  patternCode  String   @default("") // ippanel pattern code — empty = plain send
+  // JSON: { "<internal param>": "<ippanel variable name>" } — edited in admin
+  variables    String   @default("{}")
+  fallbackText String   @default("") // plain text with {param} placeholders
+  enabled      Boolean  @default(true)
+  isSystem     Boolean  @default(true) // seeded defaults can't be deleted
+  updatedAt    DateTime @updatedAt
 }
 
 // ── Retention renewal (mission §۴ — تمدید نگهداری پیام) ──

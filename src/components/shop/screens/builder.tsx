@@ -13,7 +13,7 @@ import {
   BackIcon,
 } from "../icons";
 import { navigate, useHashRoute, type Route } from "@/lib/hash-route";
-import { usePishnam, useCharityDone, type SenderDisplayMode, type RetentionPlanKey } from "@/lib/pishnam-store";
+import { usePishnam, useCharityDone, useOrdererVerified, type SenderDisplayMode, type RetentionPlanKey } from "@/lib/pishnam-store";
 import { fa, money } from "@/lib/fa";
 import { FavHeart, FavFilterChips, SurpriseButton } from "../fav";
 import { MessageIdeas } from "../ideas";
@@ -138,6 +138,8 @@ export function DesktopBuilder({ step }: { step: 1 | 2 | 3 | 4 }) {
   const { toast } = useToast();
   const receiver = usePishnam((s) => s.receiver);
   const setReceiver = usePishnam((s) => s.setReceiver);
+  // سفارش‌دهنده — گیتِ وریفای پیامکی قبل از پرداخت (owner round)
+  const ordererVerified = useOrdererVerified();
   const nextNo = usePishnam((s) => s.nextNo);
   const done = useCharityDone();
   // server quote — the only payable number (guide §4.5)
@@ -149,6 +151,7 @@ export function DesktopBuilder({ step }: { step: 1 | 2 | 3 | 4 }) {
   const total = quote?.total ?? 0;
   const sel = PLUSHES.find((p) => p.kind === kind) ?? PLUSHES[0];
   const valid = receiver.name.trim() !== "" && receiver.phone.trim().length >= 8 && receiver.address.trim() !== "";
+  const canPay = valid && ordererVerified;
 
   // scroll the active section into view when the step route changes
   useEffect(() => {
@@ -649,6 +652,9 @@ export function DesktopBuilder({ step }: { step: 1 | 2 | 3 | 4 }) {
               </div>
             </div>
           </section>
+
+          {/* 5 orderer — نام + نام خانوادگی + موبایل خود مشتری، با تأیید پیامکی */}
+          <DesktopOrderer step={step} />
         </div>
 
         {/* summary sidebar */}
@@ -688,21 +694,26 @@ export function DesktopBuilder({ step }: { step: 1 | 2 | 3 | 4 }) {
 
           <div
             className="flex items-center justify-center gap-2 rounded-3xl p-4 text-center text-[13px] font-semibold leading-[1.9]"
-            style={{ background: valid ? "#E3F6FD" : "#FFF3C9", color: valid ? "#006387" : "#7A5C00" }}
+            style={{
+              background: !valid ? "#FFF3C9" : ordererVerified ? "#E3F6FD" : "#FFF3C9",
+              color: !valid ? "#7A5C00" : ordererVerified ? "#006387" : "#7A5C00",
+            }}
           >
-            {valid ? (
+            {!valid ? (
+              <span>برای پرداخت، اسم، موبایل و آدرس گیرنده (قدم ۴) رو کامل کن.</span>
+            ) : ordererVerified ? (
               <span>همه‌چیز آماده‌ست! «پرداخت» رو بزن تا هدیه راه بیفته.</span>
             ) : (
-              <span>برای پرداخت، اسم، موبایل و آدرس گیرنده (قدم ۴) رو کامل کن.</span>
+              <span>فقط یک قدم مونده: تو قدم ۵، شماره موبایلت رو با کد پیامکی تأیید کن.</span>
             )}
           </div>
 
           <button
             type="button"
-            disabled={!valid || !quote}
+            disabled={!canPay || !quote}
             onClick={() => window.dispatchEvent(new CustomEvent("pishnam:pay"))}
             className="flex h-[56px] items-center justify-center gap-2 rounded-full text-base font-extrabold transition-all active:scale-95"
-            style={{ background: valid && quote ? "#00ABE7" : "#CFE6EF", color: "#04202E", opacity: valid && quote ? 1 : 0.75, cursor: valid && quote ? "pointer" : "not-allowed" }}
+            style={{ background: canPay && quote ? "#00ABE7" : "#CFE6EF", color: "#04202E", opacity: canPay && quote ? 1 : 0.75, cursor: canPay && quote ? "pointer" : "not-allowed" }}
           >
             پرداخت و فرستادن
             <HeartSticker size={20} fill="#04202E" stroke="none" />
@@ -773,6 +784,236 @@ function Row({ label, sub, amount, muted }: { label: string; sub?: string; amoun
       </div>
       <span className={`text-[13.5px] font-extrabold ${muted ? "text-[#4A6572]" : ""}`}>{amount}</span>
     </div>
+  );
+}
+
+/* ── قدم ۵ دسکتاپ: اطلاعات سفارش‌دهنده + تأیید پیامکی شماره ──
+ * همان قانون موبایل: شماره سفارش‌دهنده مستقل از گیرنده است و تا تأیید
+ * موفق، دکمه‌ی پرداخت در سایدبار قفل می‌ماند (سرور هم مستقل گارت می‌کند).
+ */
+function DesktopOrderer({ step }: { step: number }) {
+  const orderer = usePishnam((s) => s.orderer);
+  const setOrderer = usePishnam((s) => s.setOrderer);
+  const user = usePishnam((s) => s.user);
+  const login = usePishnam((s) => s.login);
+  const verified = useOrdererVerified();
+  const { toast } = useToast();
+
+  const prefilled = useRef(false);
+  useEffect(() => {
+    if (prefilled.current) return;
+    if (user && !orderer.firstName && !orderer.lastName) {
+      const parts = user.name.trim().split(/\s+/);
+      setOrderer({
+        firstName: orderer.firstName || parts[0] || "",
+        lastName: orderer.lastName || parts.slice(1).join(" ") || "",
+        phone: orderer.phone || user.phone,
+      });
+      prefilled.current = true;
+    }
+  }, [user, orderer.firstName, orderer.lastName, orderer.phone, setOrderer]);
+
+  const [phase, setPhase] = useState<"idle" | "code">("idle");
+  const [code, setCode] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const [devCode, setDevCode] = useState("");
+  const [seconds, setSeconds] = useState(0);
+  useEffect(() => {
+    if (seconds <= 0) return;
+    const t = setInterval(() => setSeconds((s) => s - 1), 1000);
+    return () => clearInterval(t);
+  }, [seconds]);
+
+  const phoneReady = /^09\d{9}$/.test(orderer.phone.replace(/[۰-۹]/g, (d) => String("۰۱۲۳۴۵۶۷۸۹".indexOf(d))).replace(/\D/g, ""));
+  const nameReady = orderer.firstName.trim() !== "" && orderer.lastName.trim() !== "";
+
+  const requestCode = async () => {
+    setError("");
+    setBusy(true);
+    try {
+      const res = await fetch("/api/auth/request", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone: orderer.phone, purpose: "checkout_orderer" }),
+      });
+      const body = (await res.json().catch(() => ({}))) as { devCode?: string; error?: string; details?: { retryAfter?: number } };
+      if (!res.ok) {
+        if (body.error === "rate_limited") {
+          setSeconds(body.details?.retryAfter ?? 60);
+          setError("کد همین حالا فرستاده شده؛ چند لحظه دیگه دوباره بگیر.");
+        } else {
+          setError("ارسال کد نشد؛ شماره رو چک کن و دوباره بزن.");
+        }
+        return;
+      }
+      setPhase("code");
+      setCode("");
+      setSeconds(60);
+      if (body.devCode) setDevCode(body.devCode);
+    } catch {
+      setError("اینترنت قطعه؛ اتصالت رو چک کن.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const submitCode = async () => {
+    const digits = code.replace(/[۰-۹]/g, (d) => String("۰۱۲۳۴۵۶۷۸۹".indexOf(d))).trim();
+    if (!/^\d{4}$/.test(digits)) {
+      setError("کد ۴ رقمی پیامک‌شده رو کامل وارد کن.");
+      return;
+    }
+    setError("");
+    setBusy(true);
+    try {
+      const res = await fetch("/api/auth/verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          phone: orderer.phone,
+          code: digits,
+          purpose: "checkout_orderer",
+          name: `${orderer.firstName} ${orderer.lastName}`.trim(),
+        }),
+      });
+      const body = (await res.json().catch(() => ({}))) as { ok?: boolean; user?: { phone: string; name: string }; error?: string };
+      if (!res.ok || !body.ok) {
+        setError(body.error === "invalid_code" ? "کد اشتباهه یا منقضی شده؛ دوباره چک کن." : "تأیید نشد؛ چند لحظه بعد دوباره امتحان کن.");
+        return;
+      }
+      login(body.user?.phone ?? orderer.phone, body.user?.name ?? `${orderer.firstName} ${orderer.lastName}`.trim());
+      setPhase("idle");
+      setDevCode("");
+      toast({ title: "شماره‌ت تأیید شد ✓", description: "حسابت آماده‌ست و این سفارش به همون ثبت می‌شه." });
+    } catch {
+      setError("اینترنت قطعه؛ اتصالت رو چک کن.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <section
+      id="dstep-5"
+      className="flex flex-col gap-[18px] rounded-[32px] border bg-white p-7 transition-shadow"
+      style={{ borderColor: step === 5 ? "#00ABE7" : "#DDEEF5", boxShadow: step === 5 ? "0 0 0 3px rgba(0,171,231,0.18)" : undefined }}
+    >
+      <div className="flex items-center gap-3">
+        <StepNum n="۵" on={step === 5} />
+        <h2 className="m-0 text-2xl font-black">اطلاعات سفارش‌دهنده</h2>
+        <span className="ms-auto rounded-full bg-[#E3F6FD] px-3 py-1.5 text-[12px] font-extrabold text-[#006387]">همینه که خرید می‌کنه</span>
+      </div>
+      <p className="m-0 text-[14px] font-medium leading-[1.9] text-[#4A6572]">
+        سفارش به اسم خودت ثبت می‌شه — شماره‌ت می‌تونه با شماره گیرنده فرق کنه (هدیه برای دیگری).
+        قبل از پرداخت، شماره‌ت رو با یه کد پیامکی تأیید می‌کنیم؛ حساب کاربریت هم همین‌جا خودکار ساخته می‌شه.
+      </p>
+      <div className="flex flex-wrap gap-3.5">
+        <DField label="نام" value={orderer.firstName} onChange={(v) => setOrderer({ firstName: v })} placeholder="نام خودت" />
+        <DField label="نام خانوادگی" value={orderer.lastName} onChange={(v) => setOrderer({ lastName: v })} placeholder="نام خانوادگی خودت" />
+        <DField label="شماره موبایل سفارش‌دهنده" value={orderer.phone} onChange={(v) => setOrderer({ phone: v })} placeholder="۰۹۱۲ ۱۲۳ ۴۵۶۷" tel />
+      </div>
+
+      <div>
+        {verified ? (
+          <div className="flex items-center gap-2 rounded-2xl bg-[#E7F8EF] px-5 py-3.5 text-[14px] font-extrabold text-[#1E7A46]">
+            <CheckIcon size={18} stroke="#1E7A46" />
+            <span>شماره‌ت تأیید شد — سفارش به حساب کاربریت ثبت می‌شه و بعد از خرید لاگین می‌مونی.</span>
+          </div>
+        ) : phase === "code" ? (
+          <div className="flex flex-col gap-3 rounded-2xl border border-[#DDEEF5] bg-[#F8FDFF] p-5">
+            <span className="text-[14px] font-bold text-[#04202E]">
+              کد ۴ رقمی پیامک‌شده به <b dir="ltr">{orderer.phone}</b> رو بزن:
+            </span>
+            <div className="flex flex-row-reverse justify-end gap-2" dir="ltr">
+              {code
+                .replace(/\D/g, "")
+                .slice(0, 4)
+                .padEnd(4, " ")
+                .split("")
+                .map((c, i) => (
+                  <input
+                    key={i}
+                    inputMode="numeric"
+                    autoComplete={i === 0 ? "one-time-code" : "off"}
+                    maxLength={1}
+                    disabled={busy}
+                    aria-label={`رقم ${fa(i + 1)} از کد تأیید`}
+                    value={c.trim()}
+                    onChange={(e) => {
+                      const ch = e.target.value.replace(/[۰-۹]/g, (d) => String("۰۱۲۳۴۵۶۷۸۹".indexOf(d))).replace(/\D/g, "").slice(-1);
+                      if (ch) {
+                        const cur = code.replace(/\D/g, "").slice(0, 4).split("");
+                        cur[i] = ch;
+                        setCode(cur.join("").replace(/\s/g, ""));
+                        document.getElementById(`dstep5-otp-${Math.min(3, i + 1)}`)?.focus();
+                      }
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") void submitCode();
+                    }}
+                    id={`dstep5-otp-${i}`}
+                    className="h-14 w-12 rounded-[16px] border-2 border-[#CFE6EF] bg-white text-center text-xl font-black text-[#04202E] outline-none focus:border-[#00ABE7] disabled:opacity-60"
+                  />
+                ))}
+            </div>
+            {devCode && (
+              <span className="self-start rounded-xl bg-[#FFF3C9] px-2.5 py-1 text-[12px] font-extrabold text-[#7A5C00]">
+                کد آزمایشی (محیط توسعه): {fa(devCode)}
+              </span>
+            )}
+            {error && <span className="text-[13px] font-bold text-[#B02A52]">{error}</span>}
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => void submitCode()}
+                className="flex h-[48px] items-center justify-center rounded-full bg-[#04202E] px-8 text-[14px] font-extrabold text-white transition-transform active:scale-95 disabled:opacity-60"
+              >
+                {busy ? "در حال تأیید…" : "تأیید و ادامه"}
+              </button>
+              <button
+                type="button"
+                disabled={busy || seconds > 0}
+                onClick={() => void requestCode()}
+                className="h-[48px] rounded-full border border-[#CFE6EF] px-5 text-[13px] font-bold text-[#006387] disabled:opacity-50"
+              >
+                {seconds > 0 ? `ارسال دوباره تا ${fa(seconds)} ثانیه` : "ارسال دوباره کد"}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setPhase("idle");
+                  setError("");
+                }}
+                className="text-[13px] font-bold text-[#006387] underline underline-offset-4"
+              >
+                تغییر شماره
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="flex flex-col items-start gap-3 rounded-2xl border border-[#DDEEF5] bg-[#F8FDFF] p-5">
+            <span className="flex items-center gap-2 text-[14px] font-semibold leading-[1.9] text-[#4A6572]">
+              <span aria-hidden="true">📱</span>
+              <span>قبل از پرداخت، شماره‌ات رو با یه کد پیامکی تأیید کن — نه رمزی، نه فرم اضافه.</span>
+            </span>
+            {error && <span className="text-[13px] font-bold text-[#B02A52]">{error}</span>}
+            <button
+              type="button"
+              disabled={!phoneReady || !nameReady || busy}
+              onClick={() => void requestCode()}
+              className="h-[48px] rounded-full border-2 border-[#04202E] px-7 text-[14px] font-extrabold text-[#04202E] transition-transform active:scale-95 disabled:border-[#CFE6EF] disabled:text-[#7C99A7]"
+            >
+              {busy ? "در حال ارسال…" : "دریافت کد تأیید"}
+            </button>
+            {(!phoneReady || !nameReady) && (
+              <span className="text-[12.5px] font-semibold text-[#7C99A7]">نام، نام خانوادگی و شماره موبایل خودت رو کامل کن</span>
+            )}
+          </div>
+        )}
+      </div>
+    </section>
   );
 }
 

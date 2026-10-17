@@ -5,11 +5,12 @@ import { Prisma } from "@prisma/client";
 import { db } from "../db";
 import { retriedTransaction } from "../db-write";
 import { AppError } from "../errors";
-import { validPhone, normPhone } from "../auth/phone";
+import { validPhone } from "../auth/phone";
 import { canonicalJson, hashGiftPassword, sha256Hex } from "./crypto";
 import { nextOrderCode } from "./code";
 import { computeQuote, getSettings, type Quote } from "./pricing";
 import { MANUAL_WINDOW_MINUTES } from "./expire";
+import { enqueueSms } from "../sms";
 import type { OrderStatus } from "./status";
 
 // ── input validation (zod) ──
@@ -28,6 +29,17 @@ export const checkoutSchema = z.object({
     name: z.string().trim().min(1).max(40),
     phone: z.string().optional().default(""),
   }),
+  // سفارش‌دهنده (buyer) — نام و نام خانوادگی و موبایل خودِ مشتری؛ مستقل از گیرنده.
+  // OPTIONAL در اسکیمای خام (quote قبل از پر شدن فرم هم کار کند) — سخت‌گیری کامل
+  // (نام‌ها + شماره معتبر + تطابق سشن وریفای‌شده) در createOrder انجام می‌شود.
+  orderer: z
+    .object({
+      firstName: z.string().trim().max(40).default(""),
+      lastName: z.string().trim().max(40).default(""),
+      phone: z.string().default(""),
+    })
+    .optional()
+    .default({ firstName: "", lastName: "", phone: "" }),
   recipient: z.object({
     name: z.string().trim().min(1).max(40),
     phone: z.string(),
@@ -62,6 +74,9 @@ export function parseCheckout(raw: unknown): CheckoutInput {
   const v = parsed.data;
   const recipientPhone = validPhone(v.recipient.phone);
   if (!recipientPhone) throw new AppError(400, "bad_input", { fields: ["recipient.phone: invalid mobile"] });
+  // orderer: quote calls may pass an empty orderer — validate only what's given
+  const ordererPhone = v.orderer.phone ? validPhone(v.orderer.phone) ?? "" : "";
+  if (v.orderer.phone && !ordererPhone) throw new AppError(400, "bad_input", { fields: ["orderer.phone: invalid mobile"] });
   const senderPhone = v.sender.phone ? validPhone(v.sender.phone) ?? "" : "";
   // privacy invariants: phrase mode needs a real phrase; anon syncs the legacy flag
   let senderDisplay = v.gift.senderDisplay;
@@ -77,6 +92,7 @@ export function parseCheckout(raw: unknown): CheckoutInput {
   return {
     ...v,
     sender: { ...v.sender, phone: senderPhone },
+    orderer: { ...v.orderer, phone: ordererPhone },
     recipient: { ...v.recipient, phone: recipientPhone },
     gift: { ...v.gift, senderDisplay, senderPhrase, anonymous },
   };
@@ -116,6 +132,19 @@ export async function createOrder(raw: unknown, ctx: CheckoutCtx): Promise<Check
   const input = parseCheckout(raw);
   const requestHash = sha256Hex(canonicalJson(input));
 
+  // ── orderer completeness + OTP-verified session gate (owner: «تا قبل از
+  // تأیید موفق شماره، امکان رفتن به درگاه پرداخت وجود نداشته باشه») ──
+  // parseCheckout already normalizes + validates the phone shape
+  if (!input.orderer.firstName || !input.orderer.lastName || !input.orderer.phone) {
+    throw new AppError(400, "bad_input", { fields: ["orderer: نام، نام خانوادگی و موبایل سفارش‌دهنده لازم است"] });
+  }
+  if (!ctx.sessionPhone) {
+    throw new AppError(401, "orderer_not_verified");
+  }
+  if (input.orderer.phone !== ctx.sessionPhone) {
+    throw new AppError(403, "orderer_mismatch");
+  }
+
   // ۱) fast idempotency path
   const prior = await db.order.findUnique({ where: { idempotencyKey: ctx.key }, include: { payments: true, items: { include: { variant: { include: { product: true } } } } } });
   if (prior) return replay(prior, requestHash);
@@ -140,7 +169,7 @@ export async function createOrder(raw: unknown, ctx: CheckoutCtx): Promise<Check
         if (r.count === 0) throw new AppError(409, "sold_out", { variantId: it.variantId });
       }
 
-      // ۳) order + snapshot items + event (no SMS on creation — cost law)
+      // ۳) order + snapshot items + event + سفارش‌دهنده
       const code = await nextOrderCode(tx);
       const phone = ctx.sessionPhone ?? "";
       const order = await tx.order.create({
@@ -158,6 +187,9 @@ export async function createOrder(raw: unknown, ctx: CheckoutCtx): Promise<Check
           city: input.recipient.city,
           address: input.recipient.address,
           postalCode: input.recipient.postalCode,
+          ordererFirstName: input.orderer.firstName,
+          ordererLastName: input.orderer.lastName,
+          ordererPhone: input.orderer.phone,
           message: input.gift.message,
           cardPasswordHash: hashGiftPassword(input.gift.password),
           occasion: input.gift.occasion,
@@ -219,6 +251,12 @@ export async function createOrder(raw: unknown, ctx: CheckoutCtx): Promise<Check
   // ۴) payment creation AFTER commit — network calls inside tx are forbidden
   const orderFull = await db.order.findUniqueOrThrow({ where: { code: created.code }, include: { payments: true } });
   const payment = await createPaymentFor(orderFull);
+  // تکمیل خرید → پیامک ثبت سفارش به سفارش‌دهنده (در صف؛ sms-flush می‌فرستد)
+  await db
+    .$transaction(async (tx) => {
+      await enqueueSms(tx, { phone: input.orderer.phone, template: "order_confirm", params: { code: created.code } });
+    })
+    .catch(() => {});
   return {
     code: created.code,
     status: created.status,

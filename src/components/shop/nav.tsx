@@ -20,60 +20,55 @@ export function MobileNav({ active }: { active: Route }) {
     { route: "login", label: "حساب", aria: "حساب کاربری", icon: <UserIcon />, activeOn: ["login", "my-gifts"] },
   ];
   return (
-    <nav
-      aria-label="ناوبری اصلی"
-      className="sticky bottom-0 z-40 flex items-end justify-between border-t border-[#D3E8F0] bg-white/95 px-2 pb-[max(8px,env(safe-area-inset-bottom))] pt-2 backdrop-blur md:hidden"
-    >
-      {items.slice(0, 2).map((it) => (
-        <NavItem key={it.route} {...it} active={it.activeOn.includes(active)} />
-      ))}
-      <button
-        type="button"
-        aria-label="ساخت هدیه"
-        onClick={() => navigate("pick")}
-        className="flex flex-1 flex-col items-center gap-1"
+    // حالت شیشه‌ای شناور (الگوی تصویر مرجع): یک پیل شیشه‌ای + دکمه‌ی شناور
+    // «بساز» جدا از نوار — ارتفاع کم، آیتم فعال با برچسب کوتاه، هدف لمسی ≥۴۴px
+    <>
+      <div
+        aria-hidden="true"
+        className="h-[86px] max-md:block"
+        style={{ height: "calc(86px + env(safe-area-inset-bottom))" }}
+      />
+      <div
+        className="fixed inset-x-3 z-50 flex items-center gap-2 md:hidden"
+        style={{ bottom: "max(10px, env(safe-area-inset-bottom))" }}
       >
-        <span className="flex h-[54px] w-[54px] items-center justify-center rounded-full border-4 border-white bg-[#00ABE7] shadow-[0_6px_16px_rgba(0,171,231,0.35)]">
-          <svg width="25" height="25" viewBox="0 0 24 24" fill="none" stroke="#04202E" strokeWidth="2.6" strokeLinecap="round" aria-hidden="true">
+        <nav
+          aria-label="ناوبری اصلی"
+          className="flex min-h-[58px] flex-1 items-center justify-around rounded-full border border-white/70 bg-white/75 p-1.5 shadow-[0_10px_32px_rgba(4,32,46,0.16)] backdrop-blur-xl"
+        >
+          {items.map((it) => {
+            const on = it.activeOn.includes(active);
+            return (
+              <button
+                key={it.route}
+                type="button"
+                aria-label={it.aria}
+                aria-current={on ? "page" : undefined}
+                onClick={() => navigate(it.route)}
+                className={
+                  on
+                    ? "flex h-11 items-center gap-1.5 rounded-full bg-white px-3.5 text-[#006387] shadow-[0_4px_14px_rgba(4,32,46,0.12)]"
+                    : "flex h-11 w-11 items-center justify-center rounded-full text-[#5B7482] transition-transform active:scale-90"
+                }
+              >
+                <span className={on ? "scale-110" : ""}>{it.icon}</span>
+                {on && <span className="whitespace-nowrap text-[11px] font-extrabold leading-none">{it.label}</span>}
+              </button>
+            );
+          })}
+        </nav>
+        <button
+          type="button"
+          aria-label="ساخت هدیه"
+          onClick={() => navigate("pick")}
+          className="flex h-[56px] w-[56px] shrink-0 items-center justify-center rounded-full border-4 border-white/75 bg-[#00ABE7] shadow-[0_10px_26px_rgba(0,171,231,0.42)] transition-transform active:scale-90"
+        >
+          <svg width="25" height="25" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" strokeWidth="2.8" strokeLinecap="round" aria-hidden="true">
             <path d="M12 5v14M5 12h14" />
           </svg>
-        </span>
-        <span className="text-[11px] font-extrabold text-[#04202E]">بساز</span>
-      </button>
-      {items.slice(2).map((it) => (
-        <NavItem key={it.route} {...it} active={it.activeOn.includes(active)} />
-      ))}
-    </nav>
-  );
-}
-
-function NavItem({
-  route,
-  label,
-  aria,
-  icon,
-  active,
-}: {
-  route: Route;
-  label: string;
-  aria: string;
-  icon: React.ReactNode;
-  active: boolean;
-}) {
-  return (
-    <button
-      type="button"
-      aria-label={aria}
-      aria-current={active ? "page" : undefined}
-      onClick={() => navigate(route)}
-      className="flex min-h-[52px] flex-1 flex-col items-center gap-[3px] pt-1"
-      style={{ color: active ? "#006387" : "#5B7482" }}
-    >
-      <span className={active ? "scale-110 transition-transform" : "transition-transform"}>{icon}</span>
-      <span className={`whitespace-nowrap text-center text-[10.5px] leading-[1.5] ${active ? "font-extrabold" : "font-bold"}`}>
-        {label}
-      </span>
-    </button>
+        </button>
+      </div>
+    </>
   );
 }
 

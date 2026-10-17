@@ -91,6 +91,13 @@ export interface Receiver {
   phone: string;
 }
 
+/** سفارش‌دهنده — خریدار واقعی؛ مستقل از گیرنده و از «نام نمایشی فرستنده» */
+export interface Orderer {
+  firstName: string;
+  lastName: string;
+  phone: string;
+}
+
 export type PaymentMethod = "zarinpal" | "manual_transfer";
 
 export interface Quote {
@@ -164,6 +171,7 @@ interface PishnamState {
   hearts: number;
   paws: number;
   receiver: Receiver;
+  orderer: Orderer;
   photoAdded: boolean;
   videoAdded: boolean;
 
@@ -217,6 +225,7 @@ interface PishnamState {
   setHearts: (n: number) => void;
   setPaws: (n: number) => void;
   setReceiver: (r: Partial<Receiver>) => void;
+  setOrderer: (o: Partial<Orderer>) => void;
   addPhoto: () => void;
   addVideo: () => void;
 
@@ -256,6 +265,7 @@ function mediaKind(type: string): "image" | "video" | "audio" | null {
 }
 
 const DEFAULT_RECEIVER: Receiver = { name: "", province: "تهران", city: "", address: "", phone: "" };
+const DEFAULT_ORDERER: Orderer = { firstName: "", lastName: "", phone: "" };
 
 function todayFa(): string {
   try {
@@ -299,6 +309,7 @@ export const usePishnam = create<PishnamState>()(
       hearts: 0,
       paws: 0,
       receiver: DEFAULT_RECEIVER,
+      orderer: DEFAULT_ORDERER,
       photoAdded: false,
       videoAdded: false,
 
@@ -386,6 +397,7 @@ export const usePishnam = create<PishnamState>()(
       setHearts: (n) => set({ hearts: Math.max(0, Math.min(99, n)) }),
       setPaws: (n) => set({ paws: Math.max(0, Math.min(99, n)) }),
       setReceiver: (r) => set({ receiver: { ...get().receiver, ...r } }),
+      setOrderer: (o) => set({ orderer: { ...get().orderer, ...o } }),
       addPhoto: () => set({ photoAdded: true }),
       addVideo: () => set({ videoAdded: true }),
 
@@ -394,7 +406,8 @@ export const usePishnam = create<PishnamState>()(
       // gift data belongs to the logged-in account — nothing may stay visible
       // on a shared device once the session is gone (server rows re-arrive on
       // the next bootstrap). A stale key would 422 the next fresh checkout.
-      logout: () => set({ user: null, orders: [], pendingOrder: null }),
+      // orderer identity (PII) is dropped too — same privacy law.
+      logout: () => set({ user: null, orders: [], pendingOrder: null, orderer: DEFAULT_ORDERER }),
 
       // ── catalog (variantIds come from the server; never hardcode) ──
       // Fresh on first call, then cached — but admin edits (prices, charms
@@ -459,6 +472,11 @@ export const usePishnam = create<PishnamState>()(
             items,
             addons: { charmHearts: s.hearts, charmPaws: s.paws },
             sender: { name: s.senderName || s.user?.name || "مهمان", phone: s.user?.phone ?? "" },
+            orderer: {
+              firstName: s.orderer.firstName,
+              lastName: s.orderer.lastName,
+              phone: s.orderer.phone || s.user?.phone || "",
+            },
             recipient: {
               name: s.receiver.name || "دوست گلم",
               phone: s.receiver.phone || "09120000000",
@@ -515,10 +533,22 @@ export const usePishnam = create<PishnamState>()(
             set({ pendingOrder: pending });
           }
 
+      // ── pre-submit gate (client mirror of the server law): the pay button
+      // is already disabled, but a stale/parallel path must never POST ──
+      if (!s.orderer.firstName || !s.orderer.lastName) return { ok: false, error: "orderer_missing" };
+      const ordererPhone = s.orderer.phone || s.user?.phone || "";
+      if (!ordererPhone) return { ok: false, error: "orderer_not_verified" };
+
           const payload = {
             items: [{ variantId: e.variantId, qty: 1 }, ...s.addonLines.map((l) => ({ variantId: l.variantId, qty: l.qty }))],
             addons: { charmHearts: s.hearts, charmPaws: s.paws },
             sender: { name: s.senderName || s.user?.name || "مهمان", phone: s.user?.phone ?? "" },
+            // سفارش‌دهنده — باید با سشن وریفای‌شده یکی باشد (gate سمت سرور)
+            orderer: {
+              firstName: s.orderer.firstName,
+              lastName: s.orderer.lastName,
+              phone: s.orderer.phone || s.user?.phone || "",
+            },
             recipient: {
               name: s.receiver.name,
               phone: s.receiver.phone,
@@ -692,6 +722,8 @@ export const usePishnam = create<PishnamState>()(
           hearts: 0,
           paws: 0,
           receiver: DEFAULT_RECEIVER,
+          // orderer (خریدار) intentionally survives a reset — the buyer identity
+          // is account-bound, not gift-bound; the NEXT gift prefills from it.
           photoAdded: false,
           videoAdded: false,
           quote: null,
@@ -720,15 +752,18 @@ export const usePishnam = create<PishnamState>()(
     {
       name: "pishnam-app",
       storage: createJSONStorage(() => localStorage),
-      version: 4,
+      version: 5,
       // v2→v3: sender privacy + retention + addons + media meta (fresh defaults)
       // v3→v4: BUGFIX — persisted 5 hearts/3 paws defaults auto-charged every
       // visitor 8 paid charms; force them back to opt-in zero on upgrade.
+      // v4→v5: سفارش‌دهنده (buyer identity) — orderer fields join the builder
+      // state; verification itself is DERIVED (session phone ↔ orderer phone).
       migrate: (state) => {
         const s = state as Partial<PishnamState>;
         return {
           ...s,
           receiver: { ...DEFAULT_RECEIVER, ...(s.receiver ?? {}) },
+          orderer: { ...DEFAULT_ORDERER, ...(s.orderer ?? {}) },
           catalog: s.catalog ?? {},
           catalogAddons: [],
           retentionPrices: { m6: 0, m12: 0 },
@@ -792,4 +827,18 @@ export function useBuilderTotal(): number {
   const paws = usePishnam((s) => s.paws);
   const charmPrice = usePishnam((s) => s.charmPrice);
   return quote ? quote.total : BOX_PRICE + (hearts + paws) * charmPrice;
+}
+
+/**
+ * سفارش‌دهنده وریفای‌شده؟ — DERIVED, never stored: a live customer session
+ * whose phone equals the orderer phone. Server re-checks on every checkout
+ * POST (orderer_not_verified / orderer_mismatch), so a stale local flag can
+ * never open a payment path.
+ */
+export function useOrdererVerified(): boolean {
+  const user = usePishnam((s) => s.user);
+  const ordererPhone = usePishnam((s) => s.orderer.phone);
+  if (!user) return false;
+  const norm = (v: string) => v.replace(/[۰-۹]/g, (d) => String("۰۱۲۳۴۵۶۷۸۹".indexOf(d))).replace(/\D/g, "");
+  return Boolean(ordererPhone) && norm(user.phone) === norm(ordererPhone);
 }
