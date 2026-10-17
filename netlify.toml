@@ -15,7 +15,7 @@
 # ZARINPAL_MERCHANT_ID). Secrets never live in this file.
 
 [build]
-  command = "export DATABASE_URL=\"file:$PWD/db/custom.db\" && bun x prisma generate && bun x prisma db push --skip-generate && bun scripts/seed-commerce.ts && bun scripts/seed-blog.ts && bun x next build"
+  command = "export DATABASE_URL=\"file:$PWD/db/custom.db\" && bun x prisma generate && bun x prisma db push --skip-generate && bun scripts/seed-commerce.ts && bun scripts/seed-blog.ts && bun x next build && bun scripts/trim-trace.mjs"
   publish = ".next"
 
 [build.environment]

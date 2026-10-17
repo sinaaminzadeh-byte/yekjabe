@@ -9,13 +9,12 @@ const securityHeaders = [
   { key: "Permissions-Policy", value: "camera=(self), microphone=(self), geolocation=()" },
 ];
 
-// Netlify builds run through @netlify/plugin-nextjs, which packages its own
-// serverless functions — standalone output stays exclusive to the sandbox /
-// Coolify single-box start (`bun .next/standalone/server.js`).
-const isNetlifyBuild = process.env.NETLIFY === "true";
-
+// @netlify/plugin-nextjs v5 packages the server from Next's own
+// `output: "standalone"` tree (.next/standalone) — it MUST stay enabled for
+// Netlify builds too, otherwise the plugin falls back to copying the whole
+// project root and blows through the 250MB function cap.
 const nextConfig: NextConfig = {
-  ...(isNetlifyBuild ? {} : { output: "standalone" as const }),
+  output: "standalone",
   // Ship the seeded SQLite db + Prisma client/engine inside the server bundle —
   // the serverless cold start copies the db to /tmp (see instrumentation.ts).
   outputFileTracingIncludes: {

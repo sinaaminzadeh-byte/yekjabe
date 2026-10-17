@@ -2,7 +2,10 @@
 // learn more about it in the docs: https://pris.ly/d/prisma-schema
 
 generator client {
-  provider = "prisma-client-js"
+  provider      = "prisma-client-js"
+  // Netlify's serverless runtime is Amazon Linux 2023 (rhel-openssl-3.0.x);
+  // the sandbox/buildbot are Debian/Ubuntu — ship BOTH query engines.
+  binaryTargets = ["native", "rhel-openssl-3.0.x"]
 }
 
 datasource db {

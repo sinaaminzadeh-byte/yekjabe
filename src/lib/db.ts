@@ -1,4 +1,9 @@
 import { PrismaClient } from '@prisma/client'
+import { bootstrapServerlessSqlite } from './sqlite-serverless'
+
+// Serverless (Netlify) cold start: point DATABASE_URL at a writable copy of
+// the bundled seeded db BEFORE the client is constructed. No-op elsewhere.
+bootstrapServerlessSqlite()
 
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined
