@@ -91,10 +91,10 @@ export interface Receiver {
   phone: string;
 }
 
-/** سفارش‌دهنده — خریدار واقعی؛ مستقل از گیرنده و از «نام نمایشی فرستنده» */
+/** سفارش‌دهنده — خریدار واقعی؛ مستقل از گیرنده و از «نام نمایشی فرستنده».
+ * Owner round 26: نام و نام خانوادگی ONE field (split happens server-side). */
 export interface Orderer {
-  firstName: string;
-  lastName: string;
+  name: string;
   phone: string;
 }
 
@@ -265,7 +265,7 @@ function mediaKind(type: string): "image" | "video" | "audio" | null {
 }
 
 const DEFAULT_RECEIVER: Receiver = { name: "", province: "تهران", city: "", address: "", phone: "" };
-const DEFAULT_ORDERER: Orderer = { firstName: "", lastName: "", phone: "" };
+const DEFAULT_ORDERER: Orderer = { name: "", phone: "" };
 
 function todayFa(): string {
   try {
@@ -473,8 +473,7 @@ export const usePishnam = create<PishnamState>()(
             addons: { charmHearts: s.hearts, charmPaws: s.paws },
             sender: { name: s.senderName || s.user?.name || "مهمان", phone: s.user?.phone ?? "" },
             orderer: {
-              firstName: s.orderer.firstName,
-              lastName: s.orderer.lastName,
+              name: s.orderer.name,
               phone: s.orderer.phone || s.user?.phone || "",
             },
             recipient: {
@@ -535,7 +534,7 @@ export const usePishnam = create<PishnamState>()(
 
       // ── pre-submit gate (client mirror of the server law): the pay button
       // is already disabled, but a stale/parallel path must never POST ──
-      if (!s.orderer.firstName || !s.orderer.lastName) return { ok: false, error: "orderer_missing" };
+      if (!s.orderer.name.trim()) return { ok: false, error: "orderer_missing" };
       const ordererPhone = s.orderer.phone || s.user?.phone || "";
       if (!ordererPhone) return { ok: false, error: "orderer_not_verified" };
 
@@ -545,8 +544,7 @@ export const usePishnam = create<PishnamState>()(
             sender: { name: s.senderName || s.user?.name || "مهمان", phone: s.user?.phone ?? "" },
             // سفارش‌دهنده — باید با سشن وریفای‌شده یکی باشد (gate سمت سرور)
             orderer: {
-              firstName: s.orderer.firstName,
-              lastName: s.orderer.lastName,
+              name: s.orderer.name,
               phone: s.orderer.phone || s.user?.phone || "",
             },
             recipient: {
@@ -752,18 +750,31 @@ export const usePishnam = create<PishnamState>()(
     {
       name: "pishnam-app",
       storage: createJSONStorage(() => localStorage),
-      version: 5,
+      version: 6,
       // v2→v3: sender privacy + retention + addons + media meta (fresh defaults)
       // v3→v4: BUGFIX — persisted 5 hearts/3 paws defaults auto-charged every
       // visitor 8 paid charms; force them back to opt-in zero on upgrade.
       // v4→v5: سفارش‌دهنده (buyer identity) — orderer fields join the builder
       // state; verification itself is DERIVED (session phone ↔ orderer phone).
+      // v5→v6: owner round 26 — orderer نام + نام خانوادگی merge into ONE `name`
+      // field (server splits it); old persisted {firstName,lastName} joins up.
       migrate: (state) => {
-        const s = state as Partial<PishnamState>;
+        const s = state as Partial<PishnamState> & {
+          orderer?: Partial<Orderer> & { firstName?: string; lastName?: string };
+        };
+        const legacy = s.orderer as Partial<Orderer> & { firstName?: string; lastName?: string } | undefined;
+        const joinedName =
+          legacy && !legacy.name && (legacy.firstName || legacy.lastName)
+            ? `${legacy.firstName ?? ""} ${legacy.lastName ?? ""}`.trim()
+            : undefined;
         return {
           ...s,
           receiver: { ...DEFAULT_RECEIVER, ...(s.receiver ?? {}) },
-          orderer: { ...DEFAULT_ORDERER, ...(s.orderer ?? {}) },
+          orderer: {
+            ...DEFAULT_ORDERER,
+            ...(s.orderer ?? {}),
+            ...(joinedName ? { name: joinedName } : {}),
+          },
           catalog: s.catalog ?? {},
           catalogAddons: [],
           retentionPrices: { m6: 0, m12: 0 },

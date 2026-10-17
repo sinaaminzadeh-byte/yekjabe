@@ -623,7 +623,7 @@ export function DesktopBuilder({ step }: { step: 1 | 2 | 3 | 4 }) {
               <h2 className="m-0 text-2xl font-black">گیرنده‌ی هدیه</h2>
             </div>
             <div className="flex flex-wrap gap-3.5">
-              <DField label="اسم گیرنده" value={receiver.name} onChange={(v) => setReceiver({ name: v })} placeholder="اسم دوستت" />
+              <DField label="نام و نام خانوادگی گیرنده" value={receiver.name} onChange={(v) => setReceiver({ name: v })} placeholder="مثلاً آرمان رفیقی" />
               <DField label="شماره‌ی موبایل گیرنده" value={receiver.phone} onChange={(v) => setReceiver({ phone: v })} placeholder="۰۹۱۲ ۱۲۳ ۴۵۶۷" tel />
               <div className="flex min-w-0 flex-[1_1_240px] flex-col gap-1.5">
                 <label className="text-[13px] font-bold text-[#4A6572]">استان</label>
@@ -653,7 +653,7 @@ export function DesktopBuilder({ step }: { step: 1 | 2 | 3 | 4 }) {
             </div>
           </section>
 
-          {/* 5 orderer — نام + نام خانوادگی + موبایل خود مشتری، با تأیید پیامکی */}
+          {/* 5 orderer — «نام و نام خانوادگی» + موبایل خود مشتری، با تأیید پیامکی */}
           <DesktopOrderer step={step} />
         </div>
 
@@ -759,9 +759,9 @@ function DC({ value, onMinus, onPlus, plusBg }: { value: number; onMinus: () => 
   );
 }
 
-function DField({ label, value, onChange, placeholder, tel }: { label: string; value: string; onChange: (v: string) => void; placeholder: string; tel?: boolean }) {
+function DField({ label, value, onChange, placeholder, tel, className }: { label: string; value: string; onChange: (v: string) => void; placeholder: string; tel?: boolean; className?: string }) {
   return (
-    <div className="flex min-w-0 flex-[1_1_240px] flex-col gap-1.5">
+    <div className={`flex min-w-0 flex-[1_1_240px] flex-col gap-1.5 ${className ?? ""}`}>
       <label className="text-[13px] font-bold text-[#4A6572]">{label}</label>
       <input
         type={tel ? "tel" : "text"}
@@ -802,16 +802,14 @@ function DesktopOrderer({ step }: { step: number }) {
   const prefilled = useRef(false);
   useEffect(() => {
     if (prefilled.current) return;
-    if (user && !orderer.firstName && !orderer.lastName) {
-      const parts = user.name.trim().split(/\s+/);
+    if (user && !orderer.name) {
       setOrderer({
-        firstName: orderer.firstName || parts[0] || "",
-        lastName: orderer.lastName || parts.slice(1).join(" ") || "",
+        name: orderer.name || user.name,
         phone: orderer.phone || user.phone,
       });
       prefilled.current = true;
     }
-  }, [user, orderer.firstName, orderer.lastName, orderer.phone, setOrderer]);
+  }, [user, orderer.name, orderer.phone, setOrderer]);
 
   const [phase, setPhase] = useState<"idle" | "code">("idle");
   const [code, setCode] = useState("");
@@ -826,7 +824,7 @@ function DesktopOrderer({ step }: { step: number }) {
   }, [seconds]);
 
   const phoneReady = /^09\d{9}$/.test(orderer.phone.replace(/[۰-۹]/g, (d) => String("۰۱۲۳۴۵۶۷۸۹".indexOf(d))).replace(/\D/g, ""));
-  const nameReady = orderer.firstName.trim() !== "" && orderer.lastName.trim() !== "";
+  const nameReady = orderer.name.trim().length >= 3;
 
   const requestCode = async () => {
     setError("");
@@ -874,7 +872,7 @@ function DesktopOrderer({ step }: { step: number }) {
           phone: orderer.phone,
           code: digits,
           purpose: "checkout_orderer",
-          name: `${orderer.firstName} ${orderer.lastName}`.trim(),
+          name: orderer.name.trim(),
         }),
       });
       const body = (await res.json().catch(() => ({}))) as { ok?: boolean; user?: { phone: string; name: string }; error?: string };
@@ -882,7 +880,7 @@ function DesktopOrderer({ step }: { step: number }) {
         setError(body.error === "invalid_code" ? "کد اشتباهه یا منقضی شده؛ دوباره چک کن." : "تأیید نشد؛ چند لحظه بعد دوباره امتحان کن.");
         return;
       }
-      login(body.user?.phone ?? orderer.phone, body.user?.name ?? `${orderer.firstName} ${orderer.lastName}`.trim());
+      login(body.user?.phone ?? orderer.phone, body.user?.name ?? orderer.name.trim());
       setPhase("idle");
       setDevCode("");
       toast({ title: "شماره‌ت تأیید شد ✓", description: "حسابت آماده‌ست و این سفارش به همون ثبت می‌شه." });
@@ -909,8 +907,7 @@ function DesktopOrderer({ step }: { step: number }) {
         قبل از پرداخت، شماره‌ت رو با یه کد پیامکی تأیید می‌کنیم؛ حساب کاربریت هم همین‌جا خودکار ساخته می‌شه.
       </p>
       <div className="flex flex-wrap gap-3.5">
-        <DField label="نام" value={orderer.firstName} onChange={(v) => setOrderer({ firstName: v })} placeholder="نام خودت" />
-        <DField label="نام خانوادگی" value={orderer.lastName} onChange={(v) => setOrderer({ lastName: v })} placeholder="نام خانوادگی خودت" />
+        <DField label="نام و نام خانوادگی" value={orderer.name} onChange={(v) => setOrderer({ name: v })} placeholder="مثلاً سارا محمدی" className="min-w-[240px] flex-1" />
         <DField label="شماره موبایل سفارش‌دهنده" value={orderer.phone} onChange={(v) => setOrderer({ phone: v })} placeholder="۰۹۱۲ ۱۲۳ ۴۵۶۷" tel />
       </div>
 
@@ -1008,7 +1005,7 @@ function DesktopOrderer({ step }: { step: number }) {
               {busy ? "در حال ارسال…" : "دریافت کد تأیید"}
             </button>
             {(!phoneReady || !nameReady) && (
-              <span className="text-[12.5px] font-semibold text-[#7C99A7]">نام، نام خانوادگی و شماره موبایل خودت رو کامل کن</span>
+              <span className="text-[12.5px] font-semibold text-[#7C99A7]">نام و نام خانوادگی و شماره موبایل خودت رو کامل کن</span>
             )}
           </div>
         )}

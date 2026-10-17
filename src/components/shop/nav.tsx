@@ -14,14 +14,15 @@ import { usePishnam } from "@/lib/pishnam-store";
 
 export function MobileNav({ active }: { active: Route }) {
   const items: { route: Route; label: string; aria: string; icon: React.ReactNode; activeOn: Route[] }[] = [
-    { route: "home", label: "خانه", aria: "خانه", icon: <HomeIcon />, activeOn: ["home"] },
-    { route: "friends", label: "دوستا", aria: "دوستای پشمالو", icon: <PawIcon size={24} />, activeOn: ["friends", "product"] },
-    { route: "stories", label: "قصه‌ی شما", aria: "قصه‌ی شما — قصه‌های مشتری‌ها", icon: <BookIcon />, activeOn: ["stories"] },
-    { route: "login", label: "حساب", aria: "حساب کاربری", icon: <UserIcon />, activeOn: ["login", "my-gifts"] },
+    { route: "home", label: "خانه", aria: "خانه", icon: <HomeIcon size={22} />, activeOn: ["home"] },
+    { route: "friends", label: "دوستا", aria: "دوستای پشمالو", icon: <PawIcon size={22} fill="currentColor" stroke="none" />, activeOn: ["friends", "product"] },
+    { route: "stories", label: "قصه‌ی شما", aria: "قصه‌ی شما — قصه‌های مشتری‌ها", icon: <BookIcon size={22} />, activeOn: ["stories"] },
+    { route: "login", label: "حساب", aria: "حساب کاربری", icon: <UserIcon size={22} />, activeOn: ["login", "my-gifts"] },
   ];
   return (
-    // حالت شیشه‌ای شناور (الگوی تصویر مرجع): یک پیل شیشه‌ای + دکمه‌ی شناور
-    // «بساز» جدا از نوار — ارتفاع کم، آیتم فعال با برچسب کوتاه، هدف لمسی ≥۴۴px
+    // حالت شیشه‌ای شناور — بازطراحی(owner round 26): دکمه‌ی + سمت مخالف (راست،
+    // اول DOM در RTL)، هر آیتم «آیکن + اسم»، آیتم فعال فقط با تغییر رنگ آیکن
+    // از خاکستری به آبی — بدون کادر، بدون سایه، بدون تغییر شکل دکمه.
     <>
       <div
         aria-hidden="true"
@@ -32,31 +33,7 @@ export function MobileNav({ active }: { active: Route }) {
         className="fixed inset-x-3 z-50 flex items-center gap-2 md:hidden"
         style={{ bottom: "max(10px, env(safe-area-inset-bottom))" }}
       >
-        <nav
-          aria-label="ناوبری اصلی"
-          className="flex min-h-[58px] flex-1 items-center justify-around rounded-full border border-white/70 bg-white/75 p-1.5 shadow-[0_10px_32px_rgba(4,32,46,0.16)] backdrop-blur-xl"
-        >
-          {items.map((it) => {
-            const on = it.activeOn.includes(active);
-            return (
-              <button
-                key={it.route}
-                type="button"
-                aria-label={it.aria}
-                aria-current={on ? "page" : undefined}
-                onClick={() => navigate(it.route)}
-                className={
-                  on
-                    ? "flex h-11 items-center gap-1.5 rounded-full bg-white px-3.5 text-[#006387] shadow-[0_4px_14px_rgba(4,32,46,0.12)]"
-                    : "flex h-11 w-11 items-center justify-center rounded-full text-[#5B7482] transition-transform active:scale-90"
-                }
-              >
-                <span className={on ? "scale-110" : ""}>{it.icon}</span>
-                {on && <span className="whitespace-nowrap text-[11px] font-extrabold leading-none">{it.label}</span>}
-              </button>
-            );
-          })}
-        </nav>
+        {/* اول در DOM = سمت راست (RTL) — جای + طبق درخواست مالک عوض شد */}
         <button
           type="button"
           aria-label="ساخت هدیه"
@@ -67,6 +44,29 @@ export function MobileNav({ active }: { active: Route }) {
             <path d="M12 5v14M5 12h14" />
           </svg>
         </button>
+        <nav
+          aria-label="ناوبری اصلی"
+          className="flex min-h-[58px] flex-1 items-stretch justify-around rounded-full border border-white/70 bg-white/80 p-1 shadow-[0_10px_32px_rgba(4,32,46,0.14)] backdrop-blur-xl"
+        >
+          {items.map((it) => {
+            const on = it.activeOn.includes(active);
+            return (
+              <button
+                key={it.route}
+                type="button"
+                aria-label={it.aria}
+                aria-current={on ? "page" : undefined}
+                onClick={() => navigate(it.route)}
+                className={`flex min-h-[46px] flex-1 flex-col items-center justify-center gap-[3px] rounded-full px-1 transition-colors duration-150 ${
+                  on ? "text-[#00ABE7]" : "text-[#5B7482]"
+                }`}
+              >
+                <span className="flex h-[22px] items-center justify-center">{it.icon}</span>
+                <span className="whitespace-nowrap text-[10.5px] font-bold leading-none">{it.label}</span>
+              </button>
+            );
+          })}
+        </nav>
       </div>
     </>
   );

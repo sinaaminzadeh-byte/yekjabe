@@ -9,7 +9,7 @@ import { AppError, toErrorResponse } from "@/lib/errors";
 import { assertSameOrigin, requireAdmin } from "@/lib/auth/session";
 import { isRateLimited, clientIp, rateLimit } from "@/lib/rate-limit";
 import { ensureSmsSeeds, invalidateSmsTemplateCache, getSmsTemplateMap } from "@/lib/sms";
-import { ippanelConfigured, ippanelCredit } from "@/lib/sms/ippanel";
+import { ippanelConfigured, ippanelCreditDiag } from "@/lib/sms/ippanel";
 import { env } from "@/lib/env";
 
 export async function GET() {
@@ -37,7 +37,8 @@ export async function GET() {
         sender: env.IPPANEL_SENDER ?? "",
         kavenegar: Boolean(env.KAVENEGAR_API_KEY),
       },
-      credit: ippanelConfigured() ? await ippanelCredit() : null,
+      credit: ippanelConfigured() ? (await ippanelCreditDiag()).credit ?? null : null,
+      creditDiag: await ippanelCreditDiag(),
       ownerMobile: owner,
       templates: templates.map((t) => ({
         key: t.key,

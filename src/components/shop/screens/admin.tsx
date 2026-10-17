@@ -2119,6 +2119,7 @@ interface SmsData {
   stats: { sent24h: number; queued: number; failed: number; dead: number };
   provider: { ippanel: boolean; sender: string; kavenegar: boolean };
   credit: number | null;
+  creditDiag?: { ok: boolean; credit?: number; error?: string };
   ownerMobile: string;
   templates: SmsTemplateRow[];
 }
@@ -2365,6 +2366,14 @@ function SmsTab() {
         </div>
         <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-1.5 text-[12px] font-semibold text-[#4A6572]">
           {data.credit !== null && <span>اعتبار پنل: <b className="text-[#04202E]">{money(Math.floor(data.credit))}</b></span>}
+          {data.creditDiag && !data.creditDiag.ok && (
+            <span className="rounded-full bg-[#FFF3C9] px-2.5 py-1 text-[11px] font-extrabold text-[#7A5C00]" dir="auto">
+              وضعیت اتصال ippanel: ✗ {data.creditDiag.error ?? "نامشخص"}
+            </span>
+          )}
+          {data.creditDiag?.ok && (
+            <span className="rounded-full bg-[#E7F8EF] px-2.5 py-1 text-[11px] font-extrabold text-[#1E7A46]">وضعیت اتصال ippanel: ✓ وصل است</span>
+          )}
           {data.provider.sender && <span>شماره فرستنده: <b dir="ltr" className="text-[#04202E]">{data.provider.sender}</b></span>}
           {data.ownerMobile && <span>شماره هشدار مدیریتی: <b dir="ltr" className="text-[#04202E]">{data.ownerMobile}</b> (از متغیر محیطی OWNER_MOBILE)</span>}
           <span>صف هر ۲ دقیقه به‌طور خودکار خالی می‌شود.</span>

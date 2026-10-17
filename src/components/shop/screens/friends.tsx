@@ -187,12 +187,14 @@ function CtaBand() {
 
 /** One shared card for mobile & desktop (`desktop` prop). Adding straight from
  * the friends page is fine: checkout reads addonLines from the builder store.
- * In-cart state shows the compact «✓ کنار هدیه‌ته» chip instead of the CTA. */
+ * Owner round 26 (UX pass): whole info area is ONE tap target → details sheet,
+ * name/price typography hierarchy fixed (font-black + «تومان» unit), in-cart
+ * state is a real qty stepper (– n +) instead of a dead chip, ≥44px targets. */
 function AddonCard({ a, desktop = false }: { a: CatalogEntry; desktop?: boolean }) {
   const { toast } = useToast();
   const addonLines = usePishnam((s) => s.addonLines);
   const addAddon = usePishnam((s) => s.addAddon);
-  const removeAddon = usePishnam((s) => s.removeAddon);
+  const setAddonQty = usePishnam((s) => s.setAddonQty);
   const [open, setOpen] = useState(false);
   const qty = addonLines.find((l) => l.variantId === a.variantId)?.qty ?? 0;
   const out = !a.inStock;
@@ -201,16 +203,58 @@ function AddonCard({ a, desktop = false }: { a: CatalogEntry; desktop?: boolean 
     addAddon(a.variantId);
     toast({ title: "به سبد اضافه شد ✓", description: a.name });
   };
+  const bump = (n: number) => setAddonQty(a.variantId, Math.max(0, Math.min(10, n)));
 
-  const tile = (h: string, emojiSize: string) => (
+  const tile = (h: string, emojiSize: string, rounded = "rounded-[18px]") => (
     <div
-      className={`flex ${h} shrink-0 items-center justify-center overflow-hidden rounded-[16px] bg-[#F2FAFD]`}
+      className={`flex ${h} shrink-0 items-center justify-center overflow-hidden ${rounded} bg-[#F2FAFD]`}
     >
       {a.image ? (
         <img src={a.image} alt={a.name} className="h-full w-full object-cover" />
       ) : (
         <span className={emojiSize} aria-hidden="true">{a.emoji || "🎁"}</span>
       )}
+    </div>
+  );
+
+  /** قیمت — عدد درشتِ ضخیم + واحد «تومان» کوچک‌تر و کم‌رنگ‌تر (سلسله‌مراتب) */
+  const priceNode = ({ big = false, amount }: { big?: boolean; amount?: number } = {}) =>
+    out ? (
+      <span className={`font-black text-[#4A6572] ${big ? "text-[16px]" : "text-[13.5px]"} opacity-70`}>فعلاً ناموجوده</span>
+    ) : (
+      <span className="flex items-baseline gap-1" aria-label={`${money(amount ?? a.priceToman)} تومان`}>
+        <span className={`font-black text-[#04202E] ${big ? "text-[18px]" : "text-[15.5px]"}`}>{money(amount ?? a.priceToman)}</span>
+        <span className={`font-bold text-[#4A6572] ${big ? "text-[11.5px]" : "text-[10.5px]"}`}>تومان</span>
+      </span>
+    );
+
+  /** استپر تعداد — − n ＋ (هم موبایل هم دسکتاپ؛ حداکثر ۱۰) */
+  const stepperNode = ({ wide = false }: { wide?: boolean } = {}) => (
+    <div
+      role="group"
+      aria-label={`تعداد ${a.name} در سبد`}
+      className={wide ? "flex h-12 items-center justify-between rounded-full border-[1.5px] border-[#9FD9F0] bg-[#F2FAFD] ps-2 pe-2" : "flex items-center gap-1"}
+    >
+      <button
+        type="button"
+        aria-label="یکی کم کن"
+        onClick={() => bump(qty - 1)}
+        className={`flex shrink-0 items-center justify-center rounded-full border-[1.5px] border-[#CFE6EF] bg-white text-[20px] font-black leading-none text-[#04202E] transition-transform active:scale-90 ${wide ? "h-9 w-9" : "h-11 w-11"}`}
+      >
+        −
+      </button>
+      <span aria-live="polite" className={`min-w-7 text-center font-black text-[#04202E] ${wide ? "text-[15px]" : "text-[14.5px]"}`}>
+        {fa(qty)}
+      </span>
+      <button
+        type="button"
+        aria-label="یکی اضافه کن"
+        onClick={() => bump(qty + 1)}
+        disabled={qty >= 10}
+        className={`flex shrink-0 items-center justify-center rounded-full bg-[#00ABE7] text-[20px] font-black leading-none text-white transition-transform active:scale-90 disabled:opacity-50 ${wide ? "h-9 w-9" : "h-11 w-11"}`}
+      >
+        +
+      </button>
     </div>
   );
 
@@ -249,17 +293,15 @@ function AddonCard({ a, desktop = false }: { a: CatalogEntry; desktop?: boolean 
                 + بذارش کنار هدیه تو جعبه
               </button>
             ) : (
-              <div className="flex flex-col items-center gap-2 rounded-[20px] bg-[#E3F6FD] px-4 py-3">
-                <span className="text-[13.5px] font-extrabold text-[#006387]">
-                  ✓ کنار هدیه‌ته — تو قدم «یه ذره مهربونی اضافه کن» می‌بینیش
-                </span>
-                <button
-                  type="button"
-                  onClick={() => removeAddon(a.variantId)}
-                  className="text-[12px] font-extrabold text-[#B02A52] underline underline-offset-4"
-                >
-                  بردار از سبد
-                </button>
+              <div className="flex flex-col gap-2.5 rounded-[20px] bg-[#E3F6FD] px-4 py-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-[13px] font-extrabold text-[#006387]">✓ کنار هدیه‌ته</span>
+                  {stepperNode()}
+                </div>
+                <div className="flex items-center justify-between border-t border-[#C9E9F6] pt-2.5">
+                  <span className="text-[12px] font-bold text-[#4A6572]">جمع این افزودنی</span>
+                  {priceNode({ big: true, amount: a.priceToman * qty })}
+                </div>
               </div>
             ))}
         </div>
@@ -271,10 +313,15 @@ function AddonCard({ a, desktop = false }: { a: CatalogEntry; desktop?: boolean 
     return (
       <>
         <article
-          className="group flex w-[368px] flex-col overflow-hidden rounded-[28px] border border-[#DDEEF5] bg-white p-4 transition-all hover:-translate-y-1 hover:shadow-[0_16px_36px_rgba(4,32,46,0.10)]"
-          style={{ opacity: out ? 0.6 : 1 }}
+          className="group flex w-[368px] flex-col overflow-hidden rounded-[28px] border bg-white p-4 transition-all hover:-translate-y-1 hover:shadow-[0_16px_36px_rgba(4,32,46,0.10)]"
+          style={{ borderColor: qty > 0 ? "#9FD9F0" : "#DDEEF5", opacity: out ? 0.62 : 1 }}
         >
-          <div className="relative flex h-[140px] items-center justify-center overflow-hidden rounded-[22px] bg-[#F2FAFD]">
+          <button
+            type="button"
+            onClick={() => setOpen(true)}
+            aria-label={`جزئیات و عکس ${a.name}`}
+            className="relative m-0 flex h-[150px] w-full cursor-pointer items-center justify-center overflow-hidden rounded-[22px] bg-[#F2FAFD] p-0"
+          >
             {a.image ? (
               <img
                 src={a.image}
@@ -287,39 +334,35 @@ function AddonCard({ a, desktop = false }: { a: CatalogEntry; desktop?: boolean 
             {out ? (
               <span className="absolute start-3 top-3 rounded-full bg-[#FFE9F0] px-2.5 py-1 text-[11px] font-extrabold text-[#B02A52]">فعلاً تموم شده</span>
             ) : qty > 0 ? (
-              <span className="absolute start-3 top-3 rounded-full bg-[#00ABE7] px-2.5 py-1 text-[11px] font-extrabold text-[#04202E]">✓ کنار هدیه‌ته</span>
+              <span className="absolute start-3 top-3 rounded-full bg-[#00ABE7] px-2.5 py-1 text-[11px] font-extrabold text-[#04202E]">✓ {fa(qty)} عدد تو سبد</span>
             ) : null}
-          </div>
-          <h3 className="m-0 pb-1 pt-4 text-[17px] font-black text-[#04202E]">{a.name}</h3>
-          <p className="m-0 line-clamp-2 min-h-[50px] text-[12.5px] font-medium leading-[2] text-[#1F3E4D]">
+          </button>
+          <h3 className="m-0 pb-1 pt-4 text-[18px] font-black leading-[1.7] text-[#04202E]">{a.name}</h3>
+          <p className="m-0 line-clamp-2 min-h-[52px] text-[13px] font-medium leading-[2] text-[#1F3E4D]">
             {a.description || "برای این افزودنی هنوز توضیحی ثبت نشده — سوالی داری قبل از خرید بهمون پیام بده."}
           </p>
-          <div className="flex items-center justify-between pb-3 pt-2">
-            <span className="text-[16px] font-black text-[#04202E]">
-              {out ? <span className="opacity-60">ناموجوده</span> : (
-                <>
-                  {money(a.priceToman)}
-                  <span className="ps-1 text-[11px] font-bold text-[#4A6572]">تومان</span>
-                </>
-              )}
-            </span>
+          <div className="flex items-center justify-between pb-3 pt-2.5">
+            {priceNode({ big: true })}
             <button
               type="button"
               onClick={() => setOpen(true)}
-              className="text-[12px] font-extrabold text-[#006387] underline underline-offset-4"
+              className="flex h-9 items-center gap-1 rounded-full border border-[#CFE6EF] bg-[#F8FDFF] px-3.5 text-[11.5px] font-extrabold text-[#0087B8] transition-colors hover:border-[#9FD9F0]"
             >
               جزئیات و عکس
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M15 6l-6 6 6 6" />
+              </svg>
             </button>
           </div>
           {out ? (
             <span className="flex h-12 items-center justify-center rounded-full bg-[#F2FAFD] text-[13px] font-extrabold text-[#4A6572]">فعلاً ناموجوده</span>
           ) : qty > 0 ? (
-            <span className="flex h-12 items-center justify-center rounded-full border-[1.5px] border-[#00ABE7] bg-[#E3F6FD] text-[13px] font-extrabold text-[#006387]">✓ کنار هدیه‌ته</span>
+            stepperNode({ wide: true })
           ) : (
             <button
               type="button"
               onClick={add}
-              className="flex h-12 items-center justify-center rounded-full bg-[#00ABE7] text-[13.5px] font-extrabold text-[#04202E] transition-transform hover:scale-[1.02] active:scale-95"
+              className="flex h-12 items-center justify-center rounded-full bg-[#00ABE7] text-[14px] font-extrabold text-[#04202E] transition-transform hover:scale-[1.02] active:scale-95"
             >
               + بذارش کنار هدیه
             </button>
@@ -332,38 +375,44 @@ function AddonCard({ a, desktop = false }: { a: CatalogEntry; desktop?: boolean 
 
   return (
     <>
-      <div
-        className="flex items-center gap-3 rounded-[22px] border-[1.5px] bg-white px-3.5 py-3"
-        style={{ borderColor: qty > 0 ? "#00ABE7" : "#DDEEF5", opacity: out ? 0.55 : 1 }}
+      <article
+        className="flex items-center gap-3 rounded-[24px] border-[1.5px] bg-white p-3"
+        style={{ borderColor: qty > 0 ? "#9FD9F0" : "#DDEEF5", opacity: out ? 0.6 : 1 }}
       >
-        {tile("h-16 w-16", "text-2xl")}
-        <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-          <span className="text-[14.5px] font-extrabold text-[#04202E]">{a.name}</span>
-          <span className="text-[12px] font-bold text-[#4A6572]">
-            {out ? "ناموجوده" : `${money(a.priceToman)} تومان`}
+        {/* کل ناحیه‌ی اطلاعات = یک هدف لمسی بزرگ (≥۴۴px) → شیت جزئیات */}
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          aria-label={`جزئیات و عکس ${a.name}`}
+          className="flex min-w-0 flex-1 items-center gap-3 text-right"
+        >
+          {tile("h-[72px] w-[72px]", "text-[28px]")}
+          <span className="flex min-w-0 flex-1 flex-col items-start gap-1">
+            <span className="w-full truncate text-[15px] font-black leading-[1.7] text-[#04202E]">{a.name}</span>
+            {priceNode()}
+            <span className="flex items-center gap-0.5 text-[11px] font-extrabold text-[#0087B8]">
+              جزئیات و عکس
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M15 6l-6 6 6 6" />
+              </svg>
+            </span>
           </span>
-          <button
-            type="button"
-            onClick={() => setOpen(true)}
-            className="w-fit text-[11.5px] font-extrabold text-[#006387] underline underline-offset-4"
-          >
-            جزئیات و عکس
-          </button>
-        </div>
+        </button>
         {out ? (
-          <span className="shrink-0 rounded-full bg-[#F2FAFD] px-3 py-1.5 text-[11px] font-extrabold text-[#4A6572]">ناموجوده</span>
+          <span className="shrink-0 rounded-full bg-[#F2FAFD] px-3 py-2 text-[11px] font-extrabold text-[#4A6572]">ناموجوده</span>
         ) : qty > 0 ? (
-          <span className="shrink-0 rounded-full bg-[#E3F6FD] px-3 py-1.5 text-[11px] font-extrabold text-[#006387]">✓ کنار هدیه‌ته</span>
+          stepperNode()
         ) : (
           <button
             type="button"
             onClick={add}
-            className="shrink-0 rounded-full bg-[#00ABE7] px-4 py-2 text-[12px] font-extrabold text-[#04202E] transition-transform active:scale-95"
+            aria-label={`افزودن ${a.name} کنار هدیه`}
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#00ABE7] text-[22px] font-black leading-none text-white transition-transform active:scale-90"
           >
-            + بذارش کنار هدیه
+            +
           </button>
         )}
-      </div>
+      </article>
       {sheet}
     </>
   );

@@ -499,46 +499,57 @@ export function MobileExtras() {
             <h2 className="m-0 text-lg font-black">افزودنی‌ها</h2>
             <span className="text-[12px] font-bold text-[#4A6572]">کنار هدیه‌ت بذاریم تو جعبه</span>
           </div>
-          <div className="mt-2.5 flex flex-col gap-2">
+          <div className="mt-2.5 flex flex-col gap-2.5">
             {catalogAddons.map((a) => {
               const q = addonQty(a.variantId);
               const out = !a.inStock;
               return (
                 <div
                   key={a.variantId}
-                  className="flex items-center gap-3 rounded-[22px] border-[1.5px] bg-white px-3.5 py-3"
-                  style={{ borderColor: q > 0 ? "#00ABE7" : "#DDEEF5", opacity: out ? 0.55 : 1 }}
+                  className="flex items-center gap-3 rounded-[24px] border-[1.5px] bg-white p-3"
+                  style={{ borderColor: q > 0 ? "#9FD9F0" : "#DDEEF5", opacity: out ? 0.6 : 1 }}
                 >
-                  <div className="flex h-[52px] w-[52px] shrink-0 items-center justify-center overflow-hidden rounded-[16px] bg-[#F2FAFD] text-2xl">
-                    {a.image ? (
-                       
-                      <img src={a.image} alt={a.name} className="h-full w-full object-cover" />
-                    ) : (
-                      <span aria-hidden="true">{a.emoji || "🎁"}</span>
-                    )}
-                  </div>
-                  <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-                    <span className="text-[14.5px] font-extrabold text-[#04202E]">{a.name}</span>
-                    <span className="text-[12px] font-bold text-[#4A6572]">
-                      {out ? "ناموجود" : `${money(a.priceToman)} تومان`}
+                  <button
+                    type="button"
+                    onClick={() => setDetail(a)}
+                    aria-label={`جزئیات و عکس ${a.name}`}
+                    className="flex min-w-0 flex-1 items-center gap-3 text-right"
+                  >
+                    <div className="flex h-[68px] w-[68px] shrink-0 items-center justify-center overflow-hidden rounded-[18px] bg-[#F2FAFD] text-[26px]">
+                      {a.image ? (
+                        <img src={a.image} alt={a.name} className="h-full w-full object-cover" />
+                      ) : (
+                        <span aria-hidden="true">{a.emoji || "🎁"}</span>
+                      )}
+                    </div>
+                    <span className="flex min-w-0 flex-1 flex-col items-start gap-1">
+                      <span className="w-full truncate text-[15px] font-black leading-[1.7] text-[#04202E]">{a.name}</span>
+                      {out ? (
+                        <span className="text-[13.5px] font-black text-[#4A6572] opacity-70">فعلاً ناموجوده</span>
+                      ) : (
+                        <span className="flex items-baseline gap-1">
+                          <span className="text-[15.5px] font-black text-[#04202E]">{money(a.priceToman)}</span>
+                          <span className="text-[10.5px] font-bold text-[#4A6572]">تومان</span>
+                        </span>
+                      )}
+                      <span className="flex items-center gap-0.5 text-[11px] font-extrabold text-[#0087B8]">
+                        جزئیات و عکس
+                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                          <path d="M15 6l-6 6 6 6" />
+                        </svg>
+                      </span>
                     </span>
-                    <button
-                      type="button"
-                      onClick={() => setDetail(a)}
-                      className="w-fit text-[11.5px] font-extrabold text-[#006387] underline underline-offset-4"
-                    >
-                      جزئیات و عکس
-                    </button>
-                  </div>
+                  </button>
                   {out ? (
-                    <span className="rounded-full bg-[#F2FAFD] px-3 py-1.5 text-[11px] font-extrabold text-[#4A6572]">ناموجوده</span>
+                    <span className="shrink-0 rounded-full bg-[#F2FAFD] px-3 py-2 text-[11px] font-extrabold text-[#4A6572]">ناموجوده</span>
                   ) : q === 0 ? (
                     <button
                       type="button"
                       onClick={() => addAddon(a.variantId)}
-                      className="rounded-full bg-[#00ABE7] px-4 py-2 text-[12.5px] font-extrabold text-[#04202E] transition-transform active:scale-95"
+                      aria-label={`افزودن ${a.name} کنار هدیه`}
+                      className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#00ABE7] text-[22px] font-black leading-none text-white transition-transform active:scale-90"
                     >
-                      + اضافه کن
+                      +
                     </button>
                   ) : (
                     <Counter
@@ -917,10 +928,10 @@ export function MobileCheckout() {
       <div className="px-5 pb-2 pt-[22px] text-lg font-extrabold">گیرنده‌ی هدیه</div>
       <div className="mx-5 rounded-[26px] border border-[#DDEEF5] bg-white px-4 py-1">
         <Field
-          label="اسم گیرنده"
+          label="نام و نام خانوادگی گیرنده"
           value={receiver.name}
           onChange={(v) => setReceiver({ name: v })}
-          placeholder="اسم دوستت"
+          placeholder="مثلاً آرمان رفیقی"
         />
         <Field
           label="شماره‌ی موبایل گیرنده"
@@ -1120,16 +1131,14 @@ function OrdererSection() {
   const prefilled = useRef(false);
   useEffect(() => {
     if (prefilled.current) return;
-    if (user && !orderer.firstName && !orderer.lastName) {
-      const parts = user.name.trim().split(/\s+/);
+    if (user && !orderer.name) {
       setOrderer({
-        firstName: orderer.firstName || parts[0] || "",
-        lastName: orderer.lastName || parts.slice(1).join(" ") || "",
+        name: orderer.name || user.name,
         phone: orderer.phone || user.phone,
       });
       prefilled.current = true;
     }
-  }, [user, orderer.firstName, orderer.lastName, orderer.phone, setOrderer]);
+  }, [user, orderer.name, orderer.phone, setOrderer]);
 
   // verify mini-flow
   const [phase, setPhase] = useState<"idle" | "code">("idle");
@@ -1145,7 +1154,7 @@ function OrdererSection() {
   }, [seconds]);
 
   const phoneReady = /^09\d{9}$/.test(orderer.phone.replace(/[۰-۹]/g, (d) => String("۰۱۲۳۴۵۶۷۸۹".indexOf(d))).replace(/\D/g, ""));
-  const nameReady = orderer.firstName.trim() !== "" && orderer.lastName.trim() !== "";
+  const nameReady = orderer.name.trim().length >= 3;
 
   const requestCode = async () => {
     setError("");
@@ -1193,7 +1202,7 @@ function OrdererSection() {
           phone: orderer.phone,
           code: digits,
           purpose: "checkout_orderer",
-          name: `${orderer.firstName} ${orderer.lastName}`.trim(),
+          name: orderer.name.trim(),
         }),
       });
       const body = (await res.json().catch(() => ({}))) as { ok?: boolean; user?: { phone: string; name: string }; error?: string };
@@ -1202,7 +1211,7 @@ function OrdererSection() {
         return;
       }
       // حساب ساخته/وصل شد + لاگین (سشن ۳۰ روزه کوکی HttpOnly)
-      login(body.user?.phone ?? orderer.phone, body.user?.name ?? `${orderer.firstName} ${orderer.lastName}`.trim());
+      login(body.user?.phone ?? orderer.phone, body.user?.name ?? orderer.name.trim());
       setPhase("idle");
       setDevCode("");
       toast({
@@ -1226,8 +1235,7 @@ function OrdererSection() {
         <div className="pb-1 pt-3 text-[12.5px] font-medium leading-[1.9] text-[#4A6572]">
           این سفارش به اسم خودت ثبت می‌شه — شماره‌ش می‌تونه با شماره گیرنده فرق کنه (هدیه برای دیگری).
         </div>
-        <Field label="نام" value={orderer.firstName} onChange={(v) => setOrderer({ firstName: v })} placeholder="نام خودت" />
-        <Field label="نام خانوادگی" value={orderer.lastName} onChange={(v) => setOrderer({ lastName: v })} placeholder="نام خانوادگی خودت" />
+        <Field label="نام و نام خانوادگی" value={orderer.name} onChange={(v) => setOrderer({ name: v })} placeholder="مثلاً سارا محمدی" />
         <Field label="شماره‌ی موبایل سفارش‌دهنده" value={orderer.phone} onChange={(v) => setOrderer({ phone: v })} placeholder="۰۹۱۲ ۱۲۳ ۴۵۶۷" tel />
         <div className="py-3.5">
           {verified ? (
@@ -1294,7 +1302,7 @@ function OrdererSection() {
                 {busy ? "در حال ارسال…" : "دریافت کد تأیید"}
               </button>
               {(!phoneReady || !nameReady) && (
-                <div className="text-center text-[11.5px] font-semibold text-[#7C99A7]">نام، نام خانوادگی و شماره موبایل خودت رو کامل کن</div>
+                <div className="text-center text-[11.5px] font-semibold text-[#7C99A7]">نام و نام خانوادگی و شماره موبایل خودت رو کامل کن</div>
               )}
             </div>
           )}

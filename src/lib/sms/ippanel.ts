@@ -1,16 +1,20 @@
-// ── sms/ippanel.ts — ippanel.com adapter (owner round: بخش پیامک) ──
-// docs: https://docs.ippanel.com — REST v1 at https://api.ippanel.com/api/v1.
-// Auth = the API key itself in the Authorization header (no Bearer prefix).
-// Sending is PATTERN-first (owner: «ارسال ها بر اساس پترن هست تا سریعتر ارسال
-// بشه»): POST /sms/pattern/send with { code, sender, recipient, variable }.
-// The docs site hosts the same contract at /sms/pattern/send/send on some
-// versions — we probe both, then remember the one that worked.
-// Every call is short-timeout; failures throw so the outbox retry/backoff and
-// the admin report stay honest (no silent fake sends).
+// ── sms/ippanel.ts — ippanel.com EDGE API adapter (owner round 26) ──
+// Official docs: https://ippanelcom.github.io/Edge-Document/docs
+//   Base URL : https://edge.ippanel.com/v1
+//   Auth     : Authorization: <apikey|token> (raw value — no Bearer prefix)
+// ONE unified send endpoint, «۲ روش» per the owner:
+//   POST /api/send  sending_type:"pattern"    → pattern (پترن) send — fast path
+//   POST /api/send  sending_type:"webservice" → plain text send
+//   GET  /api/payment/credit/mine             → panel credit (admin card)
+// Success envelope: { data: { message_outbox_ids: [id] }, meta: { status: true,
+//   message: "انجام شد", message_code: "200-1" } } — business errors keep the
+//   same envelope with meta.status=false and a PERSIAN meta.message which we
+//   surface verbatim, so the admin SMS report shows the provider's own reason
+//   (e.g. «اطلاعات وارد شده صحیح نمی باشد» on a bad key). Short timeouts;
+//   failures throw so the outbox retry/backoff and reports stay honest.
 import { env } from "../env";
 
-const BASE = "https://api.ippanel.com/api/v1";
-let patternPath: "/sms/pattern/send/send" | "/sms/pattern/send" | null = null;
+const BASE = "https://edge.ippanel.com/v1";
 
 function headers(): Record<string, string> {
   return {
@@ -24,34 +28,45 @@ export function ippanelConfigured(): boolean {
   return Boolean(env.IPPANEL_API_KEY);
 }
 
-interface IppanelEnvelope {
-  status?: string; // "OK" | "ERROR"
-  code?: number; // 200 on success
+interface EdgeEnvelope {
   data?: unknown;
-  meta?: { message?: string; status?: number } | null;
-  errorMessage?: string;
+  meta?: { status?: boolean; message?: string; message_code?: string } | null;
 }
 
-async function call(path: string, init: RequestInit): Promise<IppanelEnvelope> {
-  const res = await fetch(`${BASE}${path}`, {
-    ...init,
-    headers: { ...headers(), ...(init.headers ?? {}) },
-    signal: AbortSignal.timeout(10_000),
-    cache: "no-store",
-  });
-  const body = (await res.json().catch(() => ({}))) as IppanelEnvelope;
-  // ippanel answers non-2xx for quota/auth errors with an envelope inside
-  if (!res.ok && !body.status && !body.code) {
-    throw new Error(`ippanel_http_${res.status}`);
+async function call(path: string, init: RequestInit): Promise<EdgeEnvelope> {
+  let res: Response;
+  try {
+    res = await fetch(`${BASE}${path}`, {
+      ...init,
+      headers: { ...headers(), ...(init.headers ?? {}) },
+      signal: AbortSignal.timeout(10_000),
+      cache: "no-store",
+    });
+  } catch (e) {
+    // network/DNS/timeout — name it so the report is readable at a glance
+    throw new Error(`ippanel_network_${e instanceof Error && e.name === "TimeoutError" ? "timeout" : "error"}`);
   }
-  return body;
+  const body = (await res.json().catch(() => ({}))) as EdgeEnvelope;
+  // 200 + meta.status=true is the ONLY success shape (docs §Responses);
+  // 401/422 keep the same envelope with meta.status=false + Persian message.
+  if (body.meta?.status === true) return body;
+  const code = body.meta?.message_code ? `[${body.meta.message_code}] ` : "";
+  const msg = body.meta?.message ? ` — ${body.meta.message}` : "";
+  throw new Error(`ippanel_${res.status} ${code}${msg}`.trim().slice(0, 180));
 }
 
-function assertOk(b: IppanelEnvelope): void {
-  if (b.status && b.status.toUpperCase() !== "OK") {
-    throw new Error(`ippanel_${b.status}${b.errorMessage ? `_${b.errorMessage}` : ""}`);
-  }
-  if (b.code && b.code !== 200) throw new Error(`ippanel_code_${b.code}`);
+/**
+ * E.164 — the Edge API requires +98… format for BOTH the sender line and the
+ * recipients. Internal storage uses 09xxxxxxxxx; panel lines may be configured
+ * as 3000505 / +983000505 / 983000505 / ۰۹۱۲… — all normalize here.
+ */
+function toE164(raw: string): string {
+  let s = raw.replace(/[۰-۹]/g, (d) => String("۰۱۲۳۴۵۶۷۸۹".indexOf(d))).replace(/[^\d+]/g, "");
+  if (!s) return "";
+  if (s.startsWith("+")) return s;
+  if (s.startsWith("00")) return `+${s.slice(2)}`;
+  if (s.startsWith("98")) return `+${s}`;
+  return `+98${s.startsWith("0") ? s.slice(1) : s}`;
 }
 
 export interface PatternSendResult {
@@ -66,31 +81,21 @@ export async function ippanelSendPattern(
   recipient: string,
   variables: Record<string, string>,
 ): Promise<PatternSendResult> {
-  const payload = JSON.stringify({
-    code: patternCode,
-    sender: sender || undefined,
-    recipient,
-    variable: variables,
+  const body = await call("/api/send", {
+    method: "POST",
+    body: JSON.stringify({
+      sending_type: "pattern",
+      from_number: toE164(sender) || undefined,
+      code: patternCode,
+      recipients: [toE164(recipient)],
+      params: variables,
+    }),
   });
-  // probe both documented path variants once, then stick with the winner
-  const candidates: ("/sms/pattern/send/send" | "/sms/pattern/send")[] = patternPath
-    ? [patternPath]
-    : ["/sms/pattern/send/send", "/sms/pattern/send"];
-  let lastErr: unknown = new Error("ippanel_no_path");
-  for (const path of candidates) {
-    try {
-      const body = await call(path, { method: "POST", body: payload });
-      assertOk(body);
-      patternPath = path;
-      const d = body.data as { message_id?: number | string; id?: number | string } | null;
-      return { messageId: String(d?.message_id ?? d?.id ?? ""), provider: "ippanel_pattern" };
-    } catch (e) {
-      lastErr = e;
-      const msg = String(e);
-      if (!msg.includes("404")) throw e; // real error (auth/quota/network) — surface it
-    }
-  }
-  throw lastErr;
+  const ids = (body.data as { message_outbox_ids?: unknown[] } | null)?.message_outbox_ids;
+  return {
+    messageId: String(Array.isArray(ids) && ids.length ? ids[0] : ""),
+    provider: "ippanel_pattern",
+  };
 }
 
 export interface PlainSendResult {
@@ -104,26 +109,38 @@ export async function ippanelSendPlain(
   sender: string,
   recipient: string,
 ): Promise<PlainSendResult> {
-  const body = await call("/sms/send/send", {
+  const body = await call("/api/send", {
     method: "POST",
-    body: JSON.stringify({ recipient: [recipient], sender: sender || undefined, message: text }),
+    body: JSON.stringify({
+      sending_type: "webservice",
+      from_number: toE164(sender) || undefined,
+      message: text,
+      params: { recipients: [toE164(recipient)] },
+    }),
   });
-  assertOk(body);
-  const d = body.data as { message_id?: number | string; id?: number | string } | null;
-  return { messageId: String(d?.message_id ?? d?.id ?? ""), provider: "ippanel" };
+  const ids = (body.data as { message_outbox_ids?: unknown[] } | null)?.message_outbox_ids;
+  return {
+    messageId: String(Array.isArray(ids) && ids.length ? ids[0] : ""),
+    provider: "ippanel",
+  };
 }
 
-/** Panel credit (تومان-ish unit per ippanel) — admin «اعتبار پنل» card. */
+/** Panel credit — admin «اعتبار پنل» card (best-effort, never blocks sending). */
 export async function ippanelCredit(): Promise<number | null> {
-  if (!ippanelConfigured()) return null;
+  const d = await ippanelCreditDiag();
+  return d.ok ? (d.credit ?? null) : null;
+}
+
+/** Credit + RAW connection diagnosis — admin SMS tab shows the provider's own
+ * error text (e.g. 502 outage / bad key) instead of a silent «—». */
+export async function ippanelCreditDiag(): Promise<{ ok: boolean; credit?: number; error?: string }> {
+  if (!ippanelConfigured()) return { ok: false, error: "IPPANEL_API_KEY تنظیم نشده" };
   try {
-    const body = await call("/sms/account/credit", { method: "GET" });
-    assertOk(body);
-    const d = body.data as { credit?: number | string } | Record<string, unknown> | null;
-    const raw = typeof d === "object" && d !== null ? (d as { credit?: number | string }).credit : undefined;
-    const n = Number(raw);
-    return Number.isFinite(n) ? n : null;
-  } catch {
-    return null; // credit display is best-effort, never blocks sending
+    const body = await call("/api/payment/credit/mine", { method: "GET" });
+    const d = body.data as { credit?: number | string } | null;
+    const n = Number(d?.credit);
+    return Number.isFinite(n) ? { ok: true, credit: n } : { ok: false, error: "پاسخ غیرمنتظره سرویس" };
+  } catch (e) {
+    return { ok: false, error: String(e instanceof Error ? e.message : e).slice(0, 160) };
   }
 }

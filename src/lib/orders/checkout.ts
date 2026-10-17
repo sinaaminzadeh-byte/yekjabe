@@ -29,17 +29,18 @@ export const checkoutSchema = z.object({
     name: z.string().trim().min(1).max(40),
     phone: z.string().optional().default(""),
   }),
-  // سفارش‌دهنده (buyer) — نام و نام خانوادگی و موبایل خودِ مشتری؛ مستقل از گیرنده.
+  // سفارش‌دهنده (buyer) — «نام و نام خانوادگی» ONE field + موبایل خودِ مشتری؛
+  // مستقل از گیرنده. Owner round 26: two fields merged into one; the server
+  // splits name → ordererFirstName/LastName for storage/reporting.
   // OPTIONAL در اسکیمای خام (quote قبل از پر شدن فرم هم کار کند) — سخت‌گیری کامل
-  // (نام‌ها + شماره معتبر + تطابق سشن وریفای‌شده) در createOrder انجام می‌شود.
+  // (نام + شماره معتبر + تطابق سشن وریفای‌شده) در createOrder انجام می‌شود.
   orderer: z
     .object({
-      firstName: z.string().trim().max(40).default(""),
-      lastName: z.string().trim().max(40).default(""),
+      name: z.string().trim().max(80).default(""),
       phone: z.string().default(""),
     })
     .optional()
-    .default({ firstName: "", lastName: "", phone: "" }),
+    .default({ name: "", phone: "" }),
   recipient: z.object({
     name: z.string().trim().min(1).max(40),
     phone: z.string(),
@@ -135,8 +136,8 @@ export async function createOrder(raw: unknown, ctx: CheckoutCtx): Promise<Check
   // ── orderer completeness + OTP-verified session gate (owner: «تا قبل از
   // تأیید موفق شماره، امکان رفتن به درگاه پرداخت وجود نداشته باشه») ──
   // parseCheckout already normalizes + validates the phone shape
-  if (!input.orderer.firstName || !input.orderer.lastName || !input.orderer.phone) {
-    throw new AppError(400, "bad_input", { fields: ["orderer: نام، نام خانوادگی و موبایل سفارش‌دهنده لازم است"] });
+  if (!input.orderer.name.trim() || !input.orderer.phone) {
+    throw new AppError(400, "bad_input", { fields: ["orderer: نام و نام خانوادگی و موبایل سفارش‌دهنده لازم است"] });
   }
   if (!ctx.sessionPhone) {
     throw new AppError(401, "orderer_not_verified");
@@ -187,8 +188,10 @@ export async function createOrder(raw: unknown, ctx: CheckoutCtx): Promise<Check
           city: input.recipient.city,
           address: input.recipient.address,
           postalCode: input.recipient.postalCode,
-          ordererFirstName: input.orderer.firstName,
-          ordererLastName: input.orderer.lastName,
+          // «نام و نام خانوادگی» one UI field → split on the first space for
+          // the two stored columns (single-word names keep lastName empty)
+          ordererFirstName: input.orderer.name.trim().split(/\s+/)[0] ?? "",
+          ordererLastName: input.orderer.name.trim().split(/\s+/).slice(1).join(" "),
           ordererPhone: input.orderer.phone,
           message: input.gift.message,
           cardPasswordHash: hashGiftPassword(input.gift.password),
