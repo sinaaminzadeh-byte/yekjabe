@@ -20,3 +20,5 @@ skills/
 .zscripts/
 tool-results/
 agent-ctx/
+.netlify/
+tsconfig.tsbuildinfo

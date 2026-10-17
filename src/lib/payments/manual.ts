@@ -1,7 +1,9 @@
 // ── payments/manual.ts — card-to-card receipt pipeline (guide §4.9) ──
 // ≤5MB, magic-byte sniff (jpeg/png/webp), sha256 dedupe, max 3 attempts.
 // Storage: local .data/receipts in the sandbox; Arvan S3 presigned at deploy —
-// the Payment.receiptKey seam is identical in both worlds.
+// the Payment.receiptKey seam is identical in both worlds. All disk access goes
+// through dataFile() so serverless deploys can point DATA_ROOT at /tmp.
+import { dataFile } from "@/lib/data-root";
 
 export const RECEIPT_MAX_BYTES = 5 * 1024 * 1024;
 
@@ -21,7 +23,7 @@ export async function storeReceiptFile(orderCode: string, buf: Buffer, mime: str
   const path = await import("path");
   const { randomUUID } = await import("crypto");
   const key = `receipts/${orderCode}/${randomUUID()}.${EXT[mime] ?? "bin"}`;
-  const abs = path.join(process.cwd(), ".data", key);
+  const abs = dataFile(key);
   await mkdir(path.dirname(abs), { recursive: true });
   await writeFile(abs, buf);
   return key;
@@ -30,9 +32,8 @@ export async function storeReceiptFile(orderCode: string, buf: Buffer, mime: str
 export async function readReceiptFile(key: string): Promise<Buffer | null> {
   try {
     const { readFile } = await import("fs/promises");
-    const path = await import("path");
     if (key.includes("..") || !key.startsWith("receipts/")) return null; // path-traversal guard
-    return await readFile(path.join(process.cwd(), ".data", key));
+    return await readFile(dataFile(key));
   } catch {
     return null;
   }
@@ -41,9 +42,8 @@ export async function readReceiptFile(key: string): Promise<Buffer | null> {
 export async function deleteReceiptFile(key: string): Promise<void> {
   try {
     const { rm } = await import("fs/promises");
-    const path = await import("path");
     if (key.includes("..") || !key.startsWith("receipts/")) return;
-    await rm(path.join(process.cwd(), ".data", key), { force: true });
+    await rm(dataFile(key), { force: true });
   } catch {
     /* best effort */
   }

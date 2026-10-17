@@ -1,0 +1,20 @@
+# ── Netlify deployment (live mirror of the Coolify single-box target) ──
+# Same `next build`, minus standalone packaging — @netlify/plugin-nextjs turns
+# .next into serverless functions itself. Server-side state (SQLite + uploaded
+# files) lives on the writable /tmp mount:
+#   - db bootstrap: src/instrumentation.ts (bundles db → /tmp on cold start)
+#   - file store:   src/lib/data-root.ts (DATA_ROOT=/tmp/.data in the site env)
+# Secrets/env are set in the Netlify site env — never in this file:
+#   DATABASE_URL, DATA_ROOT, SITE_URL, SESSION_SECRET, ADMIN_PANEL_PASSWORD,
+#   CRON_SECRET (+ later: KAVENEGAR_API_KEY, ZARINPAL_MERCHANT_ID)
+
+[build]
+  command = "bun x prisma generate && bun x next build"
+  publish = ".next"
+
+[build.environment]
+  NODE_VERSION = "22"
+  NEXT_TELEMETRY_DISABLED = "1"
+
+[[plugins]]
+  package = "@netlify/plugin-nextjs"

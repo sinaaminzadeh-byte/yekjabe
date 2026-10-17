@@ -2,6 +2,7 @@
 // Sandbox: files live under .data/<folder>/…; at deploy the same storage keys
 // move to Arvan S3 behind the identical seam (mirrors payments/manual.ts).
 // Magic-byte sniffing is THE single source in payments/manual.ts — reused here.
+import { dataFile } from "@/lib/data-root";
 
 export const UPLOAD_MAX_BYTES = 5 * 1024 * 1024; // ۵ مگابایت
 
@@ -12,7 +13,7 @@ export async function storeMediaFile(folder: "experiences" | "refunds", stem: st
   const { mkdir, writeFile } = await import("fs/promises");
   const path = await import("path");
   const key = `${folder}/${stem}.${EXT[mime] ?? "bin"}`;
-  const abs = path.join(process.cwd(), ".data", key);
+  const abs = dataFile(key);
   await mkdir(path.dirname(abs), { recursive: true });
   await writeFile(abs, buf);
   return key;
@@ -21,9 +22,8 @@ export async function storeMediaFile(folder: "experiences" | "refunds", stem: st
 export async function deleteMediaFile(key: string): Promise<void> {
   try {
     const { rm } = await import("fs/promises");
-    const path = await import("path");
     if (key.includes("..") || !(key.startsWith("experiences/") || key.startsWith("refunds/"))) return; // path-traversal guard
-    await rm(path.join(process.cwd(), ".data", key), { force: true });
+    await rm(dataFile(key), { force: true });
   } catch {
     /* best effort */
   }

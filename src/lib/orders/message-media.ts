@@ -4,6 +4,7 @@
 // NEVER served from /public — every read goes through an authorized API route.
 // Magic-byte sniffing is mandatory (never trust filename/mime).
 import { randomUUID } from "crypto";
+import { dataFile } from "@/lib/data-root";
 
 export const MESSAGE_MEDIA_MAX_BYTES = 10 * 1024 * 1024; // ۱۰ مگابایت per file
 export const MESSAGE_MEDIA_MAX_FILES = 3; // per order
@@ -61,7 +62,7 @@ export async function storeMessageFile(code: string, buf: Buffer, mime: string):
   if (!/^PN-\d{6}-\d{4}$/.test(code)) throw new Error("bad_code");
   const ext = EXT[mime] ?? "bin";
   const key = `messages/${code}/${randomUUID()}.${ext}`;
-  const abs = path.join(process.cwd(), ".data", key);
+  const abs = dataFile(key);
   await mkdir(path.dirname(abs), { recursive: true });
   await writeFile(abs, buf);
   return key;
@@ -72,8 +73,7 @@ export async function readMessageFile(key: string): Promise<Buffer | null> {
   try {
     if (!validMessageKey(key)) return null;
     const { readFile } = await import("fs/promises");
-    const path = await import("path");
-    return await readFile(path.join(process.cwd(), ".data", key));
+    return await readFile(dataFile(key));
   } catch {
     return null;
   }
@@ -83,8 +83,7 @@ export async function deleteMessageFile(key: string): Promise<void> {
   try {
     if (!validMessageKey(key)) return; // path-traversal guard
     const { rm } = await import("fs/promises");
-    const path = await import("path");
-    await rm(path.join(process.cwd(), ".data", key), { force: true });
+    await rm(dataFile(key), { force: true });
   } catch {
     /* best effort — the purge job re-verifies and retries */
   }

@@ -9,8 +9,44 @@ const securityHeaders = [
   { key: "Permissions-Policy", value: "camera=(self), microphone=(self), geolocation=()" },
 ];
 
+// Netlify builds run through @netlify/plugin-nextjs, which packages its own
+// serverless functions — standalone output stays exclusive to the sandbox /
+// Coolify single-box start (`bun .next/standalone/server.js`).
+const isNetlifyBuild = process.env.NETLIFY === "true";
+
 const nextConfig: NextConfig = {
-  output: "standalone",
+  ...(isNetlifyBuild ? {} : { output: "standalone" as const }),
+  // Ship the seeded SQLite db + Prisma client/engine inside the server bundle —
+  // the serverless cold start copies the db to /tmp (see instrumentation.ts).
+  outputFileTracingIncludes: {
+    "/**": [
+      "./db/**",
+      "./prisma/schema.prisma",
+      "./node_modules/.prisma/**",
+    ],
+  },
+  // Netlify functions cap at 250MB unzipped. The file tracer cannot resolve
+  // `process.cwd()` paths, so it over-copies sandbox dirs and build-time-only
+  // packages — everything below is dead weight inside the SSR function.
+  outputFileTracingExcludes: {
+    "/**": [
+      "./node_modules/@prisma/engines/**", // CLI/schema engines — runtime needs only .prisma query engine
+      "./node_modules/typescript/**", // build-time only
+      "./node_modules/@img/**", // sharp/vips — Netlify image CDN handles /_next/image
+      "./node_modules/sharp/**",
+      "./skills/**", // sandbox-only dirs, never part of the app
+      "./extracted/**",
+      "./upload/**",
+      "./tool-results/**",
+      "./design-ref/**",
+      "./docs/**",
+      "./agent-ctx/**",
+      "./examples/**",
+      "./mini-services/**",
+      "./.zscripts/**",
+      "./scripts/**",
+    ],
+  },
   typescript: {
     ignoreBuildErrors: false,
   },
