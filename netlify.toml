@@ -1,15 +1,21 @@
 # ── Netlify deployment (live mirror of the Coolify single-box target) ──
 # Same `next build`, minus standalone packaging — @netlify/plugin-nextjs turns
-# .next into serverless functions itself. Server-side state (SQLite + uploaded
-# files) lives on the writable /tmp mount:
-#   - db bootstrap: src/instrumentation.ts (bundles db → /tmp on cold start)
-#   - file store:   src/lib/data-root.ts (DATA_ROOT=/tmp/.data in the site env)
-# Secrets/env are set in the Netlify site env — never in this file:
-#   DATABASE_URL, DATA_ROOT, SITE_URL, SESSION_SECRET, ADMIN_PANEL_PASSWORD,
-#   CRON_SECRET (+ later: KAVENEGAR_API_KEY, ZARINPAL_MERCHANT_ID)
+# .next into serverless functions itself.
+#
+# The build is SELF-CONTAINED: db/custom.db is gitignored (sandbox data stays
+# out of git), so the buildbot creates and seeds a FRESH SQLite at build time.
+# DATABASE_URL is exported inline (absolute $PWD path) — this never depends on
+# UI env injection. The seeded db ships inside the function bundle via
+# outputFileTracingIncludes; at cold start src/instrumentation.ts copies it to
+# the writable /tmp mount (deploy bundle is read-only). Uploaded files go to
+# DATA_ROOT (/tmp/.data) through the single seam in src/lib/data-root.ts.
+#
+# Site env (Netlify UI/API): DATA_ROOT, SITE_URL, SESSION_SECRET,
+# ADMIN_PANEL_PASSWORD, CRON_SECRET (+ later KAVENEGAR_API_KEY,
+# ZARINPAL_MERCHANT_ID). Secrets never live in this file.
 
 [build]
-  command = "bun x prisma generate && bun x next build"
+  command = "export DATABASE_URL=\"file:$PWD/db/custom.db\" && bun x prisma generate && bun x prisma db push --skip-generate && bun scripts/seed-commerce.ts && bun scripts/seed-blog.ts && bun x next build"
   publish = ".next"
 
 [build.environment]
