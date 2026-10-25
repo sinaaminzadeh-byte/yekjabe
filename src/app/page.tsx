@@ -37,6 +37,10 @@ import {
   ReviewsPage,
   ShippingPage,
 } from "@/components/shop/screens/info";
+// ── DESIGN PROTOTYPES (owner review) — delete these imports + the 2 route
+// cases + hash-route entries + footer links to remove the feature entirely ──
+import { DesignHeroPage } from "@/components/shop/screens/design-hero";
+import { DesignCheckoutPage } from "@/components/shop/screens/design-checkout";
 
 export default function PishnamApp() {
   // The app is state-driven (persisted store + hash route): render a branded
@@ -84,7 +88,13 @@ function NotFoundScreen() {
 
 function PishnamScreens() {
   const { route, query } = useHashRoute();
-  const standalone = route === "gift" || route === "pay-gateway" || route === "verify" || route === "gift-view";
+  const standalone =
+    route === "gift" ||
+    route === "pay-gateway" ||
+    route === "verify" ||
+    route === "gift-view" ||
+    route === "design-hero" || // DESIGN PROTOTYPE — no global chrome
+    route === "design-checkout";
   // the 4-step wizard has its own back button, step bar and sticky CTA —
   // the global bottom nav would sit on top of the CTA (both stick to bottom)
   const wizard = route === "pick" || route === "card" || route === "extras" || route === "checkout";
@@ -189,6 +199,11 @@ function PishnamScreens() {
         return <PostScreen slug={query.get("slug") ?? ""} />;
       case "legal":
         return <LegalPage doc={query.get("doc") ?? "privacy"} />;
+      // ── DESIGN PROTOTYPES (owner review, easy to delete) ──
+      case "design-hero":
+        return <DesignHeroPage />;
+      case "design-checkout":
+        return <DesignCheckoutPage />;
       case "about":
         return <AboutPage />;
       case "mission":

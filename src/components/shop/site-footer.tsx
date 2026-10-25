@@ -43,6 +43,12 @@ const GUIDE: LinkItem[] = [
   { label: "تماس با ما", go: () => navigate("contact") },
 ];
 
+// ── DESIGN PROTOTYPE links (owner review) — remove this block to delete ──
+const DESIGN: LinkItem[] = [
+  { label: "پیشنهادهای هیرو (۳ طرح)", go: () => navigate("design-hero") },
+  { label: "پیشنهادهای پرداخت (۲ سبک)", go: () => navigate("design-checkout") },
+];
+
 function FooterLink({ item }: { item: LinkItem }) {
   return (
     <button
@@ -86,6 +92,8 @@ export function SiteFooter() {
         <Col title="دسترسی سریع" items={QUICK} />
         <Col title="یک دوست" items={PISHNAM} />
         <Col title="راهنما" items={GUIDE} />
+        {/* DESIGN PROTOTYPE column (owner review) — remove to delete */}
+        <Col title="پیشنهادهای طراحی" items={DESIGN} />
 
         {/* contact */}
         <div className="flex min-w-[150px] flex-col gap-2.5">
