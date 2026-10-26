@@ -184,7 +184,7 @@ function TimelineRow({
         )}
         {isNow && o.status === "delivered" && (
           <span className="mt-1 w-fit rounded-[10px] bg-[#D7F5E4] px-2.5 py-1 text-[11.5px] font-bold text-[#04202E]">
-            {o.dir === "recv" ? "رمز کارت رو بزن و پیامت رو ببین!" : o.password ? `رمز کارت: ${o.password}` : ""}
+            "شماره‌ت رو تأیید کن و پیامت رو ببین!"
           </span>
         )}
       </div>
@@ -222,8 +222,8 @@ function PostcardCard({ o, compact = false }: { o: GiftOrder; compact?: boolean 
         <span className="rounded-full bg-[#E3F6FD] px-3 py-1 text-[12px] font-bold text-[#006387]">
           {OCCASIONS[o.occasion] ?? "همین‌طوری"}
         </span>
-        <span className="rounded-full bg-[#04202E] px-3 py-1 text-[12px] font-extrabold text-white">
-          رمز: {o.password || "—"}
+        <span className="rounded-full bg-[#E5F8EC] px-3 py-1 text-[12px] font-extrabold text-[#177A3D]">
+          نمایش امن با وریفای شماره
         </span>
         {o.anonymous && (
           <span className="rounded-full bg-[#FFE0EA] px-3 py-1 text-[12px] font-bold text-[#B02A52]">ناشناس</span>
@@ -358,7 +358,7 @@ const STEP_FA_SUB: Record<string, string> = {
   paid: "پرداخت تأیید شد؛ به‌زودی بسته‌بندی می‌شه.",
   preparing: "جعبه داره با دلسوزی بسته‌بندی می‌شه.",
   shipped: "جعبه تحویل پست شده و در راهه.",
-  delivered: "جعبه تحویل داده شد؛ نوبت رمز کارته!",
+  delivered: "جعبه تحویل داده شد؛ نوبت باز کردن پیام‌هاست!",
   failed: "پرداخت ناموفق بوده؛ می‌تونی دوباره امتحان کنی.",
   cancelled: "این سفارش لغو شده.",
   expired: "این سفارش منقضی شده.",
@@ -378,7 +378,7 @@ function CopyGiftButton({ o, dark = false }: { o: GiftOrder; dark?: boolean }) {
       type="button"
       onClick={async () => {
         const link = `${window.location.origin}/gift`;
-        const text = `یه بغل از یک دوست ♥\nهدیه‌ی شماره‌ی ${fa(o.no)} برای ${o.to}${o.password ? `\nرمز کارت: ${o.password}` : ""}\n${link}`;
+        const text = `یه بغل از یک دوست ♥\nهدیه‌ی شماره‌ی ${fa(o.no)} برای ${o.to}\nپیامش فقط با تأیید شماره موبایلش باز می‌شه\n${link}`;
         const ok = await copyText(text);
         if (ok) setBurst((n) => n + 1);
         toast(
@@ -386,7 +386,7 @@ function CopyGiftButton({ o, dark = false }: { o: GiftOrder; dark?: boolean }) {
             ? { title: "کپی شد ✓", description: "اطلاعات هدیه تو حافظه‌ست؛ براش بفرستش." }
             : {
                 title: "کپی نشد؛ دستی بردار:",
-                description: `هدیه‌ی ${fa(o.no)} برای ${o.to} · رمز: ${o.password || "بهار"}`,
+                description: `هدیه‌ی ${fa(o.no)} برای ${o.to} · yekdoost.ir/gift`,
               },
         );
       }}

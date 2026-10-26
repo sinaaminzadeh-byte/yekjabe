@@ -35,8 +35,6 @@ export type Route =
   | "blog"
   | "post"
   | "legal"
-  | "design-hero" // DESIGN PROTOTYPE — easy to delete
-  | "design-checkout" // DESIGN PROTOTYPE — easy to delete
   | "not-found";
 
 export const ROUTES: Route[] = [
@@ -66,8 +64,6 @@ export const ROUTES: Route[] = [
   "blog",
   "post",
   "legal",
-  "design-hero", // DESIGN PROTOTYPE — easy to delete
-  "design-checkout", // DESIGN PROTOTYPE — easy to delete
   "not-found",
 ];
 

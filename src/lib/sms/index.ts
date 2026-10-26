@@ -44,6 +44,16 @@ export const SMS_SEEDS: (SmsTemplateConfig & { isSystem: true })[] = [
     isSystem: true,
   },
   {
+    key: "otp_gift",
+    label: "کد تأیید باز کردن هدیه (گیرنده)",
+    description: "گیرنده‌ی جعبه در صفحه‌ی نمایش هدیه شماره‌اش را وارد می‌کند — این کد برای او فرستاده می‌شود",
+    patternCode: "",
+    variables: { code: "code" },
+    fallbackText: "یک دوست: کد باز کردن هدیه‌ات {code} است — این کد را با کسی به اشتراک نگذارید.",
+    enabled: true,
+    isSystem: true,
+  },
+  {
     key: "order_confirm",
     label: "ثبت سفارش (تکمیل خرید)",
     description: "بعد از ثبت موفق سفارش، به سفارش‌دهنده",

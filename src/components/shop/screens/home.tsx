@@ -18,6 +18,7 @@ import { fa, faPrice, money } from "@/lib/fa";
 import { FavHeart, FavoritesStrip } from "../fav";
 import { HomeStats, HomeBlog } from "../home-sections";
 import { SiteFooter } from "../site-footer";
+import { HeroSliderMobile, HeroSliderDesktop } from "../hero-slider";
 import {
   PLUSHES,
   BOX_PRICE,
@@ -59,51 +60,8 @@ export function MobileHome() {
         </div>
       </div>
 
-      {/* hero */}
-      <div className="relative mx-5 mt-2 min-h-[520px] overflow-hidden rounded-[32px] bg-[#00ABE7] p-6 pb-0 box-border">
-        <div className="absolute -bottom-[50px] -left-10 h-[290px] w-[290px] rounded-full bg-[#66CDF1]" />
-        <div className="absolute left-[22px] top-[18px]">
-          <HeartSticker size={34} fill="#fff" stroke="#04202E" strokeWidth={2.4} />
-        </div>
-        <div className="absolute left-[130px] top-[290px]">
-          <HeartSticker size={22} fill="#F0426B" stroke="#04202E" strokeWidth={3} />
-        </div>
-        <div className="relative flex flex-col items-start gap-3.5">
-          <span className="rounded-[14px] bg-[#04202E] px-3 py-1.5 text-xs font-bold text-white">
-            ویژه‌ی دخترای مهربون
-          </span>
-          <h1 className="m-0 text-[34px] font-black leading-[1.4] text-[#04202E]">
-            می‌خوای یکی رو خوشحال کنی؟
-          </h1>
-          <p className="m-0 max-w-[300px] text-[15px] font-medium leading-[1.9] text-[#04202E]">
-            یه دوست پشمالو، یه کارت پستال با پیام قشنگ خودت و یه عالمه مهربونی؛ درست
-            می‌فرستیمش دم در خونه‌ی دوستت.
-          </p>
-          <div className="mt-1 flex flex-wrap gap-2.5">
-            <button
-              type="button"
-              onClick={() => navigate("pick")}
-              className="flex h-[52px] items-center rounded-full bg-[#04202E] px-[26px] text-base font-extrabold text-white transition-transform active:scale-95"
-            >
-              بساز و بفرست
-            </button>
-            <button
-              type="button"
-              onClick={() => document.getElementById("how")?.scrollIntoView({ behavior: "smooth" })}
-              className="box-border flex h-[52px] items-center rounded-full border-2 border-[#04202E] px-5 text-[15px] font-bold text-[#04202E]"
-            >
-              چطوری کار می‌کنه؟
-            </button>
-          </div>
-        </div>
-        <div className="absolute -bottom-1.5 left-1.5">
-          <Plush kind="bear" size={230} />
-        </div>
-        <div className="absolute bottom-[34px] right-[22px] rotate-[-6deg] rounded-2xl border-[2.5px] border-[#04202E] bg-white px-3.5 pb-1.5 pt-2 text-center">
-          <div className="text-[11px] font-bold text-[#4A6572]">هدیه‌ی شماره</div>
-          <div className="text-[30px] font-black leading-[1.1] text-[#04202E]">{fa(nextNo)}</div>
-        </div>
-      </div>
+      {/* hero — سبک ۱: full-bleed color story slider (owner round 29) */}
+      <HeroSliderMobile />
 
       {/* next number note */}
       <div className="mx-5 mt-3.5 flex items-center gap-3.5 rounded-3xl border border-[#DDEEF5] bg-white p-3.5">
@@ -276,62 +234,8 @@ export function DesktopHome() {
 
   return (
     <div className="hidden bg-[#F2FAFD] md:block">
-      {/* hero */}
-      <section className="mt-1.5 bg-[#00ABE7]">
-        <div className="mx-auto flex w-full max-w-[1200px] flex-wrap items-center gap-10 px-6 pb-16 pt-14 box-border">
-          <div className="flex min-w-0 flex-[1_1_420px] flex-col items-start gap-5">
-            <span className="rounded-2xl bg-[#04202E] px-4 py-2 text-[13.5px] font-bold text-white">
-              ویژه‌ی دخترای مهربون
-            </span>
-            <h1 className="m-0 text-[clamp(38px,5.2vw,68px)] font-black leading-[1.35] text-[#04202E]">
-              می‌خوای یکی رو خوشحال کنی؟
-            </h1>
-            <p className="m-0 max-w-[560px] text-[19px] font-medium leading-[2] text-[#04202E]">
-              یه دوست پشمالو، یه کارت پستال با پیام قشنگ خودت و یه عالمه مهربونی؛ درست
-              می‌فرستیمش دم در خونه‌ی دوستت.
-            </p>
-            <div className="mt-1 flex flex-wrap gap-3">
-              <button
-                type="button"
-                onClick={() => navigate("pick")}
-                className="flex h-[58px] items-center rounded-full bg-[#04202E] px-[34px] text-[17px] font-extrabold text-white transition-transform hover:scale-[1.03]"
-              >
-                بساز و بفرست
-              </button>
-              <button
-                type="button"
-                onClick={() => document.getElementById("how")?.scrollIntoView({ behavior: "smooth" })}
-                className="box-border flex h-[58px] items-center rounded-full border-[2.5px] border-[#04202E] px-7 text-base font-bold text-[#04202E] transition-colors hover:bg-[#04202E] hover:text-white"
-              >
-                چطوری کار می‌کنه؟
-              </button>
-            </div>
-            <div className="mt-2 flex flex-wrap gap-x-[22px] gap-y-2 text-sm font-bold text-[#04202E]">
-              <span>ارسال ناشناس</span>
-              <span>کارت QR رمزدار</span>
-              <span>یه قیمت برای همه</span>
-            </div>
-          </div>
-          <div className="flex min-w-0 flex-[1_1_340px] justify-center">
-            <div className="relative aspect-square w-[min(460px,100%)] overflow-hidden">
-              <div className="absolute inset-0 rounded-full bg-[#66CDF1]" />
-              <div className="absolute left-1/2 top-1/2 -ml-[170px] -mt-[170px]">
-                <Plush kind="bear" size={340} className="pishnam-float" />
-              </div>
-              <div className="absolute right-[6%] top-[10%] rotate-[5deg] rounded-[18px] border-[3px] border-[#04202E] bg-white px-[18px] pb-2 pt-2.5 text-center">
-                <div className="text-xs font-bold text-[#4A6572]">هدیه‌ی شماره</div>
-                <div className="text-[40px] font-black leading-[1.1] text-[#04202E]">{fa(nextNo)}</div>
-              </div>
-              <div className="absolute bottom-[14%] right-[10%]">
-                <HeartSticker size={44} fill="#F0426B" stroke="#04202E" strokeWidth={2.6} />
-              </div>
-              <div className="absolute left-[8%] top-[24%]">
-                <HeartSticker size={34} fill="#fff" stroke="#04202E" strokeWidth={2.6} />
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
+      {/* hero — سبک ۱: full-bleed color story slider (owner round 29) */}
+      <HeroSliderDesktop />
 
       <Marquee className="text-lg" />
 

@@ -5,6 +5,8 @@
 // Purpose-aware (owner round: تأیید شماره سفارش‌دهنده قبل از پرداخت):
 //   "login"            → ورود / ثبت‌نام حساب
 //   "checkout_orderer" → تأیید شماره سفارش‌دهنده در صفحه پرداخت
+//   "gift_recv"        → تأیید شماره گیرنده برای باز کردن پیام هدیه (owner round 29:
+//                         رمز کارت حذف شد — گیرنده با شماره موبایل + کد پیامکی می‌بیند)
 // A code issued for one purpose can never satisfy the other.
 // Delivery is REAL SMS (ippanel pattern) via sendSmsNow — best-effort: if the
 // provider hiccups the code still exists in the DB and the attempt is visible
@@ -19,7 +21,12 @@ import { sendSmsNow } from "../sms";
 const OTP_TTL_MS = 5 * 60_000;
 const MAX_ATTEMPTS = 5;
 
-export type OtpPurpose = "login" | "checkout_orderer";
+export type OtpPurpose = "login" | "checkout_orderer" | "gift_recv";
+
+/** SMS template per purpose — each is an admin-editable ippanel pattern. */
+export function otpTemplateFor(purpose: OtpPurpose): string {
+  return purpose === "gift_recv" ? "otp_gift" : "otp_login";
+}
 
 const h = (phone: string, code: string) =>
   createHmac("sha256", env.SESSION_SECRET).update(`${phone}:${code}`).digest("hex");
@@ -37,9 +44,10 @@ export async function issueOtp(phone: string, ip: string, purpose: OtpPurpose = 
       data: { phone, codeHash: h(phone, code), ip, purpose, expiresAt: new Date(Date.now() + OTP_TTL_MS) },
     }),
   ]);
-  // real SMS — pattern otp_login via ippanel; failures land in the SmsOutbox
-  // report; never block issuing (the code is usable the moment it's created)
-  void sendSmsNow({ phone, template: "otp_login", params: { code } }).catch(() => {});
+  // real SMS — pattern template via ippanel (otp_login | otp_gift); failures
+  // land in the SmsOutbox report; never block issuing (the code is usable the
+  // moment it's created)
+  void sendSmsNow({ phone, template: otpTemplateFor(purpose), params: { code } }).catch(() => {});
   return env.devEcho ? { devCode: code } : {};
 }
 

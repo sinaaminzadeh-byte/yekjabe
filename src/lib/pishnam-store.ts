@@ -18,7 +18,7 @@ export const TRACK_STEPS = [
   { key: "paid", label: "پرداخت شد", body: "هدیه‌ت ثبت شد و جعبه‌ش رو گرفتیم." },
   { key: "packing", label: "بسته‌بندی", body: "کارت پستال، قلب و پنجه‌ها رو جعبه می‌چسبونیم." },
   { key: "shipped", label: "در راه", body: "جعبه تحویل پست شد؛ به‌زودی می‌رسه." },
-  { key: "delivered", label: "تحویل شد", body: "جعبه رسید! حالا نوبت رمز کارته." },
+  { key: "delivered", label: "تحویل شد", body: "جعبه رسید! با شماره‌ت پیام‌هاش رو ببین." },
 ] as const;
 
 export function statusToStep(s: GiftStatus): TrackStep {
@@ -156,7 +156,6 @@ interface PishnamState {
   kind: PlushKind;
   occasion: number;
   message: string;
-  cardPassword: string;
   anonymous: boolean;
   senderName: string;
   // sender privacy (mission §۳) — per-order choice
@@ -211,7 +210,6 @@ interface PishnamState {
   setKind: (k: PlushKind) => void;
   setOccasion: (i: number) => void;
   setMessage: (m: string) => void;
-  setCardPassword: (p: string) => void;
   setAnonymous: (a: boolean) => void;
   setSenderName: (n: string) => void;
   setSenderDisplay: (m: SenderDisplayMode) => void;
@@ -295,7 +293,6 @@ export const usePishnam = create<PishnamState>()(
       kind: "bear",
       occasion: 0,
       message: "",
-      cardPassword: "",
       anonymous: false,
       senderName: "",
       senderDisplay: "name",
@@ -356,7 +353,6 @@ export const usePishnam = create<PishnamState>()(
       setKind: (k) => set({ kind: k }),
       setOccasion: (i) => set({ occasion: i }),
       setMessage: (m) => set({ message: m }),
-      setCardPassword: (p) => set({ cardPassword: p }),
       setAnonymous: (a) => set({ anonymous: a, senderDisplay: a ? "anon" : "name" }),
       setSenderName: (n) => set({ senderName: n }),
       setSenderDisplay: (m) => set({ senderDisplay: m, anonymous: m === "anon" }),
@@ -486,7 +482,10 @@ export const usePishnam = create<PishnamState>()(
             },
             gift: {
               message: s.message || " ",
-              password: s.cardPassword.length >= 4 ? s.cardPassword : "0000",
+              // owner round 29: the buyer NEVER types a card password — the
+              // server auto-generates one (hash-only) and the recipient opens
+              // the gift with THEIR phone + the otp_gift SMS code.
+              password: "",
               occasion: s.occasion,
               anonymous: s.anonymous,
               senderDisplay: s.senderDisplay,
@@ -557,7 +556,7 @@ export const usePishnam = create<PishnamState>()(
             },
             gift: {
               message: s.message,
-              password: s.cardPassword,
+              password: "", // round 29 — no buyer password (see submitCheckout law)
               occasion: s.occasion,
               anonymous: s.anonymous,
               senderDisplay: s.senderDisplay,
@@ -630,7 +629,7 @@ export const usePishnam = create<PishnamState>()(
             phone: s.receiver.phone,
             message: s.message,
             occasion: s.occasion,
-            password: s.cardPassword, // kept locally only — server stores a hash
+            password: "", // legacy display field — buyer no longer types one
             anonymous: s.anonymous,
             senderName: s.senderDisplay === "anon" ? "" : s.senderName || (s.user?.name ?? ""),
             senderMode: s.senderDisplay,
@@ -709,7 +708,6 @@ export const usePishnam = create<PishnamState>()(
           kind: "bear",
           occasion: 0,
           message: "",
-          cardPassword: "",
           anonymous: false,
           senderName: "",
           senderDisplay: "name",

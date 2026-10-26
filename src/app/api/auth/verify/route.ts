@@ -1,9 +1,10 @@
 // ── /api/auth/verify — consume the OTP, mint DB-backed sessions ──
 // Customer cookie always on success; when the phone is in ADMIN_SEED_PHONES
 // an admin session is minted too (AdminUser upserted, role owner).
-// purpose: "login" (default) | "checkout_orderer" — a checkout-purpose verify
+// purpose: "login" (default) | "checkout_orderer" | "gift_recv" — a checkout-purpose verify
 // also saves the orderer's name on the account and mints the SAME 30-day
 // customer session (owner: بعد از وریفای، حساب بساز و لاگین کن).
+// gift_recv = گیرنده‌ی هدیه در صفحه‌ی نمایش هدیه (owner round 29: بدون رمز کارت)
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { env } from "@/lib/env";
@@ -13,7 +14,7 @@ import { verifyOtp, type OtpPurpose } from "@/lib/auth/otp";
 import { createSession } from "@/lib/auth/session";
 import { clientIp, isRateLimited } from "@/lib/rate-limit";
 
-const PURPOSES: OtpPurpose[] = ["login", "checkout_orderer"];
+const PURPOSES: OtpPurpose[] = ["login", "checkout_orderer", "gift_recv"];
 
 export async function POST(req: Request) {
   try {

@@ -36,6 +36,24 @@ export function isViewableStatus(status: string): boolean {
   return status === "shipped" || status === "delivered";
 }
 
+/**
+ * Owner round 29 law — «سیستم چک می‌کنه این شماره اصلاً به‌عنوان مشتری بسته‌ای
+ * براش ثبت شده یا نه»: the display page asks this BEFORE spending an SMS.
+ * Counts only (no PII, no content):
+ *  - viewable: shipped | delivered  → پیام‌ها الان قابل باز شدن‌اند
+ *  - pending : paid | packing       → جعبه آماده/در حال ارسال است
+ * awaiting_payment / expired / cancelled never count — an unpaid or dead
+ * order must not reveal that a gift was ever drafted for this phone.
+ */
+export async function recipientPackageCounts(phone: string): Promise<{ viewable: number; pending: number }> {
+  const { db } = await import("../db");
+  const [viewable, pending] = await Promise.all([
+    db.order.count({ where: { recipientPhone: phone, status: { in: ["shipped", "delivered"] } } }),
+    db.order.count({ where: { recipientPhone: phone, status: { in: ["paid", "packing"] } } }),
+  ]);
+  return { viewable, pending };
+}
+
 export interface RetentionPublic {
   state: "unopened" | "active" | "expired" | "purged";
   shownAt: string | null;

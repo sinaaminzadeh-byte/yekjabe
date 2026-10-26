@@ -1,17 +1,21 @@
 "use client";
 
-// ── Desktop builder: all 4 steps on one page (step highlights by route) ──
+// ── Desktop builder: all 3 steps on one page (step highlights by route) ──
+// owner round 29: قدم ۱ = انتخاب عروسک + کارت پستال (متن + استودیو ویس/عکس/
+// ویدیو + نمایش نام + نگهداری پیام) · قدم ۲ = افزودنی‌ها + قلب و پنجه‌ی
+// جمع‌وجور · قدم ۳ = گیرنده + سفارش‌دهنده (وریفای پیامکی) + پرداخت.
+// رمز کارت حذف شد؛ پیش‌نمایش پستی جعبه بالای سبد (سایدبار) نشسته.
 import { Plush } from "../plush";
 import {
   HeartSticker,
   PawIcon,
-  PhotoIcon,
-  VideoIcon,
   CheckIcon,
   MinusIcon,
   PlusSmall,
   BackIcon,
 } from "../icons";
+import { MediaStudio } from "../media-studio";
+import { BoxPreview } from "../box-preview";
 import { navigate, useHashRoute, type Route } from "@/lib/hash-route";
 import { usePishnam, useCharityDone, useOrdererVerified, type SenderDisplayMode, type RetentionPlanKey } from "@/lib/pishnam-store";
 import { fa, money } from "@/lib/fa";
@@ -31,69 +35,13 @@ import { useToast } from "@/hooks/use-toast";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import type { CatalogEntry } from "@/lib/pishnam-store";
 
-/** Desktop message-media picker — photos/video/voice, private & per-gift. */
-function DesktopMediaPicker() {
-  const mediaFiles = usePishnam((s) => s.mediaFiles);
-  const addMediaFile = usePishnam((s) => s.addMediaFile);
-  const removeMediaFile = usePishnam((s) => s.removeMediaFile);
-  const inputRef = useRef<HTMLInputElement>(null);
-  const { toast } = useToast();
-  return (
-    <div className="flex flex-col gap-2">
-      <input
-        ref={inputRef}
-        type="file"
-        accept="image/jpeg,image/png,image/webp,video/mp4,video/webm,audio/mpeg,audio/mp4,audio/wav,audio/ogg,audio/webm"
-        className="hidden"
-        onChange={(e) => {
-          const f = e.target.files?.[0];
-          if (f) {
-            const r = addMediaFile(f);
-            if (!r.ok) {
-              toast({
-                title: r.error === "file_too_large" ? "حجم فایل بیشتر از ۱۰ مگابایته" : r.error === "too_many_files" ? "بیشتر از ۳ فایل نمی‌شه" : "این فرمت قبول نیست",
-                description: "عکس JPG/PNG/WebP، ویدیو MP4/WebM یا صدای MP3/WAV/M4A",
-              });
-            }
-          }
-          e.target.value = "";
-        }}
-      />
-      <button
-        type="button"
-        onClick={() => inputRef.current?.click()}
-        className="box-border flex h-[84px] w-full items-center justify-center gap-2.5 rounded-[22px] border-2 border-dashed border-[#00ABE7] bg-[#E3F6FD] text-[15px] font-bold text-[#04202E]"
-      >
-        <PhotoIcon size={26} />
-        افزودن عکس، ویدیو یا ویس (حداکثر ۳ فایل)
-      </button>
-      {mediaFiles.length > 0 && (
-        <div className="flex flex-wrap gap-2">
-          {mediaFiles.map((m) => (
-            <span key={m.id} className="flex items-center gap-2 rounded-full border border-[#CFE6EF] bg-white px-3 py-1.5">
-              <span aria-hidden="true">{m.kind === "image" ? "🖼️" : m.kind === "video" ? "🎬" : "🎙️"}</span>
-              <span className="max-w-[220px] truncate text-[12px] font-bold" dir="ltr">{m.name}</span>
-              <button type="button" aria-label={`حذف ${m.name}`} onClick={() => removeMediaFile(m.id)} className="text-[11px] font-extrabold text-[#B02A52]">
-                حذف
-              </button>
-            </span>
-          ))}
-        </div>
-      )}
-      <span className="text-[11.5px] font-medium leading-[1.8] text-[#4A6572]">
-        فایل‌ها خصوصی ذخیره می‌شن و فقط گیرنده‌ی تأییدشده می‌بینه؛ بعد از پایان مهلت نگهداری کامل حذف می‌شن.
-      </span>
-    </div>
-  );
-}
-
-export function DesktopBuilder({ step }: { step: 1 | 2 | 3 | 4 }) {
+export function DesktopBuilder({ step }: { step: 1 | 2 | 3 }) {
   const kind = usePishnam((s) => s.kind);
   const setKind = usePishnam((s) => s.setKind);
   const favorites = usePishnam((s) => s.favorites);
   const [favOnly, setFavOnly] = useState(false);
   const list = favOnly ? PLUSHES.filter((p) => favorites.includes(p.kind)) : PLUSHES;
-  // deep-link preselect: #/pick?kind=bear (product/friends pages CTA)
+  // deep-link preselect: /pick?kind=bear (product/friends pages CTA)
   const { query } = useHashRoute();
   const qKind = query.get("kind");
   useEffect(() => {
@@ -111,16 +59,15 @@ export function DesktopBuilder({ step }: { step: 1 | 2 | 3 | 4 }) {
   const setSenderPhrase = usePishnam((s) => s.setSenderPhrase);
   const senderName = usePishnam((s) => s.senderName);
   const setSenderName = usePishnam((s) => s.setSenderName);
-  const cardPassword = usePishnam((s) => s.cardPassword);
-  const setCardPassword = usePishnam((s) => s.setCardPassword);
-  // «افزودنی‌ها» + نگهداری (desktop steps 3)
+  // نگهداری پیام — از قدم ۳ قبلی به قدم ۱ منتقل شد (owner round 29)
+  const retention = usePishnam((s) => s.retention);
+  const setRetention = usePishnam((s) => s.setRetention);
+  const retentionPrices = usePishnam((s) => s.retentionPrices);
+  // «افزودنی‌ها» (قدم ۲)
   const catalogAddons = usePishnam((s) => s.catalogAddons);
   const addonLines = usePishnam((s) => s.addonLines);
   const addAddon = usePishnam((s) => s.addAddon);
   const removeAddon = usePishnam((s) => s.removeAddon);
-  const retention = usePishnam((s) => s.retention);
-  const setRetention = usePishnam((s) => s.setRetention);
-  const retentionPrices = usePishnam((s) => s.retentionPrices);
   const loadCatalog = usePishnam((s) => s.loadCatalog);
   const user = usePishnam((s) => s.user);
   useEffect(() => {
@@ -133,14 +80,13 @@ export function DesktopBuilder({ step }: { step: 1 | 2 | 3 | 4 }) {
   // قلب قرمز/پنجه — قیمت و فعال‌بودن از تنظیمات ادمین (owner request)
   const charmPrice = usePishnam((s) => s.charmPrice);
   const charmsEnabled = usePishnam((s) => s.charmsEnabled);
-  // دکمه «جزئیات» هر افزودنی → Bottom-Sheet آیفونی
+  // دکمه «جزئیات» هر افزودنی → Bottom-Sheet
   const [detail, setDetail] = useState<CatalogEntry | null>(null);
   const { toast } = useToast();
   const receiver = usePishnam((s) => s.receiver);
   const setReceiver = usePishnam((s) => s.setReceiver);
   // سفارش‌دهنده — گیتِ وریفای پیامکی قبل از پرداخت (owner round)
   const ordererVerified = useOrdererVerified();
-  const nextNo = usePishnam((s) => s.nextNo);
   const done = useCharityDone();
   // server quote — the only payable number (guide §4.5)
   const quote = usePishnam((s) => s.quote);
@@ -153,13 +99,12 @@ export function DesktopBuilder({ step }: { step: 1 | 2 | 3 | 4 }) {
   const valid = receiver.name.trim() !== "" && receiver.phone.trim().length >= 8 && receiver.address.trim() !== "";
   const canPay = valid && ordererVerified;
 
-  // UX borrowed from design-checkout style 2 — precise missing-step hint,
-  // gentle inline validation on attempt, completion chip. No UI/structure change.
+  // UX — precise missing-step hint, gentle inline validation on attempt
   const [attempted, setAttempted] = useState(false);
   const nameMissing = receiver.name.trim() === "";
   const phoneMissing = receiver.phone.trim().length < 8;
   const addrMissing = receiver.address.trim() === "";
-  const hintTarget = !valid ? "dstep-4" : "dstep-5";
+  const hintTarget = "dstep-3";
   const hintScroll = () => {
     setAttempted(true);
     document.getElementById(hintTarget)?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -185,7 +130,7 @@ export function DesktopBuilder({ step }: { step: 1 | 2 | 3 | 4 }) {
         <div className="pt-3">
           <h1 className="m-0 text-[clamp(32px,4vw,48px)] font-black leading-[1.4]">هدیه‌ت رو بساز</h1>
           <p className="mb-0 mt-2 text-[17px] font-medium leading-[1.9] text-[#1F3E4D]">
-            چهار تا قدم، همه تو یه صفحه. هر جا خواستی برگرد و عوضش کن.
+            سه تا قدم، همه تو یه صفحه. هر جا خواستی برگرد و عوضش کن.
           </p>
         </div>
       </div>
@@ -193,7 +138,7 @@ export function DesktopBuilder({ step }: { step: 1 | 2 | 3 | 4 }) {
       <div className="mx-auto flex w-full max-w-[1200px] flex-wrap items-start gap-6 px-6 pb-20 pt-6 box-border">
         {/* main column */}
         <div className="flex min-w-0 flex-1 flex-col gap-5">
-          {/* 1 pick */}
+          {/* ۱ — pick + card */}
           <section
             id="dstep-1"
             className="flex flex-col gap-[18px] rounded-[32px] border bg-white p-7 transition-shadow"
@@ -262,18 +207,16 @@ export function DesktopBuilder({ step }: { step: 1 | 2 | 3 | 4 }) {
             <div className="rounded-3xl bg-[#F8FDFF] px-5 py-4 text-[14px] font-medium leading-[1.9] text-[#1F3E4D]">
               <b className="text-[#04202E]">{sel.name}:</b> {sel.blurb}
             </div>
-          </section>
 
-          {/* 2 card */}
-          <section
-            id="dstep-2"
-            className="flex flex-col gap-[18px] rounded-[32px] border bg-white p-7"
-            style={{ borderColor: step === 2 ? "#00ABE7" : "#DDEEF5", boxShadow: step === 2 ? "0 0 0 3px rgba(0,171,231,0.18)" : undefined }}
-          >
-            <div className="flex items-center gap-3">
-              <StepNum n="۲" on={step === 2} />
-              <h2 className="m-0 text-2xl font-black">کارت پستالت رو بنویس</h2>
+            {/* ── کارت پستال (بخش دوم قدم ۱) ── */}
+            <div className="mt-1 flex items-center gap-3 border-t border-[#E3F0F5] pt-5">
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border-2 border-[#04202E] bg-[#00ABE7] text-[17px] font-black text-[#04202E]">✉️</span>
+              <h3 className="m-0 text-xl font-black">کارت پستالت رو بنویس</h3>
             </div>
+            <p className="m-0 text-[13.5px] font-medium leading-[1.9] text-[#4A6572]">
+              یه کارت پستال فقط با یه QR همراه جعبه می‌رسه. دوستت شماره‌ی موبایل خودش رو تأیید
+              می‌کنه و پیامت — با ویس و عکس و ویدیو — رو می‌بینه.
+            </p>
             <div className="flex flex-wrap gap-2">
               {OCCASIONS.map((label, i) => {
                 const isOn = i === occ;
@@ -297,7 +240,7 @@ export function DesktopBuilder({ step }: { step: 1 | 2 | 3 | 4 }) {
             </div>
             <div className="flex flex-col gap-2 rounded-3xl border-[1.5px] border-[#CFE6EF] bg-[#F8FDFF] px-[18px] pb-3 pt-4">
               <label htmlFor="dmsg" className="text-sm font-extrabold">
-                پیامت
+                پیامت <span className="text-[11px] font-bold text-[#B02A52]">الزامی</span>
               </label>
               <textarea
                 id="dmsg"
@@ -309,35 +252,30 @@ export function DesktopBuilder({ step }: { step: 1 | 2 | 3 | 4 }) {
                 className="min-h-[120px] resize-none border-none bg-transparent text-base leading-[1.95] text-[#04202E] outline-none"
               />
               <div className="flex justify-between text-[12.5px] font-semibold text-[#4A6572]">
-                <span>متن، عکس یا ویدیو؛ هر چی دلت خواست</span>
+                <span>متن، ویس، عکس یا ویدیو؛ هر چی دلت خواست</span>
                 <span>{fa(message.length)} / ۴۰۰</span>
               </div>
             </div>
             <MessageIdeas occ={occ} onPick={setMessage} desktop />
-            {/* پیامِ رسانه‌ای واقعی — عکس/ویدیو/ویس خصوصی (mission §۱/§۴) */}
-            <DesktopMediaPicker />
-            <div className="flex flex-wrap gap-4">
-              <div className="flex min-w-0 flex-[1_1_260px] flex-col gap-2">
-                <label htmlFor="dpw" className="text-sm font-extrabold">
-                  رمز کارت
-                </label>
-                <input
-                  id="dpw"
-                  type="text"
-                  value={cardPassword}
-                  onChange={(e) => setCardPassword(e.target.value)}
-                  placeholder="مثلاً اسم اولین جایی که با هم رفتید"
-                  className="box-border h-[54px] rounded-[18px] border-[1.5px] border-[#CFE6EF] bg-white px-4 text-base text-[#04202E] outline-none focus:border-[#00ABE7]"
-                />
-                <span className="text-[12.5px] font-medium leading-[1.8] text-[#4A6572]">
-                  فقط کسی که رمز رو بدونه، پیامت رو می‌بینه.
-                </span>
+            {/* استودیو هدیه — ضبط واقعی ویس/ویدیو/عکس + آپلود (owner round 29) */}
+            <MediaStudio variant="desktop" />
+
+            {/* قانون جدید رمز — خریدار رمزی وارد نمی‌کند */}
+            <div className="flex items-start gap-2.5 rounded-[22px] border border-dashed border-[#BFE9CB] bg-[#F3FCF6] px-5 py-4">
+              <span className="text-lg" aria-hidden="true">🔐</span>
+              <div className="text-[12.5px] font-semibold leading-[1.9] text-[#177A3D]">
+                <b className="font-black">رمز کارت لازم نیست وارد کنی!</b> پیامت فقط با{" "}
+                <b className="font-black">تأیید شماره موبایل گیرنده</b> باز می‌شه — کد ۴ رقمی
+                همون لحظه برای خودش پیامک می‌شه.
               </div>
+            </div>
+
+            <div className="flex flex-wrap gap-4">
               <div className="flex min-w-0 flex-[1_1_340px] flex-col gap-2">
                 <span className="text-sm font-extrabold">اسم چطوری دیده بشه؟</span>
                 <span className="text-[12px] font-medium leading-[1.8] text-[#4A6572]">
-                  انتخابت فقط برای همین سفارشه؛ حالت ناشناس یه تغییر ظاهری نیست — اطلاعات واقعی‌ات
-                  از هیچ مسیری به گیرنده نمی‌رسه.
+                  انتخابت فقط برای همین سفارشه؛ روی صفحه‌ی QR گیرنده همین‌طوری دیده می‌شه. حالت
+                  ناشناس یه تغییر ظاهری نیست — اطلاعات واقعی‌ات از هیچ مسیری به گیرنده نمی‌رسه.
                 </span>
                 <div className="flex flex-wrap gap-2">
                   {(
@@ -402,16 +340,53 @@ export function DesktopBuilder({ step }: { step: 1 | 2 | 3 | 4 }) {
                 )}
               </div>
             </div>
+
+            {/* نگهداری پیام */}
+            <div className="flex flex-col gap-2.5 rounded-3xl border border-[#DDEEF5] bg-[#F8FDFF] px-5 py-4">
+              <span className="text-[16px] font-black">نگهداری پیام</span>
+              <span className="text-[12.5px] font-medium leading-[1.85] text-[#4A6572]">
+                پیامت (متن، ویس، عکس و ویدیو) تا وقتی که انتخاب کنی نگه داشته می‌شه؛ ساعت از روزی
+                شروع می‌شه که گیرنده پیامت رو واقعاً می‌بینه — نه از روز خرید.
+              </span>
+              <div className="flex flex-wrap gap-2">
+                {(
+                  [
+                    { key: "1m", title: "۱ ماهه", price: 0, tag: "رایگان" },
+                    { key: "6m", title: "۶ ماهه", price: retentionPrices.m6, tag: null },
+                    { key: "12m", title: "۱ ساله", price: retentionPrices.m12, tag: "پیشنهاد ویژه" },
+                  ] as { key: RetentionPlanKey; title: string; price: number; tag: string | null }[]
+                ).map((p) => {
+                  const on = retention === p.key;
+                  return (
+                    <button
+                      key={p.key}
+                      type="button"
+                      role="radio"
+                      aria-checked={on}
+                      onClick={() => setRetention(p.key)}
+                      className="relative flex h-[64px] min-w-[150px] flex-[1_1_150px] flex-col items-center justify-center gap-0.5 rounded-[18px] border-2 transition-colors"
+                      style={{ borderColor: on ? "#00ABE7" : "#DDEEF5", background: on ? "#E3F6FD" : "white" }}
+                    >
+                      {p.tag && (
+                        <span className="absolute -top-2.5 right-1/2 translate-x-1/2 rounded-full bg-[#F0426B] px-2 py-0.5 text-[9.5px] font-extrabold text-white">{p.tag}</span>
+                      )}
+                      <span className="text-[14px] font-black">{p.title}</span>
+                      <span className="text-[11.5px] font-bold text-[#4A6572]">{p.price === 0 ? "رایگان" : `${money(p.price)} تومان`}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
           </section>
 
-          {/* 3 extras */}
+          {/* ۲ — extras */}
           <section
-            id="dstep-3"
+            id="dstep-2"
             className="flex flex-col gap-[18px] rounded-[32px] border bg-white p-7"
-            style={{ borderColor: step === 3 ? "#00ABE7" : "#DDEEF5", boxShadow: step === 3 ? "0 0 0 3px rgba(0,171,231,0.18)" : undefined }}
+            style={{ borderColor: step === 2 ? "#00ABE7" : "#DDEEF5", boxShadow: step === 2 ? "0 0 0 3px rgba(0,171,231,0.18)" : undefined }}
           >
             <div className="flex items-center gap-3">
-              <StepNum n="۳" on={step === 3} />
+              <StepNum n="۲" on={step === 2} />
               <h2 className="m-0 text-2xl font-black">یه ذره مهربونی اضافه کن</h2>
             </div>
             <p className="m-0 text-[15px] font-medium leading-[1.95] text-[#1F3E4D]">
@@ -438,7 +413,6 @@ export function DesktopBuilder({ step }: { step: 1 | 2 | 3 | 4 }) {
                       >
                         <span className="flex h-[52px] w-[52px] shrink-0 items-center justify-center overflow-hidden rounded-[16px] bg-[#F2FAFD] text-2xl">
                           {a.image ? (
-                             
                             <img src={a.image} alt={a.name} className="h-full w-full object-cover" />
                           ) : (
                             <span aria-hidden="true">{a.emoji || "🎁"}</span>
@@ -476,61 +450,41 @@ export function DesktopBuilder({ step }: { step: 1 | 2 | 3 | 4 }) {
               </div>
             )}
 
-
-
-            {/* قلب قرمز و پنجه — جدا از افزودنی‌ها، زیرشان؛ کنترل از تب تنظیمات ادمین */}
+            {/* قلب قرمز و پنجه — جمع‌وجور (owner round 29: «خیلی کادر بزرگ نباشه») */}
             {charmsEnabled && (
-              <div className="flex flex-col gap-2.5 rounded-3xl border border-[#F7C5D3] bg-[#FFF8FA] px-5 py-4">
+              <div className="flex flex-col gap-2 rounded-3xl border border-[#F7C5D3] bg-[#FFF8FA] px-5 py-4">
                 <div className="flex items-baseline justify-between">
                   <span className="text-[16px] font-black">قلب قرمز و پنجه</span>
                   <span className="text-[12px] font-bold text-[#4A6572]">هر کدوم {money(charmPrice)} تومان — برای کار خیر</span>
                 </div>
-<div className="flex flex-wrap gap-3.5">
-              <div className="box-border flex min-w-0 flex-[1_1_280px] flex-col gap-3.5 rounded-[26px] border-[1.5px] border-[#F7C5D3] bg-[#FFE9F0] p-4">
-                <div className="flex items-center gap-3">
-                  <span className="flex h-14 w-14 items-center justify-center rounded-full bg-white">
-                    <HeartSticker size={32} fill="#F0426B" stroke="#04202E" strokeWidth={2.4} />
-                  </span>
-                  <div className="flex flex-col">
-                    <span className="text-[17px] font-black">قلب قرمز</span>
-                    <span className="text-[12.5px] font-medium text-[#1F3E4D]">برای بچه‌های بی‌سرپرست</span>
+                <div className="flex flex-wrap gap-2">
+                  <div className="flex min-w-[300px] flex-[1_1_300px] items-center gap-3 rounded-[20px] border-[1.5px] bg-white p-2.5" style={{ borderColor: hearts > 0 ? "#F7C5D3" : "#DDEEF5" }}>
+                    <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#FFE9F0]">
+                      <HeartSticker size={26} fill="#F0426B" stroke="#04202E" strokeWidth={2.4} />
+                    </span>
+                    <span className="flex min-w-0 flex-1 flex-col">
+                      <span className="text-[15px] font-black text-[#04202E]">قلب قرمز</span>
+                      <span className="text-[11px] font-medium leading-[1.6] text-[#4A6572]">هدیه به بچه‌های بی‌سرپرست</span>
+                    </span>
+                    <span className="shrink-0 text-[11.5px] font-extrabold text-[#4A6572]">{money(charmPrice)}</span>
+                    <DC value={hearts} onMinus={() => setHearts(hearts - 1)} onPlus={() => setHearts(hearts + 1)} plusBg="#F0426B" />
+                  </div>
+                  <div className="flex min-w-[300px] flex-[1_1_300px] items-center gap-3 rounded-[20px] border-[1.5px] bg-white p-2.5" style={{ borderColor: paws > 0 ? "#B5E3F5" : "#DDEEF5" }}>
+                    <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#E3F6FD]">
+                      <PawIcon size={24} />
+                    </span>
+                    <span className="flex min-w-0 flex-1 flex-col">
+                      <span className="text-[15px] font-black text-[#04202E]">پنجه</span>
+                      <span className="text-[11px] font-medium leading-[1.6] text-[#4A6572]">هدیه به پناهگاه حیوونا</span>
+                    </span>
+                    <span className="shrink-0 text-[11.5px] font-extrabold text-[#4A6572]">{money(charmPrice)}</span>
+                    <DC value={paws} onMinus={() => setPaws(paws - 1)} onPlus={() => setPaws(paws + 1)} plusBg="#00ABE7" />
                   </div>
                 </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-[13.5px] font-bold">هر کدوم {money(charmPrice)} تومان</span>
-                  <DC
-                    value={hearts}
-                    onMinus={() => setHearts(hearts - 1)}
-                    onPlus={() => setHearts(hearts + 1)}
-                    plusBg="#F0426B"
-                  />
-                </div>
-              </div>
-              <div className="box-border flex min-w-0 flex-[1_1_280px] flex-col gap-3.5 rounded-[26px] border-[1.5px] border-[#B5E3F5] bg-[#E3F6FD] p-4">
-                <div className="flex items-center gap-3">
-                  <span className="flex h-14 w-14 items-center justify-center rounded-full bg-white">
-                    <PawIcon size={30} />
-                  </span>
-                  <div className="flex flex-col">
-                    <span className="text-[17px] font-black">پنجه</span>
-                    <span className="text-[12.5px] font-medium text-[#1F3E4D]">برای پناهگاه حیوونا</span>
-                  </div>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-[13.5px] font-bold">هر کدوم {money(charmPrice)} تومان</span>
-                  <DC
-                    value={paws}
-                    onMinus={() => setPaws(paws - 1)}
-                    onPlus={() => setPaws(paws + 1)}
-                    plusBg="#00ABE7"
-                  />
-                </div>
-              </div>
-            </div>
               </div>
             )}
 
-            {/* جزئیات افزودنی — Bottom-Sheet آیفونی (owner request) */}
+            {/* جزئیات افزودنی — Bottom-Sheet */}
             <Sheet open={detail !== null} onOpenChange={(o) => !o && setDetail(null)}>
               <SheetContent side="bottom" className="rounded-t-[30px] border-[#DDEEF5] bg-white px-0 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-2">
                 {detail && (
@@ -538,7 +492,6 @@ export function DesktopBuilder({ step }: { step: 1 | 2 | 3 | 4 }) {
                     <span className="mx-auto h-1.5 w-12 rounded-full bg-[#DDEEF5]" aria-hidden="true" />
                     <div className="flex h-[190px] items-center justify-center overflow-hidden rounded-[24px] bg-[#F2FAFD]">
                       {detail.image ? (
-                         
                         <img src={detail.image} alt={detail.name} className="h-full w-full object-cover" />
                       ) : (
                         <span className="text-6xl" aria-hidden="true">{detail.emoji || "🎁"}</span>
@@ -571,43 +524,6 @@ export function DesktopBuilder({ step }: { step: 1 | 2 | 3 | 4 }) {
               </SheetContent>
             </Sheet>
 
-            {/* پلن نگهداری پیام (mission §۴) */}
-            <div className="flex flex-col gap-2.5 rounded-3xl border border-[#DDEEF5] bg-[#F8FDFF] px-5 py-4">
-              <span className="text-[16px] font-black">نگهداری پیام</span>
-              <span className="text-[12.5px] font-medium leading-[1.85] text-[#4A6572]">
-                پیامت (متن، عکس و ویس) تا وقتی که انتخاب کنی نگه داشته می‌شه؛ ساعت از روزی شروع
-                می‌شه که گیرنده پیامت رو واقعاً می‌بینه — نه از روز خرید.
-              </span>
-              <div className="flex flex-wrap gap-2">
-                {(
-                  [
-                    { key: "1m", title: "۱ ماهه", price: 0, tag: "رایگان" },
-                    { key: "6m", title: "۶ ماهه", price: retentionPrices.m6, tag: null },
-                    { key: "12m", title: "۱ ساله", price: retentionPrices.m12, tag: "پیشنهاد ویژه" },
-                  ] as { key: RetentionPlanKey; title: string; price: number; tag: string | null }[]
-                ).map((p) => {
-                  const on = retention === p.key;
-                  return (
-                    <button
-                      key={p.key}
-                      type="button"
-                      role="radio"
-                      aria-checked={on}
-                      onClick={() => setRetention(p.key)}
-                      className="relative flex h-[64px] min-w-[150px] flex-[1_1_150px] flex-col items-center justify-center gap-0.5 rounded-[18px] border-2 transition-colors"
-                      style={{ borderColor: on ? "#00ABE7" : "#DDEEF5", background: on ? "#E3F6FD" : "white" }}
-                    >
-                      {p.tag && (
-                        <span className="absolute -top-2.5 right-1/2 translate-x-1/2 rounded-full bg-[#F0426B] px-2 py-0.5 text-[9.5px] font-extrabold text-white">{p.tag}</span>
-                      )}
-                      <span className="text-[14px] font-black">{p.title}</span>
-                      <span className="text-[11.5px] font-bold text-[#4A6572]">{p.price === 0 ? "رایگان" : `${money(p.price)} تومان`}</span>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
             <div className="flex flex-col gap-2.5 rounded-3xl border border-[#DDEEF5] bg-[#F8FDFF] px-5 py-4">
               <div className="flex items-center justify-between">
                 <span className="text-[15px] font-extrabold">اولین بسته‌ی خیریه</span>
@@ -624,14 +540,14 @@ export function DesktopBuilder({ step }: { step: 1 | 2 | 3 | 4 }) {
             </div>
           </section>
 
-          {/* 4 receiver */}
+          {/* ۳ — receiver + orderer + pay */}
           <section
-            id="dstep-4"
+            id="dstep-3"
             className="flex flex-col gap-[18px] rounded-[32px] border bg-white p-7"
-            style={{ borderColor: step === 4 ? "#00ABE7" : "#DDEEF5", boxShadow: step === 4 ? "0 0 0 3px rgba(0,171,231,0.18)" : undefined }}
+            style={{ borderColor: step === 3 ? "#00ABE7" : "#DDEEF5", boxShadow: step === 3 ? "0 0 0 3px rgba(0,171,231,0.18)" : undefined }}
           >
             <div className="flex items-center gap-3">
-              <StepNum n="۴" on={step === 4} />
+              <StepNum n="۳" on={step === 3} />
               <h2 className="m-0 text-2xl font-black">گیرنده‌ی هدیه</h2>
               {valid && (
                 <span className="ms-auto flex items-center gap-1.5 rounded-full bg-[#E5F8EC] px-3 py-1.5 text-[12px] font-extrabold text-[#177A3D]">
@@ -686,33 +602,31 @@ export function DesktopBuilder({ step }: { step: 1 | 2 | 3 | 4 }) {
                 {attempted && addrMissing && <div className="text-[11px] font-bold text-[#B02A52]">آدرس گیرنده رو کامل کن</div>}
               </div>
             </div>
-            {/* reassurance (style-2 tone) — copy only, no structure change */}
             <div className="flex items-start gap-2 text-[12.5px] font-semibold leading-[1.9] text-[#4A6572]">
               <span aria-hidden="true">🤫</span>
               <span>اسم و شماره‌ی تو فقط پیش ما می‌مونه — هیچ‌کدوم بدون اجازه‌ی تو به گیرنده نمی‌رسه.</span>
             </div>
-          </section>
 
-          {/* 5 orderer — «نام و نام خانوادگی» + موبایل خود مشتری، با تأیید پیامکی */}
-          <DesktopOrderer step={step} />
+            {/* سفارش‌دهنده + تأیید پیامکی — همان بخش قدم ۳ */}
+            <DesktopOrderer />
+          </section>
         </div>
 
         {/* summary sidebar */}
         <aside className="sticky top-24 flex w-[360px] shrink-0 flex-col gap-4 self-start rounded-[32px] border border-[#DDEEF5] bg-white p-6">
-          <div className="relative flex items-stretch overflow-hidden rounded-[24px] bg-[#00ABE7]">
-            <div className="flex w-[104px] shrink-0 flex-col items-center justify-center py-4">
-              <span className="text-[11px] font-bold">هدیه‌ی شماره</span>
-              <span className="text-4xl font-black leading-[1.15]">{fa(nextNo)}</span>
-            </div>
-            <div className="my-3 w-0 border-r-2 border-dashed border-[#04202E]" />
-            <div className="flex flex-1 flex-col justify-center gap-0.5 px-3.5 py-3">
-              <span className="text-[14px] font-black">این شماره مال هدیه‌ی توئه</span>
-              <span className="text-[11.5px] font-medium leading-[1.7]">
-                روی جعبه و کارت پستال می‌شینه.
-              </span>
-            </div>
-            <div className="absolute -top-2.5 right-[92px] h-5 w-5 rounded-full bg-white" />
-            <div className="absolute -bottom-2.5 right-[92px] h-5 w-5 rounded-full bg-white" />
+          {/* پیش‌نمایش پستی جعبه — بالای سبد، مثل نسخه‌ی موبایل (owner round 29) */}
+          <div>
+            <div className="pb-2 text-[13.5px] font-extrabold text-[#04202E]">جعبه‌ت این‌جوری می‌رسه</div>
+            <BoxPreview compact />
+          </div>
+
+          {/* قانون امنیت — گیرنده فقط با وریفای شماره می‌بیند */}
+          <div className="flex items-start gap-2 rounded-[18px] border border-dashed border-[#BFE9CB] bg-[#F3FCF6] px-3.5 py-3">
+            <span className="text-base" aria-hidden="true">🔒</span>
+            <span className="text-[11px] font-bold leading-[1.8] text-[#177A3D]">
+              اطلاعات این هدیه به‌صورت امن نگه‌داری می‌شه و فقط بعد از تأیید شماره‌ی موبایل
+              گیرنده نمایش داده می‌شه.
+            </span>
           </div>
 
           <div className="flex flex-col gap-2">
@@ -743,18 +657,18 @@ export function DesktopBuilder({ step }: { step: 1 | 2 | 3 | 4 }) {
           >
             {!valid ? (
               nameMissing ? (
-                <span>اسم گیرنده رو بنویس (قدم ۴)</span>
+                <span>اسم گیرنده رو بنویس (قدم ۳)</span>
               ) : phoneMissing ? (
-                <span>شماره‌ی موبایل گیرنده رو کامل کن (قدم ۴)</span>
+                <span>شماره‌ی موبایل گیرنده رو کامل کن (قدم ۳)</span>
               ) : addrMissing ? (
-                <span>آدرس گیرنده رو کامل کن (قدم ۴)</span>
+                <span>آدرس گیرنده رو کامل کن (قدم ۳)</span>
               ) : (
-                <span>برای پرداخت، اسم، موبایل و آدرس گیرنده (قدم ۴) رو کامل کن.</span>
+                <span>برای پرداخت، اسم، موبایل و آدرس گیرنده (قدم ۳) رو کامل کن.</span>
               )
             ) : ordererVerified ? (
               <span>همه‌چیز آماده‌ست! «پرداخت» رو بزن تا هدیه راه بیفته.</span>
             ) : (
-              <span>فقط یک قدم مونده: تو قدم ۵، شماره موبایلت رو با کد پیامکی تأیید کن.</span>
+              <span>فقط یک قدم مونده: تو همین بخش، شماره موبایلت رو با کد پیامکی تأیید کن.</span>
             )}
             {!canPay && (
               <span className="text-[11px] font-extrabold opacity-80" aria-hidden="true">
@@ -803,11 +717,11 @@ function StepNum({ n, on }: { n: string; on: boolean }) {
 function DC({ value, onMinus, onPlus, plusBg }: { value: number; onMinus: () => void; onPlus: () => void; plusBg: string }) {
   return (
     <div className="flex items-center gap-1 rounded-full bg-white p-1">
-      <button type="button" aria-label="یکی کم کن" onClick={onMinus} className="flex h-11 w-11 items-center justify-center rounded-full border-none bg-[#F2FAFD]">
+      <button type="button" aria-label="یکی کم کن" onClick={onMinus} className="flex h-10 w-10 items-center justify-center rounded-full border-none bg-[#F2FAFD]">
         <MinusIcon />
       </button>
-      <span className="min-w-[38px] text-center text-xl font-black">{fa(value)}</span>
-      <button type="button" aria-label="یکی زیاد کن" onClick={onPlus} className="flex h-11 w-11 items-center justify-center rounded-full border-none" style={{ background: plusBg }}>
+      <span className="min-w-[34px] text-center text-lg font-black">{fa(value)}</span>
+      <button type="button" aria-label="یکی زیاد کن" onClick={onPlus} className="flex h-10 w-10 items-center justify-center rounded-full border-none" style={{ background: plusBg }}>
         <PlusSmall stroke={plusBg === "#F0426B" ? "#fff" : "#04202E"} />
       </button>
     </div>
@@ -844,11 +758,11 @@ function Row({ label, sub, amount, muted }: { label: string; sub?: string; amoun
   );
 }
 
-/* ── قدم ۵ دسکتاپ: اطلاعات سفارش‌دهنده + تأیید پیامکی شماره ──
+/* ── سفارش‌دهنده (داخل قدم ۳): نام + موبایل خود مشتری، با تأیید پیامکی ──
  * همان قانون موبایل: شماره سفارش‌دهنده مستقل از گیرنده است و تا تأیید
  * موفق، دکمه‌ی پرداخت در سایدبار قفل می‌ماند (سرور هم مستقل گارت می‌کند).
  */
-function DesktopOrderer({ step }: { step: number }) {
+function DesktopOrderer() {
   const orderer = usePishnam((s) => s.orderer);
   const setOrderer = usePishnam((s) => s.setOrderer);
   const user = usePishnam((s) => s.user);
@@ -949,14 +863,10 @@ function DesktopOrderer({ step }: { step: number }) {
   };
 
   return (
-    <section
-      id="dstep-5"
-      className="flex flex-col gap-[18px] rounded-[32px] border bg-white p-7 transition-shadow"
-      style={{ borderColor: step === 5 ? "#00ABE7" : "#DDEEF5", boxShadow: step === 5 ? "0 0 0 3px rgba(0,171,231,0.18)" : undefined }}
-    >
+    <div className="flex flex-col gap-[18px] border-t border-[#E3F0F5] pt-5">
       <div className="flex items-center gap-3">
-        <StepNum n="۵" on={step === 5} />
-        <h2 className="m-0 text-2xl font-black">اطلاعات سفارش‌دهنده</h2>
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border-2 border-[#04202E] bg-[#00ABE7] text-[17px] font-black text-[#04202E]">🙋</span>
+        <h3 className="m-0 text-xl font-black">اطلاعات سفارش‌دهنده</h3>
         <span className="ms-auto rounded-full bg-[#E3F6FD] px-3 py-1.5 text-[12px] font-extrabold text-[#006387]">همینه که خرید می‌کنه</span>
       </div>
       <p className="m-0 text-[14px] font-medium leading-[1.9] text-[#4A6572]">
@@ -1067,7 +977,7 @@ function DesktopOrderer({ step }: { step: number }) {
           </div>
         )}
       </div>
-    </section>
+    </div>
   );
 }
 

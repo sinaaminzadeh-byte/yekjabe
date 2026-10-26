@@ -24,11 +24,16 @@ function toEnDigits(s: string): string {
     .replace(/[٠-٩]/g, (d) => String("٠١٢٣٤٥٦٧٨٩".indexOf(d)));
 }
 
-type VerifyStep = "intro" | "phone" | "otp" | "checking" | "empty";
+type VerifyStep = "intro" | "phone" | "otp" | "checking" | "gifts" | "coming" | "empty";
 
 const RESend_SECONDS = 90;
 
 export function VerifyScreen() {
+  // owner round 29 law: NO card password anywhere — the display page takes the
+  // recipient's phone, the server first CHECKS a package is registered for it,
+  // then SMSes a 4-digit code (otp_gift pattern). After verify, the UNREAD
+  // messages of their latest orders appear right here; tapping one opens its
+  // full gift page (gift-view).
   const [step, setStep] = useState<VerifyStep>("intro");
   const [phone, setPhone] = useState("");
   const [code, setCode] = useState("");
@@ -38,6 +43,8 @@ export function VerifyScreen() {
   const [resendIn, setResendIn] = useState(0);
   const user = usePishnam((s) => s.user);
   const login = usePishnam((s) => s.login);
+  const receivedGifts = usePishnam((s) => s.receivedGifts);
+  const receivedStatus = usePishnam((s) => s.receivedStatus);
   const fetchReceived = usePishnam((s) => s.fetchReceived);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -66,13 +73,15 @@ export function VerifyScreen() {
     }, 1000);
   };
 
-  /** post-auth: how many gifts are waiting for THIS phone? */
+  /** post-auth: unread gifts of THIS phone → show them right here */
   async function afterAuth() {
     const gifts = await fetchReceived();
     if (gifts.length > 0) {
-      navigate("my-gifts", { tab: "recv" });
+      setStep("gifts");
     } else {
-      setStep("empty");
+      // a package may exist but not be viewable yet (paid/packing) — the
+      // probe only sent a code when SOMETHING was registered for this phone
+      setStep("coming");
     }
   }
 
@@ -88,11 +97,17 @@ export function VerifyScreen() {
       const res = await fetch("/api/auth/request", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phone: p }),
+        body: JSON.stringify({ phone: p, purpose: "gift_recv" }),
       });
-      const body = (await res.json().catch(() => ({}))) as { devCode?: string };
+      const body = (await res.json().catch(() => ({}))) as { devCode?: string; noGifts?: boolean };
       if (!res.ok) {
         setErr(res.status === 429 ? "کمی صبر کن و دوباره امتحان کن" : "ارسال کد ناموفق بود");
+        return;
+      }
+      // owner law: no package registered for this number → no SMS, straight
+      // to the friendly empty state
+      if (body.noGifts) {
+        setStep("empty");
         return;
       }
       setPhone(p);
@@ -118,7 +133,7 @@ export function VerifyScreen() {
       const res = await fetch("/api/auth/verify", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phone, code: c }),
+        body: JSON.stringify({ phone, code: c, purpose: "gift_recv" }),
       });
       if (!res.ok) {
         const body = (await res.json().catch(() => ({}))) as { error?: string };
@@ -142,7 +157,7 @@ export function VerifyScreen() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col items-center bg-[#F2FAFD] px-5 pb-[max(24px,env(safe-area-inset-bottom))] pt-10">
+    <div className="flex min-h-screen flex-col items-center bg-[#F2FAFD] px-5 pb-6 pt-10">
       <div className="pishnam-glow mb-4">
         <Logo size={56} />
       </div>
@@ -152,15 +167,15 @@ export function VerifyScreen() {
           <span className="text-6xl" aria-hidden="true">📮</span>
           <h1 className="m-0 text-[26px] font-black leading-[1.5]">هدیه‌ات رسید؟ پیامت اینجاست!</h1>
           <p className="m-0 text-[14.5px] font-medium leading-[2] text-[#1F3E4D]">
-            روی کارت‌پستال داخل جعبه یک QR هست که اینجا رو باز کرده. برای دیدن پیام اختصاصی
-            فرستنده، شماره موبایل خودت رو وارد کن و با کد پیامکی تأییدش کن. اگه حساب نداشته باشی،
-            خودکار برات ساخته می‌شه و هدیه‌هات همیشه همین‌جا می‌مونه.
+            روی کارت‌پستال داخل جعبه یک QR هست که اینجا رو باز کرده. شماره موبایل خودت رو وارد
+            کن؛ اگه بسته‌ای به اسمت ثبت شده باشه، یه کد ۴ رقمی برات پیامک می‌شه و پیام‌های
+            اختصاصی فرستنده رو می‌بینی. هیچ رمزی لازم نیست — حساب هم خودکار برات ساخته می‌شه.
           </p>
           <div className="mt-2 flex w-full flex-col gap-2 rounded-[22px] border border-[#DDEEF5] bg-white p-4 text-right">
             {[
               { icon: "📱", text: "شماره موبایلت رو وارد کن" },
               { icon: "🔐", text: "کد پیامکی رو بزن" },
-              { icon: "💖", text: "پیام، عکس و ویس فرستنده رو ببین" },
+              { icon: "💖", text: "پیام، ویس، عکس و ویدیو فرستنده رو ببین" },
             ].map((r) => (
               <div key={r.text} className="flex items-center gap-3">
                 <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#E3F6FD] text-lg" aria-hidden="true">{r.icon}</span>
@@ -190,7 +205,7 @@ export function VerifyScreen() {
         <div className="flex w-full max-w-md flex-col gap-3 text-center">
           <h1 className="m-0 text-[24px] font-black">شماره موبایلت چیه؟</h1>
           <p className="m-0 text-[13.5px] font-medium leading-[1.9] text-[#4A6572]">
-            فقط هدیه‌هایی که به این شماره فرستاده شدن رو می‌بینی — نه بیشتر، نه کمتر.
+            اول چک می‌کنیم بسته‌ای به این شماره ثبت شده یا نه — بعد کد رو می‌فرستیم.
           </p>
           <input
             type="tel"
@@ -209,7 +224,7 @@ export function VerifyScreen() {
             onClick={() => void requestCode()}
             className="flex h-[54px] w-full items-center justify-center gap-2 rounded-full bg-[#00ABE7] text-base font-extrabold text-[#04202E] transition-transform active:scale-95 disabled:opacity-60"
           >
-            {busy ? "داریم کد رو می‌فرستیم…" : "بفرست کد تأیید"}
+            {busy ? "داریم چک می‌کنیم…" : "بفرست کد تأیید"}
             {!busy && <ForwardIcon />}
           </button>
           <button type="button" onClick={() => setStep("intro")} className="text-[12px] font-bold text-[#006387] underline underline-offset-4">
@@ -247,7 +262,7 @@ export function VerifyScreen() {
             onClick={() => void verifyCode()}
             className="flex h-[54px] w-full items-center justify-center gap-2 rounded-full bg-[#00ABE7] text-base font-extrabold text-[#04202E] transition-transform active:scale-95 disabled:opacity-60"
           >
-            {busy ? "داریم چک می‌کنیم…" : "تأیید و دیدن هدیه‌ها"}
+            {busy ? "داریم چک می‌کنیم…" : "تأیید و دیدن پیام‌ها"}
             {!busy && <HeartSticker size={20} fill="#04202E" stroke="none" />}
           </button>
           <button
@@ -265,6 +280,81 @@ export function VerifyScreen() {
         <div className="flex flex-col items-center gap-4 pt-16">
           <span className="h-12 w-12 animate-spin rounded-full border-4 border-[#CFE6EF] border-t-[#00ABE7]" />
           <span className="text-[15px] font-bold text-[#04202E]">داریم هدیه‌هایت را پیدا می‌کنیم…</span>
+        </div>
+      )}
+
+      {step === "gifts" && (
+        <div className="flex w-full max-w-md flex-col gap-3 pt-4">
+          <div className="text-center">
+            <span className="text-5xl" aria-hidden="true">💝</span>
+            <h1 className="m-0 mt-2 text-[24px] font-black leading-[1.5]">برات پیام دارن!</h1>
+            <p className="m-0 text-[13.5px] font-medium leading-[1.9] text-[#4A6572]">
+              {receivedGifts.filter((g) => !g.opened).length > 0
+                ? `${fa(receivedGifts.filter((g) => !g.opened).length)} تا پیام نخونده داری — روی هرکدوم بزنی، صفحه اصلیش باز می‌شه.`
+                : "روی هر هدیه بزنی تا پیامش رو ببینی."}
+            </p>
+          </div>
+          {receivedStatus === "loading" && (
+            <div className="flex justify-center py-8">
+              <span className="h-10 w-10 animate-spin rounded-full border-4 border-[#CFE6EF] border-t-[#00ABE7]" />
+            </div>
+          )}
+          {[...receivedGifts].sort((a, b) => Number(a.opened) - Number(b.opened)).map((g) => (
+            <button
+              key={g.code}
+              type="button"
+              onClick={() => navigate("gift-view", { code: g.code })}
+              className="relative flex items-center gap-3.5 rounded-[24px] border-2 bg-white p-3.5 text-right transition-transform active:scale-[0.98]"
+              style={{ borderColor: g.opened ? "#DDEEF5" : "#00ABE7" }}
+              aria-label={`باز کردن پیام هدیه شماره ${fa(g.no)}${g.opened ? " (دیده‌شده)" : " (جدید)"}`}
+            >
+              <span className="flex h-[64px] w-[64px] shrink-0 items-center justify-center rounded-[18px] bg-[#F2FAFD]">
+                <Plush kind={g.kind} size={54} />
+              </span>
+              <span className="flex min-w-0 flex-1 flex-col gap-1">
+                <span className="flex flex-wrap items-center gap-1.5">
+                  <span className="text-[16px] font-black text-[#04202E]">هدیه‌ی شماره {fa(g.no)}</span>
+                  {!g.opened && (
+                    <span className="rounded-full bg-[#00ABE7] px-2 py-0.5 text-[9.5px] font-black text-[#04202E]">پیام جدید</span>
+                  )}
+                </span>
+                <span className="text-[12px] font-bold text-[#006387]">از طرف: {g.senderLabel}</span>
+                <span className="text-[11.5px] font-medium text-[#4A6572]">
+                  {g.hasMessage ? "متن و رسانه‌های خصوصی منتظرتن" : "جعبه‌ی مهربونی"}
+                  {g.mediaCount > 0 ? ` · ${fa(g.mediaCount)} فایل` : ""}
+                </span>
+              </span>
+              <ForwardIcon />
+            </button>
+          ))}
+          <button
+            type="button"
+            onClick={() => navigate("my-gifts", { tab: "recv" })}
+            className="mt-2 flex h-[50px] w-full items-center justify-center rounded-full border-2 border-[#04202E] text-[14.5px] font-extrabold text-[#04202E]"
+          >
+            رفتن به حساب کاربری
+          </button>
+        </div>
+      )}
+
+      {step === "coming" && (
+        <div className="flex w-full max-w-md flex-col items-center gap-4 pt-8 text-center">
+          <span className="text-6xl" aria-hidden="true">📦</span>
+          <h1 className="m-0 text-[22px] font-black">هدیه‌ات داره میاد!</h1>
+          <p className="m-0 text-[13.5px] font-medium leading-[2] text-[#4A6572]">
+            بسته‌ای به اسم این شماره ثبت شده ولی هنوز به دستت نرسیده. وقتی جعبه رسید، همین صفحه
+            پیام‌هاش رو نشونت می‌ده.
+          </p>
+          <button
+            type="button"
+            onClick={() => navigate("track")}
+            className="mt-2 flex h-[50px] w-full items-center justify-center rounded-full bg-[#04202E] text-[15px] font-extrabold text-white"
+          >
+            پیگیری مرسوله
+          </button>
+          <button type="button" onClick={() => navigate("home")} className="text-[12px] font-bold text-[#006387] underline underline-offset-4">
+            صفحه‌ی اصلی
+          </button>
         </div>
       )}
 

@@ -10,7 +10,7 @@ import { Logo } from "@/components/shop/logo";
 import { MobileHome, DesktopHome } from "@/components/shop/screens/home";
 import { ProductScreen } from "@/components/shop/screens/product";
 import { FriendsScreen } from "@/components/shop/screens/friends";
-import { MobilePick, MobileCard, MobileExtras, MobileCheckout } from "@/components/shop/screens/flow";
+import { MobilePick, MobileExtras, MobileCheckout } from "@/components/shop/screens/flow";
 import { MobileSuccess, DesktopSuccess } from "@/components/shop/screens/success";
 import { PayModal } from "@/components/shop/screens/pay-modal";
 import { DesktopBuilder } from "@/components/shop/screens/builder";
@@ -37,10 +37,6 @@ import {
   ReviewsPage,
   ShippingPage,
 } from "@/components/shop/screens/info";
-// ── DESIGN PROTOTYPES (owner review) — delete these imports + the 2 route
-// cases + hash-route entries + footer links to remove the feature entirely ──
-import { DesignHeroPage } from "@/components/shop/screens/design-hero";
-import { DesignCheckoutPage } from "@/components/shop/screens/design-checkout";
 
 export default function PishnamApp() {
   // The app is state-driven (persisted store + hash route): render a branded
@@ -92,10 +88,8 @@ function PishnamScreens() {
     route === "gift" ||
     route === "pay-gateway" ||
     route === "verify" ||
-    route === "gift-view" ||
-    route === "design-hero" || // DESIGN PROTOTYPE — no global chrome
-    route === "design-checkout";
-  // the 4-step wizard has its own back button, step bar and sticky CTA —
+    route === "gift-view";
+  // the 3-step wizard has its own back button, step bar and sticky CTA —
   // the global bottom nav would sit on top of the CTA (both stick to bottom)
   const wizard = route === "pick" || route === "card" || route === "extras" || route === "checkout";
 
@@ -125,25 +119,26 @@ function PishnamScreens() {
             <DesktopBuilder step={1} />
           </>
         );
+      // legacy «card» route → merged into step 1 (owner round 29: 3-step flow)
       case "card":
         return (
           <>
-            <MobileCard />
-            <DesktopBuilder step={2} />
+            <MobilePick />
+            <DesktopBuilder step={1} />
           </>
         );
       case "extras":
         return (
           <>
             <MobileExtras />
-            <DesktopBuilder step={3} />
+            <DesktopBuilder step={2} />
           </>
         );
       case "checkout":
         return (
           <>
             <MobileCheckout />
-            <DesktopBuilder step={4} />
+            <DesktopBuilder step={3} />
           </>
         );
       case "success":
@@ -199,11 +194,6 @@ function PishnamScreens() {
         return <PostScreen slug={query.get("slug") ?? ""} />;
       case "legal":
         return <LegalPage doc={query.get("doc") ?? "privacy"} />;
-      // ── DESIGN PROTOTYPES (owner review, easy to delete) ──
-      case "design-hero":
-        return <DesignHeroPage />;
-      case "design-checkout":
-        return <DesignCheckoutPage />;
       case "about":
         return <AboutPage />;
       case "mission":

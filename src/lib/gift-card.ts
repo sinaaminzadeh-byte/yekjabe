@@ -238,7 +238,7 @@ export async function downloadGiftCard(
   ctx.restore();
 
   /* ── password chip + footer ── */
-  chip(ctx, right, y + 58, `رمز کارت: ${o.password || "بهار"}`, "#04202E", "#FFFFFF");
+  chip(ctx, right, y + 58, "نمایش امن با تأیید شماره‌ی گیرنده", "#E5F8EC", "#177A3D");
   if (o.senderName) {
     ctx.fillStyle = "#4A6572";
     ctx.font = "600 24px Vazirmatn, sans-serif";

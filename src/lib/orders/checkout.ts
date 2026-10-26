@@ -1,5 +1,5 @@
 // ── orders/checkout.ts — server-authoritative, atomic, idempotent (guide §4.5–4.7) ──
-import { randomUUID, randomBytes } from "crypto";
+import { randomUUID, randomBytes, randomInt } from "crypto";
 import { z } from "zod";
 import { Prisma } from "@prisma/client";
 import { db } from "../db";
@@ -51,7 +51,11 @@ export const checkoutSchema = z.object({
   }),
   gift: z.object({
     message: z.string().max(500),
-    password: z.string().min(4).max(24),
+    // owner round 29: «رمزی نمی‌خواد وارد کنه» — the buyer NEVER types a card
+    // password anymore. Kept optional so legacy clients still validate; when
+    // absent, createOrder auto-generates an internal code (hash-only at rest).
+    // The recipient's real gate is THEIR phone + otp_gift SMS code.
+    password: z.string().max(24).optional().default(""),
     occasion: z.number().int().min(0).max(3),
     // legacy boolean — kept in sync (true ⇔ senderDisplay === "anon") for old rows
     anonymous: z.boolean().optional().default(false),
@@ -194,7 +198,12 @@ export async function createOrder(raw: unknown, ctx: CheckoutCtx): Promise<Check
           ordererLastName: input.orderer.name.trim().split(/\s+/).slice(1).join(" "),
           ordererPhone: input.orderer.phone,
           message: input.gift.message,
-          cardPasswordHash: hashGiftPassword(input.gift.password),
+          // buyer never types a password (round 29) → an internal 4-digit code
+          // is auto-generated per order; only its hash is stored. The recipient
+          // opens the gift with THEIR verified phone + the SMS code.
+          cardPasswordHash: hashGiftPassword(
+            input.gift.password || String(randomInt(1_000, 10_000)),
+          ),
           occasion: input.gift.occasion,
           anonymous: input.gift.anonymous,
           senderDisplay: input.gift.senderDisplay,

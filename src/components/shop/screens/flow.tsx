@@ -1,19 +1,25 @@
 "use client";
 
-// ── Mobile gift-builder flow: pick → card → extras → checkout ──
+// ── Mobile gift-builder flow — 3 steps (owner round 29) ──
+// قدم ۱: انتخاب عروسک + کارت پستال (متن الزامی + استودیو ویس/عکس/ویدیو +
+//        نمایش نام فرستنده + نگهداری پیام) → «ذخیره و ادامه»
+// قدم ۲: افزودنی‌ها + قلب قرمز و پنجه (کادر جمع‌وجور) → «ذخیره و تکمیل»
+// قدم ۳: گیرنده + سفارش‌دهنده (وریفای پیامکی) + پرداخت — با پیش‌نمایش پستی
+//        جعبه در بالای سبد و نوار «نمایش امن فقط با وریفای شماره».
+// رمز کارت حذف شد: خریدار رمزی وارد نمی‌کند؛ گیرنده با شماره موبایل خودش +
+// کد پیامکی (otp_gift) پیام را باز می‌کند. مسیر card به قدم ۱ اشاره می‌کند.
 import { Plush } from "../plush";
 import { MobileTopBar, StepBar } from "../nav";
 import {
   HeartSticker,
   PawIcon,
-  PawSticker,
-  PhotoIcon,
-  VideoIcon,
   ForwardIcon,
   CheckIcon,
   MinusIcon,
   PlusSmall,
 } from "../icons";
+import { MediaStudio } from "../media-studio";
+import { BoxPreview } from "../box-preview";
 import { navigate, useHashRoute } from "@/lib/hash-route";
 import {
   usePishnam,
@@ -39,14 +45,26 @@ import type { CatalogEntry } from "@/lib/pishnam-store";
 import { FavHeart, FavFilterChips, SurpriseButton } from "@/components/shop/fav";
 import { MessageIdeas } from "@/components/shop/ideas";
 
-/* ═══════════════ 1 · PICK ═══════════════ */
+/* tiny numbered chip for the in-step subsections (قدم ۱ = بخش ۱ و ۲ سبد قبلی) */
+function SubNum({ n, title }: { n: string; title: string }) {
+  return (
+    <div className="flex items-center gap-2.5">
+      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border-2 border-[#04202E] bg-[#00ABE7] text-[14px] font-black text-[#04202E]">
+        {n}
+      </span>
+      <h2 className="m-0 text-[21px] font-black leading-[1.4]">{title}</h2>
+    </div>
+  );
+}
+
+/* ═══════════════ قدم ۱ — عروسک + کارت پستال ═══════════════ */
 export function MobilePick() {
   const picked = usePishnam((s) => s.kind);
   const setKind = usePishnam((s) => s.setKind);
   const favorites = usePishnam((s) => s.favorites);
   const [favOnly, setFavOnly] = useState(false);
   const [stageKey, setStageKey] = useState(0);
-  // deep-link preselect: #/pick?kind=bear (product/friends pages CTA)
+  // deep-link preselect: /pick?kind=bear (product/friends pages CTA)
   const { query } = useHashRoute();
   const qKind = query.get("kind");
   useEffect(() => {
@@ -57,16 +75,57 @@ export function MobilePick() {
   const sel = PLUSHES.find((p) => p.kind === picked) ?? PLUSHES[0];
   const list = favOnly ? PLUSHES.filter((p) => favorites.includes(p.kind)) : PLUSHES;
 
+  // کارت پستال
+  const occ = usePishnam((s) => s.occasion);
+  const setOcc = usePishnam((s) => s.setOccasion);
+  const message = usePishnam((s) => s.message);
+  const setMessage = usePishnam((s) => s.setMessage);
+  const senderDisplay = usePishnam((s) => s.senderDisplay);
+  const setSenderDisplay = usePishnam((s) => s.setSenderDisplay);
+  const senderPhrase = usePishnam((s) => s.senderPhrase);
+  const setSenderPhrase = usePishnam((s) => s.setSenderPhrase);
+  const senderName = usePishnam((s) => s.senderName);
+  const setSenderName = usePishnam((s) => s.setSenderName);
+  const nextNo = usePishnam((s) => s.nextNo);
+  const user = usePishnam((s) => s.user);
+  const retention = usePishnam((s) => s.retention);
+  const setRetention = usePishnam((s) => s.setRetention);
+  const retentionPrices = usePishnam((s) => s.retentionPrices);
+
+  const [msgTried, setMsgTried] = useState(false);
+  const msgEmpty = message.trim() === "";
+
+  const goNext = () => {
+    setMsgTried(true);
+    if (msgEmpty) {
+      document.getElementById("msg")?.scrollIntoView({ behavior: "smooth", block: "center" });
+      return;
+    }
+    navigate("extras");
+  };
+
+  const PRIVACY_OPTIONS: { key: SenderDisplayMode; title: string; sub: string; emoji: string }[] = [
+    { key: "name", title: "اسمم نمایش داده بشه", sub: senderName || user?.name || "اسم خودت", emoji: "🙂" },
+    { key: "phrase", title: "یه عبارت دلخواه", sub: senderPhrase || "مثلاً: از طرف همسرت", emoji: "✍️" },
+    { key: "anon", title: "کاملاً ناشناس", sub: "یک هدیه برای تو", emoji: "🎁" },
+  ];
+
   return (
     <div className="flex min-h-screen flex-col bg-[#F2FAFD] md:hidden">
-      <MobileTopBar title="قدم ۱ از ۴" back="home" />
-      <StepBar step={1} />
+      <MobileTopBar title="قدم ۱ از ۳" back="home" />
+      <StepBar step={1} total={3} />
 
       <div className="px-5 pb-1 pt-[22px]">
-        <h1 className="m-0 text-[30px] font-black leading-[1.4]">دوست پشمالوت رو انتخاب کن</h1>
+        <h1 className="m-0 text-[30px] font-black leading-[1.4]">هدیه‌ت رو بساز</h1>
         <p className="mb-0 mt-2 text-[15px] font-medium leading-[1.9] text-[#1F3E4D]">
-          شش تا رفیق پشمالو منتظرن؛ همه با یه قیمت، تفاوت فقط تو قلبشونه.
+          اول دوست پشمالو رو انتخاب کن، بعد کارت پستالت رو با متن، ویس، عکس یا ویدیو بساز.
+          همه‌چیز همین‌جا تو مرورگرت ذخیره می‌شه.
         </p>
+      </div>
+
+      {/* ── بخش ۱: انتخاب عروسک ── */}
+      <div className="px-5 pt-5">
+        <SubNum n="۱" title="دوست پشمالوت رو انتخاب کن" />
       </div>
 
       <div className="mt-3 flex justify-center px-5">
@@ -145,62 +204,12 @@ export function MobilePick() {
         </div>
       )}
 
-      <div className="sticky bottom-0 mt-auto flex items-center justify-between gap-3.5 border-t border-[#D3E8F0] bg-white/95 px-5 pb-[max(14px,env(safe-area-inset-bottom))] pt-3.5">
-        <div className="flex flex-col">
-          <span className="text-[13px] font-semibold text-[#4A6572]">جعبه + کارت پستال</span>
-          <span className="text-lg font-black">{money(BOX_PRICE)} تومان</span>
-        </div>
-        <button
-          type="button"
-          onClick={() => navigate("card")}
-          className="flex h-[54px] items-center gap-2 rounded-full bg-[#00ABE7] px-[26px] text-base font-extrabold text-[#04202E] transition-transform active:scale-95"
-        >
-          ادامه، کارت پستال
-          <ForwardIcon />
-        </button>
-      </div>
-    </div>
-  );
-}
-
-/* ═══════════════ 2 · CARD ═══════════════ */
-export function MobileCard() {
-  const occ = usePishnam((s) => s.occasion);
-  const setOcc = usePishnam((s) => s.setOccasion);
-  const message = usePishnam((s) => s.message);
-  const setMessage = usePishnam((s) => s.setMessage);
-  const senderDisplay = usePishnam((s) => s.senderDisplay);
-  const setSenderDisplay = usePishnam((s) => s.setSenderDisplay);
-  const senderPhrase = usePishnam((s) => s.senderPhrase);
-  const setSenderPhrase = usePishnam((s) => s.setSenderPhrase);
-  const senderName = usePishnam((s) => s.senderName);
-  const setSenderName = usePishnam((s) => s.setSenderName);
-  const cardPassword = usePishnam((s) => s.cardPassword);
-  const setCardPassword = usePishnam((s) => s.setCardPassword);
-  const mediaFiles = usePishnam((s) => s.mediaFiles);
-  const addMediaFile = usePishnam((s) => s.addMediaFile);
-  const removeMediaFile = usePishnam((s) => s.removeMediaFile);
-  const nextNo = usePishnam((s) => s.nextNo);
-  const user = usePishnam((s) => s.user);
-  const { toast } = useToast();
-  const mediaInputRef = useRef<HTMLInputElement>(null);
-
-  const PRIVACY_OPTIONS: { key: SenderDisplayMode; title: string; sub: string; emoji: string }[] = [
-    { key: "name", title: "اسمم نمایش داده بشه", sub: senderName || user?.name || "اسم خودت", emoji: "🙂" },
-    { key: "phrase", title: "یه عبارت دلخواه", sub: senderPhrase || "مثلاً: از طرف همسرت", emoji: "✍️" },
-    { key: "anon", title: "کاملاً ناشناس", sub: "یک هدیه برای تو", emoji: "🎁" },
-  ];
-
-  return (
-    <div className="flex min-h-screen flex-col bg-[#F2FAFD] md:hidden">
-      <MobileTopBar title="قدم ۲ از ۴" back="pick" />
-      <StepBar step={2} />
-
-      <div className="px-5 pb-1 pt-[22px]">
-        <h1 className="m-0 text-[30px] font-black leading-[1.4]">کارت پستالت رو بنویس</h1>
-        <p className="mb-0 mt-2 text-[15px] font-medium leading-[1.9] text-[#1F3E4D]">
-          یه کارت پستال فقط با یه QR همراه جعبه می‌رسه. دوستت اسکنش می‌کنه، رمز رو می‌زنه و
-          پیامت رو می‌بینه.
+      {/* ── بخش ۲: کارت پستال ── */}
+      <div className="px-5 pt-7">
+        <SubNum n="۲" title="کارت پستالت رو بنویس" />
+        <p className="mb-0 mt-2 text-[13.5px] font-medium leading-[1.9] text-[#4A6572]">
+          یه کارت پستال فقط با یه QR همراه جعبه می‌رسه. دوستت شماره‌ی موبایل خودش رو تأیید
+          می‌کنه و پیامت — با ویس و عکس و ویدیو — رو می‌بینه.
         </p>
       </div>
 
@@ -228,7 +237,7 @@ export function MobileCard() {
 
       <div className="mx-5 mt-3 flex flex-col gap-2 rounded-3xl border-[1.5px] border-[#CFE6EF] bg-white px-4 pb-3 pt-3.5">
         <label htmlFor="msg" className="text-sm font-extrabold">
-          پیامت
+          پیامت <span className="text-[11px] font-bold text-[#B02A52]">الزامی</span>
         </label>
         <textarea
           id="msg"
@@ -240,93 +249,31 @@ export function MobileCard() {
           className="min-h-[130px] resize-none border-none bg-transparent text-base leading-[1.9] text-[#04202E] outline-none"
         />
         <div className="flex justify-between text-[12.5px] font-semibold text-[#4A6572]">
-          <span>متن، عکس یا ویدیو؛ هر چی دلت خواست</span>
+          <span>متن، ویس، عکس یا ویدیو؛ هر چی دلت خواست</span>
           <span>
             {fa(message.length)} / ۴۰۰
           </span>
         </div>
+        {msgTried && msgEmpty && (
+          <span className="text-[11.5px] font-bold text-[#B02A52]">یه پیامی برای دوستت بنویس — متن کارت الزامیه.</span>
+        )}
       </div>
 
       <div className="mx-5 mt-3">
         <MessageIdeas occ={occ} onPick={setMessage} />
       </div>
 
-      {/* پیامِ رسانه‌ای واقعی — عکس/ویدیو/ویس خصوصی، فقط برای گیرنده (mission §۱/§۴) */}
-      <div className="px-5 pt-3">
-        <input
-          ref={mediaInputRef}
-          type="file"
-          accept="image/jpeg,image/png,image/webp,video/mp4,video/webm,audio/mpeg,audio/mp4,audio/wav,audio/ogg,audio/webm"
-          className="hidden"
-          onChange={(e) => {
-            const f = e.target.files?.[0];
-            if (f) {
-              const r = addMediaFile(f);
-              if (!r.ok) {
-                toast({
-                  title: r.error === "file_too_large" ? "حجم فایل بیشتر از ۱۰ مگابایته" : r.error === "too_many_files" ? "بیشتر از ۳ فایل نمی‌شه" : "این فرمت قبول نیست",
-                  description: "عکس JPG/PNG/WebP، ویدیو MP4/WebM یا صدای MP3/WAV/M4A",
-                });
-              }
-            }
-            e.target.value = "";
-          }}
-        />
-        <button
-          type="button"
-          onClick={() => mediaInputRef.current?.click()}
-          className="flex h-[74px] w-full items-center justify-center gap-3 rounded-[22px] border-2 border-dashed border-[#B5E3F5] bg-[#E3F6FD] text-sm font-bold text-[#04202E]"
-        >
-          <PhotoIcon />
-          <span>عکس، ویدیو یا ویس پیامت رو اضافه کن</span>
-        </button>
-        {mediaFiles.length > 0 && (
-          <div className="mt-2 flex flex-col gap-1.5">
-            {mediaFiles.map((m) => (
-              <div key={m.id} className="flex items-center gap-2.5 rounded-[16px] border border-[#CFE6EF] bg-white px-3 py-2">
-                <span className="text-lg" aria-hidden="true">{m.kind === "image" ? "🖼️" : m.kind === "video" ? "🎬" : "🎙️"}</span>
-                <span className="min-w-0 flex-1 truncate text-[12.5px] font-bold text-[#04202E]" dir="ltr">{m.name}</span>
-                <span className="text-[11px] font-semibold text-[#4A6572]">{fa(Math.round(m.size / 1024))} کیلوبایت</span>
-                <button
-                  type="button"
-                  aria-label={`حذف ${m.name}`}
-                  onClick={() => removeMediaFile(m.id)}
-                  className="rounded-lg bg-[#FFE9F0] px-2 py-1 text-[10.5px] font-extrabold text-[#B02A52]"
-                >
-                  حذف
-                </button>
-              </div>
-            ))}
-            <span className="text-[11.5px] font-medium leading-[1.8] text-[#4A6572]">
-              حداکثر ۳ فایل، هرکدوم تا ۱۰ مگ — فقط گیرنده‌ی تأییدشده می‌بینه؛ بعد از پایان مهلت نگهداری حذف می‌شن.
-            </span>
-          </div>
-        )}
-      </div>
-
-      <div className="mx-5 mt-[18px] flex flex-col gap-2">
-        <label htmlFor="pw" className="text-sm font-extrabold">
-          رمز کارت
-        </label>
-        <input
-          id="pw"
-          type="text"
-          value={cardPassword}
-          onChange={(e) => setCardPassword(e.target.value)}
-          placeholder="مثلاً اسم اولین جایی که با هم رفتید"
-          className="box-border h-[54px] rounded-[18px] border-[1.5px] border-[#CFE6EF] bg-white px-4 text-base text-[#04202E] outline-none focus:border-[#00ABE7]"
-        />
-        <span className="text-[12.5px] font-medium leading-[1.8] text-[#4A6572]">
-          راه دوم باز کردن کارت: هرکی رمز رو بدونه می‌تونه پیامت رو ببینه — حتی بدون اسکن QR.
-        </span>
+      {/* استودیو هدیه — ضبط ویس/ویدیو/عکس + آپلود (owner round 29) */}
+      <div className="px-5 pt-4">
+        <MediaStudio />
       </div>
 
       {/* محرمانگی هویت فرستنده — برای هر سفارش جدا انتخاب می‌شه (mission §۳) */}
       <div className="mx-5 mt-[18px] rounded-3xl border border-[#DDEEF5] bg-white px-4 py-3.5">
         <span className="text-sm font-extrabold">اسم چطوری دیده بشه؟</span>
         <span className="mt-1 block text-[12px] font-medium leading-[1.8] text-[#4A6572]">
-          انتخابت فقط برای همین سفارشه؛ برای هر هدیه می‌تونی متفاوت انتخاب کنی. تو حالت ناشناس،
-          هیچ اطلاعاتی از تو به گیرنده نمی‌رسه — نه رو کارت، نه توی سیستم.
+          انتخابت فقط برای همین سفارشه؛ روی صفحه‌ی QR گیرنده همین‌طوری دیده می‌شه. تو حالت
+          ناشناس، هیچ اطلاعاتی از تو به گیرنده نمی‌رسه — نه رو کارت، نه توی سیستم.
         </span>
         <div className="mt-2.5 flex flex-col gap-2">
           {PRIVACY_OPTIONS.map((opt) => {
@@ -398,7 +345,19 @@ export function MobileCard() {
         )}
       </div>
 
-      <div className="mx-5 mt-[18px] flex items-center gap-4 rounded-[26px] bg-[#D6F1FB] p-[18px]">
+      {/* قانون جدید رمز — خریدار رمزی وارد نمی‌کند (owner round 29) */}
+      <div className="mx-5 mt-3.5">
+        <div className="flex items-start gap-2.5 rounded-[22px] border border-dashed border-[#BFE9CB] bg-[#F3FCF6] px-4 py-3.5">
+          <span className="text-lg" aria-hidden="true">🔐</span>
+          <div className="text-[12px] font-semibold leading-[1.9] text-[#177A3D]">
+            <b className="font-black">رمز کارت لازم نیست وارد کنی!</b> پیامت فقط با{" "}
+            <b className="font-black">تأیید شماره موبایل گیرنده</b> باز می‌شه — کد ۴ رقمی
+            همون لحظه برای خودش پیامک می‌شه.
+          </div>
+        </div>
+      </div>
+
+      <div className="mx-5 mt-3.5 flex items-center gap-4 rounded-[26px] bg-[#D6F1FB] p-[18px]">
         <div className="flex h-[98px] w-32 shrink-0 rotate-[-3deg] items-center justify-center rounded-xl border-[2.5px] border-[#04202E] bg-white">
           {/* THE real postcard QR — same SVG every box ships with (mission §۱) */}
           <RealVerifyQr />
@@ -412,40 +371,84 @@ export function MobileCard() {
         </div>
       </div>
 
-      <div className="sticky bottom-0 mt-auto border-t border-[#D3E8F0] bg-white/95 px-5 pb-[max(14px,env(safe-area-inset-bottom))] pt-3.5">
+      {/* نگهداری پیام — از قدم ۳ قبلی به قدم ۱ منتقل شد (owner round 29) */}
+      <div className="px-5 pt-6">
+        <h2 className="m-0 text-lg font-black">نگهداری پیام</h2>
+        <p className="mb-0 mt-1 text-[12.5px] font-medium leading-[1.85] text-[#4A6572]">
+          پیامت (متن، ویس، عکس و ویدیو) تا وقتی که انتخاب کنی نگه داشته می‌شه. ساعت از روزی
+          شروع می‌شه که گیرنده پیامت رو واقعاً می‌بینه — نه از روز خرید.
+        </p>
+        <div className="mt-2.5 grid grid-cols-3 gap-2">
+          {(
+            [
+              { key: "1m", title: "۱ ماهه", price: 0, tag: "رایگان" },
+              { key: "6m", title: "۶ ماهه", price: retentionPrices.m6, tag: null },
+              { key: "12m", title: "۱ ساله", price: retentionPrices.m12, tag: "پیشنهاد ویژه" },
+            ] as { key: RetentionPlanKey; title: string; price: number; tag: string | null }[]
+          ).map((p) => {
+            const on = retention === p.key;
+            return (
+              <button
+                key={p.key}
+                type="button"
+                role="radio"
+                aria-checked={on}
+                onClick={() => setRetention(p.key)}
+                className="relative flex flex-col items-center gap-1 rounded-[18px] border-2 px-2 py-3 transition-colors"
+                style={{ borderColor: on ? "#00ABE7" : "#DDEEF5", background: on ? "#E3F6FD" : "white" }}
+              >
+                {p.tag && (
+                  <span className="absolute -top-2 right-1/2 translate-x-1/2 rounded-full bg-[#F0426B] px-2 py-0.5 text-[9.5px] font-extrabold text-white">
+                    {p.tag}
+                  </span>
+                )}
+                <span className="text-[13.5px] font-black text-[#04202E]">{p.title}</span>
+                <span className="text-[11px] font-bold text-[#4A6572]">
+                  {p.price === 0 ? "رایگان" : `${money(p.price)} تومان`}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      <div className="sticky bottom-0 mt-5 flex items-center justify-between gap-3.5 border-t border-[#D3E8F0] bg-white/95 px-5 pb-[max(14px,env(safe-area-inset-bottom))] pt-3.5">
+        <div className="flex flex-col">
+          <span className="text-[13px] font-semibold text-[#4A6572]">جعبه + کارت پستال</span>
+          <span className="text-lg font-black">{money(BOX_PRICE)} تومان</span>
+        </div>
         <button
           type="button"
-          onClick={() => navigate("extras")}
-          className="flex h-[54px] w-full items-center justify-center gap-2 rounded-full bg-[#00ABE7] text-base font-extrabold text-[#04202E] transition-transform active:scale-95"
+          onClick={goNext}
+          className="flex h-[54px] items-center gap-2 rounded-full bg-[#00ABE7] px-[26px] text-base font-extrabold text-[#04202E] transition-transform active:scale-95"
         >
-          ادامه، پنجه و قلب
+          ذخیره و ادامه
           <ForwardIcon />
         </button>
       </div>
+      <div className="h-[2px]" aria-hidden="true" />
     </div>
   );
 }
 
-/* ═══════════════ 3 · EXTRAS ═══════════════ */
+/* ═══════════════ قدم ۲ — افزودنی‌ها + قلب و پنجه ═══════════════ */
 export function MobileExtras() {
   const hearts = usePishnam((s) => s.hearts);
   const paws = usePishnam((s) => s.paws);
   const setHearts = usePishnam((s) => s.setHearts);
   const setPaws = usePishnam((s) => s.setPaws);
-  const nextNo = usePishnam((s) => s.nextNo);
   // قلب قرمز/پنجه — قیمت و فعال‌بودن از تنظیمات ادمین (owner request)
   const charmPrice = usePishnam((s) => s.charmPrice);
   const charmsEnabled = usePishnam((s) => s.charmsEnabled);
   // دکمه «جزئیات» هر افزودنی → Bottom-Sheet آیفونی
   const [detail, setDetail] = useState<CatalogEntry | null>(null);
   const { toast } = useToast();
-  // «افزودنی‌ها» (mission §۵) + پلن‌های نگهداری (mission §۴)
+  // «افزودنی‌ها» (mission §۵)
   const catalogAddons = usePishnam((s) => s.catalogAddons);
   const addonLines = usePishnam((s) => s.addonLines);
   const addAddon = usePishnam((s) => s.addAddon);
   const removeAddon = usePishnam((s) => s.removeAddon);
   const retention = usePishnam((s) => s.retention);
-  const setRetention = usePishnam((s) => s.setRetention);
   const retentionPrices = usePishnam((s) => s.retentionPrices);
   const loadCatalog = usePishnam((s) => s.loadCatalog);
   useEffect(() => {
@@ -459,31 +462,13 @@ export function MobileExtras() {
   const done = useCharityDone();
   const doneNow = done;
   const barPct = Math.min(100, Math.round((doneNow / CHARITY_TARGET) * 100));
-
-  const all: ("h" | "p")[] = [];
-  let hi = 0;
-  let pi = 0;
-  while (hi < hearts || pi < paws) {
-    if (hi < hearts) {
-      all.push("h");
-      hi++;
-    }
-    if (pi < paws) {
-      all.push("p");
-      pi++;
-    }
-  }
-  const cap = 26;
-  const shown = all.slice(0, cap);
-  const hasMore = all.length > cap;
-  const more = all.length - cap;
   const retentionFee = retention === "6m" ? retentionPrices.m6 : retention === "12m" ? retentionPrices.m12 : 0;
   const total = BOX_PRICE + (charmsEnabled ? (hearts + paws) * charmPrice : 0) + addonsTotal + retentionFee;
 
   return (
     <div className="flex min-h-screen flex-col bg-[#F2FAFD] md:hidden">
-      <MobileTopBar title="قدم ۳ از ۴" back="card" />
-      <StepBar step={3} />
+      <MobileTopBar title="قدم ۲ از ۳" back="pick" />
+      <StepBar step={2} total={3} />
 
       <div className="px-5 pb-1 pt-[22px]">
         <h1 className="m-0 text-[30px] font-black leading-[1.4]">یه ذره مهربونی اضافه کن</h1>
@@ -569,65 +554,52 @@ export function MobileExtras() {
         </div>
       )}
 
-
-      {/* قلب قرمز و پنجه — جدا از افزودنی‌ها، زیرشان؛ کنترل از تب تنظیمات ادمین */}
+      {/* قلب قرمز و پنجه — جمع‌وجور (owner round 29: «خیلی کادر بزرگ نباشه») */}
       {charmsEnabled && (
         <div className="px-5 pt-5">
           <div className="flex items-baseline justify-between">
             <h2 className="m-0 text-lg font-black">قلب قرمز و پنجه</h2>
             <span className="text-[12px] font-bold text-[#4A6572]">هر کدوم {money(charmPrice)} تومان — برای کار خیر</span>
           </div>
-          <div className="mt-2.5 flex flex-col gap-3">
-
-        {/* hearts */}
-        <div className="flex flex-col gap-3.5 rounded-[28px] border-[1.5px] border-[#F7C5D3] bg-[#FFE9F0] p-4">
-          <div className="flex items-center gap-3.5">
-            <div className="flex h-[68px] w-[68px] shrink-0 items-center justify-center rounded-full bg-white">
-              <HeartSticker size={40} fill="#F0426B" stroke="#04202E" strokeWidth={2.4} />
+          <div className="mt-2.5 flex flex-col gap-2">
+            <div className="flex items-center gap-3 rounded-[20px] border-[1.5px] bg-white p-2.5" style={{ borderColor: hearts > 0 ? "#F7C5D3" : "#DDEEF5" }}>
+              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#FFE9F0]">
+                <HeartSticker size={26} fill="#F0426B" stroke="#04202E" strokeWidth={2.4} />
+              </span>
+              <span className="flex min-w-0 flex-1 flex-col">
+                <span className="text-[15px] font-black text-[#04202E]">قلب قرمز</span>
+                <span className="text-[11px] font-medium leading-[1.6] text-[#4A6572]">هدیه به بچه‌های بی‌سرپرست</span>
+              </span>
+              <span className="shrink-0 text-[11.5px] font-extrabold text-[#4A6572]">{money(charmPrice)}</span>
+              <Counter
+                value={hearts}
+                onMinus={() => setHearts(hearts - 1)}
+                onPlus={() => setHearts(hearts + 1)}
+                minusLabel="یکی کم کن"
+                plusLabel="یکی زیاد کن"
+                plusBg="#F0426B"
+                plusStroke="#fff"
+              />
             </div>
-            <div className="flex flex-col gap-[3px]">
-              <span className="text-lg font-black">قلب قرمز</span>
-              <span className="text-[13px] font-medium text-[#1F3E4D]">برای هدیه به بچه‌های بی‌سرپرست</span>
+            <div className="flex items-center gap-3 rounded-[20px] border-[1.5px] bg-white p-2.5" style={{ borderColor: paws > 0 ? "#B5E3F5" : "#DDEEF5" }}>
+              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#E3F6FD]">
+                <PawIcon size={24} />
+              </span>
+              <span className="flex min-w-0 flex-1 flex-col">
+                <span className="text-[15px] font-black text-[#04202E]">پنجه</span>
+                <span className="text-[11px] font-medium leading-[1.6] text-[#4A6572]">هدیه به پناهگاه حیوونا</span>
+              </span>
+              <span className="shrink-0 text-[11.5px] font-extrabold text-[#4A6572]">{money(charmPrice)}</span>
+              <Counter
+                value={paws}
+                onMinus={() => setPaws(paws - 1)}
+                onPlus={() => setPaws(paws + 1)}
+                minusLabel="یکی کم کن"
+                plusLabel="یکی زیاد کن"
+                plusBg="#00ABE7"
+                plusStroke="#04202E"
+              />
             </div>
-          </div>
-          <div className="flex items-center justify-between">
-            <span className="text-sm font-bold">هر کدوم {money(charmPrice)} تومان</span>
-            <Counter
-              value={hearts}
-              onMinus={() => setHearts(hearts - 1)}
-              onPlus={() => setHearts(hearts + 1)}
-              minusLabel="یکی کم کن"
-              plusLabel="یکی زیاد کن"
-              plusBg="#F0426B"
-              plusStroke="#fff"
-            />
-          </div>
-        </div>
-
-        {/* paws */}
-        <div className="flex flex-col gap-3.5 rounded-[28px] border-[1.5px] border-[#B5E3F5] bg-[#E3F6FD] p-4">
-          <div className="flex items-center gap-3.5">
-            <div className="flex h-[68px] w-[68px] shrink-0 items-center justify-center rounded-full bg-white">
-              <PawIcon size={38} />
-            </div>
-            <div className="flex flex-col gap-[3px]">
-              <span className="text-lg font-black">پنجه</span>
-              <span className="text-[13px] font-medium text-[#1F3E4D]">برای هدیه به پناهگاه حیوونا</span>
-            </div>
-          </div>
-          <div className="flex items-center justify-between">
-            <span className="text-sm font-bold">هر کدوم {money(charmPrice)} تومان</span>
-            <Counter
-              value={paws}
-              onMinus={() => setPaws(paws - 1)}
-              onPlus={() => setPaws(paws + 1)}
-              minusLabel="یکی کم کن"
-              plusLabel="یکی زیاد کن"
-              plusBg="#00ABE7"
-              plusStroke="#04202E"
-            />
-          </div>
-        </div>
           </div>
         </div>
       )}
@@ -640,7 +612,6 @@ export function MobileExtras() {
               <span className="mx-auto h-1.5 w-12 rounded-full bg-[#DDEEF5]" aria-hidden="true" />
               <div className="flex h-[190px] items-center justify-center overflow-hidden rounded-[24px] bg-[#F2FAFD]">
                 {detail.image ? (
-                   
                   <img src={detail.image} alt={detail.name} className="h-full w-full object-cover" />
                 ) : (
                   <span className="text-6xl" aria-hidden="true">{detail.emoji || "🎁"}</span>
@@ -673,75 +644,6 @@ export function MobileExtras() {
         </SheetContent>
       </Sheet>
 
-      {/* پلن نگهداری پیام — ساعت از اولین نمایش موفق شروع می‌شه (mission §۴) */}
-      <div className="px-5 pt-5">
-        <h2 className="m-0 text-lg font-black">نگهداری پیام</h2>
-        <p className="mb-0 mt-1 text-[12.5px] font-medium leading-[1.85] text-[#4A6572]">
-          پیامت (متن، عکس و ویس) تا وقتی که انتخاب کنی نگه داشته می‌شه. ساعت از روزی شروع می‌شه
-          که گیرنده پیامت رو واقعاً می‌بینه — نه از روز خرید.
-        </p>
-        <div className="mt-2.5 grid grid-cols-3 gap-2">
-          {(
-            [
-              { key: "1m", title: "۱ ماهه", price: 0, tag: "رایگان" },
-              { key: "6m", title: "۶ ماهه", price: retentionPrices.m6, tag: null },
-              { key: "12m", title: "۱ ساله", price: retentionPrices.m12, tag: "پیشنهاد ویژه" },
-            ] as { key: RetentionPlanKey; title: string; price: number; tag: string | null }[]
-          ).map((p) => {
-            const on = retention === p.key;
-            return (
-              <button
-                key={p.key}
-                type="button"
-                role="radio"
-                aria-checked={on}
-                onClick={() => setRetention(p.key)}
-                className="relative flex flex-col items-center gap-1 rounded-[18px] border-2 px-2 py-3 transition-colors"
-                style={{ borderColor: on ? "#00ABE7" : "#DDEEF5", background: on ? "#E3F6FD" : "white" }}
-              >
-                {p.tag && (
-                  <span className="absolute -top-2 right-1/2 translate-x-1/2 rounded-full bg-[#F0426B] px-2 py-0.5 text-[9.5px] font-extrabold text-white">
-                    {p.tag}
-                  </span>
-                )}
-                <span className="text-[13.5px] font-black text-[#04202E]">{p.title}</span>
-                <span className="text-[11px] font-bold text-[#4A6572]">
-                  {p.price === 0 ? "رایگان" : `${money(p.price)} تومان`}
-                </span>
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* box preview */}
-      <div className="mx-5 mt-[18px]">
-        <div className="pb-2.5 text-[15px] font-extrabold">روی جعبه‌ت این‌جوری می‌شینه</div>
-        <div className="relative box-border min-h-[150px] rounded-[26px] border-[2.5px] border-[#04202E] bg-[#00ABE7] px-4 pb-4 pt-[18px]">
-          <div className="absolute -top-0.5 left-[22px] h-11 w-[18px] rounded-b-md bg-[#04202E]" />
-          <div className="inline-flex rotate-[-3deg] flex-col items-center rounded-[14px] border-[2.5px] border-[#04202E] bg-white px-3.5 pb-1 pt-1.5">
-            <span className="text-[10.5px] font-bold text-[#4A6572]">هدیه‌ی شماره</span>
-            <span className="text-[26px] font-black leading-[1.1]">{fa(nextNo)}</span>
-          </div>
-          <div className="flex flex-wrap items-center gap-1 pt-3">
-            {shown.map((k, i) => (
-              <span key={i} className="inline-flex" style={{ transform: `rotate(${((i * 37) % 28) - 14}deg)` }}>
-                {k === "h" ? (
-                  <HeartSticker size={34} fill="#F0426B" stroke="#fff" strokeWidth={3.6} />
-                ) : (
-                  <PawSticker size={34} />
-                )}
-              </span>
-            ))}
-            {hasMore && (
-              <span className="rounded-[14px] bg-[#04202E] px-2.5 py-1.5 text-[13px] font-extrabold text-white">
-                +{fa(more)}
-              </span>
-            )}
-          </div>
-        </div>
-      </div>
-
       {/* charity progress */}
       <div className="mx-5 mt-4 flex flex-col gap-2.5 rounded-3xl border border-[#DDEEF5] bg-white px-[18px] py-4">
         <div className="flex items-center justify-between">
@@ -769,7 +671,7 @@ export function MobileExtras() {
           onClick={() => navigate("checkout")}
           className="flex h-[54px] items-center gap-2 rounded-full bg-[#00ABE7] px-[26px] text-base font-extrabold text-[#04202E] transition-transform active:scale-95"
         >
-          برو به سبد
+          ذخیره و تکمیل
           <ForwardIcon />
         </button>
       </div>
@@ -818,14 +720,12 @@ function Counter({
   );
 }
 
-/* ═══════════════ 4 · CHECKOUT ═══════════════ */
+/* ═══════════════ قدم ۳ — سبد و پرداخت ═══════════════ */
 export function MobileCheckout() {
-  const nextNo = usePishnam((s) => s.nextNo);
   const kind = usePishnam((s) => s.kind);
   const hearts = usePishnam((s) => s.hearts);
   const paws = usePishnam((s) => s.paws);
   const addonLines = usePishnam((s) => s.addonLines);
-  const retention = usePishnam((s) => s.retention);
   const receiver = usePishnam((s) => s.receiver);
   const setReceiver = usePishnam((s) => s.setReceiver);
   const quote = usePishnam((s) => s.quote);
@@ -839,7 +739,7 @@ export function MobileCheckout() {
   // server quote — the only payable number (guide §4.5)
   useEffect(() => {
     void fetchQuote();
-  }, [fetchQuote, kind, hearts, paws, receiver.province, addonLines, retention]);
+  }, [fetchQuote, kind, hearts, paws, receiver.province, addonLines]);
 
   const sel = PLUSHES.find((p) => p.kind === kind) ?? PLUSHES[0];
   const total = quote?.total ?? 0;
@@ -871,8 +771,7 @@ export function MobileCheckout() {
   // پرداخت فقط با گیرنده‌ی کامل + شماره‌ی سفارش‌دهنده‌ی وریفای‌شده باز می‌شه
   const canPay = valid && ordererVerified;
 
-  // UX borrowed from design-checkout style 2: precise, actionable missing-step
-  // hints + gentle inline validation on «attempt» — same UI/structure as before.
+  // UX: precise, actionable missing-step hints + gentle inline validation
   const [attempted, setAttempted] = useState(false);
   const nameMissing = receiver.name.trim() === "";
   const phoneMissing = receiver.phone.trim().length < 8;
@@ -897,28 +796,28 @@ export function MobileCheckout() {
 
   return (
     <div className="flex min-h-screen flex-col bg-[#F2FAFD] md:hidden">
-      <MobileTopBar title="قدم ۴ از ۴" back="extras" />
-      <StepBar step={4} />
+      <MobileTopBar title="قدم ۳ از ۳" back="extras" />
+      <StepBar step={3} total={3} />
 
       <div className="px-5 pb-1 pt-[22px]">
         <h1 className="m-0 text-[30px] font-black leading-[1.4]">سبد و پرداخت</h1>
       </div>
 
-      {/* ticket */}
-      <div className="relative mx-5 mt-3 flex items-stretch overflow-hidden rounded-[26px] bg-[#00ABE7]">
-        <div className="flex w-[118px] shrink-0 flex-col items-center justify-center py-[18px]">
-          <span className="text-xs font-bold">هدیه‌ی شماره</span>
-          <span className="text-[44px] font-black leading-[1.15]">{fa(nextNo)}</span>
-        </div>
-        <div className="my-3.5 w-0 border-r-[2.5px] border-dashed border-[#04202E]" />
-        <div className="flex flex-1 flex-col justify-center gap-1 px-4 py-[18px]">
-          <span className="text-base font-black">این شماره مال هدیه‌ی توئه</span>
-          <span className="text-[12.5px] font-medium leading-[1.8]">
-            روی جعبه و کارت پستال می‌شینه و اسمش تو دفتر ما ثبت می‌شه.
+      {/* پیش‌نمایش پستی جعبه — بالای سبد، مثل نسخه‌ی دسکتاپ (owner round 29) */}
+      <div className="mx-5 mt-3">
+        <div className="pb-2 text-[14px] font-extrabold text-[#04202E]">جعبه‌ت این‌جوری می‌رسه</div>
+        <BoxPreview />
+      </div>
+
+      {/* قانون امنیت — گیرنده فقط با وریفای شماره می‌بیند (owner round 29) */}
+      <div className="mx-5 mt-3.5">
+        <div className="flex items-start gap-2.5 rounded-[20px] border border-dashed border-[#BFE9CB] bg-[#F3FCF6] px-4 py-3">
+          <span className="text-base" aria-hidden="true">🔒</span>
+          <span className="text-[11.5px] font-bold leading-[1.85] text-[#177A3D]">
+            اطلاعات این هدیه به‌صورت امن نگه‌داری می‌شه و فقط بعد از تأیید شماره‌ی موبایل
+            گیرنده نمایش داده می‌شه.
           </span>
         </div>
-        <div className="absolute -top-3 right-[106px] h-6 w-6 rounded-full bg-[#F2FAFD]" />
-        <div className="absolute -bottom-3 right-[106px] h-6 w-6 rounded-full bg-[#F2FAFD]" />
       </div>
 
       {/* items — amounts come from the SERVER quote */}
@@ -1013,7 +912,7 @@ export function MobileCheckout() {
           />
           {attempted && addrMissing && <div className="pb-0.5 text-[11px] font-bold text-[#B02A52]">آدرس گیرنده رو کامل کن</div>}
         </div>
-        {/* reassurance (style-2 tone) — copy only, no structure change */}
+        {/* reassurance — copy only */}
         <div className="flex items-start gap-2 py-3 text-[11.5px] font-semibold leading-[1.8] text-[#4A6572]">
           <span aria-hidden="true">🤫</span>
           <span>اسم و شماره‌ی تو فقط پیش ما می‌مونه — هیچ‌کدوم بدون اجازه‌ی تو به گیرنده نمی‌رسه.</span>
