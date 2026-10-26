@@ -1,0 +1,126 @@
+<!-- TECH SECTION START -->
+<section class="sec">
+  <h2 class="sec-title">نمای فنی: معماری، کیفیت و آمادگی</h2>
+  <p class="lead">این بخش چکیده‌ی ارزیابی مهندسی از وضعیت فنی «یک دوست» در پایان راند ۳۰ است: Next.js ۱۶ (App Router) با TypeScript سخت‌گیرانه، Prisma روی SQLite و ذخیره‌ی فایل در ریشه‌ی <b>.data</b>؛ تمام منطق حساس — قیمت، وضعیت سفارش، حریم خصوصی پیام — عامدانه سمت سرور است. هر ادعا به کد موجود گره خورده است.</p>
+  <div class="grid3">
+    <div class="kpi"><span class="kpi-n">۵۹</span><span>مسیر API در ۲۰ گروه (src/app/api)</span></div>
+    <div class="kpi"><span class="kpi-n">۲۳</span><span>مدل Prisma در schema واحد</span></div>
+    <div class="kpi"><span class="kpi-n">۱۱</span><span>وضعیت ماشین حالت سفارش</span></div>
+    <div class="kpi"><span class="kpi-n">۳</span><span>قدم خرید، یکسان در موبایل و دسکتاپ</span></div>
+  </div>
+
+  <h3 class="sec-title">معماری کلی</h3>
+  <div class="card">
+    <p>رندر SPA تک‌مسیری است: <b>src/middleware.ts</b> هر مسیر صفحه را به <b>/</b> بازنویسی می‌کند و روتر <b>src/lib/hash-route.ts</b> از روی <b>pathname</b> (با History API، بدون «#/» در URL) صفحه را انتخاب می‌کند؛ دیپ‌لینک /verify و /track?code=… و انکرهای درون‌صفحه‌ای پشتیبانی می‌شوند. خرید در هر دو پلتفرم ویزارد سه‌قدمی است (موبایل flow.tsx، دسکتاپ builder.tsx با نوار DStepBar). منبع واحد پول «کوت سرور» است: کلاینت جمع نمی‌زند و totalToman در Order به‌صراحت «server-authoritative» است. تمام فایل‌ها از یک درزِ واحد می‌گذرند: <b>dataFile()</b> در data-root.ts با DATA_ROOT.</p>
+    <pre class="code">
+UI Screens (RTL)        flow.tsx / builder.tsx / admin / hero-slider
+        |  hash-route (History API + middleware rewrite, no #/)
+zustand store           pishnam-store (cart/flow)  <-  server quote = single money source
+        |  fetch /api/*
+API Gateway             59 routes: auth/otp | checkout | orders | gifts/media | admin
+        |            |                 |
+Prisma/SQLite      .data files       external providers
+db/custom.db       dataFile() seam   ippanel SMS | zarinpal
+</pre>
+  </div>
+  <div class="grid2">
+    <div class="card"><span class="chip chip-blue">دروازه‌ی API</span> هر ۵۹ مسیر از پاکت خطای مشترک (AppError → toErrorResponse)، اعتبارسنجی ورودی و روی هر mutation چک same-origin و توکن‌باکت نرخ عبور می‌کنند.</div>
+    <div class="card"><span class="chip chip-blue">محتوای مالک‌محور</span> اسلایدر هیرو از راند ۳۰ «server-driven» است: منبع مشترک src/lib/home-slides.ts (۴ اسلاید پیش‌فرض، سقف ۶)، /api/home-content عمومی با fallback و /api/admin/slides برای ویرایش؛ هر PATCH دوباره سمت سرور پاک‌سازی می‌شود.</div>
+  </div>
+
+  <h3 class="sec-title">مدل داده</h3>
+  <table class="tbl">
+    <tr><th>مدل</th><th>نقش کلیدی</th></tr>
+    <tr><td>Order</td><td>قلب سیستم: کد PN-YYMMDD-#### به‌وقت تهران، idempotencyKey یکتا، ماشین ۱۱ وضعیته، مبلغ‌ها سمت سرور، فیلدهای حریم خصوصی (پایین‌تر)</td></tr>
+    <tr><td>OrderItem / OrderEvent</td><td>اقلام snapshot‌شده و دفتر رویداد ممیزی‌پذیر هر سفارش</td></tr>
+    <tr><td>Payment</td><td>zarinpal | manual_transfer؛ رسید با receiptHash (sha256) برای جلوگیری از ثبت تکراری و attemptNo</td></tr>
+    <tr><td>SmsOutbox / SmsTemplate</td><td>صف پیامک (queued|sent|failed|dead با تلاش مجدد) و قالب‌های سیستمی قابل ویرایش ادمین (patternCode پترن ippanel یا متن ساده)</td></tr>
+    <tr><td>RetentionRenewal</td><td>تمدید ۶/۱۲ ماهه‌ی نگهداری پیام؛ فقط با تایید رسید توسط ادمین؛ اگر پیام پاک شده باشد، صادقانه لغو می‌شود</td></tr>
+    <tr><td>Setting / DailyCounter</td><td>تنظیمات مدیریتی (از جمله media_max_files و media_max_mb و home_slides) و شمارنده‌ی روزانه‌ی شماره‌گذاری به‌وقت تهران</td></tr>
+    <tr><td>AdminUser / AppUser / AuthCode / Session</td><td>دو رگه‌ی هویت جدا: ادمین با رمز پنل، مشتری با شماره + OTP؛ کدهای OTP مقصود-دار و هش‌شده</td></tr>
+    <tr><td>Product / ProductVariant</td><td>کاتالوگ عروسک با واریانت و موجودی که در تراکنش سفارش قفل/آزاد می‌شود</td></tr>
+    <tr><td>JobRun</td><td>لاگ اجرای جاب‌های زمان‌بندی‌شده برای مشاهده‌پذیری عملیات</td></tr>
+  </table>
+  <div class="card">
+    <span class="tag">فیلدهای حریم خصوصی در Order</span>
+    <p><b>senderDisplay</b> (name | phrase | anon): در حالت anon پاسخ‌های رو به گیرنده هرگز senderName/senderPhone را حمل نمی‌کنند — حذف سمت سرور است، نه پنهان‌سازی CSS. <b>cardPasswordHash</b> فقط هش scrypt و صرفاً داخلی؛ از راند ۲۹ اصلاً رمز از خریدار گرفته نمی‌شود و کد ۴رقمی سمت سرور تولید می‌شود. <b>mediaKeys</b> آرایه‌ای از کلیدهای .data/messages/&lt;code&gt;/ است و ساعت نگهداری (messageShownAt) فقط با «اولین نمایش مجاز به گیرنده» روشن می‌شود — نه در پرداخت یا تحویل.</p>
+  </div>
+
+  <h3 class="sec-title">امنیت و حریم خصوصی</h3>
+  <div class="grid2">
+    <div class="card">
+      <span class="chip chip-green">جریان‌های OTP</span>
+      <ul class="checks">
+        <li>سه مقصود مجزا: ورود/سفارش‌دهنده (otp_login)، گیرنده‌ی هدیه (otp_gift از راند ۲۹) و ادمین (رمز پنل + سقف ۵ تلاش در ۱۵ دقیقه)؛ کدِ یک مقصود برای مقصود دیگر به‌کار نمی‌آید.</li>
+        <li>سقف‌ها: ۱ کد در دقیقه و ۳ در ساعت برای هر شماره، ۱۰ در روز برای هر IP، ۱۰ تایید در ۱۵ دقیقه.</li>
+        <li>پیش‌بررسی gift_recv: گیرنده‌ی بدون بسته‌ی قابل‌مشاهده، بدون مصرف پیامک {noGifts:true} می‌گیرد — پیامی به غریبه نمی‌رود.</li>
+      </ul>
+    </div>
+    <div class="card">
+      <span class="chip chip-green">رسانه‌ی خصوصی</span>
+      <ul class="checks">
+        <li>فایل‌ها هرگز از /public سرو نمی‌شوند؛ GET فقط به سشنِ هم‌شماره با recipientPhone در وضعیت قابل‌مشاهده و قبل از انقضا (یا پیش‌نمایش فرستنده)؛ بقیه ۴۰۴ یکسان می‌گیرند — بدون افشای وجود.</li>
+        <li>کلید فایل با رجِکس سخت‌گیرانه اعتبارسنجی می‌شود (ضد path-traversal) و نوع واقعی با magic-byte تشخیص داده می‌شود، نه MIME ادعایی.</li>
+        <li>آپلود مهمان با «اثبات idempotency-key» (راز سازنده‌ی سفارش) تا وضعیت preparing مجاز است؛ سقف‌ها از Setting خوانده می‌شود (۱ تا ۳ فایل، ۱ تا ۵۰MB) با fallback کد.</li>
+      </ul>
+    </div>
+    <div class="card">
+      <span class="chip chip-green">کنترل دسترسی ادمین</span>
+      <ul class="checks">
+        <li>PATCH تنظیمات فقط برای owner است (مدیر فروشگاه ۴۰۳ می‌گیرد)؛ ویرایش اسلایدها برای هر ادمین باز است ولی همیشه same-origin + سقف ۴۰ درخواست در ۱۰ دقیقه + پاک‌سازی مجدد سرور (whitelist ۱۷ مسیر CTA، رنگ hex، سقف طول متن‌ها).</li>
+      </ul>
+    </div>
+    <div class="card">
+      <span class="chip chip-green">رازها و ترافیک</span>
+      <ul class="checks">
+        <li>متغیرهای env با zod اعتبارسنجی می‌شوند؛ IPPANEL_API_KEY و ADMIN_PANEL_PASSWORD هرگز کامیت نشده‌اند (.env و db و .data گیت‌ایگنور — تأیید شده با git).</li>
+        <li>هدرهای nosniff / Referrer-Policy / Permissions-Policy (دوربین و میکروفون فقط self) در next.config.ts؛ XFO/HSTS به reverse proxy سپرده شده تا پیش‌نمایش سندباکس نشکند.</li>
+      </ul>
+    </div>
+  </div>
+
+  <h3 class="sec-title">ادغام‌های بیرونی</h3>
+  <div class="grid3">
+    <div class="card"><span class="chip chip-yellow">ippanel (پیامک)</span> آداپتور Edge API رسمی (edge.ippanel.com/v1): یک endpoint واحد POST /api/send با دو حالت pattern/webservice و اعتبار از GET /api/payment/credit/mine. ارسال pattern-first است و با patternCode خالی fallbackText می‌رود؛ خطاهای فارسی خودِ ارائه‌دهنده عیناً به outbox و چیپ وضعیت اتصال ادمین می‌رسند. تایم‌اوت ۱۰ ثانیه، نرمال‌سازی E.164.</div>
+    <div class="card"><span class="chip chip-yellow">پرداخت</span> زرین‌پال (callback + recheck) کنار کارت‌به‌کارت دستی با پنجره‌ی رزرو ۱۰ دقیقه‌ای (انقضای خودکار سفارش پرداخت‌نشده)، آپلود رسید با هش sha256 و تایید انسانی ادمین؛ مسیر تمدید نگهداری هم از همان مخزن رسید استفاده می‌کند.</div>
+    <div class="card"><span class="chip chip-yellow">دوز Netlify</span> build خودکفا (SQLite تازه در زمان build seed می‌شود) و خروجی standalone با outputFileTracingIncludes برای حمل db و کلاینت Prisma؛ در cold-start نسخه‌ی serverless، db از طریق sqlite-serverless در db.ts به /tmp کپی می‌شود. DATA_ROOT همان درزِ dataFile() را به mount نوشتنی هدایت می‌کند و دسترسی process.cwd() از دید file-trace مبهم نگه داشته شده تا سقف ۲۵۰MB تابع نشکند.</div>
+  </div>
+
+  <h3 class="sec-title">قابلیت اطمینان و عملیات</h3>
+  <ul class="checks">
+    <li>تیک دقیقه‌ای src/instrumentation.ts (غیرفعال‌شدنی با INTERNAL_CRON=۰): انقضای ۵۰ سفارش پرداخت‌نشده، پاک‌سازی ۲۵ پیام منقضی، تخلیه‌ی ۲۰ پیامک از صف — همه idempotent و retry-safe. در عملیات واقعی تایمرهای Coolify با /api/jobs/* (محافظ CRON_SECRET) همان کار را می‌کنند و هر اجرا در JobRun ثبت می‌شود.</li>
+    <li>نگهداری پیام: ساعت فقط با اولین نمایش مجاز روشن می‌شود؛ پاک‌سازی با وضعیت purge_failed و شمارنده‌ی تلاش قابل بازیابی است؛ تمدید ۶/۱۲ ماهه هرگز «بازیابی جعلی» انجام نمی‌دهد.</li>
+    <li>ماشین وضعیت سفارش forward-only است؛ وضعیت‌های ترمینال بسته‌اند، لغو بعد از پرداخت فقط با مالک ممکن است و موجودی فقط از وضعیت‌های پرداخت‌نشده آزاد می‌شود. وضعیت داخلی payment_under_review هرگز به مشتری نشت نمی‌کند (نگاشت به «در انتظار پرداخت»). نسخه‌ی Postgres اسکیما (prisma/schema.postgres.prisma) از قبل آماده است.</li>
+    <li>منهولوژی QA هر راند: گیت‌های tsc و ESLint صفر + E2E با agent-browser (موبایل ۳۹۰، دسکتاپ ۱۴۴۰، پنل ادمین) + اسکریپت‌های seed (seed-commerce.ts، seed-blog.ts، qa-seed-orders.mjs) و پاک‌سازی داده‌ی QA پس از هر راند؛ SMS_DEV_ECHO فقط dev.</li>
+  </ul>
+
+  <h3 class="sec-title">بدهی فنی و ریسک‌ها</h3>
+  <table class="tbl">
+    <tr><th>ریسک</th><th>شدت</th><th>اقدام پیشنهادی</th></tr>
+    <tr><td>SQLite تک‌فایلی: سقف عملی برای نرخ نوشتن و تک‌نود بودن</td><td><span class="chip chip-pink">بالا (برای مقیاس)</span></td><td>مهاجرت به Postgres — اسکیمای موازی آماده است؛ Prisma تعویض dialect را ارزان نگه می‌دارد.</td></tr>
+    <tr><td>رسانه‌ی خصوصی روی دیسک محلی؛ CDN/آبجکت‌استوریج در مسیر سرو نیست</td><td><span class="chip chip-pink">بالا (با رشد ترافیک)</span></td><td>درز S3 (آروان) از قبل در کامنت‌ها و کلید receipts طراحی شده؛ فعال‌سازی همان کلیدها برای messages.</td></tr>
+    <tr><td>ناپایداری تاریخی endpointهای ippanel (خروجی ۵۰۲ در راند ۲۶، چند روز ادامه‌دار)</td><td><span class="chip chip-yellow">متوسط</span></td><td>چیپ وضعیت اتصال ادمین + صف outbox با تلاش مجدد و وضعیت dead انجام شده؛ provider دوم (KAVENEGAR_API_KEY در لیست env آینده) به‌عنوان failover.</td></tr>
+    <tr><td>SPA بودن و SEO: URLها پاک‌اند (بدون #/) ولی محتوای صفحه با JS رندر می‌شود</td><td><span class="chip chip-yellow">متوسط</span></td><td>مسیرهای واقعی محصول + metadata/sitemap/JSON-LD (فاز C در نقشه‌ی راه؛ lib/seo از قبل موجود است).</td></tr>
+    <tr><td>نبود تست خودکار؛ E2E فقط دستی با agent-browser</td><td><span class="chip chip-yellow">متوسط</span></td><td>تبدیل سناریوهای QA به سوئیت قابل‌اجرا + یونیت‌تست برای کتابخانه‌های خالص (pricing، transition، sanitize).</td></tr>
+    <tr><td>نویز کنسول «empty string passed to src» (۴ بار در هر صفحه، از قبل موجود، منشأ فریم‌ورک/آنالیتیکس مشکوک)</td><td><span class="chip">کم</span></td><td>در راند ۲۹ منشأ کد اپلیکیشن رد شد (no src="")؛ رهگیری در راندهای بعدی.</td></tr>
+    <tr><td>محدودسازی نرخ در-حافظه‌ی پروسه (با ری‌استارت صفر می‌شود، تک‌ریپلیکا)</td><td><span class="chip">کم</span></td><td>تا وقتی یک نود می‌ماند قابل‌قبول؛ با مقیاس افقی → Redis.</td></tr>
+  </table>
+
+  <h3 class="sec-title">کیفیت کد</h3>
+  <ul class="checks">
+    <li>TypeScript strict با ignoreBuildErrors:false در بیلد رسمی؛ env با zod اعتبارسنجی می‌شود.</li>
+    <li>zod/اعتبارسنجی صریح روی همه‌ی مسیرهای نوشتن: اسکیمای checkout، کلیدهای مجاز تنظیمات (MANAGED_KEYS) و پاک‌سازی سرورِ اسلایدها در هر PATCH.</li>
+    <li>وضعیت گیت‌ها در پایان راند ۳۰: tsc صفر خطا / ESLint صفر هشدار / لاگ dev بدون خطا.</li>
+    <li>توکن‌های طراحی مشترک (آبی برند #00ABE7 و خانواده‌ی سایه/شعاع) در همه‌ی کامپوننت‌های تازه (DStepBar، BoxPreview، HeroSlider) رعایت شده و منطق خالص (fa.ts، pricing، status) از UI جدا است.</li>
+  </ul>
+
+  <h3 class="sec-title">جمع‌بندی آمادگی</h3>
+  <p class="note ok">برای استقرار تک‌ناحیه‌ای با ترافیک کوچک، سامانه امروز آماده است: بیلد خودکفای Netlify/کولیف، رازها در env، جاب‌های idempotent، قانون بدون‌رمز و حریم خصوصی پیام به‌صورت سرورمحور تضمین شده و پنل ادمین (سفارش‌ها، پیامک‌ها، اسلایدرها، تنظیمات استودیو رسانه) عملیاتی است.</p>
+  <p class="note warn">آنچه مانع مقیاس‌گیری جدی است: سقف SQLite و دیسک محلی برای رسانه، وابستگی تک‌تأمین‌کننده‌ی پیامک که در عمل هنوز یک پراب زنده‌ی موفق ندارد (پترن واقعی باید توسط مالک تست شود)، و ریسک SEO ساختار SPA.</p>
+  <div class="grid3">
+    <div class="card risk"><span class="tag">P0 — قبل از ترافیک واقعی</span> پراب زنده‌ی ippanel + ارسال آزمایشی پترن به شماره‌ی مالک؛ اتصال استوریج آبجکت (آروان) برای رسیدها و messages؛ تصمیم و اجرای مهاجرت Postgres.</div>
+    <div class="card warn"><span class="tag">P1 — پایدارسازی</span> سوئیت E2E خودکار + یونیت‌تست کتابخانه‌های خالص؛ مسیرهای واقعی محصول با metadata/sitemap/JSON-LD؛ failover تأمین‌کننده‌ی پیامک دوم.</div>
+    <div class="card"><span class="tag">P2 — بهبود</span> محدودسازی نرخ توزیع‌شده (Redis) برای چند ریپلیکا؛ مشاهده‌پذیری (متریک/آلرت روی JobRun و outbox)؛ CDN برای استاتیک‌ها.</div>
+  </div>
+</section>
+<!-- TECH SECTION END -->

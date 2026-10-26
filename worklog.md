@@ -918,3 +918,48 @@ Stage Summary:
 - خرید حالا در هر دو پلتفرم ویزارد ۳ مرحله‌ای واقعی است؛ جعبه پستی با هویت رنگی برند (آبی) و بلندتر؛ ادمین صاحب اسلایدرهای صفحه اصلی (متن/عکس/رنگ/دکمه/ترتیب/فعال‌غیرفعال) + سقف‌های قابل‌تنظیم استودیو رسانه + چیپ‌های شفاف روی سفارش‌ها.
 - نکته: مقدار ذخیره‌شده home_slides اکنون در DB است و پیش‌فرض کد فقط fallback؛ تغییر آینده از تب اسلایدرها.
 - فایل گزارش HTML فارسی (مدیر محصول + برنامه‌نویس ارشد) در Task 30-f با ساب‌ایجنت ساخته می‌شود.
+
+---
+Task ID: 30-f-pm
+Agent: general-purpose (PM reporter)
+Task: بخش «نمای مدیر محصول» گزارش HTML راند ۳۰
+
+Work Log:
+- worklog.md را خواندم (راندهای ۲۴ تا ۳۰: بدون‌رمز otp_gift، ویزارد ۳قدمی موبایل+دسکتاپ، استودیو رسانه، جعبه پستی آبی، ادمین اسلایدر/پیامک/تنظیمات، ippanel Edge، پرداخت دستی+زرین‌پال) + git log -15 برای تاریخ اخیر.
+- ادعاها را با کد گراند کردم: BOX_PRICE=890_000 در pishnam-data.ts، قلب/پنجه و دفتر مهربونی، وجود screens (flow/builder/verify/admin) و مارکرهای MediaStudio/BoxPreview/otp_gift/DStepBar.
+- z-ai CLI در دسترس بود اما فرمان وب‌سرچ مستقیم ندارد؛ طبق مجوز تسک از دانش عمومی بازار هدیه ایران استفاده شد.
+- گزارش را در report/pm-section.html نوشتم: ۸ سکشن (خلاصه مدیریتی، سفر کاربر دوطرفه، ارزش پیشنهادی، جدول ۱۰ قابلیت، ۶ KPI با هدف پیشنهادی، ۵ ریسک+کاهش، نقشه راه P0/P1/P2، امتیازدهی ۴بعدی با bar) — فقط فارسی، ارقام فارسی، فقط کلاس‌های مجاز شِل؛ بدون html/head/body/style/script؛ اعتبارسنجی توازن تگ با پارسر پایتون ✓.
+- فایل خودکفای fragment است: شروع «<!-- PM SECTION START -->» و پایان «<!-- PM SECTION END -->».
+
+Stage Summary:
+- بخش PM شامل: جایگاه امروز محصول، سفر خریدار ۳قدمی/گیرنده با وریفای شماره، ارزش پیشنهادی برای بازار مناسبتی ایران، جدول قابلیت‌ها، KPIهای پیشنهادی، ریسک‌ها (ippanel/پرداخت دستی/ناشناس/تعدیل رسانه)، نقشه راه ۳ماهه و امتیازدهی ۸/۷/۷/۸ — فایل: /home/z/my-project/report/pm-section.html
+
+---
+Task ID: 30-f-tech
+Agent: general-purpose (Tech reporter)
+Task: بخش «نمای فنی» گزارش HTML راند ۳۰
+
+Work Log:
+- worklog.md را خواندم (Tasks ۲۶–۳۰: ippanel Edge، قانون بدون‌رمز، خط رسانه‌ی خصوصی، چک‌اوت ۳مرحله‌ای، اسلایدر سرورمحور، سقف‌های رسانه‌ای قابل‌تنظیم، دوز Netlify) + git log (HEAD = round 30 commit 35e4303).
+- ادعاها را به کد گره زدم: فهرست ۵۹ مسیر API در ۲۰ گروه (src/app/api)، src/lib/home-slides.ts (sanitizeSlides/سقف ۶/whitelist ۱۷ مسیر)، /api/admin/slides (PATCH + same-origin + rate 40/600s)، prisma/schema.prisma (Order با senderDisplay/cardPasswordHash/mediaKeys/فیلدهای retention، Payment، SmsOutbox/SmsTemplate، RetentionRenewal، Setting، DailyCounter، JobRun)، src/lib/orders/message-media.ts (magic-byte، regex کلید، مسیر .data/messages)، /api/gifts/media (ورود با idempotency-key + گیت وضعیت + خواندن سقف‌ها از Setting)، data-root.ts و instrumentation.ts و next.config.ts و netlify.toml (دوز Netlify)، src/lib/orders/status.ts (۱۱ وضعیت)، src/lib/auth/otp.ts (سقف‌های OTP)، rate-limit.ts.
+- گزارش را نوشتم: /home/z/my-project/report/tech-section.html — فرگمنت خودبسنده فارسی RTL فقط با کلاس‌های تعریف‌شده‌ی شل (sec/card/tbl/chip/checks/pre.code/kpi)، شروع و پایان با مارکرهای الزامی، بدون style/script/html/head/body.
+- اعتبارسنجی خودکار انجام شد: مارکرها ✓، صفر تگ ممنوعه ✓، ارقام فارسی ✓، ~۱۲۶۰ واژه فارسی + ~۲۱۳ توکن فنی لاتین، ~۱۲۷ خط.
+- یک تایپو («inoِ») در کارت Netlify اصلاح شد و محتوا برای فشردگی یک‌بار تریم شد.
+
+Stage Summary:
+- بخش فنی با ۸ زیربخش نوشته شد: معماری (با دیاگرام لایه‌ای pre.code)، مدل داده (جدول ۲۳ مدل + فیلدهای حریم خصوصی)، امنیت/حریم خصوصی (OTP سه‌مقصوده، حذف هویت فرستنده، دسترسی رسانه، owner-only settings)، ادغام‌ها (ippanel Edge، زرین‌پال/کارت‌به‌کارت، دوز Netlify)، قابلیت اطمینان (تیک دقیقه‌ای، purge، QA)، جدول بدهی فنی با شدت/راه‌حل، کیفیت کد، و جمع‌بندی آمادگی با P0/P1/P2.
+- فایل: /home/z/my-project/report/tech-section.html
+
+---
+Task ID: 30-f
+Agent: main (Z.ai Code) — orchestrator
+Task: سرهم‌بندی گزارش نهایی HTML از دو بخش ساب‌ایجنت + انتشار عمومی + QA مرورگر
+
+Work Log:
+- دو ساب‌ایجنت موازی (Task 30-f-pm / 30-f-tech) بخش‌های «نمای مدیر محصول» و «نمای فنی» را به‌صورت fragment فارسی RTL با کلاس‌های استاندارد تحویل دادند (report/pm-section.html و report/tech-section.html؛ ~۱۹۰۰ واژه مجموعاً، ۱۶ سرفصل).
+- شِل گزارش نوشته شد (report/shell.html): RTL، فونت Vazirmatn CDN، پالت برند (#00ABE7/#04202E)، هدر گرادیانی + چیپ‌های متادیتا، ناوبری sticky سه‌لنگری (نمای محصول / نمای فنی / جمع‌بندی)، CSS کامل ۲۲ کلاس مشترک (sec/card/tbl/kpi/bar/chip/note/checks/pre.code)، ریسپانسیو + print-friendly.
+- مونتاژ با python → public/pishnam-round30-report.html (قابل بازدید در /pishnam-round30-report.html) + بخش «جمع‌بندی نهایی» سه‌کارتی از خود ارکستراتور.
+- QA مرورگر: رندر کامل هدر/ناوبری/کارت‌ها/جدول‌ها (KPIها با ارقام فارسی)، دیاگرام LTR معماری داخل pre.code، جدول بدهی فنی با چیپ‌های شدت، چک‌لیست کیفیت، فوتر — همه سالم.
+
+Stage Summary:
+- گزارش نهایی: /home/z/my-project/public/pishnam-round30-report.html — سه نمای «مدیر محصول / فنی / جمع‌بندی»؛ منبع: worklog واقعی + کد + git log. فایل‌های منبع در report/ نگه‌داری می‌شوند برای ویرایش‌های بعدی.

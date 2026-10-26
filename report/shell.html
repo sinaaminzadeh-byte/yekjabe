@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>گزارش جامع راند ۳۰ — یک دوست</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.003/Vazirmatn-font-face.css">
+<style>
+  :root{
+    --brand:#00ABE7; --navy:#04202E; --bg:#F2FAFD; --muted:#4A6572;
+    --line:#DDEEF5; --pink:#F0426B; --green:#177A3D; --yellow:#8A6D1F;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{
+    margin:0; background:var(--bg); color:var(--navy);
+    font-family:Vazirmatn,system-ui,-apple-system,"Segoe UI",sans-serif;
+    font-size:15.5px; line-height:2;
+  }
+  /* ── shell header ── */
+  .shell-hero{
+    background:linear-gradient(135deg,var(--navy) 0%,#0E3C52 60%,#06506E 100%);
+    color:#fff; padding:46px 22px 40px;
+  }
+  .shell-wrap{max-width:1080px;margin:0 auto}
+  .shell-brand{display:flex;align-items:center;gap:12px;margin-bottom:18px}
+  .shell-logo{
+    display:inline-flex;align-items:center;justify-content:center;
+    width:52px;height:52px;border-radius:16px;background:var(--brand);
+    font-size:26px;box-shadow:0 8px 22px -8px rgba(0,171,231,.7)
+  }
+  .shell-brand b{font-size:17px;font-weight:900}
+  .shell-brand span{font-size:12.5px;opacity:.75;display:block;margin-top:-4px}
+  .shell-hero h1{margin:0 0 8px;font-size:clamp(24px,4vw,38px);font-weight:900;line-height:1.5}
+  .shell-hero p.sub{margin:0 0 18px;max-width:760px;color:#CDEEFB;font-size:15px;font-weight:500}
+  .shell-meta{display:flex;flex-wrap:wrap;gap:8px}
+  .shell-meta span{
+    background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.22);
+    border-radius:999px;padding:4px 14px;font-size:12px;font-weight:700
+  }
+  /* ── anchor tabs ── */
+  .shell-nav{
+    position:sticky;top:0;z-index:50;background:rgba(242,250,253,.92);
+    backdrop-filter:blur(8px);border-bottom:1px solid var(--line);
+    display:flex;gap:8px;justify-content:center;padding:10px 16px;flex-wrap:wrap
+  }
+  .shell-nav a{
+    text-decoration:none;color:var(--navy);background:#fff;border:1.5px solid var(--line);
+    border-radius:999px;padding:6px 18px;font-size:13px;font-weight:800;transition:.2s
+  }
+  .shell-nav a:hover{border-color:var(--brand);background:#E3F6FD}
+  /* ── layout ── */
+  main.shell-main{max-width:1080px;margin:0 auto;padding:34px 18px 10px;display:flex;flex-direction:column;gap:26px}
+  /* ── section card ── */
+  .sec{
+    background:#fff;border:1.5px solid var(--line);border-radius:26px;
+    padding:30px 30px 26px;box-shadow:0 14px 34px -30px rgba(4,32,46,.45)
+  }
+  .sec-title{margin:0 0 14px;font-size:21px;font-weight:900;line-height:1.6;color:var(--navy)}
+  h3.sec-title{font-size:17.5px;margin-top:26px;padding-top:18px;border-top:1px dashed var(--line)}
+  h3.sec-title:first-of-type{border-top:0;padding-top:0;margin-top:6px}
+  .lead{margin:0 0 18px;color:var(--muted);font-size:14.5px;font-weight:500}
+  .sec p{margin:8px 0}
+  /* ── grids & cards ── */
+  .grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px;margin:14px 0}
+  .grid3{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px;margin:14px 0}
+  .card{
+    background:#FBFEFF;border:1.5px solid var(--line);border-radius:20px;
+    padding:16px 18px;font-size:13.5px
+  }
+  .card h3{margin:0 0 6px;font-size:15px;font-weight:900}
+  .card p{margin:6px 0;font-weight:500;color:#1F3E4D}
+  /* ── chips & tags ── */
+  .chip,.tag{
+    display:inline-block;border-radius:999px;padding:2px 12px;font-size:11px;font-weight:800;
+    background:#F0F3F5;color:var(--muted);margin:2px 2px
+  }
+  .chip-blue{background:#E3F6FD;color:#006387}
+  .chip-green{background:#E5F8EC;color:var(--green)}
+  .chip-pink{background:#FFE0EA;color:#B02A52}
+  .chip-yellow{background:#FFF3C9;color:var(--yellow)}
+  .tag{background:#fff;border:1px solid var(--line)}
+  /* ── table ── */
+  .tbl{width:100%;border-collapse:collapse;margin:12px 0;font-size:13px;background:#fff}
+  .tbl th{
+    background:var(--navy);color:#fff;font-weight:800;padding:9px 12px;text-align:right;
+    font-size:12.5px;white-space:nowrap
+  }
+  .tbl td{border-bottom:1px solid #EDF6FA;padding:9px 12px;vertical-align:top;font-weight:500}
+  .tbl tr:nth-child(even) td{background:#FBFEFF}
+  .tbl tr:last-child td{border-bottom:0}
+  /* ── KPI ── */
+  .kpi{
+    background:linear-gradient(180deg,#F8FDFF,#EFF9FD);border:1.5px solid var(--line);
+    border-radius:18px;padding:14px 16px;text-align:center
+  }
+  .kpi-n{display:block;font-size:24px;font-weight:900;color:#006387;line-height:1.4}
+  .kpi span:last-child{font-size:11.5px;font-weight:700;color:var(--muted)}
+  /* ── progress bars ── */
+  .bar{background:#E3F0F5;border-radius:999px;height:10px;overflow:hidden;margin:6px 0 2px}
+  .bar > i{display:block;height:100%;background:linear-gradient(90deg,var(--brand),#66CDF1);border-radius:999px}
+  /* ── notes ── */
+  .note{
+    border-radius:16px;padding:12px 16px;font-size:12.5px;font-weight:600;
+    background:#F8FDFF;border:1.5px solid var(--line);color:#1F3E4D;margin:10px 0
+  }
+  .note.ok{background:#F3FCF6;border-color:#BFE9CB;color:var(--green)}
+  .note.warn{background:#FFFBEF;border-color:#F1E3B0;color:var(--yellow)}
+  .note.risk{background:#FFF7FA;border-color:#F7C5D3;color:#B02A52}
+  /* ── checklist ── */
+  ul.checks{list-style:none;padding:0;margin:10px 0}
+  ul.checks li{
+    padding:7px 34px 7px 10px;position:relative;font-size:13.5px;font-weight:600;
+    border-bottom:1px dashed #EDF6FA
+  }
+  ul.checks li:last-child{border-bottom:0}
+  ul.checks li::before{content:"✓";position:absolute;right:8px;color:var(--green);font-weight:900}
+  /* ── code block (LTR) ── */
+  pre.code{
+    direction:ltr;text-align:left;background:var(--navy);color:#BFE7F9;
+    border-radius:18px;padding:18px 20px;overflow-x:auto;
+    font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+    font-size:12.5px;line-height:1.8;margin:14px 0
+  }
+  /* ── footer ── */
+  .shell-footer{
+    max-width:1080px;margin:26px auto 0;padding:26px 18px 40px;color:var(--muted);
+    font-size:12.5px;font-weight:600;text-align:center;border-top:1px solid var(--line)
+  }
+  .shell-footer b{color:var(--navy)}
+  @media (max-width:640px){
+    .sec{padding:20px 16px;border-radius:20px}
+    .tbl{font-size:12px}
+    .tbl th,.tbl td{padding:7px 8px}
+  }
+  @media print{
+    .shell-nav{display:none}
+    .sec{box-shadow:none;break-inside:avoid}
+    body{background:#fff}
+  }
+</style>
+</head>
+<body>
+
+<header class="shell-hero">
+  <div class="shell-wrap">
+    <div class="shell-brand">
+      <span class="shell-logo">🧸</span>
+      <div>
+        <b>یک دوست — پلتفرم هدیه‌ی پشمالو</b>
+        <span>گزارش جامع محصول و فنی · راند ۳۰ توسعه</span>
+      </div>
+    </div>
+    <h1>گزارش کامل وضعیت پروژه: از دید مدیر محصول و برنامه‌نویس ارشد</h1>
+    <p class="sub">این گزارش بر اساس سابقه‌ی واقعی ۳۰ راند توسعه (worklog)، کد فعلی مخزن و QA مرورگر تهیه شده است؛ شامل تحلیل محصول، سفر کاربر، ارزش پیشنهادی، KPI، نقشه راه، معماری فنی، امنیت، ادغام‌ها، بدهی فنی و جمع‌بندی آمادگی برای عرضه.</p>
+    <div class="shell-meta">
+      <span>📅 بهمن ۱۴۰۴</span>
+      <span>🔖 Round 30 · commit «desktop wizard + admin slider studio»</span>
+      <span>🧪 tsc 0 / eslint 0 / E2E مرورگر ✓</span>
+      <span>🛠 Next.js 16 · TypeScript · Prisma/SQLite</span>
+    </div>
+  </div>
+</header>
+
+<nav class="shell-nav" aria-label="فهرست گزارش">
+  <a href="#pm">👤 نمای مدیر محصول</a>
+  <a href="#tech">⚙️ نمای فنی (برنامه‌نویس ارشد)</a>
+  <a href="#verdict">🎯 جمع‌بندی نهایی</a>
+</nav>
+
+<main class="shell-main" id="pm">
+<!-- PM SECTION -->
+
+</main>
+
+<main class="shell-main" id="tech" style="padding-top:0">
+<!-- TECH SECTION -->
+
+</main>
+
+<section class="shell-main" id="verdict" style="padding-top:0">
+  <div class="sec">
+    <h2 class="sec-title">🎯 جمع‌بندی نهایی گزارش</h2>
+    <p class="lead">هر دو دیدگاه — محصول و فنی — به یک نتیجه می‌رسند: «یک دوست» از نظر محصولی حلقه‌ی کامل خرید و تجربه‌ی امن گیرنده را دارد و از نظر فنی روی پایه‌ای منظم و قابل‌حمل ایستاده؛ فاصله‌ی باقی‌مانده تا لانچ، عملیاتی است نه معماری.</p>
+    <div class="grid3">
+      <div class="card"><h3>آماده‌ی نمایش به کاربر واقعی</h3><p>سفر خرید و دریافت هدیه، سرتاسر تست‌شده با مرورگر (دسکتاپ و موبایل)؛ رمز کارت حذف و جای خود را به وریفای شماره داده است.</p><span class="chip chip-green">تأییدشده با E2E</span></div>
+      <div class="card"><h3>ادمین، ستون عملیات</h3><p>سفارش‌ها، رسیدها، تمدیدها، محصولات، اسلایدرها، نظرها، تجربه‌ها، بلاگ، پیامک و تنظیمات — بدون دخالت تیم فنی قابل مدیریت‌اند.</p><span class="chip chip-blue">۱۱ تب مدیریتی</span></div>
+      <div class="card"><h3>سه اولویت بعدی</h3><p>۱) صف بازبینی محتوای رسانه‌ی خصوصی ۲) اعتبارسنجی نهایی الگوهای ippanel در پنل واقعی ۳) استقرار تولیدی (Netlify) با مانیتورینگ خطا.</p><span class="chip chip-yellow">مسیر پیش‌رو</span></div>
+    </div>
+  </div>
+</section>
+
+<footer class="shell-footer">
+  <b>یک دوست</b> · گزارش تهیه‌شده به‌صورت خودکار با همکاری ساب‌ایجنت‌ها (مدیر محصول + برنامه‌نویس ارشد) از روی worklog و کد واقعی مخزن · راند ۳۰
+</footer>
+
+</body>
+</html>
