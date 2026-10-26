@@ -153,6 +153,18 @@ export function DesktopBuilder({ step }: { step: 1 | 2 | 3 | 4 }) {
   const valid = receiver.name.trim() !== "" && receiver.phone.trim().length >= 8 && receiver.address.trim() !== "";
   const canPay = valid && ordererVerified;
 
+  // UX borrowed from design-checkout style 2 — precise missing-step hint,
+  // gentle inline validation on attempt, completion chip. No UI/structure change.
+  const [attempted, setAttempted] = useState(false);
+  const nameMissing = receiver.name.trim() === "";
+  const phoneMissing = receiver.phone.trim().length < 8;
+  const addrMissing = receiver.address.trim() === "";
+  const hintTarget = !valid ? "dstep-4" : "dstep-5";
+  const hintScroll = () => {
+    setAttempted(true);
+    document.getElementById(hintTarget)?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+
   // scroll the active section into view when the step route changes
   useEffect(() => {
     const el = document.getElementById(`dstep-${step}`);
@@ -621,10 +633,31 @@ export function DesktopBuilder({ step }: { step: 1 | 2 | 3 | 4 }) {
             <div className="flex items-center gap-3">
               <StepNum n="۴" on={step === 4} />
               <h2 className="m-0 text-2xl font-black">گیرنده‌ی هدیه</h2>
+              {valid && (
+                <span className="ms-auto flex items-center gap-1.5 rounded-full bg-[#E5F8EC] px-3 py-1.5 text-[12px] font-extrabold text-[#177A3D]">
+                  <CheckIcon size={13} stroke="#177A3D" />
+                  کامل شد
+                </span>
+              )}
             </div>
             <div className="flex flex-wrap gap-3.5">
-              <DField label="نام و نام خانوادگی گیرنده" value={receiver.name} onChange={(v) => setReceiver({ name: v })} placeholder="مثلاً آرمان رفیقی" />
-              <DField label="شماره‌ی موبایل گیرنده" value={receiver.phone} onChange={(v) => setReceiver({ phone: v })} placeholder="۰۹۱۲ ۱۲۳ ۴۵۶۷" tel />
+              <DField
+                id="d-rc-name"
+                label="نام و نام خانوادگی گیرنده"
+                value={receiver.name}
+                onChange={(v) => setReceiver({ name: v })}
+                placeholder="مثلاً آرمان رفیقی"
+                error={attempted && nameMissing ? "اسم گیرنده رو بنویس" : undefined}
+              />
+              <DField
+                id="d-rc-phone"
+                label="شماره‌ی موبایل گیرنده"
+                value={receiver.phone}
+                onChange={(v) => setReceiver({ phone: v })}
+                placeholder="۰۹۱۲ ۱۲۳ ۴۵۶۷"
+                tel
+                error={attempted && phoneMissing ? "شماره‌ی موبایل گیرنده رو کامل کن" : undefined}
+              />
               <div className="flex min-w-0 flex-[1_1_240px] flex-col gap-1.5">
                 <label className="text-[13px] font-bold text-[#4A6572]">استان</label>
                 <select
@@ -641,15 +674,22 @@ export function DesktopBuilder({ step }: { step: 1 | 2 | 3 | 4 }) {
               </div>
               <DField label="شهر" value={receiver.city} onChange={(v) => setReceiver({ city: v })} placeholder="مثلاً تهران" />
               <div className="flex min-w-0 flex-[1_1_240px] flex-col gap-1.5">
-                <label className="text-[13px] font-bold text-[#4A6572]">آدرس کامل</label>
+                <label htmlFor="d-addr" className="text-[13px] font-bold text-[#4A6572]">آدرس کامل</label>
                 <textarea
+                  id="d-addr"
                   rows={2}
                   value={receiver.address}
                   onChange={(e) => setReceiver({ address: e.target.value })}
                   placeholder="خیابان، کوچه، پلاک، واحد"
                   className="box-border resize-none rounded-2xl border-[1.5px] border-[#CFE6EF] bg-[#F8FDFF] px-4 py-2.5 text-base leading-[1.8] text-[#04202E] outline-none focus:border-[#00ABE7]"
                 />
+                {attempted && addrMissing && <div className="text-[11px] font-bold text-[#B02A52]">آدرس گیرنده رو کامل کن</div>}
               </div>
+            </div>
+            {/* reassurance (style-2 tone) — copy only, no structure change */}
+            <div className="flex items-start gap-2 text-[12.5px] font-semibold leading-[1.9] text-[#4A6572]">
+              <span aria-hidden="true">🤫</span>
+              <span>اسم و شماره‌ی تو فقط پیش ما می‌مونه — هیچ‌کدوم بدون اجازه‌ی تو به گیرنده نمی‌رسه.</span>
             </div>
           </section>
 
@@ -692,21 +732,36 @@ export function DesktopBuilder({ step }: { step: 1 | 2 | 3 | 4 }) {
             <span>{quote ? `${money(total)} تومان` : "در حال محاسبه…"}</span>
           </div>
 
-          <div
-            className="flex items-center justify-center gap-2 rounded-3xl p-4 text-center text-[13px] font-semibold leading-[1.9]"
+          <button
+            type="button"
+            onClick={hintScroll}
+            className="flex w-full flex-col items-center gap-0.5 rounded-3xl p-4 text-center text-[13px] font-semibold leading-[1.9] transition-transform active:scale-[0.99]"
             style={{
               background: !valid ? "#FFF3C9" : ordererVerified ? "#E3F6FD" : "#FFF3C9",
               color: !valid ? "#7A5C00" : ordererVerified ? "#006387" : "#7A5C00",
             }}
           >
             {!valid ? (
-              <span>برای پرداخت، اسم، موبایل و آدرس گیرنده (قدم ۴) رو کامل کن.</span>
+              nameMissing ? (
+                <span>اسم گیرنده رو بنویس (قدم ۴)</span>
+              ) : phoneMissing ? (
+                <span>شماره‌ی موبایل گیرنده رو کامل کن (قدم ۴)</span>
+              ) : addrMissing ? (
+                <span>آدرس گیرنده رو کامل کن (قدم ۴)</span>
+              ) : (
+                <span>برای پرداخت، اسم، موبایل و آدرس گیرنده (قدم ۴) رو کامل کن.</span>
+              )
             ) : ordererVerified ? (
               <span>همه‌چیز آماده‌ست! «پرداخت» رو بزن تا هدیه راه بیفته.</span>
             ) : (
               <span>فقط یک قدم مونده: تو قدم ۵، شماره موبایلت رو با کد پیامکی تأیید کن.</span>
             )}
-          </div>
+            {!canPay && (
+              <span className="text-[11px] font-extrabold opacity-80" aria-hidden="true">
+                برو ↑
+              </span>
+            )}
+          </button>
 
           <button
             type="button"
@@ -759,11 +814,12 @@ function DC({ value, onMinus, onPlus, plusBg }: { value: number; onMinus: () => 
   );
 }
 
-function DField({ label, value, onChange, placeholder, tel, className }: { label: string; value: string; onChange: (v: string) => void; placeholder: string; tel?: boolean; className?: string }) {
+function DField({ label, value, onChange, placeholder, tel, className, id, error }: { label: string; value: string; onChange: (v: string) => void; placeholder: string; tel?: boolean; className?: string; id?: string; error?: string }) {
   return (
     <div className={`flex min-w-0 flex-[1_1_240px] flex-col gap-1.5 ${className ?? ""}`}>
-      <label className="text-[13px] font-bold text-[#4A6572]">{label}</label>
+      <label htmlFor={id} className="text-[13px] font-bold text-[#4A6572]">{label}</label>
       <input
+        id={id}
         type={tel ? "tel" : "text"}
         inputMode={tel ? "numeric" : undefined}
         value={value}
@@ -771,6 +827,7 @@ function DField({ label, value, onChange, placeholder, tel, className }: { label
         placeholder={placeholder}
         className="box-border h-[52px] rounded-2xl border-[1.5px] border-[#CFE6EF] bg-[#F8FDFF] px-4 text-base text-[#04202E] outline-none focus:border-[#00ABE7]"
       />
+      {error && <div className="text-[11px] font-bold text-[#B02A52]">{error}</div>}
     </div>
   );
 }

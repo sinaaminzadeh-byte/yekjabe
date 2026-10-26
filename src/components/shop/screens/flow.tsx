@@ -871,6 +871,30 @@ export function MobileCheckout() {
   // پرداخت فقط با گیرنده‌ی کامل + شماره‌ی سفارش‌دهنده‌ی وریفای‌شده باز می‌شه
   const canPay = valid && ordererVerified;
 
+  // UX borrowed from design-checkout style 2: precise, actionable missing-step
+  // hints + gentle inline validation on «attempt» — same UI/structure as before.
+  const [attempted, setAttempted] = useState(false);
+  const nameMissing = receiver.name.trim() === "";
+  const phoneMissing = receiver.phone.trim().length < 8;
+  const addrMissing = receiver.address.trim() === "";
+  const firstMissingId = nameMissing ? "rc-name" : phoneMissing ? "rc-phone" : addrMissing ? "ra" : "orderer-card";
+  const missingText =
+    !ordererVerified && !valid
+      ? "اطلاعات گیرنده رو کامل کن و شماره موبایل خودت رو تأیید کن"
+      : !ordererVerified
+        ? "فقط یک قدم مونده: شماره موبایلت رو با کد پیامکی تأیید کن"
+        : nameMissing
+          ? "اسم گیرنده رو بنویس"
+          : phoneMissing
+            ? "شماره‌ی موبایل گیرنده رو کامل کن"
+            : addrMissing
+              ? "آدرس گیرنده رو کامل کن"
+              : "";
+  const gotoMissing = () => {
+    setAttempted(true);
+    document.getElementById(firstMissingId)?.scrollIntoView({ behavior: "smooth", block: "center" });
+  };
+
   return (
     <div className="flex min-h-screen flex-col bg-[#F2FAFD] md:hidden">
       <MobileTopBar title="قدم ۴ از ۴" back="extras" />
@@ -925,20 +949,32 @@ export function MobileCheckout() {
       </div>
 
       {/* receiver */}
-      <div className="px-5 pb-2 pt-[22px] text-lg font-extrabold">گیرنده‌ی هدیه</div>
+      <div className="flex items-center justify-between px-5 pb-2 pt-[22px]">
+        <span className="text-lg font-extrabold">گیرنده‌ی هدیه</span>
+        {valid && (
+          <span className="flex items-center gap-1 rounded-full bg-[#E5F8EC] px-2.5 py-1 text-[10.5px] font-extrabold text-[#177A3D]">
+            <CheckIcon size={11} stroke="#177A3D" />
+            کامل شد
+          </span>
+        )}
+      </div>
       <div className="mx-5 rounded-[26px] border border-[#DDEEF5] bg-white px-4 py-1">
         <Field
+          id="rc-name"
           label="نام و نام خانوادگی گیرنده"
           value={receiver.name}
           onChange={(v) => setReceiver({ name: v })}
           placeholder="مثلاً آرمان رفیقی"
+          error={attempted && nameMissing ? "اسم گیرنده رو بنویس" : undefined}
         />
         <Field
+          id="rc-phone"
           label="شماره‌ی موبایل گیرنده"
           value={receiver.phone}
           onChange={(v) => setReceiver({ phone: v })}
           placeholder="۰۹۱۲ ۱۲۳ ۴۵۶۷"
           tel
+          error={attempted && phoneMissing ? "شماره‌ی موبایل گیرنده رو کامل کن" : undefined}
         />
         <div className="flex flex-col gap-1 border-b border-[#E3F0F5] py-3">
           <label htmlFor="province" className="text-[12.5px] font-bold text-[#4A6572]">
@@ -975,6 +1011,12 @@ export function MobileCheckout() {
             placeholder="خیابان، کوچه، پلاک، واحد"
             className="resize-none border-none bg-transparent text-base leading-[1.8] text-[#04202E] outline-none"
           />
+          {attempted && addrMissing && <div className="pb-0.5 text-[11px] font-bold text-[#B02A52]">آدرس گیرنده رو کامل کن</div>}
+        </div>
+        {/* reassurance (style-2 tone) — copy only, no structure change */}
+        <div className="flex items-start gap-2 py-3 text-[11.5px] font-semibold leading-[1.8] text-[#4A6572]">
+          <span aria-hidden="true">🤫</span>
+          <span>اسم و شماره‌ی تو فقط پیش ما می‌مونه — هیچ‌کدوم بدون اجازه‌ی تو به گیرنده نمی‌رسه.</span>
         </div>
       </div>
 
@@ -1073,13 +1115,14 @@ export function MobileCheckout() {
         </button>
       </div>
       {!canPay && (
-        <div className="bg-[#FFF3C9] px-5 pb-3 pt-2 text-center text-xs font-bold text-[#7A5C00]">
-          {ordererVerified
-            ? "برای پرداخت، اسم، موبایل و آدرس گیرنده رو کامل کن"
-            : valid
-              ? "فقط یک قدم مونده: شماره موبایلت رو با کد پیامکی تأیید کن"
-              : "اطلاعات گیرنده رو کامل کن و شماره موبایل خودت رو تأیید کن"}
-        </div>
+        <button
+          type="button"
+          onClick={gotoMissing}
+          className="flex w-full items-center justify-center gap-1.5 bg-[#FFF3C9] px-5 pb-3 pt-2 text-center text-xs font-bold text-[#7A5C00] transition-transform active:scale-[0.99]"
+        >
+          <span>{missingText || "برای پرداخت، اطلاعات گیرنده رو کامل کن"}</span>
+          <span aria-hidden="true">↑</span>
+        </button>
       )}
       {/* scroll spacer: at max scroll the sticky CTA must cover NOTHING */}
       <div className="h-[86px]" aria-hidden="true" />
@@ -1093,17 +1136,24 @@ function Field({
   onChange,
   placeholder,
   tel,
+  id,
+  error,
 }: {
   label: string;
   value: string;
   onChange: (v: string) => void;
   placeholder: string;
   tel?: boolean;
+  id?: string;
+  error?: string;
 }) {
   return (
     <div className="flex flex-col gap-1 border-b border-[#E3F0F5] py-3">
-      <label className="text-[12.5px] font-bold text-[#4A6572]">{label}</label>
+      <label htmlFor={id} className="text-[12.5px] font-bold text-[#4A6572]">
+        {label}
+      </label>
       <input
+        id={id}
         type={tel ? "tel" : "text"}
         inputMode={tel ? "numeric" : undefined}
         value={value}
@@ -1111,6 +1161,7 @@ function Field({
         placeholder={placeholder}
         className="h-[30px] border-none bg-transparent text-base text-[#04202E] outline-none"
       />
+      {error && <div className="pb-0.5 text-[11px] font-bold text-[#B02A52]">{error}</div>}
     </div>
   );
 }
@@ -1231,7 +1282,7 @@ function OrdererSection() {
         <span className="text-lg font-extrabold">اطلاعات سفارش‌دهنده</span>
         <span className="rounded-full bg-[#E3F6FD] px-2.5 py-1 text-[10.5px] font-extrabold text-[#006387]">همینه که خرید می‌کنه</span>
       </div>
-      <div className="mx-5 rounded-[26px] border border-[#DDEEF5] bg-white px-4 py-1">
+      <div id="orderer-card" className="mx-5 rounded-[26px] border border-[#DDEEF5] bg-white px-4 py-1">
         <div className="pb-1 pt-3 text-[12.5px] font-medium leading-[1.9] text-[#4A6572]">
           این سفارش به اسم خودت ثبت می‌شه — شماره‌ش می‌تونه با شماره گیرنده فرق کنه (هدیه برای دیگری).
         </div>
