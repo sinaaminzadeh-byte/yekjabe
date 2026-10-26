@@ -3,9 +3,11 @@
 // ── پیش‌نمایش پستی جعبه — «روی جعبه‌ت این‌جوری می‌شینه» ──
 // Owner round 29: the mobile extras-step box preview moves to the TOP of the
 // cart (step 3) and gains a desktop twin in the builder sidebar. The UI is
-// pushed toward a real PARCEL look: kraft cardboard, packing tape, a post
-// stamp, a shipping-label sticker for the gift number, fragile sticker and a
-// barcode strip — everything still live from the store (number + charms).
+// pushed toward a real PARCEL look: packing tape, a post stamp, a shipping-
+// label sticker for the gift number, fragile sticker and a barcode strip —
+// everything still live from the store (number + charms).
+// Owner round 30: رنگ جعبه = آبی برند (#00ABE7 family) + حداقل ۴۰px بلندتر
+// (min-h 104 → 150) — «رنگ اصلی خودمون ابی».
 import { usePishnam } from "@/lib/pishnam-store";
 import { fa } from "@/lib/fa";
 import { HeartSticker, PawSticker } from "./icons";
@@ -36,26 +38,32 @@ export function BoxPreview({ compact = false }: { compact?: boolean }) {
 
   return (
     <div
-      className="relative overflow-hidden rounded-[22px] border-[2.5px] border-[#7A5B36] shadow-[0_10px_24px_-14px_rgba(74,52,24,0.55)]"
-      style={{ background: "linear-gradient(180deg,#EBD9BC 0%,#E2C9A4 55%,#D9BE96 100%)" }}
+      className="relative overflow-hidden rounded-[22px] border-[2.5px] border-[#0A6E99] shadow-[0_10px_24px_-14px_rgba(10,110,153,0.55)]"
+      style={{ background: "linear-gradient(180deg,#BFE7F9 0%,#A6DCF4 55%,#93D0EE 100%)" }}
       role="img"
-      aria-label={`پیش‌نمایش جعبه‌ی پستی هدیه شماره ${fa(nextNo)}`}
+      aria-label={`پیش‌نمایش جعبه‌ی پستی آبی هدیه شماره ${fa(nextNo)}`}
     >
       {/* cardboard corrugation — two subtle horizontal folds */}
-      <div className="pointer-events-none absolute inset-x-0 top-[38%] h-px bg-[#C9AE85]/70" aria-hidden="true" />
-      <div className="pointer-events-none absolute inset-x-0 top-[70%] h-px bg-[#C9AE85]/50" aria-hidden="true" />
+      <div className="pointer-events-none absolute inset-x-0 top-[34%] h-px bg-[#7FBFE0]/80" aria-hidden="true" />
+      <div className="pointer-events-none absolute inset-x-0 top-[62%] h-px bg-[#7FBFE0]/55" aria-hidden="true" />
+      {/* soft brand-blue sheen — like printed logo band on postal boxes */}
+      <div
+        className="pointer-events-none absolute inset-x-0 top-[14%] h-[26%] opacity-25"
+        style={{ background: "linear-gradient(180deg,#00ABE7 0%,transparent 100%)" }}
+        aria-hidden="true"
+ />
 
       {/* packing tape across the top edge */}
       <div
-        className="pointer-events-none absolute inset-x-0 top-0 h-[14px] opacity-80"
-        style={{ background: "repeating-linear-gradient(90deg, rgba(255,255,255,.75) 0 26px, rgba(214,196,164,.75) 26px 52px)" }}
+        className="pointer-events-none absolute inset-x-0 top-0 h-[14px] opacity-90"
+        style={{ background: "repeating-linear-gradient(90deg, rgba(255,255,255,.85) 0 26px, rgba(178,220,240,.85) 26px 52px)" }}
         aria-hidden="true"
       />
 
       {/* post stamp (top-left, rotated) */}
-      <div className="absolute left-3 top-5 rotate-[-6deg] rounded-[6px] border-[2px] border-dashed border-[#7A5B36] bg-[#F6EEDD] px-2 py-1 text-center leading-none">
-        <HeartSticker size={compact ? 14 : 18} fill="#F0426B" stroke="#7A5B36" strokeWidth={2.4} />
-        <div className="mt-0.5 text-[7.5px] font-black text-[#7A5B36]">یک دوست</div>
+      <div className="absolute left-3 top-5 rotate-[-6deg] rounded-[6px] border-[2px] border-dashed border-[#0A6E99] bg-[#F0FAFF] px-2 py-1 text-center leading-none">
+        <HeartSticker size={compact ? 14 : 18} fill="#F0426B" stroke="#0A6E99" strokeWidth={2.4} />
+        <div className="mt-0.5 text-[7.5px] font-black text-[#0A6E99]">یک دوست</div>
       </div>
 
       {/* shipping label sticker — the gift number */}
@@ -69,8 +77,8 @@ export function BoxPreview({ compact = false }: { compact?: boolean }) {
         با مهربونی حمل شود ♥
       </div>
 
-      {/* charms + barcode row */}
-      <div className="relative flex min-h-[104px] flex-col justify-end px-3 pb-2.5 pt-[54px]">
+      {/* charms + barcode row — بلندتر (owner round 30: حداقل +۴۰px) */}
+      <div className="relative flex min-h-[150px] flex-col justify-end px-3 pb-3 pt-[64px]">
         {charmsEnabled && all.length > 0 && (
           <div className="flex flex-wrap items-center gap-1 pb-1.5">
             {shown.map((k, i) => (
@@ -88,7 +96,7 @@ export function BoxPreview({ compact = false }: { compact?: boolean }) {
           </div>
         )}
         {charmsEnabled && all.length === 0 && (
-          <div className="pb-1.5 text-[10.5px] font-bold text-[#7A5B36]">
+          <div className="pb-1.5 text-[10.5px] font-bold text-[#0A6E99]">
             قلب و پنجه‌ها رو از قدم ۲ انتخاب کن، همین‌جا روی جعبه می‌شینن
           </div>
         )}
@@ -96,10 +104,10 @@ export function BoxPreview({ compact = false }: { compact?: boolean }) {
         <div className="flex items-end justify-between gap-2">
           <div className="flex items-end gap-[2px]" aria-hidden="true">
             {[3, 1, 2, 1, 3, 2, 1, 3, 1, 2, 3, 1, 2, 1, 3, 2, 1, 3].map((w, i) => (
-              <span key={i} className="inline-block w-[2px] bg-[#3B2C17]/80" style={{ height: `${8 + w * 3}px` }} />
+              <span key={i} className="inline-block w-[2px] bg-[#04202E]/85" style={{ height: `${8 + w * 3}px` }} />
             ))}
           </div>
-          <div className="text-[9px] font-black leading-[1.5] text-[#7A5B36]">پست پیشتاز یک دوست · یه بغل، تو یه جعبه</div>
+          <div className="text-[9px] font-black leading-[1.5] text-[#0A6E99]">پست پیشتاز یک دوست · یه بغل، تو یه جعبه</div>
         </div>
       </div>
     </div>

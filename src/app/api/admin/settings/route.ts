@@ -26,6 +26,8 @@ const MANAGED_KEYS = [
   "manual_card_name",
   "manual_approval_sla_hours",
   "low_stock_threshold",
+  "media_max_files",
+  "media_max_mb",
 ] as const;
 
 const patchSchema = z.object({
@@ -44,6 +46,8 @@ const LABELS: Record<string, string> = {
   manual_card_name: "نام صاحب حساب",
   manual_approval_sla_hours: "ساعت حداکثری تأیید رسید",
   low_stock_threshold: "آستانه هشدار کمبود موجودی",
+  media_max_files: "حداکثر تعداد فایل رسانه‌ای هر هدیه",
+  media_max_mb: "حداکثر حجم هر فایل رسانه‌ای (مگابایت)",
 };
 
 export async function GET() {
@@ -79,6 +83,11 @@ export async function PATCH(req: Request) {
         v = v === "0" || v === "false" ? "0" : "1";
       } else if (prices.includes(k)) {
         if (!/^\d{1,12}$/.test(v)) throw new AppError(400, "bad_input", { field: k }); // toman ints only
+      } else if (k === "media_max_files") {
+        // studio has 3 slots — 1..3 real, server clamps the same way
+        if (!/^\d$/.test(v) || Number(v) < 1 || Number(v) > 3) throw new AppError(400, "bad_input", { field: k });
+      } else if (k === "media_max_mb") {
+        if (!/^\d{1,2}$/.test(v) || Number(v) < 1 || Number(v) > 50) throw new AppError(400, "bad_input", { field: k });
       } else if (k === "manual_card_number") {
         v = v.replace(/[۰-۹]/g, (d) => String("۰۱۲۳۴۵۶۷۸۹".indexOf(d))).replace(/[^\d- ]/g, "").slice(0, 30);
         if (v.replace(/\D/g, "").length < 16) throw new AppError(400, "bad_input", { field: k });

@@ -1,10 +1,13 @@
 "use client";
 
-// ── Desktop builder: all 3 steps on one page (step highlights by route) ──
+// ── Desktop builder: TRUE 3-step wizard (owner round 30) ──
 // owner round 29: قدم ۱ = انتخاب عروسک + کارت پستال (متن + استودیو ویس/عکس/
 // ویدیو + نمایش نام + نگهداری پیام) · قدم ۲ = افزودنی‌ها + قلب و پنجه‌ی
 // جمع‌وجور · قدم ۳ = گیرنده + سفارش‌دهنده (وریفای پیامکی) + پرداخت.
-// رمز کارت حذف شد؛ پیش‌نمایش پستی جعبه بالای سبد (سایدبار) نشسته.
+// owner round 30: دسکتاپ هم مثل موبایل مرحله‌ای شد — فقط قدمِ فعال رندر
+// می‌شود + نوار مراحل کلیک‌خور بالا (DStepBar) + دکمه‌های «ذخیره و ادامه»/
+// «ذخیره و تکمیل». رمز کارت حذف شد؛ پیش‌نمایش پستی جعبه بالای سبد (سایدبار)
+// نشسته و در همه‌ی قدم‌ها دیده می‌شود.
 import { Plush } from "../plush";
 import {
   HeartSticker,
@@ -13,6 +16,7 @@ import {
   MinusIcon,
   PlusSmall,
   BackIcon,
+  ForwardIcon,
 } from "../icons";
 import { MediaStudio } from "../media-studio";
 import { BoxPreview } from "../box-preview";
@@ -101,19 +105,33 @@ export function DesktopBuilder({ step }: { step: 1 | 2 | 3 }) {
 
   // UX — precise missing-step hint, gentle inline validation on attempt
   const [attempted, setAttempted] = useState(false);
+  const [msgTried, setMsgTried] = useState(false);
   const nameMissing = receiver.name.trim() === "";
   const phoneMissing = receiver.phone.trim().length < 8;
   const addrMissing = receiver.address.trim() === "";
-  const hintTarget = "dstep-3";
+  const msgMissing = message.trim() === "";
   const hintScroll = () => {
     setAttempted(true);
-    document.getElementById(hintTarget)?.scrollIntoView({ behavior: "smooth", block: "start" });
+    if (step !== 3) {
+      navigate("checkout");
+      return;
+    }
+    document.getElementById("dstep-3")?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
 
-  // scroll the active section into view when the step route changes
+  // step-1 «ذخیره و ادامه» — مثل موبایل پیام الزامی است
+  const goStep2 = () => {
+    setMsgTried(true);
+    if (msgMissing) {
+      document.getElementById("dmsg")?.scrollIntoView({ behavior: "smooth", block: "center" });
+      return;
+    }
+    navigate("extras");
+  };
+
+  // قدم عوض شد → از بالای صفحه شروع کن (مثل موبایل)
   useEffect(() => {
-    const el = document.getElementById(`dstep-${step}`);
-    el?.scrollIntoView({ behavior: "smooth", block: "start" });
+    window.scrollTo({ top: 0, behavior: "smooth" });
   }, [step]);
 
   return (
@@ -130,19 +148,22 @@ export function DesktopBuilder({ step }: { step: 1 | 2 | 3 }) {
         <div className="pt-3">
           <h1 className="m-0 text-[clamp(32px,4vw,48px)] font-black leading-[1.4]">هدیه‌ت رو بساز</h1>
           <p className="mb-0 mt-2 text-[17px] font-medium leading-[1.9] text-[#1F3E4D]">
-            سه تا قدم، همه تو یه صفحه. هر جا خواستی برگرد و عوضش کن.
+            سه تا قدم ساده؛ هر قدم یه صفحه. هر جا خواستی برگرد و عوضش کن.
           </p>
         </div>
+        {/* نوار مراحل — کلیک‌خور، مثل موبایل (owner round 30) */}
+        <DStepBar step={step} firstDone={!msgMissing} />
       </div>
 
       <div className="mx-auto flex w-full max-w-[1200px] flex-wrap items-start gap-6 px-6 pb-20 pt-6 box-border">
-        {/* main column */}
+        {/* main column — فقط قدمِ فعال رندر می‌شود (owner round 30) */}
         <div className="flex min-w-0 flex-1 flex-col gap-5">
+          {step === 1 && (
+          <>
           {/* ۱ — pick + card */}
           <section
             id="dstep-1"
-            className="flex flex-col gap-[18px] rounded-[32px] border bg-white p-7 transition-shadow"
-            style={{ borderColor: step === 1 ? "#00ABE7" : "#DDEEF5", boxShadow: step === 1 ? "0 0 0 3px rgba(0,171,231,0.18)" : undefined }}
+            className="flex flex-col gap-[18px] rounded-[32px] border border-[#DDEEF5] bg-white p-7"
           >
             <div className="flex items-center gap-3">
               <StepNum n="۱" on={step === 1} />
@@ -238,9 +259,10 @@ export function DesktopBuilder({ step }: { step: 1 | 2 | 3 }) {
                 );
               })}
             </div>
-            <div className="flex flex-col gap-2 rounded-3xl border-[1.5px] border-[#CFE6EF] bg-[#F8FDFF] px-[18px] pb-3 pt-4">
+            <div className="flex flex-col gap-2 rounded-3xl border-[1.5px] bg-[#F8FDFF] px-[18px] pb-3 pt-4" style={{ borderColor: msgTried && msgMissing ? "#F7C5D3" : "#CFE6EF" }}>
               <label htmlFor="dmsg" className="text-sm font-extrabold">
                 پیامت <span className="text-[11px] font-bold text-[#B02A52]">الزامی</span>
+                {msgTried && msgMissing && <span className="ms-2 text-[11px] font-bold text-[#B02A52]">— قبل از ادامه بنویسش</span>}
               </label>
               <textarea
                 id="dmsg"
@@ -379,11 +401,40 @@ export function DesktopBuilder({ step }: { step: 1 | 2 | 3 }) {
             </div>
           </section>
 
+          {/* قدم ۱ footer — «ذخیره و ادامه» + برگشت (owner round 30) */}
+          <div className="sticky bottom-4 z-10 flex items-center justify-between gap-4 rounded-[26px] border border-[#DDEEF5] bg-white/95 px-6 py-4 shadow-[0_18px_40px_-24px_rgba(4,32,46,0.45)] backdrop-blur">
+            <button
+              type="button"
+              onClick={() => navigate("home")}
+              className="flex items-center gap-1.5 text-[13.5px] font-bold text-[#4A6572] hover:text-[#006387]"
+            >
+              <BackIcon size={15} />
+              خانه
+            </button>
+            <div className="flex items-center gap-4">
+              <div className="flex flex-col text-end">
+                <span className="text-[12px] font-semibold text-[#4A6572]">جعبه + کارت پستال</span>
+                <span className="text-[17px] font-black">{money(BOX_PRICE)} تومان</span>
+              </div>
+              <button
+                type="button"
+                onClick={goStep2}
+                className="flex h-[52px] items-center gap-2 rounded-full bg-[#00ABE7] px-7 text-[15px] font-extrabold text-[#04202E] transition-transform active:scale-95"
+              >
+                ذخیره و ادامه
+                <ForwardIcon />
+              </button>
+            </div>
+          </div>
+          </>
+          )}
+
+          {step === 2 && (
+          <>
           {/* ۲ — extras */}
           <section
             id="dstep-2"
-            className="flex flex-col gap-[18px] rounded-[32px] border bg-white p-7"
-            style={{ borderColor: step === 2 ? "#00ABE7" : "#DDEEF5", boxShadow: step === 2 ? "0 0 0 3px rgba(0,171,231,0.18)" : undefined }}
+            className="flex flex-col gap-[18px] rounded-[32px] border border-[#DDEEF5] bg-white p-7"
           >
             <div className="flex items-center gap-3">
               <StepNum n="۲" on={step === 2} />
@@ -540,11 +591,40 @@ export function DesktopBuilder({ step }: { step: 1 | 2 | 3 }) {
             </div>
           </section>
 
+          {/* قدم ۲ footer — «ذخیره و تکمیل» + برگشت به قدم ۱ */}
+          <div className="sticky bottom-4 z-10 flex items-center justify-between gap-4 rounded-[26px] border border-[#DDEEF5] bg-white/95 px-6 py-4 shadow-[0_18px_40px_-24px_rgba(4,32,46,0.45)] backdrop-blur">
+            <button
+              type="button"
+              onClick={() => navigate("pick")}
+              className="flex items-center gap-1.5 text-[13.5px] font-bold text-[#4A6572] hover:text-[#006387]"
+            >
+              <BackIcon size={15} />
+              قدم قبلی
+            </button>
+            <div className="flex items-center gap-4">
+              <div className="flex flex-col text-end">
+                <span className="text-[12px] font-semibold text-[#4A6572]">هر وقت آماده بودی برو قدم آخر</span>
+                <span className="text-[13px] font-bold text-[#006387]">افزودنی‌ها اختیاری‌ان</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => navigate("checkout")}
+                className="flex h-[52px] items-center gap-2 rounded-full bg-[#00ABE7] px-7 text-[15px] font-extrabold text-[#04202E] transition-transform active:scale-95"
+              >
+                ذخیره و تکمیل
+                <ForwardIcon />
+              </button>
+            </div>
+          </div>
+          </>
+          )}
+
+          {step === 3 && (
+          <>
           {/* ۳ — receiver + orderer + pay */}
           <section
             id="dstep-3"
-            className="flex flex-col gap-[18px] rounded-[32px] border bg-white p-7"
-            style={{ borderColor: step === 3 ? "#00ABE7" : "#DDEEF5", boxShadow: step === 3 ? "0 0 0 3px rgba(0,171,231,0.18)" : undefined }}
+            className="flex flex-col gap-[18px] rounded-[32px] border border-[#DDEEF5] bg-white p-7"
           >
             <div className="flex items-center gap-3">
               <StepNum n="۳" on={step === 3} />
@@ -610,6 +690,24 @@ export function DesktopBuilder({ step }: { step: 1 | 2 | 3 }) {
             {/* سفارش‌دهنده + تأیید پیامکی — همان بخش قدم ۳ */}
             <DesktopOrderer />
           </section>
+
+          {/* قدم ۳ footer — برگشت به قدم ۲ (پرداخت در سایدبار می‌ماند) */}
+          <div className="sticky bottom-4 z-10 flex items-center justify-between gap-4 rounded-[26px] border border-[#DDEEF5] bg-white/95 px-6 py-4 shadow-[0_18px_40px_-24px_rgba(4,32,46,0.45)] backdrop-blur">
+            <button
+              type="button"
+              onClick={() => navigate("extras")}
+              className="flex items-center gap-1.5 text-[13.5px] font-bold text-[#4A6572] hover:text-[#006387]"
+            >
+              <BackIcon size={15} />
+              قدم قبلی
+            </button>
+            <span className="flex items-center gap-2 text-[13px] font-bold text-[#006387]">
+              <CheckIcon size={15} stroke="#006387" />
+              پرداخت از پنل سمت چپ
+            </span>
+          </div>
+          </>
+          )}
         </div>
 
         {/* summary sidebar */}
@@ -711,6 +809,55 @@ function StepNum({ n, on }: { n: string; on: boolean }) {
     >
       {n}
     </span>
+  );
+}
+
+/* ── نوار مراحل دسکتاپ — کلیک‌خور، با تیکِ قدم‌های انجام‌شده (owner round 30).
+ * مثل StepBar موبایل «قدم فعال» را نشان می‌دهد ولی به سبک دسکتاپ: دایره +
+ * برچسب + خط اتصال؛ قدم‌های قبلی قابل کلیک‌اند برای برگشت. */
+function DStepBar({ step, firstDone }: { step: 1 | 2 | 3; firstDone: boolean }) {
+  const STEPS: { n: 1 | 2 | 3; label: string; route: Route }[] = [
+    { n: 1, label: "عروسک و کارت پستال", route: "pick" },
+    { n: 2, label: "افزودنی‌ها", route: "extras" },
+    { n: 3, label: "گیرنده و پرداخت", route: "checkout" },
+  ];
+  return (
+    <nav aria-label="مراحل ساخت هدیه" className="mt-5 flex items-center gap-2 rounded-[24px] border border-[#DDEEF5] bg-white px-5 py-4">
+      {STEPS.map((s, i) => {
+        const active = step === s.n;
+        const done = step > s.n || (s.n === 1 && firstDone);
+        const clickable = s.n !== step;
+        return (
+          <div key={s.n} className="flex min-w-0 flex-1 items-center gap-2">
+            {i > 0 && <span className="h-[3px] min-w-4 flex-1 rounded-full" style={{ background: step > s.n - 1 ? "#00ABE7" : "#CFE6EF" }} aria-hidden="true" />}
+            <button
+              type="button"
+              aria-current={active ? "step" : undefined}
+              onClick={() => clickable && navigate(s.route)}
+              className="flex min-w-0 items-center gap-2.5 rounded-full py-1 pe-3 ps-1 transition-colors"
+              style={{ background: active ? "#E3F6FD" : "transparent", cursor: clickable ? "pointer" : "default" }}
+            >
+              <span
+                className="box-border flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[15px] font-black"
+                style={{
+                  background: active ? "#00ABE7" : done ? "#DDF3EA" : "#CFE6EF",
+                  border: active || done ? "2.5px solid #04202E" : "2.5px solid #B9D4E0",
+                  color: "#04202E",
+                }}
+              >
+                {done && !active ? <CheckIcon size={15} stroke="#177A3D" /> : s.n === 1 ? "۱" : s.n === 2 ? "۲" : "۳"}
+              </span>
+              <span className="flex flex-col items-start leading-tight">
+                <span className="text-[10.5px] font-bold text-[#4A6572]">قدم {s.n === 1 ? "۱" : s.n === 2 ? "۲" : "۳"}</span>
+                <span className="whitespace-nowrap text-[13.5px] font-extrabold" style={{ color: active ? "#006387" : "#04202E" }}>
+                  {s.label}
+                </span>
+              </span>
+            </button>
+          </div>
+        );
+      })}
+    </nav>
   );
 }
 

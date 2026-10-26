@@ -23,6 +23,8 @@ export async function GET() {
               "retention_12m_price_toman",
               "charm_price_toman",
               "charms_enabled",
+              "media_max_files",
+              "media_max_mb",
             ],
           },
         },
@@ -30,6 +32,11 @@ export async function GET() {
     ]);
     const rmap: Record<string, string> = {};
     for (const s of settings) rmap[s.key] = s.value;
+    // media studio limits — admin-configurable (owner round 30), clamped
+    const clampInt = (v: string | undefined, min: number, max: number, dflt: number) => {
+      const n = Number(String(v ?? "").replace(/[^0-9]/g, ""));
+      return Number.isFinite(n) && n >= min && n <= max ? n : dflt;
+    };
     return NextResponse.json({
       products: variants.map((v) => ({
         slug: v.product.slug,
@@ -53,6 +60,11 @@ export async function GET() {
         enabled: rmap.charms_enabled !== "0",
         priceToman: Number(rmap.charm_price_toman ?? 50000),
       },
+      // استودیو رسانه — سقف فایل/حجم از تنظیمات ادمین (owner round 30)
+      media: {
+        maxFiles: clampInt(rmap.media_max_files, 1, 3, 3),
+        maxMb: clampInt(rmap.media_max_mb, 1, 50, 10),
+      },
     });
   } catch (e) {
     console.error("[catalog]", e);
@@ -60,6 +72,7 @@ export async function GET() {
       products: [],
       retention: { m6: 0, m12: 0 },
       charms: { enabled: true, priceToman: 50000 },
+      media: { maxFiles: 3, maxMb: 10 },
     });
   }
 }

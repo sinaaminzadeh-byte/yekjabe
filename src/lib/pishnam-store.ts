@@ -197,6 +197,8 @@ interface PishnamState {
   // قلب قرمز/پنجه — قیمت و فعال‌بودن از تنظیمات ادمین می‌آید (کد ثابت نیست)
   charmPrice: number;
   charmsEnabled: boolean;
+  // استودیو رسانه — سقف‌ها از تنظیمات ادمین (owner round 30)
+  mediaLimits: { maxFiles: number; maxMb: number };
   catalogLoaded: boolean;
   /** not persisted — last successful /api/catalog fetch (stale-after-60s) */
   catalogFetchedAt?: number;
@@ -342,6 +344,7 @@ export const usePishnam = create<PishnamState>()(
       retentionPrices: { m6: 0, m12: 0 },
       charmPrice: 50000,
       charmsEnabled: true,
+      mediaLimits: { maxFiles: 3, maxMb: 10 },
       catalogLoaded: false,
       quote: null,
       quoteStatus: "idle",
@@ -379,8 +382,9 @@ export const usePishnam = create<PishnamState>()(
       addMediaFile: (file) => {
         const kind = mediaKind(file.type);
         if (!kind) return { ok: false, error: "bad_file_type" };
-        if (file.size > 10 * 1024 * 1024) return { ok: false, error: "file_too_large" };
-        if (get().mediaFiles.length >= 3) return { ok: false, error: "too_many_files" };
+        const { maxFiles, maxMb } = get().mediaLimits;
+        if (file.size > maxMb * 1024 * 1024) return { ok: false, error: "file_too_large" };
+        if (get().mediaFiles.length >= maxFiles) return { ok: false, error: "too_many_files" };
         const id = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
         mediaFileMap.set(id, file);
         set({ mediaFiles: [...get().mediaFiles, { id, name: file.name, size: file.size, type: file.type, kind }] });
@@ -419,6 +423,7 @@ export const usePishnam = create<PishnamState>()(
             products: CatalogEntry[];
             retention?: { m6: number; m12: number };
             charms?: { enabled: boolean; priceToman: number };
+            media?: { maxFiles: number; maxMb: number };
           };
           const map: Record<string, CatalogEntry> = {};
           const addons: CatalogEntry[] = [];
@@ -427,6 +432,7 @@ export const usePishnam = create<PishnamState>()(
             if (p.kind === "addon") addons.push(p);
           }
           const charms = data.charms ?? { enabled: true, priceToman: 50000 };
+          const media = data.media ?? { maxFiles: 3, maxMb: 10 };
           // admin disabled the charms → silently drop any locally-stashed counts
           const clearCharms = !charms.enabled ? { hearts: 0, paws: 0 } : {};
           set({
@@ -435,6 +441,7 @@ export const usePishnam = create<PishnamState>()(
             retentionPrices: data.retention ?? { m6: 0, m12: 0 },
             charmPrice: charms.priceToman,
             charmsEnabled: charms.enabled,
+            mediaLimits: media,
             catalogLoaded: true,
             catalogFetchedAt: Date.now(),
             ...clearCharms,
@@ -778,6 +785,7 @@ export const usePishnam = create<PishnamState>()(
           retentionPrices: { m6: 0, m12: 0 },
           charmPrice: 50000,
           charmsEnabled: true,
+          mediaLimits: { maxFiles: 3, maxMb: 10 },
           hearts: 0,
           paws: 0,
           catalogLoaded: false,

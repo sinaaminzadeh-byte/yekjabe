@@ -48,6 +48,9 @@ export function MediaStudio({ variant = "mobile" }: { variant?: "mobile" | "desk
   const mediaFiles = usePishnam((s) => s.mediaFiles);
   const addMediaFile = usePishnam((s) => s.addMediaFile);
   const removeMediaFile = usePishnam((s) => s.removeMediaFile);
+  // سقف‌ها از تنظیمات ادمین (owner round 30) — با پیش‌فرض کد
+  const maxFiles = usePishnam((s) => s.mediaLimits.maxFiles);
+  const maxMb = usePishnam((s) => s.mediaLimits.maxMb);
   const { toast } = useToast();
 
   const [slots, setSlots] = useState<Record<MediaKind, Slot | null>>({ voice: null, video: null, photo: null });
@@ -121,7 +124,7 @@ export function MediaStudio({ variant = "mobile" }: { variant?: "mobile" | "desk
     if (old) removeMediaFile(old.metaId);
     const r = addMediaFile(file);
     if (!r.ok) {
-      const msg = r.error === "file_too_large" ? "حجمش بیشتر از ۱۰ مگابایته" : r.error === "too_many_files" ? "بیشتر از ۳ فایل نمی‌شه" : "این فرمت قبول نیست";
+      const msg = r.error === "file_too_large" ? `حجمش بیشتر از ${fa(maxMb)} مگابایته` : r.error === "too_many_files" ? `بیشتر از ${fa(maxFiles)} فایل نمی‌شه` : "این فرمت قبول نیست";
       setErr((e) => ({ ...e, [kind]: msg }));
       toast({ title: "ذخیره نشد", description: msg });
       return;
@@ -273,7 +276,7 @@ export function MediaStudio({ variant = "mobile" }: { variant?: "mobile" | "desk
       ))}
       <span className="text-[11.5px] font-medium leading-[1.8] text-[#4A6572]">
         ویس، عکس و ویدیو خصوصی ذخیره می‌شن و فقط گیرنده‌ی تأییدشده می‌بینه؛ بعد از پایان مهلت
-        نگهداری کامل حذف می‌شن. (حداکثر ۳ فایل، هرکدوم تا ۱۰ مگ)
+        نگهداری کامل حذف می‌شن. (حداکثر {fa(maxFiles)} فایل، هرکدوم تا {fa(maxMb)} مگ)
       </span>
     </div>
   );

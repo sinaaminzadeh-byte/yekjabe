@@ -1,93 +1,60 @@
 "use client";
 
 // ── Hero slider — سبک ۱ (full-bleed color story) — owner round 29 ──
-// Ported from the /design-hero prototype (variant 1) onto the REAL home.
-// Self-contained: kit helpers (useAutoCycle / useRtlSwipe / AutoProgress)
-// live here now that the prototype pages are deleted. 4 real shop stories,
-// autoplay 6s, hover-pause, keyboard ←/→, RTL swipe, dots + progress bar.
+// Owner round 30: slides now come from the SERVER (admin «اسلایدرها» tab →
+// /api/home-content) with the built-in defaults as instant first paint +
+// fallback. Shared shape lives in @/lib/home-slides. Self-contained helpers
+// (useAutoCycle / useRtlSwipe / AutoProgress) live here since round 29.
 import { useEffect, useRef, useState, type PointerEvent as RPointerEvent } from "react";
 import { Plush } from "./plush";
 import { HeartSticker } from "./icons";
 import { navigate, type Route } from "@/lib/hash-route";
 import { fa } from "@/lib/fa";
+import { DEFAULT_HOME_SLIDES, type HeroSlide } from "@/lib/home-slides";
 import type { PlushKind } from "@/lib/pishnam-data";
 
-/* ── slide content (4 slides = 4 shop stories) ── */
-interface Slide {
-  kind: PlushKind;
-  bg: string;
-  blob: string;
-  dark?: boolean;
-  badge: string;
-  title: string;
-  sub: string;
-  cta: string;
+const plushKind = (k: string): PlushKind => k as PlushKind;
+
+/* ── render model — the serializable HeroSlide + wired navigation ── */
+interface Slide extends HeroSlide {
   ctaGo: Route;
-  cta2: string;
   cta2Go: () => void;
-  tab: string;
 }
 
-const goHow = () => navigate("home", undefined, "how");
-const goFaq = () => navigate("home", undefined, "faq");
+const toRender = (list: HeroSlide[]): Slide[] =>
+  list.map((s) => ({
+    ...s,
+    ctaGo: s.ctaRoute as Route,
+    cta2Go: () => navigate(s.cta2Route as Route, undefined, s.cta2Hash || undefined),
+  }));
 
-const SLIDES: Slide[] = [
-  {
-    kind: "bear",
-    bg: "#00ABE7",
-    blob: "#66CDF1",
-    badge: "ویژه‌ی دخترای مهربون",
-    title: "می‌خوای یکی رو خوشحال کنی؟",
-    sub: "یه دوست پشمالو، یه کارت پستال با پیام قشنگ خودت و یه عالمه مهربونی؛ درست می‌فرستیمش دم در خونه‌ی دوستت.",
-    cta: "بساز و بفرست",
-    ctaGo: "pick",
-    cta2: "چطوری کار می‌کنه؟",
-    cta2Go: goHow,
-    tab: "هدیه‌ی پشمالو",
-  },
-  {
-    kind: "bunny",
-    bg: "#FFE0EA",
-    blob: "#FFC9DA",
-    badge: "پیام خودت، با صدای خودت",
-    title: "یه بغل، تو یه جعبه",
-    sub: "ویس، عکس و ویدیوی خصوصی + کارت پستال QR؛ گیرنده با تأیید شماره‌ی خودش پیامت رو می‌بینه و ارسال کاملاً ناشناسه.",
-    cta: "پیامت رو بساز",
-    ctaGo: "pick",
-    cta2: "قصه‌ی شما",
-    cta2Go: () => navigate("stories"),
-    tab: "پیام صوتی و QR",
-  },
-  {
-    kind: "duck",
-    bg: "#FFF3C9",
-    blob: "#FFE79F",
-    badge: "یه قیمت برای همه",
-    title: "همه‌ی جعبه‌ها ۸۹۰ هزار تومان",
-    sub: "بدون قیمت‌های گیج‌کننده. هر هدیه شماره‌ی مخصوص خودش رو داره و دم در خونه‌ی دوستت تحویل داده می‌شه.",
-    cta: "دوستتو انتخاب کن",
-    ctaGo: "friends",
-    cta2: "سؤال‌های رایج",
-    cta2Go: goFaq,
-    tab: "ارسال و قیمت",
-  },
-  {
-    kind: "sheep",
-    bg: "#04202E",
-    blob: "#0E3C52",
-    dark: true,
-    badge: "دفتر مهربونی",
-    title: "با هر قلب، یه هدیه می‌ره پیش یه بچه",
-    sub: "قلب و پنجه‌ها می‌شن هدیه برای بچه‌های بی‌سرپرست و پناهگاه حیوونا؛ رسیدش همیشه همین‌جا ثبت می‌شه.",
-    cta: "دفتر مهربونی رو ببین",
-    ctaGo: "impact",
-    cta2: "بیشتر بدون",
-    cta2Go: () => navigate("mission"),
-    tab: "قلب قرمز و پنجه",
-  },
-];
+/* one shared request for both desktop + mobile sliders (deduped) */
+let slidesPromise: Promise<HeroSlide[]> | null = null;
+function fetchSlides(): Promise<HeroSlide[]> {
+  if (!slidesPromise) {
+    slidesPromise = fetch("/api/home-content", { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j: { slides?: HeroSlide[] } | null) => (j?.slides?.length ? j.slides : DEFAULT_HOME_SLIDES))
+      .catch(() => DEFAULT_HOME_SLIDES);
+  }
+  return slidesPromise;
+}
 
-const N = SLIDES.length;
+function useHomeSlides(): Slide[] {
+  const [slides, setSlides] = useState<Slide[]>(() => toRender(DEFAULT_HOME_SLIDES));
+  useEffect(() => {
+    let alive = true;
+    fetchSlides().then((list) => {
+      if (!alive) return;
+      const next = toRender(list);
+      setSlides((prev) => (JSON.stringify(prev.map(({ ctaGo, cta2Go, ...p }) => p)) === JSON.stringify(next.map(({ ctaGo, cta2Go, ...p }) => p)) ? prev : next));
+    });
+    return () => {
+      alive = false;
+    };
+  }, []);
+  return slides;
+}
 
 /* ── cyclic autoplay: pause-aware timer + a re-sync id for progress bars ── */
 function useAutoCycle(n: number, delayMs: number, paused: boolean) {
@@ -233,16 +200,18 @@ function DotsRow({
   index,
   go,
   onDark,
+  slides,
 }: {
   index: number;
   go: (i: number) => void;
   onDark?: boolean;
+  slides: Slide[];
 }) {
   return (
     <div className="flex items-center gap-1.5">
-      {SLIDES.map((s, i) => (
+      {slides.map((s, i) => (
         <button
-          key={s.kind}
+          key={`${s.kind}-${i}`}
           type="button"
           aria-label={`اسلاید ${fa(i + 1)}`}
           aria-current={i === index}
@@ -320,7 +289,16 @@ function SlideStage({ s, index, size }: { s: Slide; index: number; size: number 
         style={{ background: s.blob }}
       />
       <div key={index} className="pishnam-pop-in absolute inset-0 flex items-center justify-center">
-        <Plush kind={s.kind} size={size} className="pishnam-float" />
+        {s.image ? (
+           
+          <img
+            src={s.image}
+            alt={s.title}
+            className="pishnam-float h-full max-h-[92%] w-auto rounded-[28px] object-contain shadow-[0_24px_60px_-30px_rgba(4,32,46,0.5)]"
+          />
+        ) : (
+          <Plush kind={plushKind(s.kind)} size={size} className="pishnam-float" />
+        )}
       </div>
       <div className="absolute left-[8%] top-[16%] pishnam-float" style={{ animationDelay: "-1.2s" }}>
         <HeartSticker size={34} fill={s.dark ? "#F0426B" : "#fff"} stroke="#04202E" strokeWidth={2.6} />
@@ -335,8 +313,11 @@ function SlideStage({ s, index, size }: { s: Slide; index: number; size: number 
 /* ── desktop full-bleed ── */
 export function HeroSliderDesktop() {
   const [paused, setPaused] = useState(false);
-  const { index, go, next, prev, runId } = useAutoCycle(N, 6000, paused);
-  const s = SLIDES[index];
+  const slides = useHomeSlides();
+  const N = slides.length;
+  const { index: rawIndex, go, next, prev, runId } = useAutoCycle(N, 6000, paused);
+  const index = Math.min(rawIndex, N - 1);
+  const s = slides[index];
 
   return (
     <div
@@ -352,12 +333,12 @@ export function HeroSliderDesktop() {
       onMouseLeave={() => setPaused(false)}
       className="relative h-[580px] overflow-hidden outline-none focus-visible:ring-4 focus-visible:ring-[#00ABE7]/40"
     >
-      {SLIDES.map((sl, i) => {
+      {slides.map((sl, i) => {
         const d = (i - index + N) % N;
         const comesFromLeft = d !== 0 && d <= N / 2;
         return (
           <div
-            key={sl.kind}
+            key={`${sl.kind}-${i}`}
             aria-hidden={i !== index}
             className={`absolute inset-0 transition-all duration-700 ease-out ${
               i === index
@@ -395,7 +376,7 @@ export function HeroSliderDesktop() {
       {/* dots + autoplay progress */}
       <div className="absolute inset-x-0 bottom-0 z-20">
         <div className="flex justify-center pb-3.5">
-          <DotsRow index={index} go={go} onDark />
+          <DotsRow index={index} go={go} onDark slides={slides} />
         </div>
         <AutoProgress
           runId={runId}
@@ -413,7 +394,10 @@ export function HeroSliderDesktop() {
 export function HeroSliderMobile() {
   const [paused, setPaused] = useState(false);
   const [touched, setTouched] = useState(false);
-  const { index, go, next, runId } = useAutoCycle(N, 6000, paused);
+  const slides = useHomeSlides();
+  const N = slides.length;
+  const { index: rawIndex, go, next, runId } = useAutoCycle(N, 6000, paused);
+  const index = Math.min(rawIndex, N - 1);
   const { dragProps, dragging, dx } = useRtlSwipe(next, () => go(index - 1));
 
   return (
@@ -431,12 +415,12 @@ export function HeroSliderMobile() {
         style={{ touchAction: "pan-y" }}
         className={`relative h-full ${dragging ? "cursor-grabbing" : "cursor-grab"}`}
       >
-        {SLIDES.map((sl, i) => {
+        {slides.map((sl, i) => {
           const d = (i - index + N) % N;
           const comesFromLeft = d !== 0 && d <= N / 2;
           return (
             <div
-              key={sl.kind}
+              key={`${sl.kind}-${i}`}
               aria-hidden={i !== index}
               className={`absolute inset-0 overflow-hidden rounded-[30px] p-5 pb-0 transition-all duration-500 ease-out ${
                 i === index
@@ -455,7 +439,16 @@ export function HeroSliderMobile() {
                 <SlideCopy s={sl} compact />
               </div>
               <div className="absolute bottom-2 left-1">
-                <Plush kind={sl.kind} size={190} />
+                {sl.image ? (
+                   
+                  <img
+                    src={sl.image}
+                    alt={sl.title}
+                    className="h-[190px] w-[190px] rounded-[24px] object-cover shadow-[0_18px_40px_-24px_rgba(4,32,46,0.5)]"
+                  />
+                ) : (
+                  <Plush kind={plushKind(sl.kind)} size={190} />
+                )}
               </div>
             </div>
           );
@@ -465,7 +458,7 @@ export function HeroSliderMobile() {
       {/* dots + swipe hint */}
       <div className="absolute inset-x-0 bottom-0 z-20">
         <div className="flex items-center justify-center gap-2.5 pb-3">
-          <DotsRow index={index} go={go} onDark />
+          <DotsRow index={index} go={go} onDark slides={slides} />
           {!touched && (
             <span className="absolute -top-9 left-1/2 -translate-x-1/2 animate-pulse rounded-full bg-white/85 px-2.5 py-1 text-[10px] font-bold text-[#04202E]">
               بکش ⇠

@@ -25,6 +25,22 @@ import {
 import { isMessageExpired } from "@/lib/orders/retention";
 import { isViewableStatus } from "@/lib/orders/gift-view";
 
+// admin-configurable limits (owner round 30) — Setting keys with the code
+// defaults as fallback; clamped to the same bounds the admin UI enforces.
+async function mediaLimits(): Promise<{ maxFiles: number; maxBytes: number }> {
+  const rows = await db.setting.findMany({
+    where: { key: { in: ["media_max_files", "media_max_mb"] } },
+  });
+  const map: Record<string, string> = {};
+  for (const r of rows) map[r.key] = r.value;
+  const files = Number(map.media_max_files ?? "");
+  const mb = Number(map.media_max_mb ?? "");
+  return {
+    maxFiles: Number.isFinite(files) && files >= 1 && files <= 3 ? files : MESSAGE_MEDIA_MAX_FILES,
+    maxBytes: Number.isFinite(mb) && mb >= 1 && mb <= 50 ? mb * 1024 * 1024 : MESSAGE_MEDIA_MAX_BYTES,
+  };
+}
+
 export async function POST(req: Request) {
   try {
     assertSameOrigin(req);
@@ -41,14 +57,15 @@ export async function POST(req: Request) {
       throw new AppError(400, "bad_order_status");
     }
 
+    const { maxFiles, maxBytes } = await mediaLimits();
     const existing = parseMessageMediaKeys(order.mediaKeys);
-    if (existing.length >= MESSAGE_MEDIA_MAX_FILES) {
-      throw new AppError(400, "too_many_files", { max: MESSAGE_MEDIA_MAX_FILES });
+    if (existing.length >= maxFiles) {
+      throw new AppError(400, "too_many_files", { max: maxFiles });
     }
 
     const file = form.get("file");
     if (!(file instanceof File)) throw new AppError(400, "bad_input");
-    if (file.size > MESSAGE_MEDIA_MAX_BYTES) throw new AppError(400, "file_too_large");
+    if (file.size > maxBytes) throw new AppError(400, "file_too_large");
     const buf = Buffer.from(await file.arrayBuffer());
     const mime = sniffMessageMediaMime(buf);
     if (!mime || !isMessageMediaMime(mime)) throw new AppError(400, "bad_file_type");

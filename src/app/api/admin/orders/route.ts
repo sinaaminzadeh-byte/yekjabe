@@ -53,6 +53,11 @@ export async function GET(req: Request) {
         giftOpened: o.giftOpened,
         createdAt: o.createdAt,
         expiresAt: o.expiresAt,
+        // new-flow payload (owner round 30): media studio + retention + sender display
+        mediaCount: o.mediaCount,
+        retentionPlan: o.retentionPlan,
+        senderDisplay: o.senderDisplay,
+        senderPhrase: o.senderPhrase,
       })),
     });
   } catch (e) {
