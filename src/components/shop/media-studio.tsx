@@ -75,11 +75,19 @@ export function MediaStudio({ variant = "mobile" }: { variant?: "mobile" | "desk
     return u ?? "";
   };
 
-  // hydrate slots from the store on mount (files live only in memory)
+  // hydrate slots from the store on mount (File objects live only in memory —
+  // a meta that survived a page reload without its File is DEAD: drop it from
+  // the store so previews never render an empty src and checkout never counts it)
   useEffect(() => {
+    const metas = usePishnam.getState().mediaFiles;
+    for (const m of metas) {
+      if (!getMediaFile(m.id)) {
+        usePishnam.getState().removeMediaFile(m.id);
+      }
+    }
     setSlots((prev) => {
       const next = { ...prev };
-      for (const m of mediaFiles) {
+      for (const m of usePishnam.getState().mediaFiles) {
         const kind = m.kind === "audio" ? "voice" : m.kind === "video" ? "video" : "photo";
         if (!next[kind]) {
           next[kind] = { metaId: m.id, name: m.name, url: urlFor(m), seconds: 0 };
@@ -374,7 +382,7 @@ function MediaRow({
         <div className="mt-2.5 flex flex-col gap-2 rounded-[14px] bg-[#F6FBFD] p-2.5">
           {kind === "voice" && <audio controls src={slot.url} className="h-10 w-full" />}
           {kind === "video" && <video controls src={slot.url} className="max-h-[220px] w-full rounded-[12px] bg-black object-contain" />}
-          {kind === "photo" && <img src={slot.url} alt={slot.name || "عکس ضبط‌شده"} className="max-h-[220px] w-full rounded-[12px] object-cover" />}
+          {kind === "photo" && slot.url && <img src={slot.url} alt={slot.name || "عکس ضبط‌شده"} className="max-h-[220px] w-full rounded-[12px] object-cover" />}
           <div className="flex flex-wrap items-center gap-1.5">
             <span className="flex items-center gap-1 rounded-full bg-[#E5F8EC] px-2 py-1 text-[10px] font-extrabold text-[#177A3D]">
               <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
