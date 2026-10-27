@@ -963,3 +963,23 @@ Work Log:
 
 Stage Summary:
 - گزارش نهایی: /home/z/my-project/public/pishnam-round30-report.html — سه نمای «مدیر محصول / فنی / جمع‌بندی»؛ منبع: worklog واقعی + کد + git log. فایل‌های منبع در report/ نگه‌داری می‌شوند برای ویرایش‌های بعدی.
+
+---
+Task ID: 31
+Agent: main (Z.ai Code)
+Task: بخش «تقویم مناسبت‌ها + نقشه‌ی مهربونی ایران» — فقط UI با دو سبک (پاستلی مرجع + آبی برند)، تعاملی و ریسپانسیو؛ بدون اتصال به امکانات واقعی (خواسته‌ی مالک: اول UI، بعد تأیید)
+
+Work Log:
+- DATA MAP: اسکریپت scripts/iran-geo.mjs — GeoJSON پیش‌پروژه‌شده‌ی Highcharts/Natural Earth (دانلود از code.highcharts.com/mapdata/countries/ir/ir-all.geo.json؛ واحد_BOLDها با y رو به شمال → flip + scale به viewBox 560×507 + decimation 1.1px) → src/components/shop/occasions/iran-paths.ts با ۳۱ استان {key, fa, d, cx, cy} (centroid از bbox برای پین/لیبل، بدون اندازه‌گیری DOM).
+- JALALI LIB: src/lib/jalali.ts — g2j/j2g (Intl با timeZone تهران، binary search)، jalaliMonthLength (کبیسه دقیق: اسفند ۱۴۰۵=۲۹)، jalaliMonthStartCol (شنبه‌محور)، jalaliDaysBetween، ماه‌ها/روزهای هفته فارسی. تست bun: امروز ۵ آبان ۱۴۰۵ ✓، نوروز ۱۴۰۶=یکشنبه ✓، ولنتاین=۲۵ اسفند ✓.
+- DEMO DATA: src/lib/occasions-demo.ts — ۱۲ مناسبت نمایشی آبان→فروردین (روز جهانی مهربانی ۲۲آبان، کتاب ۲۴آبان، فردوسی، یلدا، کریسمس ۴دی، زنان در علم، زبان مادری، درختکاری، ولنتاین ۲۵اسفند، اسپندگان ۲۹اسفند، نوروز، روز طبیعت) با tone رنگی/عروسک‌های پیشنهادی از PLUSHES خودمان؛ آمار ۳۱ استان (تهران ۲,۳۸۰ … بوشهر ۵۰؛ جمع ۱۲,۴۶۹)؛ nextOccasion/daysLeftLabel/TONE_COLORS.
+- MAP: occasions/iran-map.tsx — دو پوسته: pastel (رنگ رتبه‌ای: ۶ استان اول قرمز/آبی/سبز/زرد/بنفش/فیروزه‌ای + پاستل چرخشی، مثل طرح مرجع) و dark (choropleth آبی با opacity^0.55)؛ hover+tooltip دنبال‌کننده‌ی موس (clamp در event handler برای قانون refs)، کلیک/کیبورد انتخاب استان، پین تپنده‌ی تهران (SVG animate)، لیبل اعداد روی ۸ استان برتر، aria-label برای هر استان.
+- SECTION: occasions/occasions-section.tsx — سوییچر «سبک ۱ پاستلی / سبک ۲ آبی برند» (persist در localStorage با lazy-init برای قانون set-state-in-effect) + id یکتا per-platform (occasions-m/d چون دو کپی موبایل+دسکتاپ در DOM هست). کانت‌داون مناسبت بعدی با کلیک→انتخاب+اسکرول به ریل. MonthCalendar مشترک (گرید جلالی، badge رنگی روی روز مناسبت، ring امروز، پنل جزئیات با عروسک‌های پیشنهادی+«همین هدیه رو ببین»→/product+«یادآوری» toggle محلی+بستن). StyleOne: هدر با تصویرسازی عروسک+تقویم رومیزی CSS+قلب‌های bounce؛ کارت نقشه راست/تقویم چپ مثل مرجع (lg:order)؛ لیست پرارسال‌ترین‌ها با دات رنگی؛ toggle لیست کامل ۳۱ استان و همه مناسبت‌ها. StyleTwo: پنل سرمه‌ای rounded-[44px] با هاله‌های آبی blur، تقویم شیشه‌ای، لیست top5 میله‌ای گرادیانی با hover-sync، شمارنده‌ی کل count-up (rAF ease-out)، rail شیشه‌ای.
+- RAIL: occasions/gift-rail.tsx — ۱۲ کارت snap-scroll (فلش‌های دسکتاپ scrollBy ±۳۴۰)، هایلایت مناسبت انتخابی جلوتر، chip «X روز مانده»، CTA «دیدن هدیه ←» → navigate product (فانل واقعی به صفحات موجود).
+- MOUNT: home.tsx — موبایل بعد FavoritesStrip، دسکتاپ بعد از سکشن دوست‌های پشمالو (قبل card)؛ platform="m"/"d".
+- QA (agent-browser): دسکتاپ — رندر سبک ۱ نزدیک به طرح مرجع ✓؛ کلیک روز ۲۲ → پنل جزئیات + فیلتر ریل + هایلایت کارت ✓؛ کلیک «دیدن هدیه» کارت ولنتاین → صفحه محصول لپ‌قندی ✓؛ اسکرول ریل RTL ✓؛ سبک ۲: نقشه choropleth + کلیک اصفهان هایلایت + count-up + میله‌ای‌ها ✓؛ state بین دو سبک حفظ می‌شود ✓. موبایل ۳۹۰: هر دو سبک ستونی، نقشه full-width، ریل اسکرول ✓. tsc 0 / eslint 0 / dev.log بدون خطا.
+
+Stage Summary:
+- بخش «تقویم مناسبت‌ها» + «نقشه مهربونی» با دو سبک قابل‌سوییچ و کاملاً تعاملی فقط به‌صورت UI ساخته شد؛ هیچ API/DB/امکانات واقعی اضافه نشد (طبق خواسته‌ی مالک: بعد از تأیید، سبک منتخب نگه داشته می‌شود و داده‌ها به DB/ادمین وصل خواهند شد).
+- نوار «🎛️ پیش‌نمایش UI — داده‌ها نمایشی است» روی سکشن هست؛ بعد از انتخاب مالک حذف می‌شود.
+- نکته فنی برای اتصال آینده: occasions باید جدول/Setting در ادمین بشود (مدیریت مناسبت‌ها) و آمار استان‌ها از Order (شهر گیرنده) تجمیع شود؛ نقشه و گرید جلالی آماده‌ی داده واقعی‌اند.

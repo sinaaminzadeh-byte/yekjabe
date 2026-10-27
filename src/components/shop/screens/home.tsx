@@ -19,6 +19,7 @@ import { FavHeart, FavoritesStrip } from "../fav";
 import { HomeStats, HomeBlog } from "../home-sections";
 import { SiteFooter } from "../site-footer";
 import { HeroSliderMobile, HeroSliderDesktop } from "../hero-slider";
+import { OccasionsDemo } from "../occasions/occasions-section";
 import {
   PLUSHES,
   BOX_PRICE,
@@ -139,6 +140,9 @@ export function MobileHome() {
 
       {/* favorites strip */}
       <FavoritesStrip />
+
+      {/* occasions calendar + iran kindness map — UI preview (owner round 31) */}
+      <OccasionsDemo platform="m" />
 
       {/* marquee */}
       <Marquee className="mt-[22px] text-base" />
@@ -338,6 +342,9 @@ export function DesktopHome() {
         </div>
         <FavoritesStrip desktop />
       </section>
+
+      {/* occasions calendar + iran kindness map — UI preview (owner round 31) */}
+      <OccasionsDemo platform="d" />
 
       {/* card */}
       <section id="card" className="mx-auto w-full max-w-[1200px] px-6 pt-[88px] box-border">
