@@ -1,17 +1,16 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// Pishnam — CANONICAL PRODUCTION SCHEMA (PostgreSQL 16)
-// Based on: launch guide §3 + docs/13-e + critic 13-h resolutions.
-//
-// ⚠️ The sandbox dev runtime uses prisma/schema.prisma (SQLite) because the
-//    dev container has no PostgreSQL. This file is what Coolify/Docker uses:
-//      npx prisma generate --schema prisma/schema.postgres.prisma
-//      npx prisma migrate deploy  (migrations generated against this file)
-//
-// After the initial migration, apply prisma/checks-pg.sql (CHECK constraints).
+// Pishnam — PRODUCTION SCHEMA (PostgreSQL) — AUTO-GENERATED, DO NOT HAND-EDIT
+// Source of truth: prisma/schema.prisma (SQLite, dev/authoring).
+// Regenerate after every schema change:  bun scripts/sync-pg-schema.mjs
+// Deploy path: scripts/prisma-boot.mjs picks THIS file when DATABASE_URL is a
+// postgres:// URL (Vercel / Coolify). Identical models ⇒ identical TS types.
 // ─────────────────────────────────────────────────────────────────────────────
 
 generator client {
-  provider = "prisma-client-js"
+  provider      = "prisma-client-js"
+  // Vercel functions = Amazon Linux (openssl 1.0.x on the older runtime,
+  // 3.0.x on Node 20+/AL2023) — ship every Linux engine plus the build host's.
+  binaryTargets = ["native", "rhel-openssl-1.0.x", "rhel-openssl-3.0.x"]
 }
 
 datasource db {
@@ -19,360 +18,74 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// ── enums ──
-
-enum OrderStatus {
-  awaiting_payment
-  payment_under_review
-  paid
-  preparing
-  shipped
-  delivered
-  failed
-  cancelled
-  expired
-  refund_requested
-  refunded
-}
-
-enum PaymentMethod {
-  zarinpal
-  manual_transfer
-}
-
-enum PaymentStatus {
-  initiated
-  pending_review
-  verified
-  rejected
-  failed
-}
-
-enum ActorType {
-  system
-  admin
-  customer
-  psp
-}
-
-enum SmsStatus {
-  queued
-  sent
-  failed
-  dead
-}
-
-enum ModerationStatus {
-  pending
-  approved
-  rejected
-}
-
-enum AdminRole {
-  owner
-  operator
-}
-
-// ── catalog ──
-
-model Product {
-  id            String           @id @default(cuid())
-  family        String // bear|bunny|cat|duck|panda|sheep
-  slug          String           @unique
-  nameFa        String
-  taglineFa     String           @default("")
-  descriptionFa String           @default("") @db.Text
-  coverImage    String           @default("")
-  isActive      Boolean          @default(true)
-  sortOrder     Int              @default(0)
-  createdAt     DateTime         @default(now()) @db.Timestamptz(6)
-  updatedAt     DateTime         @updatedAt @db.Timestamptz(6)
-  variants      ProductVariant[]
-
-  @@index([isActive, sortOrder])
-}
-
-model ProductVariant {
-  id                String       @id @default(cuid())
-  productId         String
-  size              String // S | L
-  sku               String       @unique
-  priceToman        Int
-  stock             Int          @default(0)
-  lowStockThreshold Int          @default(3)
-  isActive          Boolean      @default(true)
-  product           Product      @relation(fields: [productId], references: [id], onDelete: Restrict)
-  items             OrderItem[]
-
-  @@unique([productId, size])
-  // CHECK (stock >= 0) added via prisma/checks-pg.sql
-}
-
-// ── orders ──
-
-model Order {
-  id                String          @id @default(cuid())
-  code              String          @unique // PN-YYMMDD-#### (Tehran date)
-  idempotencyKey    String?         @unique
-  requestHash       String          @default("") // sha256 canonical body — key-reuse detection
-  status            OrderStatus     @default(awaiting_payment)
-  senderName        String          @default("")
-  senderPhone       String          @default("")
-  recipientName     String          @default("")
-  recipientPhone    String          @default("")
-  province          String          @default("")
-  city              String          @default("")
-  address           String          @default("") @db.Text
-  postalCode        String          @default("")
-  occasion          String          @default("just_because")
-  cardMessage       String          @default("") @db.Text
-  cardPasswordHash  String          @default("") // scrypt — never plaintext
-  giftOpenAttempts  Int             @default(0)
-  giftLockedAt      DateTime?       @db.Timestamptz(6)
-  anonymous         Boolean         @default(false)
-  hearts            Int             @default(0)
-  paws              Int             @default(0)
-  carrier           String          @default("") // post | tipax | mahex
-  trackingCode      String          @default("")
-  subtotalToman     Int             @default(0)
-  shippingToman     Int             @default(0)
-  discountToman     Int             @default(0)
-  totalToman        Int             @default(0)
-  paymentMethod     PaymentMethod
-  paymentAttempts   Int             @default(0)
-  cancelReason      String          @default("")
-  smsAbandonedAt    DateTime?       @db.Timestamptz(6)
-  marketingConsent  Boolean         @default(false)
-  userPhone         String          @default("") // "" = guest
-  sessionPhone      String          @default("")
-  expiresAt         DateTime        @db.Timestamptz(6) // createdAt + 24h
-  createdAt         DateTime        @default(now()) @db.Timestamptz(6)
-  updatedAt         DateTime        @updatedAt @db.Timestamptz(6)
-  items             OrderItem[]
-  events            OrderEvent[]
-  payments          Payment[]
-  sms               SmsOutbox[]
-
-  @@index([status, createdAt])
-  @@index([status, expiresAt])
-  @@index([senderPhone])
-  @@index([userPhone])
-}
-
-model OrderItem {
-  id             String         @id @default(cuid())
-  orderId        String
-  variantId      String
-  kind           String
-  size           String
-  title          String
-  qty            Int            @default(1)
-  unitPriceToman Int
-  order          Order          @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  variant        ProductVariant @relation(fields: [variantId], references: [id], onDelete: Restrict)
-
-  @@index([orderId])
-  // CHECK (qty > 0) added via prisma/checks-pg.sql
-}
-
-// Single audit spine (AdminLog/StockMove folded here — critic 13-h)
-model OrderEvent {
-  id        String       @id @default(cuid())
-  orderId   String
-  type      String // created|status_changed|payment_*|stock_adjust|admin_note|…
-  fromStatus OrderStatus?
-  toStatus  OrderStatus?
-  actor     ActorType
-  actorId   String       @default("") // adminPhone / userPhone
-  note      String       @default("") @db.Text
-  meta      Json?
-  createdAt DateTime     @default(now()) @db.Timestamptz(6)
-  order     Order        @relation(fields: [orderId], references: [id], onDelete: Cascade)
-
-  @@index([orderId, createdAt])
-}
-
-// ── payments ──
-
-model Payment {
-  id          String        @id @default(cuid())
-  orderId     String
-  method      PaymentMethod
-  status      PaymentStatus @default(initiated)
-  amountToman Int
-  authority   String?       @unique
-  refId       String?
-  cardLast4   String        @default("")
-  receiptKey  String        @default("") // Arvan S3 key (private bucket)
-  receiptHash String        @default("") // sha256 — cross-order dedupe
-  reviewedBy  String        @default("")
-  reviewedAt  DateTime?     @db.Timestamptz(6)
-  note        String        @default("") @db.Text
-  createdAt   DateTime      @default(now()) @db.Timestamptz(6)
-  order       Order         @relation(fields: [orderId], references: [id], onDelete: Cascade)
-
-  @@index([orderId])
-  @@index([status, createdAt])
-  @@index([receiptHash])
-}
-
-// ── sms outbox ──
-
-model SmsOutbox {
-  id                 String    @id @default(cuid())
-  phone              String
-  template           String
-  body               String    @db.Text
-  status             SmsStatus @default(queued)
-  attempts           Int       @default(0)
-  lastError          String    @default("")
-  orderId            String?
-  sendAfter          DateTime  @default(now()) @db.Timestamptz(6)
-  sentAt             DateTime? @db.Timestamptz(6)
-  createdAt          DateTime  @default(now()) @db.Timestamptz(6)
-  order              Order?    @relation(fields: [orderId], references: [id], onDelete: SetNull)
-
-  @@index([status, sendAfter])
-}
-
-// ── infra / identity ──
-
-model DailyCounter {
-  day   String @id // YYYYMMDD — Tehran time
-  value Int
-}
-
-model Session {
-  id         String   @id // sha256(token) — raw token only in the HttpOnly cookie
-  phone      String
-  kind       String   @default("customer") // customer | admin
-  expiresAt  DateTime @db.Timestamptz(6)
-  lastSeenAt DateTime @default(now()) @db.Timestamptz(6)
-  createdAt  DateTime @default(now()) @db.Timestamptz(6)
-
-  @@index([phone])
-  @@index([expiresAt])
-}
-
-model AuthCode {
+model User {
   id        String   @id @default(cuid())
-  phone     String
-  codeHash  String // HMAC-SHA256(phone:code, SESSION_SECRET)
-  attempts  Int      @default(0)
-  ip        String   @default("")
-  expiresAt DateTime @db.Timestamptz(6)
-  used      Boolean  @default(false)
-  createdAt DateTime @default(now()) @db.Timestamptz(6)
-
-  @@index([phone, createdAt])
-}
-
-model AppUser {
-  id          String    @id @default(cuid())
-  phone       String    @unique
-  name        String?
-  createdAt   DateTime  @default(now()) @db.Timestamptz(6)
-  lastLoginAt DateTime  @default(now()) @db.Timestamptz(6)
-}
-
-model AdminUser {
-  id          String    @id @default(cuid())
-  phone       String    @unique
-  name        String    @default("")
-  role        AdminRole @default(operator)
-  isActive    Boolean   @default(true)
-  lastLoginAt DateTime? @db.Timestamptz(6)
-}
-
-model Setting {
-  key        String   @id
-  value      String   @db.Text
-  updatedAt  DateTime @updatedAt @db.Timestamptz(6)
-}
-
-// Optional durable rate-limit buckets (only needed if replicas > 1)
-model RateBucket {
-  key     String   @id
-  count   Int
-  resetAt DateTime @db.Timestamptz(6)
-}
-
-model JobRun {
-  id         String    @id @default(cuid())
-  name       String
-  startedAt  DateTime  @default(now()) @db.Timestamptz(6)
-  finishedAt DateTime? @db.Timestamptz(6)
-  ok         Boolean   @default(false)
-  detail     String    @default("") @db.Text
-}
-
-// ── content / community ──
-
-model Experience {
-  id         String           @id @default(cuid())
-  name       String
-  city       String           @default("")
-  occasion   String           @default("")
-  body       String           @db.Text
-  photoKey   String           @default("")
-  status     ModerationStatus @default(pending)
-  isFeatured Boolean          @default(false)
-  submittedIp String          @default("")
-  reviewedBy String           @default("")
-  reviewedAt DateTime?        @db.Timestamptz(6)
-  createdAt  DateTime         @default(now()) @db.Timestamptz(6)
-
-  @@index([status, createdAt])
+  email     String   @unique
+  name      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model Post {
-  id             String    @id @default(cuid())
-  title          String
-  slug           String    @unique
-  excerpt        String    @default("") @db.Text
-  bodyMd         String    @default("") @db.Text
-  coverImage     String    @default("")
-  status         ModerationStatus @default(pending) // pending=draft, approved=published
-  publishedAt    DateTime? @db.Timestamptz(6)
-  seoTitle       String    @default("")
-  seoDescription String    @default("")
-  createdAt      DateTime  @default(now()) @db.Timestamptz(6)
-  updatedAt      DateTime  @updatedAt @db.Timestamptz(6)
-
-  @@index([status, publishedAt])
+  id          String    @id @default(cuid())
+  title       String
+  content     String?
+  published   Boolean   @default(false)
+  authorId    String // legacy scaffold — kept, unused-ok
+  slug        String    @unique // latin, immutable-forever (guide 13-f)
+  excerpt     String    @default("") // ≤300 chars for cards/meta
+  tags        String    @default("") // comma-separated Persian tags
+  publishedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 }
 
-model VoiceNote {
-  id          String   @id @default(cuid())
-  orderId     String   @unique
-  key         String // Arvan S3 key (private bucket)
-  durationSec Int      @default(0)
-  status      String   @default("ready")
-  createdAt   DateTime @default(now()) @db.Timestamptz(6)
+// ── «تجربه مخاطب» UGC stories (Phase C — guide 13-f) ──
+// Opt-in only: consent MUST be true (never auto-derived from gift messages).
+// Moderation gate: nothing goes public before an admin publishes it.
+
+model Experience {
+  id          String    @id @default(cuid())
+  name        String // display name (2..40)
+  city        String    @default("")
+  occasion    Int       @default(0) // 0..10 — index into the occasions list
+  body        String // 20..1500 chars
+  photoKey    String    @default("") // optional storage key (.data/experiences in sandbox)
+  consent     Boolean   @default(false) // explicit UGC opt-in — must be true to store
+  status      String    @default("pending") // pending | published | rejected
+  publishedAt DateTime?
+  createdAt   DateTime  @default(now())
+
+  @@index([status])
 }
 
-model Favorite {
-  id        String   @id @default(cuid())
-  userPhone String
-  kind      String
-  createdAt DateTime @default(now()) @db.Timestamptz(6)
+// ── Pishnam domain ──
 
-  @@unique([userPhone, kind])
+model GiftOrder {
+  id         String   @id // client-side id (g-<no>-<ts>) keeps local↔server identity
+  no         Int      @unique
+  kind       String
+  to         String
+  city       String   @default("")
+  address    String   @default("")
+  phone      String   @default("")
+  message    String   @default("")
+  occasion   Int      @default(0)
+  password   String   @default("")
+  anonymous  Boolean  @default(false)
+  senderName String   @default("")
+  hearts     Int      @default(0)
+  paws       Int      @default(0)
+  total      Int      @default(0)
+  date       String   @default("")
+  status     String   @default("paid") // paid | packing | shipped | delivered
+  opened     Boolean  @default(false)
+  dir        String   @default("sent") // sent | recv
+  userPhone  String   @default("") // phone of the logged-in sender (empty = guest)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
   @@index([userPhone])
-}
-
-model Review {
-  id        String   @id @default(cuid())
-  who       String
-  role      String   @default("sender")
-  stars     Int      @default(5)
-  kind      String   @default("bear")
-  title     String   @default("")
-  text      String   @db.Text
-  approved  Boolean  @default(false)
-  createdAt DateTime @default(now()) @db.Timestamptz(6)
-
-  @@index([approved, createdAt])
 }
 
 model ContactMessage {
@@ -381,6 +94,349 @@ model ContactMessage {
   email     String
   subject   String
   orderNo   String   @default("")
-  message   String   @db.Text
-  createdAt DateTime @default(now()) @db.Timestamptz(6)
+  message   String
+  createdAt DateTime @default(now())
+}
+
+// ── Auth (demo OTP flow) ──
+
+model AppUser {
+  id          String   @id @default(cuid())
+  phone       String   @unique
+  name        String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  lastLoginAt DateTime @default(now())
+}
+
+model AuthCode {
+  id        String   @id @default(cuid())
+  phone     String
+  code      String   @default("") // legacy demo field (pre-hardening rows)
+  codeHash  String   @default("") // HMAC-SHA256(phone:code, SESSION_SECRET)
+  attempts  Int      @default(0)
+  ip        String   @default("")
+  // login = ورود/ثبت‌نام حساب | checkout_orderer = تأیید شماره سفارش‌دهنده قبل از پرداخت
+  purpose   String   @default("login")
+  expiresAt DateTime
+  used      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([phone, createdAt])
+}
+
+// ── DB-backed sessions (Phase A — guide §4.2) ──
+
+model Session {
+  id         String   @id // sha256(token) — the raw token only lives in the cookie
+  phone      String
+  kind       String   @default("customer") // customer | admin
+  expiresAt  DateTime
+  lastSeenAt DateTime @default(now())
+  createdAt  DateTime @default(now())
+
+  @@index([phone])
+  @@index([expiresAt])
+}
+
+// ── Admin users (2 seats max — owner | operator) ──
+
+model AdminUser {
+  id          String    @id @default(cuid())
+  phone       String    @unique
+  name        String    @default("")
+  role        String    @default("operator") // owner | operator
+  isActive    Boolean   @default(true)
+  lastLoginAt DateTime?
+}
+
+// ── Per-account favorites (پشمالوهای محبوب) ──
+
+model Favorite {
+  id        String   @id @default(cuid())
+  userPhone String
+  kind      String // PlushKind
+  createdAt DateTime @default(now())
+
+  @@unique([userPhone, kind])
+  @@index([userPhone])
+}
+
+// ── Real customer reviews (نظرهای واقعی) ──
+
+model Review {
+  id        String   @id @default(cuid())
+  who       String // display name
+  role      String   @default("sender") // sender | receiver
+  stars     Int      @default(5) // 1..5
+  kind      String   @default("bear") // PlushKind of the gift
+  title     String   @default("")
+  text      String
+  approved  Boolean  @default(false) // moderation gate (Phase A — guide A9)
+  createdAt DateTime @default(now())
+}
+
+// ─────────────────────────────────────────────────────────────
+// Commerce core (Phase B — launch guide §4.5–4.13)
+// Statuses are lowercase, forward-only (critic MUST-FIX #6):
+//   awaiting_payment | payment_under_review | paid | preparing |
+//   shipped | delivered | failed | cancelled | expired |
+//   refund_requested | refunded
+// Money is INTEGER toman — the IRR×10 happens ONLY in the JSON-LD builder.
+// ─────────────────────────────────────────────────────────────
+
+model Product {
+  id          String           @id @default(cuid())
+  slug        String           @unique // bear | bunny | cat | duck | panda | sheep | addon-…
+  name        String // Persian display name
+  description String           @default("")
+  // main_gift = the 6 plush boxes; addon = «افزودنی‌ها» (bracelet, watch, …)
+  // managed from the admin «محصولات» tab — new addons never need code changes.
+  kind        String           @default("main_gift") // main_gift | addon
+  emoji       String           @default("🎁") // compact display glyph for addons
+  // catalog photo — storage key in .data/products/<stem>.<ext> (S3 at deploy);
+  // empty = no photo yet, UI falls back to the emoji. Uploaded from the admin
+  // «محصولات» tab via POST /api/admin/products/[id]/image (magic-byte sniffed).
+  imageKey    String           @default("")
+  isActive    Boolean          @default(true)
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  variants    ProductVariant[]
+
+  @@index([isActive])
+}
+
+model ProductVariant {
+  id         String      @id @default(cuid())
+  product    Product     @relation(fields: [productId], references: [id])
+  productId  String
+  size       String      @default("one") // owner 1404-10: همه یک سایزند
+  priceToman Int
+  stock      Int         @default(0)
+  sku        String      @unique // PN-bear
+  isActive   Boolean     @default(true)
+  createdAt  DateTime    @default(now())
+  orderItems OrderItem[]
+
+  @@unique([productId, size])
+  @@index([isActive, stock])
+}
+
+model Order {
+  id               String      @id @default(cuid())
+  code             String      @unique // PN-YYMMDD-#### (Asia/Tehran)
+  idempotencyKey   String      @unique
+  requestHash      String      @default("")
+  status           String      @default("awaiting_payment")
+  paymentMethod    String      @default("zarinpal") // zarinpal | manual_transfer
+  // parties
+  senderName       String      @default("")
+  senderPhone      String      @default("")
+  recipientName    String      @default("")
+  recipientPhone   String      @default("")
+  province         String      @default("تهران")
+  city             String      @default("")
+  address          String      @default("")
+  postalCode       String      @default("")
+  // gift payload
+  message          String      @default("")
+  cardPasswordHash String      @default("") // scrypt, never plaintext
+  occasion         Int         @default(0)
+  anonymous        Boolean     @default(false)
+  // sender privacy — per-order choice (mission §۳):
+  //   name  = show the sender's real name
+  //   phrase= show a custom phrase like «از طرف همسرت»
+  //   anon  = fully anonymous → recipient-facing responses NEVER carry
+  //           senderName/senderPhone (stripped server-side, not CSS-hidden)
+  senderDisplay    String      @default("name") // name | phrase | anon
+  senderPhrase     String      @default("")
+  charmHearts      Int         @default(0)
+  charmPaws        Int         @default(0)
+  // private message media (photos/video/voice) — storage keys .data/messages/<code>/…
+  mediaKeys        String      @default("[]") // JSON array
+  mediaCount       Int         @default(0)
+  // message retention (mission §۴): the clock starts ONLY at the first
+  // successful authorized display to the recipient — never at order/payment/
+  // delivery/QR-scan time. Purge is idempotent and retry-safe.
+  retentionPlan      String    @default("1m") // 1m | 6m | 12m
+  messageShownAt     DateTime?
+  messageExpiresAt   DateTime?
+  messagePurgedAt    DateTime?
+  messagePurgeStatus String    @default("active") // active | purged | purge_failed
+  messagePurgeAttempts Int     @default(0)
+  // money (toman — server-authoritative, computed in pricing.ts)
+  subtotalToman    Int         @default(0)
+  shippingToman    Int         @default(0)
+  discountToman    Int         @default(0)
+  totalToman       Int         @default(0)
+  // bookkeeping
+  userPhone        String      @default("")
+  sessionPhone     String      @default("")
+  // سفارش‌دهنده (buyer identity — separate from the gift sender display):
+  // collected + OTP-verified before payment; independent from recipient fields
+  ordererFirstName String      @default("")
+  ordererLastName  String      @default("")
+  ordererPhone     String      @default("")
+  // refund (damage-only — guide §4.8; shipped|delivered → refund_requested)
+  refundReason      String    @default("")
+  refundPhotos      String    @default("") // JSON array of storage keys
+  refundRequestedAt DateTime?
+  giftOpened       Boolean     @default(false)
+  giftOpenedAt     DateTime?
+  giftOpenAttempts Int         @default(0)
+  giftLockedAt     DateTime?
+  smsAbandonedAt   DateTime?
+  paymentAttempts  Int         @default(0)
+  expiresAt        DateTime
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+
+  items    OrderItem[]
+  events   OrderEvent[]
+  payments Payment[]
+  renewals RetentionRenewal[]
+
+  @@index([sessionPhone, createdAt])
+  @@index([userPhone])
+  @@index([recipientPhone])
+  @@index([status, expiresAt])
+  @@index([messagePurgeStatus, messageExpiresAt])
+}
+
+model OrderItem {
+  id             String         @id @default(cuid())
+  order          Order          @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  orderId        String
+  variant        ProductVariant @relation(fields: [variantId], references: [id])
+  variantId      String
+  titleSnapshot  String // Persian title at purchase time
+  unitPriceToman Int
+  qty            Int
+
+  @@index([orderId])
+}
+
+model OrderEvent {
+  id         String   @id @default(cuid())
+  order      Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  orderId    String
+  type       String // created | status_changed | payment | gift_opened | note | sms
+  fromStatus String   @default("")
+  toStatus   String   @default("")
+  actor      String   @default("system") // customer | admin | owner | psp | system
+  actorId    String   @default("")
+  note       String   @default("")
+  meta       String   @default("{}") // JSON string (SQLite: no native Json)
+  createdAt  DateTime @default(now())
+
+  @@index([orderId, createdAt])
+}
+
+model Payment {
+  id          String   @id @default(cuid())
+  order       Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  orderId     String
+  method      String // zarinpal | manual_transfer
+  provider    String   @default("") // zarinpal | blehpi | card_to_card
+  amountToman Int
+  status      String   @default("initiated") // initiated | pending_review | verified | rejected | failed
+  authority   String   @default("") // zarinpal payment authority
+  refId       String   @default("")
+  receiptKey  String   @default("") // storage key (Arvan S3 at deploy; .data/ in sandbox)
+  receiptHash String   @default("") // sha256 — dedupe enforced in code (empty allowed)
+  receiptMime String   @default("")
+  receiptSize Int      @default(0)
+  attemptNo   Int      @default(1)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([orderId])
+  @@index([status, createdAt])
+  @@index([authority])
+}
+
+model SmsOutbox {
+  id        String    @id @default(cuid())
+  phone     String
+  template  String // key into SmsTemplate table (≤70 chars rendered fallback)
+  params    String    @default("{}") // JSON string
+  status    String    @default("queued") // queued | sent | failed | dead
+  attempts  Int       @default(0)
+  provider  String    @default("") // ippanel_pattern | ippanel | echo
+  messageId String    @default("") // provider message id (ippanel)
+  sendAfter DateTime  @default(now())
+  sentAt    DateTime?
+  error     String    @default("")
+  createdAt DateTime  @default(now())
+
+  @@index([status, sendAfter])
+}
+
+// ── SMS templates (owner round: بخش پیامک کامل) ──
+// Every outgoing message resolves its config from HERE at send time — so the
+// owner edits pattern codes / texts in the admin panel and the ippanel panel
+// keeps the pattern itself; no code change is ever needed. Sending is
+// pattern-first (ippanel pattern = fast, per docs.ippanel.com): when
+// patternCode is empty the fallbackText (with {placeholders}) goes as plain.
+model SmsTemplate {
+  key          String   @id // order_confirm | paid | otp_login | ...
+  label        String // Persian title in the admin panel
+  description  String   @default("") // when it fires
+  patternCode  String   @default("") // ippanel pattern code — empty = plain send
+  // JSON: { "<internal param>": "<ippanel variable name>" } — edited in admin
+  variables    String   @default("{}")
+  fallbackText String   @default("") // plain text with {param} placeholders
+  enabled      Boolean  @default(true)
+  isSystem     Boolean  @default(true) // seeded defaults can't be deleted
+  updatedAt    DateTime @updatedAt
+}
+
+// ── Retention renewal (mission §۴ — تمدید نگهداری پیام) ──
+// A paid extension of messageExpiresAt. Applied ONLY after the admin verifies
+// the card-to-card receipt — never self-serve. If the message was already
+// purged when approval lands, the renewal is cancelled honestly (no fake
+// recovery) and the money path is manual refund by the owner.
+model RetentionRenewal {
+  id               String    @id @default(cuid())
+  code             String    @unique // RR-YYMMDD-#### (own DailyCounter namespace)
+  order            Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  orderId          String
+  plan             String // 6m | 12m (1m is free — nothing to renew)
+  priceToman       Int // snapshot from Setting at request time
+  status           String    @default("awaiting_payment") // awaiting_payment | payment_under_review | paid | cancelled
+  requestedByPhone String // session that requested it (sender OR recipient)
+  receiptKey       String    @default("") // same receipt store as manual payments
+  receiptHash      String    @default("") // sha256 — dedupe across payments+renewals
+  receiptMime      String    @default("")
+  receiptSize      Int       @default(0)
+  cancelReason     String    @default("")
+  paidAt           DateTime?
+  appliedAt        DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  @@index([status, createdAt])
+  @@index([orderId])
+}
+
+model Setting {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt
+}
+
+model DailyCounter {
+  day   String @id // Asia/Tehran YYYYMMDD
+  value Int    @default(0)
+}
+
+model JobRun {
+  id         String    @id @default(cuid())
+  name       String
+  startedAt  DateTime  @default(now())
+  finishedAt DateTime?
+  ok         Boolean   @default(true)
+  detail     String    @default("")
+
+  @@index([name, startedAt])
 }

@@ -13,8 +13,12 @@ const securityHeaders = [
 // `output: "standalone"` tree (.next/standalone) — it MUST stay enabled for
 // Netlify builds too, otherwise the plugin falls back to copying the whole
 // project root and blows through the 250MB function cap.
+// Vercel is the exception: it packages the app itself and must NOT get a
+// standalone tree (scripts/post-build.mjs skips there for the same reason).
+const isVercel = !!process.env.VERCEL;
+
 const nextConfig: NextConfig = {
-  output: "standalone",
+  output: isVercel ? undefined : "standalone",
   // Ship the seeded SQLite db + Prisma client/engine inside the server bundle —
   // the serverless cold start copies the db to /tmp (see instrumentation.ts).
   outputFileTracingIncludes: {

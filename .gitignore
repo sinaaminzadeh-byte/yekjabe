@@ -23,3 +23,6 @@ agent-ctx/
 .netlify/
 tsconfig.tsbuildinfo
 upload/
+
+# extracted design-bundle pages (owner's uploaded design system, stay local)
+extracted/
