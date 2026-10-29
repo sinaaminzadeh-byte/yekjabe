@@ -16,6 +16,12 @@ import { fa, faPrice, money } from "@/lib/fa";
 import { MobileTopBar } from "@/components/shop/nav";
 import { useToast } from "@/hooks/use-toast";
 import { TRANSITIONS, STEP_LABELS, type OrderStatus } from "@/lib/orders/status";
+import { ADMIN_TABS, AdminPills, AdminSidebar, useBadges, type Tab } from "@/components/shop/admin/admin-nav";
+import { OverviewTab } from "@/components/shop/admin/admin-overview";
+import { CustomersTab } from "@/components/shop/admin/admin-customers";
+import { MessagesTab } from "@/components/shop/admin/admin-messages";
+import { TeamTab } from "@/components/shop/admin/admin-team";
+import { jalaliDateTime } from "@/components/shop/admin/admin-shared";
 
 const STATUS_LABEL: Record<string, { label: string; bg: string }> = {
   awaiting_payment: { label: "در انتظار پرداخت", bg: "#F0F3F5" },
@@ -333,8 +339,6 @@ interface AdminReview {
   createdAt: string;
 }
 
-type Tab = "orders" | "payments" | "renewals" | "products" | "reviews" | "stories" | "blog" | "settings" | "sms" | "slides";
-
 type AdminRole = "owner" | "operator";
 const ROLE_LABEL: Record<AdminRole, string> = { owner: "ادمین", operator: "مدیر فروشگاه" };
 
@@ -346,10 +350,11 @@ export function AdminScreen() {
       return false;
     }
   });
-  const [tab, setTab] = useState<Tab>("orders");
+  const [tab, setTab] = useState<Tab>("overview");
   // role chip + owner-only tabs — fetched right after the gate opens
   const [role, setRole] = useState<AdminRole | null>(null);
   const [adminName, setAdminName] = useState("");
+  const badges = useBadges(unlocked);
 
   useEffect(() => {
     if (!unlocked) return;
@@ -376,96 +381,75 @@ export function AdminScreen() {
     );
   }
 
+  const activeDef = ADMIN_TABS.find((t) => t.key === tab);
+  // owner-only tabs guard (server stays source of truth)
+  const safeTab: Tab = activeDef?.ownerOnly && role !== "owner" ? "overview" : tab;
+
   return (
-    <div className="flex min-h-screen flex-col bg-[#F2FAFD]">
-      <MobileTopBar title="پنل مدیریت" back="home" />
-      <main className="mx-auto w-full max-w-[1200px] flex-1 px-4 pb-24 pt-5 md:px-6 md:pt-8">
-        <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
-          <div className="flex flex-col gap-1">
-            <h1 className="m-0 text-[26px] font-black md:text-[34px]">دفتر مدیریت فروشگاه</h1>
-            <p className="m-0 text-[13.5px] font-medium text-[#4A6572] md:text-[15px]">
-              داده‌ی زنده از سرور — سفارش‌ها، رسیدهای کارت‌به‌کارت، محصولات و تنظیمات
-            </p>
-          </div>
-          {role && (
-            <span
-              className="flex items-center gap-2 self-start rounded-full px-4 py-2 text-[12.5px] font-extrabold"
-              style={{
-                background: role === "owner" ? "#04202E" : "#E3F6FD",
-                color: role === "owner" ? "#fff" : "#006387",
-              }}
-              title={adminName || undefined}
-            >
+    <div className="mx-auto flex w-full max-w-[1440px] gap-6 px-0 lg:px-6 lg:py-4">
+      <AdminSidebar tab={safeTab} onTab={setTab} role={role} adminName={adminName} badges={badges} />
+      <div className="flex min-h-screen w-full min-w-0 flex-col bg-[#F2FAFD] lg:min-h-0 lg:flex-1 lg:rounded-[28px] lg:border lg:border-[#DDEEF5] lg:bg-white/60 lg:px-5 lg:py-5">
+        <MobileTopBar title="پنل مدیریت" back="home" />
+        <main className="w-full flex-1 px-4 pb-24 pt-2 md:px-6 lg:px-1 lg:pb-6">
+          <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
+            <div className="flex flex-col gap-1">
+              <h1 className="m-0 flex items-center gap-2 text-[24px] font-black md:text-[30px]">
+                <span aria-hidden="true" className="text-[20px] md:text-[24px]">{activeDef?.icon}</span>
+                {activeDef?.label ?? "داشبورد"}
+              </h1>
+              <p className="m-0 text-[12.5px] font-medium text-[#4A6572] md:text-[13.5px]">{activeDef?.desc ?? "نمای کلی فروشگاه"}</p>
+            </div>
+            {role && (
               <span
-                className="inline-block h-2 w-2 rounded-full"
-                style={{ background: role === "owner" ? "#7BE3B4" : "#00ABE7" }}
-                aria-hidden="true"
-              />
-              {ROLE_LABEL[role]}
-              {adminName ? ` — ${adminName}` : ""}
-            </span>
-          )}
-        </div>
-
-        {/* tabs */}
-        <div className="no-scrollbar mb-5 flex gap-2 overflow-x-auto">
-          {(
-            [
-              { key: "orders", label: "سفارش‌ها" },
-              { key: "payments", label: "رسیدهای کارت‌به‌کارت" },
-              { key: "renewals", label: "تمدید نگهداری" },
-              { key: "products", label: "محصولات" },
-              { key: "slides", label: "اسلایدرها" },
-              { key: "reviews", label: "نظرها" },
-              { key: "stories", label: "تجربه‌ها" },
-              { key: "blog", label: "بلاگ" },
-              // تنظیمات فقط برای ادمین (owner) — server-side هم owner-only است
-              ...(role === "owner" ? [{ key: "settings" as Tab, label: "تنظیمات" }] : []),
-              ...(role === "owner" ? [{ key: "sms" as Tab, label: "پیامک‌ها" }] : []),
-            ] as { key: Tab; label: string }[]
-          ).map((t) => {
-            const on = tab === t.key;
-            return (
-              <button
-                key={t.key}
-                type="button"
-                aria-pressed={on}
-                onClick={() => setTab(t.key)}
-                className="h-11 shrink-0 rounded-full px-5 text-[13.5px] font-extrabold transition-all"
+                className="flex items-center gap-2 self-start rounded-full px-4 py-2 text-[12px] font-extrabold lg:hidden"
                 style={{
-                  background: on ? "#04202E" : "#fff",
-                  border: `1.5px solid ${on ? "#04202E" : "#CFE6EF"}`,
-                  color: on ? "#fff" : "#04202E",
+                  background: role === "owner" ? "#04202E" : "#E3F6FD",
+                  color: role === "owner" ? "#fff" : "#006387",
                 }}
+                title={adminName || undefined}
               >
-                {t.label}
-              </button>
-            );
-          })}
-        </div>
+                <span
+                  className="inline-block h-2 w-2 rounded-full"
+                  style={{ background: role === "owner" ? "#7BE3B4" : "#00ABE7" }}
+                  aria-hidden="true"
+                />
+                {ROLE_LABEL[role]}
+                {adminName ? ` — ${adminName}` : ""}
+              </span>
+            )}
+          </div>
 
-        {tab === "orders" && <OrdersTab />}
-        {tab === "payments" && <PaymentsTab />}
-        {tab === "products" && <ProductsTab />}
-        {tab === "renewals" && <RenewalsTab />}
-        {tab === "slides" && <SlidesTab />}
-        {tab === "reviews" && <ReviewsTab />}
-        {tab === "stories" && <StoriesModTab />}
-        {tab === "blog" && <BlogTab />}
-        {tab === "settings" && role === "owner" && <SettingsTab />}
-        {tab === "sms" && role === "owner" && <SmsTab />}
+          <AdminPills tab={safeTab} onTab={setTab} role={role} badges={badges} />
 
-        <div className="mt-7 flex justify-center">
-          <button
-            type="button"
-            onClick={() => navigate("home")}
-            className="flex h-12 items-center gap-2 rounded-full border-2 border-[#04202E] bg-white px-7 text-[14.5px] font-extrabold text-[#04202E] transition-transform hover:scale-[1.02]"
-          >
-            برگرد به خانه
-            <ForwardIcon size={16} />
-          </button>
-        </div>
-      </main>
+          <div className="mt-4">
+            {safeTab === "overview" && <OverviewTab onNavigate={setTab} />}
+            {safeTab === "orders" && <OrdersTab />}
+            {safeTab === "payments" && <PaymentsTab />}
+            {safeTab === "products" && <ProductsTab />}
+            {safeTab === "renewals" && <RenewalsTab />}
+            {safeTab === "customers" && <CustomersTab />}
+            {safeTab === "messages" && <MessagesTab />}
+            {safeTab === "slides" && <SlidesTab />}
+            {safeTab === "reviews" && <ReviewsTab />}
+            {safeTab === "stories" && <StoriesModTab />}
+            {safeTab === "blog" && <BlogTab />}
+            {safeTab === "team" && role === "owner" && <TeamTab />}
+            {safeTab === "settings" && role === "owner" && <SettingsTab />}
+            {safeTab === "sms" && role === "owner" && <SmsTab />}
+          </div>
+
+          <div className="mt-7 flex justify-center lg:hidden">
+            <button
+              type="button"
+              onClick={() => navigate("home")}
+              className="flex h-12 items-center gap-2 rounded-full border-2 border-[#04202E] bg-white px-7 text-[14.5px] font-extrabold text-[#04202E] transition-transform hover:scale-[1.02]"
+            >
+              برگرد به خانه
+              <ForwardIcon size={16} />
+            </button>
+          </div>
+        </main>
+      </div>
     </div>
   );
 }
@@ -475,6 +459,7 @@ function OrdersTab() {
   const [orders, setOrders] = useState<AdminOrder[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [detailId, setDetailId] = useState<string | null>(null);
   const [filter, setFilter] = useState<string>("all");
   const [q, setQ] = useState("");
   const { toast } = useToast();
@@ -683,10 +668,18 @@ function OrdersTab() {
                   <span dir="ltr">{fa(o.recipientPhone)}</span>
                   <span>{o.province}، {o.city}</span>
                   <span>{o.items.join(" + ")}</span>
+                  <span>{jalaliDateTime(o.createdAt)}</span>
                   {o.payment && <span>پرداخت: {o.payment.method === "zarinpal" ? "زرین‌پال" : "دستی"} ({STATUS_LABEL[o.payment.status]?.label ?? o.payment.status})</span>}
                 </div>
                 {actionables.length > 0 && (
                   <div className="mt-3 flex flex-wrap gap-2 border-t border-[#EDF6FA] pt-3">
+                    <button
+                      type="button"
+                      onClick={() => setDetailId(o.id)}
+                      className="flex h-10 items-center gap-1.5 rounded-full border-[1.5px] border-[#CFE6EF] bg-white px-4 text-[12.5px] font-extrabold text-[#006387] transition-all hover:bg-[#F2FAFD] active:scale-95"
+                    >
+                      جزئیات و تایم‌لاین
+                    </button>
                     {actionables.map((s) => (
                       <button
                         key={s}
@@ -721,7 +714,205 @@ function OrdersTab() {
           })}
         </div>
       )}
+      {detailId && <OrderDetailModal id={detailId} onClose={() => setDetailId(null)} />}
     </>
+  );
+}
+
+/* ═══════════ ORDER DETAIL MODAL (round 33) ═══════════ */
+interface DetailOrder {
+  id: string;
+  code: string;
+  status: string;
+  paymentMethod: string;
+  senderName: string;
+  senderDisplay: string;
+  senderPhrase: string;
+  recipientName: string;
+  recipientPhone: string;
+  ordererName: string;
+  ordererPhone: string;
+  userPhone: string;
+  province: string;
+  city: string;
+  address: string;
+  postalCode: string;
+  message: string;
+  occasion: number;
+  charmHearts: number;
+  charmPaws: number;
+  mediaCount: number;
+  retentionPlan: string;
+  messageExpiresAt: string | null;
+  messagePurgeStatus: string;
+  subtotalToman: number;
+  shippingToman: number;
+  discountToman: number;
+  totalToman: number;
+  giftOpened: boolean;
+  giftOpenedAt: string | null;
+  refundReason: string;
+  refundRequestedAt: string | null;
+  paymentAttempts: number;
+  expiresAt: string;
+  createdAt: string;
+  items: { titleSnapshot: string; unitPriceToman: number; qty: number }[];
+  payments: { method: string; status: string; attemptNo: number; amountToman: number; refId: string; createdAt: string }[];
+  renewals: { code: string; plan: string; priceToman: number; status: string; createdAt: string }[];
+  events: { id: string; type: string; fromStatus: string; toStatus: string; actor: string; note: string; createdAt: string }[];
+}
+
+const EVENT_LABEL: Record<string, string> = {
+  created: "سفارش ساخته شد",
+  status_changed: "تغییر وضعیت",
+  payment: "پرداخت",
+  gift_opened: "کارت هدیه باز شد",
+  note: "یادداشت",
+  sms: "پیامک",
+};
+
+function OrderDetailModal({ id, onClose }: { id: string; onClose: () => void }) {
+  const [o, setO] = useState<DetailOrder | null>(null);
+  const [err, setErr] = useState(false);
+
+  useEffect(() => {
+    fetch(`/api/admin/orders/${id}`, { cache: "no-store" })
+      .then((r) => {
+        if (!r.ok) throw new Error();
+        return r.json();
+      })
+      .then((j: { order: DetailOrder }) => setO(j.order))
+      .catch(() => setErr(true));
+  }, [id]);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-[#04202E]/45 p-0 backdrop-blur-[2px] md:items-center md:p-6" onClick={onClose} role="dialog" aria-modal="true" aria-label="جزئیات سفارش">
+      <div
+        className="max-h-[92vh] w-full max-w-[720px] overflow-y-auto rounded-t-[28px] bg-white p-5 shadow-[0_24px_60px_rgba(4,32,46,0.3)] md:rounded-[28px] md:p-6"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {err ? (
+          <p className="m-0 py-10 text-center text-[14px] font-bold text-[#B03A5B]">جزئیات بارگذاری نشد.</p>
+        ) : !o ? (
+          <div className="flex flex-col gap-3 py-4">
+            {[0, 1, 2].map((i) => (
+              <div key={i} className="h-16 animate-pulse rounded-[18px] bg-[#F2FAFD]" />
+            ))}
+          </div>
+        ) : (
+          <>
+            {/* header */}
+            <div className="mb-4 flex items-start justify-between gap-3">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="rounded-[12px] bg-[#04202E] px-3 py-1.5 text-[13px] font-extrabold text-white" dir="ltr">{o.code}</span>
+                <StatusChip s={o.status} />
+                {o.giftOpened && <span className="rounded-full bg-[#D7F5E4] px-2.5 py-1 text-[11px] font-bold text-[#2E7D53]">کارت باز شد 🎉</span>}
+              </div>
+              <button type="button" onClick={onClose} aria-label="بستن" className="flex h-10 w-10 items-center justify-center rounded-full border border-[#D3E8F0] bg-white text-[#04202E]">
+                ✕
+              </button>
+            </div>
+
+            {/* money breakdown */}
+            <div className="mb-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
+              {[
+                { l: "جمع اقلام", v: money(o.subtotalToman) },
+                { l: "ارسال", v: money(o.shippingToman) },
+                ...(o.discountToman > 0 ? [{ l: "تخفیف", v: `−${money(o.discountToman)}` }] : []),
+                { l: "مبلغ کل", v: money(o.totalToman) },
+              ].map((x) => (
+                <div key={x.l} className="rounded-[16px] bg-[#F5FBFD] p-3 text-center">
+                  <span className="block text-[13.5px] font-black text-[#04202E]">{x.v}</span>
+                  <span className="text-[10px] font-bold text-[#4A6572]">{x.l} (تومان)</span>
+                </div>
+              ))}
+            </div>
+
+            {/* parties + address */}
+            <div className="mb-4 rounded-[18px] border border-[#EDF6FA] p-4">
+              <h4 className="m-0 mb-2 text-[13px] font-black text-[#04202E]">طرفین و آدرس</h4>
+              <div className="grid gap-x-6 gap-y-1.5 text-[12.5px] font-semibold text-[#4A6572] sm:grid-cols-2">
+                <span>سفارش‌دهنده: <b className="text-[#04202E]">{o.ordererName || "—"}</b> {o.ordererPhone && <span dir="ltr">({fa(o.ordererPhone)})</span>}</span>
+                <span>گیرنده: <b className="text-[#04202E]">{o.recipientName}</b> <span dir="ltr">({fa(o.recipientPhone)})</span></span>
+                <span>ارسال از طرف: {o.senderDisplay === "anon" ? "ناشناس 🕶️" : o.senderDisplay === "phrase" ? o.senderPhrase : o.senderName || "—"}</span>
+                <span>حساب خریدار: <span dir="ltr">{fa(o.userPhone || o.ordererPhone || "—")}</span></span>
+                <span className="sm:col-span-2">آدرس: {o.province}، {o.city} — {o.address || "—"} {o.postalCode && <span dir="ltr">({fa(o.postalCode)})</span>}</span>
+              </div>
+            </div>
+
+            {/* gift payload */}
+            <div className="mb-4 rounded-[18px] border border-[#EDF6FA] p-4">
+              <h4 className="m-0 mb-2 text-[13px] font-black text-[#04202E]">هدیه</h4>
+              <div className="mb-2 flex flex-wrap gap-1.5">
+                {o.items.map((it, i) => (
+                  <span key={i} className="rounded-full bg-[#E3F6FD] px-2.5 py-1 text-[11px] font-extrabold text-[#006387]">{it.titleSnapshot} ×{fa(it.qty)}</span>
+                ))}
+                {(o.charmHearts > 0 || o.charmPaws > 0) && (
+                  <span className="rounded-full bg-[#FFE0EA] px-2.5 py-1 text-[11px] font-extrabold text-[#B03A5B]">❤️ {fa(o.charmHearts)} · 🐾 {fa(o.charmPaws)}</span>
+                )}
+                {o.mediaCount > 0 && <span className="rounded-full bg-[#E7E0FA] px-2.5 py-1 text-[11px] font-extrabold text-[#5B4A8A]">🎙️ {fa(o.mediaCount)} پیوست</span>}
+                {o.retentionPlan !== "1m" && (
+                  <span className="rounded-full bg-[#FFF3C9] px-2.5 py-1 text-[11px] font-extrabold text-[#8A6D1F]">⏳ نگهداری {o.retentionPlan === "12m" ? "۱ساله" : "۶ماهه"}</span>
+                )}
+                {o.messagePurgeStatus !== "active" && <span className="rounded-full bg-[#F0F3F5] px-2.5 py-1 text-[11px] font-extrabold text-[#4A6572]">پیام پاک شده</span>}
+              </div>
+              {o.message && (
+                <p className="m-0 whitespace-pre-wrap rounded-[14px] bg-[#F5FBFD] p-3 text-[12.5px] font-medium leading-[2] text-[#04202E]">{o.message}</p>
+              )}
+              {o.refundReason && (
+                <p className="m-0 mt-2 rounded-[14px] bg-[#FFF7FA] p-3 text-[12.5px] font-bold text-[#B03A5B]">مرجوعی: {o.refundReason}</p>
+              )}
+            </div>
+
+            {/* payments */}
+            {o.payments.length > 0 && (
+              <div className="mb-4 rounded-[18px] border border-[#EDF6FA] p-4">
+                <h4 className="m-0 mb-2 text-[13px] font-black text-[#04202E]">تلاش‌های پرداخت</h4>
+                <div className="flex flex-col gap-1.5">
+                  {o.payments.map((p, i) => (
+                    <div key={i} className="flex flex-wrap items-center justify-between gap-2 rounded-[14px] bg-[#F5FBFD] px-3 py-2 text-[12px] font-bold text-[#4A6572]">
+                      <span>#{fa(p.attemptNo)} — {p.method === "zarinpal" ? "زرین‌پال" : "کارت‌به‌کارت"}</span>
+                      <span>{money(p.amountToman)} تومان</span>
+                      <StatusChip s={p.status === "verified" ? "delivered" : p.status === "pending_review" ? "payment_under_review" : p.status === "rejected" ? "failed" : "awaiting_payment"} />
+                      <span className="text-[10.5px]">{jalaliDateTime(p.createdAt)}</span>
+                      {p.refId && <span dir="ltr" className="text-[10.5px]">ref: {p.refId}</span>}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* timeline */}
+            <div className="rounded-[18px] border border-[#EDF6FA] p-4">
+              <h4 className="m-0 mb-3 text-[13px] font-black text-[#04202E]">تایم‌لاین رویدادها</h4>
+              <ol className="m-0 flex list-none flex-col gap-0 p-0">
+                {o.events.map((e, i) => (
+                  <li key={e.id} className="relative flex gap-3 pb-4 last:pb-0">
+                    {/* connector */}
+                    {i < o.events.length - 1 && <span className="absolute right-[11px] top-6 h-[calc(100%-16px)] w-[2px] bg-[#DDEEF5]" aria-hidden="true" />}
+                    <span className="z-10 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#E3F6FD] text-[11px]" aria-hidden="true">
+                      {e.type === "status_changed" ? "🔄" : e.type === "payment" ? "💳" : e.type === "gift_opened" ? "🎁" : e.type === "created" ? "✨" : "📋"}
+                    </span>
+                    <div className="min-w-0 flex-1 pt-0.5">
+                      <p className="m-0 text-[12.5px] font-bold text-[#04202E]">
+                        {EVENT_LABEL[e.type] ?? e.type}
+                        {e.type === "status_changed" && e.toStatus ? ` → ${STATUS_LABEL[e.toStatus]?.label ?? e.toStatus}` : ""}
+                      </p>
+                      <p className="m-0 text-[10.5px] font-semibold text-[#7C99A6]">
+                        {e.actor === "admin" ? "مدیر" : e.actor === "owner" ? "ادمین" : e.actor === "customer" ? "مشتری" : "سیستم"}
+                        {" · "}
+                        {jalaliDateTime(e.createdAt)}
+                        {e.note ? ` — ${e.note}` : ""}
+                      </p>
+                    </div>
+                  </li>
+                ))}
+              </ol>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
   );
 }
 

@@ -89,13 +89,16 @@ model GiftOrder {
 }
 
 model ContactMessage {
-  id        String   @id @default(cuid())
+  id        String    @id @default(cuid())
   name      String
   email     String
   subject   String
-  orderNo   String   @default("")
+  orderNo   String    @default("")
   message   String
-  createdAt DateTime @default(now())
+  read      Boolean   @default(false) // admin inbox: seen flag (round 33)
+  replyNote String    @default("") // admin internal note after answering
+  handledAt DateTime?
+  createdAt DateTime  @default(now())
 }
 
 // ── Auth (demo OTP flow) ──
