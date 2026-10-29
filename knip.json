@@ -1,0 +1,7 @@
+{
+  "$schema": "./node_modules/knip/schema.json",
+  "entry": ["src/app/page.tsx", "src/app/layout.tsx", "src/app/error.tsx", "src/app/sitemap.ts", "src/app/robots.txt", "src/proxy.ts", "src/instrumentation.ts", "scripts/*.mjs", "scripts/*.ts"],
+  "project": ["src/**/*.{ts,tsx}", "scripts/**/*.{mjs,ts}"],
+  "ignore": ["src/components/ui/**", "src/data/pages.ts", "src/hooks/use-toast.ts", "src/lib/fa.ts"],
+  "ignoreDependencies": ["tailwindcss", "@tailwindcss/postcss", "postcss", "eslint", "typescript", "prisma"]
+}
