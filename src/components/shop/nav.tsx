@@ -85,10 +85,13 @@ export function DesktopHeader() {
     { label: "وبلاگ", route: "blog" },
   ];
   return (
-    <header className="sticky top-0 z-40 border-b border-[#D3E8F0] bg-[#F2FAFD]/95 backdrop-blur">
+    // white header (owner request, round 37): solid white bg so the official
+    // wide logo sits on pure white — no tint, no blur
+    <header className="sticky top-0 z-40 border-b border-[#D3E8F0] bg-white">
       <div className="mx-auto flex w-full max-w-[1200px] flex-wrap items-center justify-between gap-y-3 px-6 py-3">
         <button type="button" onClick={() => navigate("home")} aria-label="لوگوی جعبه آبی — خانه">
-          <Logo size={46} />
+          {/* size 50 × aspect 4:1 = the logo file's natural 200×50 (owner request) */}
+          <Logo size={50} />
         </button>
         <nav aria-label="منوی اصلی" className="flex flex-wrap items-center gap-x-6 text-[15px] font-bold">
           {links.map((l) => (

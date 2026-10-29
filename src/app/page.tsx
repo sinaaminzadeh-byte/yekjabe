@@ -6,7 +6,6 @@ import { useHashRoute, navigate } from "@/lib/hash-route";
 import { useHasMounted } from "@/hooks/use-has-mounted";
 import { bootSync } from "@/lib/pishnam-sync";
 import { MobileNav, DesktopHeader } from "@/components/shop/nav";
-import { Logo } from "@/components/shop/logo";
 import { MobileHome, DesktopHome } from "@/components/shop/screens/home";
 import { ProductScreen } from "@/components/shop/screens/product";
 import { FriendsScreen } from "@/components/shop/screens/friends";
@@ -39,23 +38,14 @@ import {
 } from "@/components/shop/screens/info";
 
 export default function PishnamApp() {
-  // The app is state-driven (persisted store + hash route): render a branded
-  // splash until mounted so server HTML always matches the first client render.
+  // The app is state-driven (persisted store + hash route): until hydration
+  // finishes we render a neutral shell (no branded loading screen — owner
+  // request, round 37: the first-visit splash is removed entirely). Server
+  // HTML matches the first client render, so hydration stays clean.
   const mounted = useHasMounted();
 
-  if (!mounted) return <Splash />;
+  if (!mounted) return <div className="min-h-screen bg-[#F2FAFD]" aria-hidden="true" />;
   return <PishnamScreens />;
-}
-
-function Splash() {
-  return (
-    <div className="flex min-h-screen flex-col items-center justify-center gap-6 bg-[#F2FAFD]">
-      <div className="pishnam-glow rounded-[22px]">
-        <Logo size={72} />
-      </div>
-      <span className="text-sm font-bold text-[#4A6572]">یکی دوستت داره…</span>
-    </div>
-  );
 }
 
 // ── Persian 404 — unknown hash routes land here (parseHash fallback) ──

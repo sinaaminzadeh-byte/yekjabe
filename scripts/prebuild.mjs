@@ -34,8 +34,11 @@ if (fs.existsSync(IMG)) {
     const dir = path.join(DEF, folder);
     fs.mkdirSync(dir, { recursive: true });
     for (const stem of stems) {
-      const src = path.join(IMG, `${stem}.png`); // img34 files are JPEGs with a .png name
-      if (fs.existsSync(src)) fs.copyFileSync(src, path.join(dir, `${stem}.jpg`));
+      // products/posts: img34 files are JPEGs with a .png name → bundle as .jpg
+      // branding/logo: the owner's official file is a REAL PNG (round 37) → keep .png
+      const src = path.join(IMG, `${stem}.png`);
+      const out = folder === "branding" ? `${stem}.png` : `${stem}.jpg`;
+      if (fs.existsSync(src)) fs.copyFileSync(src, path.join(dir, out));
     }
   }
   console.log("[prebuild] bundled media defaults → public/media-defaults (25 files)");

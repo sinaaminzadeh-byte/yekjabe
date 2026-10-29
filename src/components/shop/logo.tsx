@@ -57,16 +57,18 @@ export function Logo({ size = 48, showName = true }: { size?: number; showName?:
     };
   }, []);
 
-  // uploaded logo → image only (no wordmark, per owner request)
+  // uploaded logo → image only (no wordmark, per owner request).
+  // Owner's official logo is a wide 200×50 PNG (round 37): render it at the
+  // SAME aspect ratio as the file — height = size, width = size×4 — so the
+  // header at size 50 shows it exactly at its natural 200×50.
   if (branding?.logoUrl) {
     return (
       <img
         src={branding.logoUrl}
         alt="لوگوی جعبه آبی"
-        width={size}
+        width={size * 4}
         height={size}
-        style={{ width: size, height: size, objectFit: "contain" }}
-        className="rounded-[18px]"
+        style={{ width: size * 4, height: size, objectFit: "contain" }}
       />
     );
   }

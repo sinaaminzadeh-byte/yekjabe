@@ -141,14 +141,23 @@ async function main() {
     console.log(`  ✓ posts: ${key}`);
   }
 
-  // ── 3. site logo (ONLY if the owner hasn't uploaded one yet) ──
+  // ── 3. site logo (owner's official PNG, round 37) ──
+  // Applies the bundled default when the setting is missing or still points to
+  // an old seed default — NEVER when the owner uploaded a custom logo (marker
+  // Setting site_logo_source=owner, written by /api/admin/branding/logo).
   const logoSetting = await db.setting.findUnique({ where: { key: "site_logo" } });
-  if (!logoSetting && fs.existsSync(path.join(IMG, LOGO_FILE))) {
+  const logoSource = await db.setting.findUnique({ where: { key: "site_logo_source" } });
+  const isOldDefault = logoSetting?.value === "branding/logo.jpg";
+  if (fs.existsSync(path.join(IMG, LOGO_FILE)) && (!logoSetting || isOldDefault) && logoSource?.value !== "owner") {
     const { key } = await store("branding", "logo", path.join(IMG, LOGO_FILE));
-    await db.setting.create({ data: { key: "site_logo", value: key } });
+    if (isOldDefault) {
+      // remove the stale generated default file so no orphan media stays
+      try { fs.unlinkSync(path.join(DATA, logoSetting.value)); } catch { /* already gone */ }
+    }
+    await db.setting.upsert({ where: { key: "site_logo" }, create: { key: "site_logo", value: key }, update: { value: key } });
     console.log(`  ✓ site logo: ${key}`);
   } else {
-    console.log("  = site logo: exists or file missing — untouched");
+    console.log("  = site logo: owner-uploaded or file missing — untouched");
   }
 
   console.log(`✓ round-34 images uploaded (gallery images: ${gallerySynced})`);

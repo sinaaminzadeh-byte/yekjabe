@@ -2921,10 +2921,9 @@ function LogoCard() {
           <img
             src={logoUrl}
             alt="لوگوی سایت"
-            width={72}
-            height={72}
-            style={{ width: 72, height: 72, objectFit: "contain" }}
-            className="rounded-[18px]"
+            width={200}
+            height={50}
+            style={{ height: 50, width: "auto", maxWidth: 200, objectFit: "contain" }}
           />
         ) : (
           <span className="flex min-h-[72px] items-center" aria-label="لوگوی پیش‌فرض">

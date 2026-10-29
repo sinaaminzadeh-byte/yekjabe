@@ -37,6 +37,9 @@ export async function POST(req: Request) {
     const key = await storeMediaFile("branding", "logo", buf, mime);
     if (prev?.value && prev.value !== key) await deleteMediaFile(prev.value);
     await db.setting.upsert({ where: { key: "site_logo" }, create: { key: "site_logo", value: key }, update: { value: key } });
+    // marker: this logo was uploaded by the owner → seed defaults must never
+    // overwrite it on future deploys (see scripts/seed-round34-images.mjs)
+    await db.setting.upsert({ where: { key: "site_logo_source" }, create: { key: "site_logo_source", value: "owner" }, update: { value: "owner" } });
     bustBrandingCache();
 
     return NextResponse.json({ ok: true, logoUrl: `/api/media/${key}?v=${Date.now()}` }, { status: 201 });
@@ -55,6 +58,7 @@ export async function DELETE(req: Request) {
     const prev = await db.setting.findUnique({ where: { key: "site_logo" } });
     if (prev?.value) await deleteMediaFile(prev.value);
     await db.setting.deleteMany({ where: { key: "site_logo" } });
+    await db.setting.deleteMany({ where: { key: "site_logo_source" } });
     bustBrandingCache();
     return NextResponse.json({ ok: true, logoUrl: null });
   } catch (e) {
