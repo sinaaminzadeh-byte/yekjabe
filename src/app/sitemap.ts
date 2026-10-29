@@ -53,7 +53,9 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         priority: 0.9,
       })),
       ...posts.map((p) => ({
-        url: `${SITE.url}/post?slug=${encodeURIComponent(p.slug)}`,
+        // SEO-10 (audit wave 38): آدرس تمیز /blog/<slug> — همان مقصد 301
+        // قدیمیِ /post?slug=… (src/proxy.ts)
+        url: `${SITE.url}/blog/${encodeURIComponent(p.slug)}`,
         lastModified: p.updatedAt ?? DEPLOY_DATE,
         changeFrequency: "weekly" as const,
         priority: 0.8,

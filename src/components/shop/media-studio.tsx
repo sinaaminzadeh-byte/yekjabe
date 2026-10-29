@@ -385,7 +385,7 @@ function MediaRow({
         <div className="mt-2.5 flex flex-col gap-2 rounded-[14px] bg-[#F6FBFD] p-2.5">
           {kind === "voice" && <audio controls src={slot.url} className="h-10 w-full" />}
           {kind === "video" && <video controls src={slot.url} className="max-h-[220px] w-full rounded-[12px] bg-black object-contain" />}
-          {kind === "photo" && slot.url && <img src={slot.url} alt={slot.name || "عکس ضبط‌شده"} className="max-h-[220px] w-full rounded-[12px] object-cover" />}
+          {kind === "photo" && slot.url && <img src={slot.url} alt={slot.name || "عکس ضبط‌شده"} width={320} height={220} loading="lazy" decoding="async" className="max-h-[220px] w-full rounded-[12px] object-cover" />}
           <div className="flex flex-wrap items-center gap-1.5">
             <span className="flex items-center gap-1 rounded-full bg-[#E5F8EC] px-2 py-1 text-[10px] font-extrabold text-[#177A3D]">
               <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">

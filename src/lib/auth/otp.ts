@@ -48,6 +48,10 @@ export async function issueOtp(phone: string, ip: string, purpose: OtpPurpose = 
   // land in the SmsOutbox report; never block issuing (the code is usable the
   // moment it's created)
   void sendSmsNow({ phone, template: otpTemplateFor(purpose), params: { code } }).catch(() => {});
+  // S-09 (audit wave 38): the code is NEVER logged — not here, not in the sms
+  // layer (the dev-echo line prints param names + length only). devCode below
+  // is the documented dev-echo aid returned to the CLIENT in dev mode only,
+  // never written to any server log.
   return env.devEcho ? { devCode: code } : {};
 }
 

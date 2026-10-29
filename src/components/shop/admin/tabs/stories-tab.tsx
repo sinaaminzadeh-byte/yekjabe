@@ -1,6 +1,10 @@
 "use client";
 
 // ── «تجربه‌ها» tab (A-02 split) — customer story moderation (Phase C) ──
+// UX-09 (audit wave 38): customer photos render as REAL thumbnails (grid) with
+// a click-to-preview lightbox instead of a 📷 emoji. The bytes stream through
+// the admin-gated /api/admin/experiences/{id}/photo route — the private
+// experiences/ folder is unreachable from the public /api/media on purpose.
 import { useEffect, useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { OCCASIONS } from "@/lib/pishnam-data";
@@ -29,6 +33,7 @@ export function StoriesModTab() {
   const [filter, setFilter] = useState<ExpFilter>("pending");
   const [exps, setExps] = useState<AdminExperience[] | null>(null);
   const [error, setError] = useState(false);
+  const [photoOf, setPhotoOf] = useState<string | null>(null); // UX-09 lightbox
   const { toast } = useToast();
 
   const load = (f: ExpFilter) => {
@@ -115,6 +120,27 @@ export function StoriesModTab() {
       ) : (
         exps.map((e) => (
           <div key={e.id} className="rounded-[20px] border border-[#DDEEF5] bg-white p-4 md:p-5">
+            <div className="flex gap-4">
+              {/* UX-09 — real photo thumbnail (click → lightbox), not an emoji */}
+              {e.photoKey && (
+                <button
+                  type="button"
+                  onClick={() => setPhotoOf(e.id)}
+                  aria-label="بزرگ‌نمایی عکس تجربه"
+                  className="h-[96px] w-[96px] shrink-0 overflow-hidden rounded-[16px] bg-[#F2FAFD]"
+                >
+                  <img
+                    src={`/api/admin/experiences/${e.id}/photo`}
+                    alt={`عکس ارسالی ${e.name}`}
+                    width={96}
+                    height={96}
+                    loading="lazy"
+                    decoding="async"
+                    className="h-full w-full cursor-zoom-in object-cover"
+                  />
+                </button>
+              )}
+              <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div className="flex flex-wrap items-center gap-2">
                 <span className="text-[14px] font-black">
@@ -160,8 +186,40 @@ export function StoriesModTab() {
                 </button>
               )}
             </div>
+              </div>
+            </div>
           </div>
         ))
+      )}
+
+      {/* UX-09 — photo lightbox (same visual language as the receipt preview) */}
+      {photoOf && (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-[#04202E]/70 p-6"
+          role="dialog"
+          aria-modal="true"
+          aria-label="پیش‌نمایش عکس تجربه"
+          onClick={() => setPhotoOf(null)}
+        >
+          <div className="flex max-h-full flex-col items-center gap-3" onClick={(ev) => ev.stopPropagation()}>
+            <img
+              src={`/api/admin/experiences/${photoOf}/photo`}
+              alt="پیش‌نمایش کامل عکس تجربه"
+              className="max-h-[78vh] max-w-full rounded-[16px]"
+            />
+            <span className="flex items-center gap-2">
+              <a
+                href={`/api/admin/experiences/${photoOf}/photo?download=1`}
+                className="flex h-10 items-center rounded-full bg-white px-4 text-[12.5px] font-extrabold text-[#04202E]"
+              >
+                دانلود ⤓
+              </a>
+              <button type="button" onClick={() => setPhotoOf(null)} className="flex h-10 items-center rounded-full border border-white/50 px-4 text-[12.5px] font-extrabold text-white">
+                بستن
+              </button>
+            </span>
+          </div>
+        </div>
       )}
     </div>
   );

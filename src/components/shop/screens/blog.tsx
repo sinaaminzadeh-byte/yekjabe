@@ -1,11 +1,12 @@
 "use client";
 
-// ── Blog: index (/blog) + post (/post?slug=…) — round 34-h «جعبه آبی» ──
+// ── Blog: index (/blog) + post (/blog/<slug>) — round 34-h «جعبه آبی» ──
 // Index reads GET /api/posts (published only, cover included). PostScreen reads
 // GET /api/posts/[slug] (cover + metaTitle + metaDescription) and renders the
 // body through <MarkdownPro> — the hand-rolled XSS-safe renderer (no raw HTML
 // ever reaches the DOM). SEO: usePostSeo (title/desc/OG/canonical) + JSON-LD
-// BlogPosting + BreadcrumbList.
+// BlogPosting + BreadcrumbList. SEO-10 (wave 38): پست‌ها آدرس تمیز
+// /blog/<slug> دارند — navigate("post", { slug }) خودش pushState می‌زند.
 import { useEffect, useState } from "react";
 import { Plush } from "../plush";
 import { BackIcon, ForwardIcon } from "../icons";
@@ -222,7 +223,7 @@ export function BlogIndex() {
   );
 }
 
-/* ═══════════ single post (/post?slug=…) ═══════════ */
+/* ═══════════ single post (/blog/<slug>) ═══════════ */
 
 interface FullPost extends PostRow {
   content: string;

@@ -125,6 +125,7 @@ function TimelineRow({
   o: GiftOrder;
   big?: boolean;
 }) {
+  const { toast } = useToast();
   const done = i < current;
   const isNow = i === current;
   const dot = big ? 46 : 40;
@@ -178,9 +179,32 @@ function TimelineRow({
         </div>
         <p className="m-0 text-[13px] font-medium leading-[1.85] text-[#4A6572]">{TRACK_STEPS[i].body}</p>
         {isNow && o.status === "shipped" && (
-          <span className="mt-1 w-fit rounded-[10px] bg-[#CDEFFB] px-2.5 py-1 text-[11.5px] font-bold text-[#04202E]">
-            پست: کد رهگیری {fa(912)}{fa(34)}{fa(56)}{fa(78)}{fa(90)}
-          </span>
+          // UX-12 — the REAL postal tracking code (set by the shop) with a
+          // copy button. The old hardcoded «۹۱۲۳۴۵۶۷۸۹۰» demo number was
+          // misleading; until the code is logged we say so honestly.
+          (() => {
+            const tc = (o as { postTrackingCode?: string }).postTrackingCode ?? "";
+            return tc ? (
+              <span className="mt-1 flex w-fit flex-wrap items-center gap-2 rounded-[10px] bg-[#CDEFFB] px-2.5 py-1 text-[11.5px] font-bold text-[#04202E]">
+                کد رهگیری پست: <span dir="ltr" className="font-black">{tc}</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    void copyText(tc).then((okc) => {
+                      if (!okc) toast({ title: "کپی نشد — دستی انتخاب کن" });
+                    });
+                  }}
+                  className="rounded-full bg-white px-2 py-0.5 text-[10.5px] font-extrabold text-[#006387]"
+                >
+                  کپی
+                </button>
+              </span>
+            ) : (
+              <span className="mt-1 w-fit rounded-[10px] bg-[#CDEFFB] px-2.5 py-1 text-[11.5px] font-bold text-[#04202E]">
+                کد رهگیری پست به‌زودی همین‌جا ثبت می‌شه.
+              </span>
+            );
+          })()
         )}
         {isNow && o.status === "delivered" && (
           <span className="mt-1 w-fit rounded-[10px] bg-[#D7F5E4] px-2.5 py-1 text-[11.5px] font-bold text-[#04202E]">
@@ -263,6 +287,7 @@ interface TrackHit {
   status: string;
   stepLabel: string;
   stepBody: string;
+  postTrackingCode?: string; // UX-12 — filled once the box is with the post
 }
 
 function TrackByCode() {
@@ -289,9 +314,9 @@ function TrackByCode() {
         setErr(res.status === 404 ? "با این کد و شماره، سفارشی پیدا نشد." : "یه مشکلی پیش اومد؛ دوباره امتحان کن.");
         return;
       }
-      const body = (await res.json()) as { code: string; status: string; stepLabel: string };
+      const body = (await res.json()) as { code: string; status: string; stepLabel: string; postTrackingCode?: string };
       const stepBody = STEP_FA_SUB[body.status] ?? "وضعیت سفارش به‌روزه.";
-      setHit({ code: body.code, status: body.status, stepLabel: body.stepLabel, stepBody });
+      setHit({ code: body.code, status: body.status, stepLabel: body.stepLabel, stepBody, postTrackingCode: body.postTrackingCode || "" });
       toast({ title: "سفارش پیدا شد ✓" });
     } catch {
       setErr("اینترنت قطعه؛ اتصالت رو چک کن.");
@@ -344,6 +369,22 @@ function TrackByCode() {
           <div className="flex flex-col">
             <span className="text-[13px] font-black" dir="ltr">{faDigits(hit.code)}</span>
             <span className="text-[12.5px] font-medium leading-[1.8] text-[#4A6572]">{hit.stepBody}</span>
+            {/* UX-12 — کد رهگیری پست برای مشتری، وقتی مرسوله دست پسته */}
+            {hit.postTrackingCode ? (
+              <span className="mt-1 flex flex-wrap items-center gap-2 text-[12.5px] font-bold text-[#04202E]">
+                کد رهگیری پست:
+                <span dir="ltr" className="rounded-[10px] bg-white px-2 py-0.5 font-black">{faDigits(hit.postTrackingCode)}</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    void copyText(hit.postTrackingCode ?? "").then((okc) => toast({ title: okc ? "کد کپی شد ✓" : "کپی نشد" }));
+                  }}
+                  className="rounded-full border-[1.5px] border-[#BFE0F2] bg-white px-3 py-1 text-[11px] font-extrabold text-[#006387] transition-colors hover:bg-[#F2FAFD]"
+                >
+                  کپی
+                </button>
+              </span>
+            ) : null}
           </div>
           <span className="rounded-full bg-[#04202E] px-4 py-1.5 text-[12.5px] font-extrabold text-white">{hit.stepLabel}</span>
         </div>

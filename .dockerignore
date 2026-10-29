@@ -1,0 +1,51 @@
+# ── S-12 (audit wave 38): keep data & artifacts OUT of the build context ──
+# The Dockerfile builder stage does `COPY . .` — everything below would
+# otherwise enter the image (and its layer cache). Customer data (db/, .data/,
+# logs) and repo extras must never ride along a deployment build.
+# NOTE: scripts/ is intentionally NOT excluded — scripts/prebuild.mjs copies
+# scripts/img34 → public/media-defaults during `bun run build` (media defaults
+# are bundled into the image). prisma/, public/, src/ stay, of course.
+
+# dependency & build artifacts (rebuilt inside the image)
+node_modules
+.next
+out
+bun.lockb
+
+# version control
+.git
+.gitignore
+
+# local data — SQLite DBs, media store, receipts (guide: never in git, never in images)
+db
+.data
+upload
+download
+
+# dev logs
+dev.log
+dev.log.*
+*.log
+
+# docs / reports / design references (not needed at build or runtime)
+docs
+report
+design-ref
+worklog.md
+
+# repo tooling & scratch (not imported by the app)
+tests
+examples
+mini-services
+tool-results
+skills
+--full-page
+
+# legacy static design export + audit artifact (large, unused by the app)
+public/pages
+public/audit-report.html
+
+# secrets — env comes from the orchestrator at RUNTIME, never baked in
+.env
+.env.*
+!.env.example

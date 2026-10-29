@@ -70,12 +70,27 @@ export function useBadges(enabled: boolean): Badges {
           if (alive && j) setB(j);
         })
         .catch(() => {});
+    // A-13 (audit wave 38): polling stops while the tab is hidden (background
+    // tabs don't need live badge counts) and resumes the moment it's visible.
+    let iv: ReturnType<typeof setInterval> | null = null;
+    const start = () => {
+      if (!iv) iv = setInterval(load, 60_000);
+    };
+    const stop = () => {
+      if (iv) {
+        clearInterval(iv);
+        iv = null;
+      }
+    };
+    const onVis = () => (document.visibilityState === "visible" ? (load(), start()) : stop());
     const t = setTimeout(load, 0);
-    const iv = setInterval(load, 60_000); // light refresh once a minute
+    start();
+    document.addEventListener("visibilitychange", onVis);
     return () => {
       alive = false;
       clearTimeout(t);
-      clearInterval(iv);
+      stop();
+      document.removeEventListener("visibilitychange", onVis);
     };
   }, [enabled]);
   return b;

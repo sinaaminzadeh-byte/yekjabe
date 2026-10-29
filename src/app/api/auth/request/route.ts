@@ -14,7 +14,7 @@ import { toErrorResponse, AppError } from "@/lib/errors";
 import { validPhone } from "@/lib/auth/phone";
 import { issueOtp, type OtpPurpose } from "@/lib/auth/otp";
 import { recipientPackageCounts } from "@/lib/orders/gift-view";
-import { clientIp, isRateLimited } from "@/lib/rate-limit";
+import { clientIp, isRateLimited, rateLimit } from "@/lib/rate-limit";
 
 const PURPOSES: OtpPurpose[] = ["login", "checkout_orderer", "gift_recv"];
 
@@ -24,6 +24,13 @@ export async function POST(req: Request) {
     const phone = validPhone(body.phone);
     if (!phone) throw new AppError(400, "invalid_phone");
     const purpose = PURPOSES.includes(body.purpose as OtpPurpose) ? (body.purpose as OtpPurpose) : "login";
+
+    // S-04 (audit wave 38): burst caps at the edge of the route — issueOtp
+    // already keeps the per-phone cooldown (1/60s) + hourly/day caps; these
+    // two bound SMS-bombing bursts: 5 requests / 10min per IP and
+    // 3 requests / 10min per phone. Buckets are DB-backed (survive restarts).
+    await rateLimit("auth_req_ip", clientIp(req), 5, 600);
+    await rateLimit("auth_req_phone", phone, 3, 600);
 
     // gift display page: package existence probe first (no SMS for strangers)
     if (purpose === "gift_recv") {

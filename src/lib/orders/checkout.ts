@@ -6,7 +6,7 @@ import { db } from "../db";
 import { retriedTransaction } from "../db-write";
 import { AppError } from "../errors";
 import { validPhone } from "../auth/phone";
-import { canonicalJson, hashGiftPassword, sha256Hex } from "./crypto";
+import { canonicalJson, hashGiftPassword, normalizeRequestNonce, sha256Hex } from "./crypto";
 import { nextOrderCode } from "./code";
 import { computeQuote, getSettings, type Quote } from "./pricing";
 import { MANUAL_WINDOW_MINUTES } from "./expire";
@@ -125,11 +125,13 @@ export interface CheckoutAck {
   };
 }
 
-/** UUID check — the client generates it once and keeps it in localStorage. */
+/** UUID check — the client generates it once and keeps it in localStorage.
+ * S-10 (audit wave 38): strict charset/length validation now lives in
+ * crypto.ts (isValidRequestNonce) — control characters, whitespace and
+ * arbitrary unicode are rejected before the key ever reaches the DB. */
 export function validIdempotencyKey(k: string | null): string {
-  if (!k) throw new AppError(400, "idempotency_key_required");
-  const s = k.trim();
-  if (s.length < 8 || s.length > 64) throw new AppError(400, "idempotency_key_invalid");
+  const s = normalizeRequestNonce(k);
+  if (!s) throw new AppError(400, k ? "idempotency_key_invalid" : "idempotency_key_required");
   return s;
 }
 

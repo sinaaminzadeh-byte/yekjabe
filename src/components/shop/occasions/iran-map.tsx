@@ -3,7 +3,15 @@
 // ── نقشه‌ی تعاملی ایران — هر استان یک بستر قابل‌کلیک با تعداد بسته‌ها ──
 // دو پوسته: pastel (سبک ۱) و dark (سبک ۲ — آبی برند روی پس‌زمینه‌ی سرمه‌ای)
 // centroid ها از قبل در iran-paths.ts تولید شده‌اند؛ نیازی به اندازه‌گیری DOM نیست.
-import { useMemo, useState } from "react";
+//
+// P-11 (audit wave 38): قبلاً هر pixelِ حرکت موس یک setState می‌کرد و کل SVG
+// (۳۱ path + برچسب‌ها + پین) دوباره رندر می‌شد. الان:
+//   ۱) هر استان یک memo component است — تغییر hover فقط دو path رندر می‌کند؛
+//   ۲) هایلایت هاور با CSS (hover:[stroke:…]) — بدون state؛
+//   ۳) تول‌تیپ دنبال‌کننده‌ی موس با DOM mutation روی ref جابه‌جا می‌شود
+//      (position به‌روزرسانی می‌شود بدون هیچ re-render ای).
+// State فقط برای «ورود/خروج» و انتخاب استان تغییر می‌کند.
+import { memo, useMemo, useRef, useState } from "react";
 import {
   IRAN_MAP_H,
   IRAN_MAP_W,
@@ -31,14 +39,73 @@ export interface IranMapBoxProps {
   onSelect: (key: string | null) => void;
 }
 
-interface Tip {
-  x: number;
-  y: number;
+// ── memoized path — re-renders ONLY when its own visual props change ──
+interface ProvincePathProps {
+  shape: IranProvinceShape;
+  fill: string;
+  stroke: string;
+  strokeWidth: number;
+  selected: boolean;
+  skin: "pastel" | "dark";
+  count: number;
+  onSelect: (key: string | null) => void;
+  onEnter: (key: string) => void;
+  onLeave: () => void;
+  onMove: (e: React.MouseEvent) => void;
 }
 
+const ProvincePath = memo(function ProvincePath({
+  shape,
+  fill,
+  stroke,
+  strokeWidth,
+  selected,
+  skin,
+  count,
+  onSelect,
+  onEnter,
+  onLeave,
+  onMove,
+}: ProvincePathProps) {
+  return (
+    <path
+      d={shape.d}
+      fill={selected && skin === "dark" ? "#5FD4FF" : fill}
+      stroke={selected ? (skin === "pastel" ? "#04202E" : "#FFFFFF") : stroke}
+      strokeWidth={selected ? 1.8 : strokeWidth}
+      className={`cursor-pointer outline-none transition-[stroke-width] duration-150 ${
+        skin === "pastel" ? "hover:[stroke:#04202E] hover:[stroke-width:1.8px]" : "hover:[stroke:#FFFFFF] hover:[stroke-width:1.6px]"
+      }`}
+      style={
+        selected && skin === "dark"
+          ? { filter: "drop-shadow(0 0 6px rgba(0,171,231,0.8))" }
+          : undefined
+      }
+      tabIndex={0}
+      role="button"
+      aria-label={`${shape.fa}: ${fa(count)} بسته`}
+      onMouseEnter={() => onEnter(shape.key)}
+      onMouseMove={onMove}
+      onMouseLeave={onLeave}
+      onFocus={() => onEnter(shape.key)}
+      onBlur={onLeave}
+      onClick={() => onSelect(shape.key)}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onSelect(shape.key);
+        }
+      }}
+    />
+  );
+});
+
 export function IranMapBox({ skin, selected, onSelect }: IranMapBoxProps) {
+  // hover state changes on ENTER/LEAVE only — never per mousemove
   const [hover, setHover] = useState<string | null>(null);
-  const [tip, setTip] = useState<Tip | null>(null);
+  // the tooltip element is moved via ref (direct style writes) — zero re-renders
+  const tipRef = useRef<HTMLDivElement | null>(null);
+  const tipBoxRef = useRef<HTMLDivElement | null>(null);
 
   const ranks = useMemo(() => {
     const sorted = Object.entries(PROVINCE_COUNTS).sort((a, b) => b[1] - a[1]);
@@ -74,23 +141,20 @@ export function IranMapBox({ skin, selected, onSelect }: IranMapBoxProps) {
     };
   };
 
-  const onMove = (e: React.MouseEvent, key: string | null) => {
-    setHover(key);
-    if (!key) {
-      setTip(null);
-      return;
-    }
-    const box = (e.currentTarget.closest("div[data-mapbox]") as HTMLElement) ?? null;
-    if (!box) return;
+  // ── tooltip position: written straight to the DOM node (no setState) ──
+  const moveTip = (e: React.MouseEvent) => {
+    const tip = tipRef.current;
+    const box = tipBoxRef.current;
+    if (!tip || !box) return;
     const r = box.getBoundingClientRect();
-    // clamp همون‌جا (در event handler) تا رندر به DOM دسترسی نداشته باشد
+    // clamp به همان قانون قبلی — فقط این‌بار بدون رندر
     const x = Math.min(Math.max(e.clientX - r.left, 72), r.width - 72);
-    setTip({ x, y: e.clientY - r.top });
+    tip.style.left = `${x}px`;
+    tip.style.top = `${e.clientY - r.top}px`;
   };
 
   const onLeave = () => {
     setHover(null);
-    setTip(null);
   };
 
   const activeShape = active ? shapeBy.get(active) : undefined;
@@ -105,7 +169,7 @@ export function IranMapBox({ skin, selected, onSelect }: IranMapBoxProps) {
   );
 
   return (
-    <div data-mapbox className="relative select-none">
+    <div ref={tipBoxRef} data-mapbox className="relative select-none">
       <svg
         viewBox={`0 0 ${IRAN_MAP_W} ${IRAN_MAP_H}`}
         role="img"
@@ -115,35 +179,20 @@ export function IranMapBox({ skin, selected, onSelect }: IranMapBoxProps) {
       >
         {IRAN_PROVINCES.map((p) => {
           const { fill, stroke, width } = fillFor(p);
-          const isActive = active === p.key;
-          const isSel = selected === p.key;
-          const f = isActive && skin === "dark" ? "#00ABE7" : fill;
           return (
-            <path
+            <ProvincePath
               key={p.key}
-              d={p.d}
-              fill={isSel && skin === "dark" ? "#5FD4FF" : f}
-              stroke={isActive || isSel ? (skin === "pastel" ? "#04202E" : "#FFFFFF") : stroke}
-              strokeWidth={isActive || isSel ? 1.8 : width}
-              className="cursor-pointer transition-[fill,stroke-width] duration-150 outline-none"
-              style={
-                isSel && skin === "dark"
-                  ? { filter: "drop-shadow(0 0 6px rgba(0,171,231,0.8))" }
-                  : undefined
-              }
-              tabIndex={0}
-              role="button"
-              aria-label={`${p.fa}: ${fa(PROVINCE_COUNTS[p.key] ?? 0)} بسته`}
-              onMouseMove={(e) => onMove(e, p.key)}
-              onFocus={() => setHover(p.key)}
-              onBlur={onLeave}
-              onClick={() => onSelect(selected === p.key ? null : p.key)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" || e.key === " ") {
-                  e.preventDefault();
-                  onSelect(selected === p.key ? null : p.key);
-                }
-              }}
+              shape={p}
+              fill={fill}
+              stroke={stroke}
+              strokeWidth={width}
+              selected={selected === p.key}
+              skin={skin}
+              count={PROVINCE_COUNTS[p.key] ?? 0}
+              onSelect={(k) => onSelect(selected === k ? null : k)}
+              onEnter={setHover}
+              onLeave={onLeave}
+              onMove={moveTip}
             />
           );
         })}
@@ -210,13 +259,14 @@ export function IranMapBox({ skin, selected, onSelect }: IranMapBoxProps) {
         })}
       </svg>
 
-      {/* تول‌تیپ دنبال‌کننده‌ی موس */}
-      {active && tip && (
+      {/* تول‌تیپ دنبال‌کننده‌ی موس — position با ref به‌روز می‌شود (P-11) */}
+      {active && (
         <div
+          ref={tipRef}
           className="pointer-events-none absolute z-20 -translate-x-1/2 -translate-y-[calc(100%+14px)] rounded-2xl px-3.5 py-2 shadow-lg"
           style={{
-            left: tip.x,
-            top: tip.y,
+            left: 0,
+            top: 0,
             background: skin === "pastel" ? "#04202E" : "#FFFFFF",
           }}
           role="status"

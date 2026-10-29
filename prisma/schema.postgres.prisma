@@ -267,6 +267,7 @@ model Order {
   city             String      @default("")
   address          String      @default("")
   postalCode       String      @default("")
+  postTrackingCode String      @default("") // UX-12 (audit wave 38): کد رهگیری پست که ادمین بعد از تحویل به پست ثبت می‌کند
   // gift payload
   message          String      @default("")
   cardPasswordHash String      @default("") // scrypt, never plaintext
@@ -475,4 +476,16 @@ model JobRun {
   detail     String    @default("")
 
   @@index([name, startedAt])
+}
+
+// ── S-04 (audit wave 38): سطل‌های rate-limit ماندگار ──
+// سطل درون‌حافظه‌ای با restart/cold-start پاک می‌شود؛ این جدول محدودیت
+// تلاش‌ها را در برابر ری‌استارت و چندین lambda هم‌زمان معتبر نگه می‌دارد.
+model RateLimitBucket {
+  key         String   @id // «scope:identity» ترکیبی
+  count       Int      @default(0)
+  windowStart DateTime
+  expiresAt   DateTime
+
+  @@index([expiresAt])
 }

@@ -40,6 +40,7 @@ import {
 import { PROVINCES } from "@/lib/orders/provinces";
 import { useEffect, useRef, useState } from "react";
 import { useToast } from "@/hooks/use-toast";
+import { useGiftMessage } from "@/hooks/use-gift-message";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import type { CatalogEntry } from "@/lib/pishnam-store";
 import { FavHeart, FavFilterChips, SurpriseButton } from "@/components/shop/fav";
@@ -79,8 +80,10 @@ export function MobilePick() {
   // کارت پستال
   const occ = usePishnam((s) => s.occasion);
   const setOcc = usePishnam((s) => s.setOccasion);
-  const message = usePishnam((s) => s.message);
-  const setMessage = usePishnam((s) => s.setMessage);
+  // P-09 (audit wave 38): keystrokes stay in a local draft; the store — and
+  // with it the WHOLE localStorage record — is written at most once per 500ms
+  // (+ immediate flush on blur). See src/hooks/use-gift-message.ts
+  const { message, setMessage, onBlur: onMessageBlur } = useGiftMessage();
   const senderDisplay = usePishnam((s) => s.senderDisplay);
   const setSenderDisplay = usePishnam((s) => s.setSenderDisplay);
   const senderPhrase = usePishnam((s) => s.senderPhrase);
@@ -246,6 +249,7 @@ export function MobilePick() {
           maxLength={400}
           value={message}
           onChange={(e) => setMessage(e.target.value)}
+          onBlur={onMessageBlur}
           placeholder={OCCASION_HOLDERS[occ]}
           className="min-h-[130px] resize-none border-none bg-transparent text-base leading-[1.9] text-[#04202E] outline-none"
         />
@@ -521,7 +525,7 @@ export function MobileExtras() {
                   {/* square image — gallery → legacy photo → emoji+gradient */}
                   <div className="relative aspect-square overflow-hidden rounded-[20px] bg-[#F2FAFD]">
                     {cover ? (
-                      <img src={cover} alt={a.name} loading="lazy" className="h-full w-full object-cover" />
+                      <img src={cover} alt={a.name} width={96} height={96} loading="lazy" decoding="async" className="h-full w-full object-cover" />
                     ) : (
                       <span
                         className="flex h-full w-full items-center justify-center bg-[linear-gradient(135deg,#E3F6FD_0%,#F7FBFD_55%,#FFF1F5_100%)] text-4xl"
@@ -888,7 +892,7 @@ export function MobileCheckout() {
               style={{ background: r.bg }}
             >
               {r.img ? (
-                <img src={r.img} alt={r.title} loading="lazy" className="h-full w-full object-cover" />
+                <img src={r.img} alt={r.title} width={64} height={64} loading="lazy" decoding="async" className="h-full w-full object-cover" />
               ) : r.plush ? (
                 <Plush kind={sel.kind} size={54} />
               ) : (

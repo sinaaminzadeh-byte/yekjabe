@@ -22,14 +22,19 @@ export async function GET(req: Request) {
     const url = new URL(req.url);
     const status = url.searchParams.get("status") ?? "";
     const q = (url.searchParams.get("q") ?? "").trim().slice(0, 40);
+    // UX-13 — داشبورد KPI «پیوست رسانه‌ای» jumps here with hasMedia=1 so the
+    // owner sees exactly the orders that carry customer attachments
+    const hasMedia = url.searchParams.get("hasMedia") === "1";
     const page = Math.max(1, Math.min(500, Number(url.searchParams.get("page") ?? "1") || 1));
     const pageSize = Math.max(5, Math.min(PAGE_SIZE_MAX, Number(url.searchParams.get("pageSize") ?? String(PAGE_SIZE_DEFAULT)) || PAGE_SIZE_DEFAULT));
 
     const where: {
       status?: string;
+      mediaCount?: { gt: number };
       OR?: { code?: { contains: string }; recipientName?: { contains: string }; recipientPhone?: { contains: string }; ordererPhone?: { contains: string }; ordererFirstName?: { contains: string } }[];
     } = {};
     if (ORDER_STATUSES.includes(status as never)) where.status = status;
+    if (hasMedia) where.mediaCount = { gt: 0 };
     if (q)
       where.OR = [
         { code: { contains: q } },
@@ -95,7 +100,7 @@ export async function GET(req: Request) {
       },
     });
   } catch (e) {
-    const { body, status } = toErrorResponse(e);
+    const { body, status } = toErrorResponse(e, "/api/admin/orders");
     return NextResponse.json(body, { status });
   }
 }

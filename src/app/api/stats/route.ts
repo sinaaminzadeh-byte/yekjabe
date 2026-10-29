@@ -44,11 +44,16 @@ export async function GET() {
       satisfaction: 98,
     };
     cache = { at: Date.now(), data };
-    return NextResponse.json(data);
+    // P-12 (audit wave 38): the homepage hits /api/stats on every mount; the
+    // module cache already dedupes for 30s server-side, and the CDN header
+    // absorbs the cross-visitor traffic for a short shared window.
+    return NextResponse.json(data, {
+      headers: { "Cache-Control": "public, max-age=60, s-maxage=300, stale-while-revalidate=600" },
+    });
   } catch {
     return NextResponse.json(
       { products: 6, delivered: 0, inProgress: 0, reviews: 0, avgStars: 0, stories: 0, giftsNo: 100, satisfaction: 98 } satisfies StatsPayload,
-      { status: 200 },
+      { status: 200, headers: { "Cache-Control": "no-store" } },
     );
   }
 }

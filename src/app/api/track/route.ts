@@ -17,7 +17,7 @@ export async function POST(req: Request) {
 
     const order = await db.order.findUnique({
       where: { code },
-      select: { code: true, status: true, createdAt: true, updatedAt: true, recipientPhone: true, senderPhone: true, userPhone: true, sessionPhone: true },
+      select: { code: true, status: true, createdAt: true, updatedAt: true, postTrackingCode: true, recipientPhone: true, senderPhone: true, userPhone: true, sessionPhone: true },
     });
     const owns = order && [order.recipientPhone, order.senderPhone, order.userPhone, order.sessionPhone].includes(phone);
     if (!order || !owns) throw new AppError(404, "not_found");
@@ -30,6 +30,13 @@ export async function POST(req: Request) {
       stepLabel: STEP_LABELS[step],
       createdAt: order.createdAt,
       updatedAt: order.updatedAt,
+      // UX-12 (audit wave 38): the postal tracking code is customer-facing
+      // once the box is on its way (shipped) or beyond — refund states keep
+      // showing it too, the parcel still exists. Empty until the admin logs it.
+      postTrackingCode:
+        ["shipped", "delivered", "refund_requested", "refunded"].includes(order.status)
+          ? order.postTrackingCode
+          : "",
     });
   } catch (e) {
     if (isRateLimited(e)) {

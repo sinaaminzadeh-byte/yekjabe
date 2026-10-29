@@ -1,12 +1,54 @@
 import type { NextConfig } from "next";
 
-// Security headers (guide A8). X-Frame-Options / HSTS are set at the reverse
-// proxy (Coolify/Traefik) in production — the sandbox preview frames this app
-// from a different origin, so a blanket XFO here would break the preview UI.
+// ── S-03 (audit wave 38): security headers on every response ──
+// Each header documented below. HSTS ships ONLY in production — the sandbox
+// preview runs plain http and a forced HSTS policy would poison the browser
+// for that host.
+const isProd = process.env.NODE_ENV === "production";
+
 const securityHeaders = [
+  // nosniff: browsers must trust our content-type (blocks MIME-confusion XSS)
   { key: "X-Content-Type-Options", value: "nosniff" },
+  // clickjacking guard. NOTE: the sandbox preview iframe loads this app from
+  // a different origin — if the preview ever breaks, drop to an env-gated
+  // value here; production (Coolify/Traefik) sets the same header anyway.
+  { key: "X-Frame-Options", value: "SAMEORIGIN" },
+  // cross-origin navigation referrer keeps only the origin (privacy)
   { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
-  { key: "Permissions-Policy", value: "camera=(self), microphone=(self), geolocation=()" },
+  // no camera/mic; geolocation only for first-party (shipping address helper);
+  // payment API delegated to the PSP's own origin
+  {
+    key: "Permissions-Policy",
+    value: "camera=(), microphone=(), geolocation=(self), payment=()",
+  },
+  // HSTS — production only (max-age 1 year + subdomains)
+  ...(isProd
+    ? [{ key: "Strict-Transport-Security", value: "max-age=31536000; includeSubDomains" }]
+    : []),
+  // ── CSP in Report-Only mode ──
+  // A full enforcing CSP breaks Next's inline bootstrap/hydration scripts,
+  // so first we OBSERVE: violations are reported (console / future collector)
+  // but nothing is blocked. Policy covers: self + inline/eval scripts (Next
+  // hydration), inline styles (Tailwind runtime + bot-view), images from
+  // self/data/https (user covers), blob: workers (Next dev), no object/frame
+  // sources, base-uri + form-action locked to self.
+  {
+    key: "Content-Security-Policy-Report-Only",
+    value: [
+      "default-src 'self'",
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+      "style-src 'self' 'unsafe-inline'",
+      "img-src 'self' data: blob: https:",
+      "font-src 'self' data:",
+      "connect-src 'self' https:",
+      "media-src 'self' blob:",
+      "worker-src 'self' blob:",
+      "object-src 'none'",
+      "frame-ancestors 'self'",
+      "base-uri 'self'",
+      "form-action 'self'",
+    ].join("; "),
+  },
 ];
 
 // @netlify/plugin-nextjs v5 packages the server from Next's own

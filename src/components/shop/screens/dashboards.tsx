@@ -865,6 +865,33 @@ function RetentionChip({
 }
 
 /**
+ * A-06 (audit wave 38): opening «هدیه‌هام» (especially the ?tab=recv deep link
+ * from the verify flow) fired 3 back-to-back identical GET /api/gifts/received
+ * requests — the mobile screen, the desktop screen and ReceivedGiftsList each
+ * call fetchReceived() on mount. ONE module-level guard now: concurrent calls
+ * share a single in-flight promise, and a result younger than 30s is reused.
+ * The store action itself is untouched.
+ */
+let receivedInflight: Promise<unknown> | null = null;
+let receivedAt = 0;
+const RECEIVED_REUSE_MS = 30_000;
+
+function fetchReceivedOnce(): Promise<unknown> | undefined {
+  const st = usePishnam.getState();
+  if (receivedInflight) return receivedInflight;
+  if (st.receivedStatus === "ready" && Date.now() - receivedAt < RECEIVED_REUSE_MS) {
+    return undefined; // fresh enough — reuse the store's data
+  }
+  receivedInflight = st
+    .fetchReceived()
+    .finally(() => {
+      receivedInflight = null;
+      receivedAt = Date.now();
+    });
+  return receivedInflight;
+}
+
+/**
  * «دریافتی‌ها» — the session's REAL received gifts from the server-authorized
  * list (mission §۲). Every gift gets its own card; tapping opens the message
  * viewer whose prev/next counter counts ONLY authorized, still-valid gifts.
@@ -873,10 +900,9 @@ function RetentionChip({
 function ReceivedGiftsList({ desktop = false }: { desktop?: boolean }) {
   const receivedGifts = usePishnam((s) => s.receivedGifts);
   const receivedStatus = usePishnam((s) => s.receivedStatus);
-  const fetchReceived = usePishnam((s) => s.fetchReceived);
   useEffect(() => {
-    void fetchReceived();
-  }, [fetchReceived]);
+    void fetchReceivedOnce();
+  }, []);
 
   if (receivedStatus === "loading" || receivedStatus === "idle") {
     return (
@@ -1135,7 +1161,7 @@ export function MobileMyGifts() {
   const setTab = (t: "sent" | "recv") => setUserTab(t);
   // «دریافتی‌ها» is server-authorized data (mission §۲) — a separate stream
   useEffect(() => {
-    if (tab === "recv") void usePishnam.getState().fetchReceived();
+    if (tab === "recv") void fetchReceivedOnce(); // A-06 — single fetch per open
   }, [tab]);
   const list = orders.filter((o) => o.dir === tab);
   const charms = list.reduce((a, o) => a + o.hearts + o.paws, 0);
@@ -1309,7 +1335,7 @@ export function DesktopMyGifts() {
   const tab: "sent" | "recv" = userTab ?? (qTab === "recv" ? "recv" : "sent");
   const setTab = (t: "sent" | "recv") => setUserTab(t);
   useEffect(() => {
-    if (tab === "recv") void usePishnam.getState().fetchReceived();
+    if (tab === "recv") void fetchReceivedOnce(); // A-06 — single fetch per open
   }, [tab]);
   const list = orders.filter((o) => o.dir === tab);
   const charms = list.reduce((a, o) => a + o.hearts + o.paws, 0);

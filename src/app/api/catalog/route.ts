@@ -6,6 +6,7 @@
 // prices come from Settings here too (never hardcoded client-side).
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { logServerError } from "@/lib/errors";
 
 export async function GET() {
   try {
@@ -56,8 +57,9 @@ export async function GET() {
         return [];
       }
     };
-    return NextResponse.json({
-      products: variants.map((v) => ({
+    return NextResponse.json(
+      {
+        products: variants.map((v) => ({
         slug: v.product.slug,
         name: v.product.name,
         kind: v.product.kind, // main_gift | addon
@@ -92,14 +94,22 @@ export async function GET() {
         maxFiles: clampInt(rmap.media_max_files, 1, 3, 3),
         maxMb: clampInt(rmap.media_max_mb, 1, 50, 10),
       },
-    });
+      },
+      // P-12 (audit wave 38): the catalog is read on EVERY home/builder mount
+      // and changes only when the owner edits products — a short shared CDN
+      // window keeps cold visits fast without hiding price/stock edits for long.
+      { headers: { "Cache-Control": "public, max-age=60, s-maxage=300, stale-while-revalidate=600" } },
+    );
   } catch (e) {
-    console.error("[catalog]", e);
-    return NextResponse.json({
-      products: [],
-      retention: { m6: 0, m12: 0 },
-      charms: { enabled: true, priceToman: 50000 },
-      media: { maxFiles: 3, maxMb: 10 },
-    });
+    logServerError(e, "/api/catalog");
+    return NextResponse.json(
+      {
+        products: [],
+        retention: { m6: 0, m12: 0 },
+        charms: { enabled: true, priceToman: 50000 },
+        media: { maxFiles: 3, maxMb: 10 },
+      },
+      { headers: { "Cache-Control": "no-store" } },
+    );
   }
 }

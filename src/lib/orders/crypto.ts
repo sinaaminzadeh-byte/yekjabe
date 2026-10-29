@@ -31,3 +31,23 @@ export function verifyGiftPassword(pw: string, stored: string): boolean {
     return false;
   }
 }
+
+// ── S-10 (audit wave 38) — strict format check for the request nonce/key ──
+// The Idempotency-Key (and every request nonce derived from it) used to accept
+// ANY string of 8–64 chars — including control characters, whitespace and
+// 2MB unicode payloads trimmed to 64. A nonce is a storage/dedup identifier:
+// it must be a bounded, boring token. UUIDs (newIdempotencyKey) and the legacy
+// client keys ([A-Za-z0-9._-]) both satisfy this; nothing else gets through.
+const NONCE_RE = /^[A-Za-z0-9._-]{8,64}$/;
+
+/** Strict client-key/nonce shape: charset + length, no whitespace/control chars. */
+export function isValidRequestNonce(k: string): boolean {
+  return NONCE_RE.test(k);
+}
+
+/** Returns the trimmed key when well-formed; null otherwise (reject early). */
+export function normalizeRequestNonce(raw: string | null | undefined): string | null {
+  if (!raw) return null;
+  const s = raw.trim();
+  return isValidRequestNonce(s) ? s : null;
+}

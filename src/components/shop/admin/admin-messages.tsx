@@ -2,11 +2,16 @@
 
 // ── پیام‌ها tab (round 33) — «تماس با ما» inbox ──
 // Two-pane: list (unread first) + reading pane with internal note + mark read.
+// UX-15 (audit wave 38): order codes inside the text (PN-…) render as links
+// that open that order in the سفارش‌ها tab (search pre-filled), and «mark
+// read» gained an undo — «نشان‌کردن به‌عنوان نخوانده» toggles the flag back
+// (PATCH read:false is already supported server-side).
 import { useEffect, useState } from "react";
 import { fa } from "@/lib/fa";
 import { useToast } from "@/hooks/use-toast";
 import { jalaliDateTime, timeAgoFa } from "./admin-shared";
 import { adminFetch, invalidateAdminCache } from "./admin-cache";
+import { requestFocus } from "./admin-focus";
 
 interface Msg {
   id: string;
@@ -19,6 +24,38 @@ interface Msg {
   replyNote: string;
   handledAt: string | null;
   createdAt: string;
+}
+
+/** A real order code (PN-YYMMDD-####) — also matches the demo prefix rows. */
+const ORDER_CODE_RE = /PN-[0-9]{6}-[0-9]{4}|PN-DEMO-[0-9]+/g;
+
+/** Splits a message body into text / order-code chunks for link rendering. */
+function renderBody(body: string, onCode: (code: string) => void) {
+  const parts: (string | { code: string })[] = [];
+  let last = 0;
+  for (const m of body.matchAll(ORDER_CODE_RE)) {
+    const idx = m.index ?? 0;
+    if (idx > last) parts.push(body.slice(last, idx));
+    parts.push({ code: m[0] });
+    last = idx + m[0].length;
+  }
+  if (last < body.length) parts.push(body.slice(last));
+  return parts.map((p, i) =>
+    typeof p === "string" ? (
+      <span key={i}>{p}</span>
+    ) : (
+      <button
+        key={i}
+        type="button"
+        onClick={() => onCode(p.code)}
+        title="باز کردن این سفارش در تب سفارش‌ها"
+        dir="ltr"
+        className="mx-0.5 inline-block rounded-[8px] bg-[#E3F6FD] px-1.5 py-0.5 align-baseline text-[12.5px] font-black text-[#006387] transition-colors hover:bg-[#D6F1FB]"
+      >
+        {p.code}
+      </button>
+    ),
+  );
 }
 
 export function MessagesTab({ onChanged }: { onChanged?: () => void }) {
@@ -59,6 +96,25 @@ export function MessagesTab({ onChanged }: { onChanged?: () => void }) {
     }
   };
 
+  // UX-15 — undo for the auto «mark read»: flip the flag back on the server
+  const markUnread = async (m: Msg) => {
+    setMsgs((prev) => prev?.map((x) => (x.id === m.id ? { ...x, read: false } : x)) ?? prev);
+    try {
+      const res = await fetch("/api/admin/messages", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: m.id, read: false }),
+      });
+      if (!res.ok) throw new Error();
+      invalidateAdminCache();
+      onChanged?.();
+      toast({ title: "به‌عنوان نخوانده علامت خورد" });
+    } catch {
+      setMsgs((prev) => prev?.map((x) => (x.id === m.id ? { ...x, read: true } : x)) ?? prev);
+      toast({ title: "انجام نشد!", description: "دوباره تلاش کن." });
+    }
+  };
+
   const saveNote = async () => {
     if (!current) return;
     setBusy(true);
@@ -76,6 +132,12 @@ export function MessagesTab({ onChanged }: { onChanged?: () => void }) {
       toast({ title: "ذخیره نشد!", description: "دوباره تلاش کن." });
     }
     setBusy(false);
+  };
+
+  // UX-15 — the order code inside a message jumps to the سفارش‌ها tab
+  const openOrder = (code: string) => {
+    requestFocus({ tab: "orders", orderCode: code });
+    onChanged?.();
   };
 
   const unread = msgs?.filter((m) => !m.read).length ?? 0;
@@ -148,13 +210,18 @@ export function MessagesTab({ onChanged }: { onChanged?: () => void }) {
               </div>
 
               {current.orderNo && (
-                <div className="rounded-[16px] bg-[#F3EDFB] px-4 py-2.5 text-[12.5px] font-bold text-[#5B4A8A]">
-                  مرتبط با سفارش <span dir="ltr">{current.orderNo}</span>
-                </div>
+                <button
+                  type="button"
+                  onClick={() => openOrder(current.orderNo)}
+                  className="rounded-[16px] bg-[#F3EDFB] px-4 py-2.5 text-right text-[12.5px] font-bold text-[#5B4A8A] transition-colors hover:bg-[#EAE1F7]"
+                  title="باز کردن این سفارش در تب سفارش‌ها"
+                >
+                  مرتبط با سفارش <span dir="ltr" className="font-black underline decoration-dotted">{current.orderNo}</span> — دیدن سفارش ↰
+                </button>
               )}
 
               <div className="max-h-[240px] overflow-y-auto whitespace-pre-wrap rounded-[18px] bg-[#F5FBFD] p-4 text-[13.5px] font-medium leading-[2] text-[#04202E]">
-                {current.message}
+                {renderBody(current.message, openOrder)}
               </div>
 
               <div>
@@ -170,16 +237,28 @@ export function MessagesTab({ onChanged }: { onChanged?: () => void }) {
                   placeholder="مثلاً: جواب داده شد — ایمیل ارسال شد در تاریخ…"
                   className="w-full rounded-[16px] border-[1.5px] border-[#CFE6EF] bg-white p-3.5 text-[13px] leading-[1.9] text-[#04202E] outline-none focus:border-[#00ABE7]"
                 />
-                <div className="mt-2 flex items-center justify-between">
+                <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
                   <span className="text-[10.5px] font-semibold text-[#7C99A6]">{fa(note.length)}/۵۰۰</span>
-                  <button
-                    type="button"
-                    disabled={busy}
-                    onClick={() => void saveNote()}
-                    className="h-10 rounded-full bg-[#00ABE7] px-5 text-[12.5px] font-extrabold text-[#04202E] transition-transform active:scale-95 disabled:opacity-60"
-                  >
-                    ذخیره یادداشت
-                  </button>
+                  <span className="flex items-center gap-2">
+                    {/* UX-15 — undo the auto mark-read */}
+                    {current.read && (
+                      <button
+                        type="button"
+                        onClick={() => void markUnread(current)}
+                        className="h-10 rounded-full border-[1.5px] border-[#CFE6EF] bg-white px-4 text-[12.5px] font-extrabold text-[#4A6572] transition-colors hover:bg-[#F2FAFD]"
+                      >
+                        نشان‌کردن به‌عنوان نخوانده
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      disabled={busy}
+                      onClick={() => void saveNote()}
+                      className="h-10 rounded-full bg-[#00ABE7] px-5 text-[12.5px] font-extrabold text-[#04202E] transition-transform active:scale-95 disabled:opacity-60"
+                    >
+                      ذخیره یادداشت
+                    </button>
+                  </span>
                 </div>
               </div>
             </div>

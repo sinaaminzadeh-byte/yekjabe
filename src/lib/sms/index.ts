@@ -309,10 +309,17 @@ async function deliver(phone: string, template: string, params: Record<string, s
 
   // Dev sandbox: no real provider — echo marks it sent so the queue drains.
   if (env.devEcho || (!ippanelConfigured() && !env.KAVENEGAR_API_KEY)) {
-    const text = cfg?.patternCode
-      ? `[pattern ${cfg.patternCode}] ${JSON.stringify(mapVars(vars, params))}`
-      : renderFallback(cfg?.fallbackText ?? "", params) || `[${template}]`;
-    console.log(`[sms:echo] ${phone} → ${text}`);
+    // S-09 (audit wave 38): the echo line used to print the FULL rendered text
+    // — for otp_login/otp_gift that meant the 4-digit code landed in dev.log
+    // (and dev.log.1 is git-tracked!). OTP codes must never be logged in ANY
+    // environment: log provider mode + param shapes only, never values.
+    const keys = Object.keys(params)
+      .filter((k) => !k.startsWith("_"))
+      .sort();
+    const codeLen = typeof params.code === "string" ? params.code.length : 0;
+    console.log(
+      `[sms:echo] ${phone} → template=${template} provider=echo pattern=${cfg?.patternCode ? "1" : "0"} params=[${keys.join(",")}]${codeLen ? ` code_len=${codeLen}` : ""}`,
+    );
     return { provider: "echo", messageId: "" };
   }
 

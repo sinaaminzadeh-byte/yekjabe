@@ -36,6 +36,7 @@ import {
 import { PROVINCES } from "@/lib/orders/provinces";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useToast } from "@/hooks/use-toast";
+import { useGiftMessage } from "@/hooks/use-gift-message";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import type { CatalogEntry } from "@/lib/pishnam-store";
 import { AttrsBlock, Gallery, entryCover } from "../gallery";
@@ -56,8 +57,10 @@ export function DesktopBuilder({ step }: { step: 1 | 2 | 3 }) {
   }, [qKind, kind, setKind]);
   const occ = usePishnam((s) => s.occasion);
   const setOcc = usePishnam((s) => s.setOccasion);
-  const message = usePishnam((s) => s.message);
-  const setMessage = usePishnam((s) => s.setMessage);
+  // P-09 (audit wave 38): keystrokes stay in a local draft; the store — and
+  // with it the WHOLE localStorage record — is written at most once per 500ms
+  // (+ immediate flush on blur). See src/hooks/use-gift-message.ts
+  const { message, setMessage, onBlur: onMessageBlur } = useGiftMessage();
   const senderDisplay = usePishnam((s) => s.senderDisplay);
   const setSenderDisplay = usePishnam((s) => s.setSenderDisplay);
   const senderPhrase = usePishnam((s) => s.senderPhrase);
@@ -274,6 +277,7 @@ export function DesktopBuilder({ step }: { step: 1 | 2 | 3 }) {
                 maxLength={400}
                 value={message}
                 onChange={(e) => setMessage(e.target.value)}
+                onBlur={onMessageBlur}
                 placeholder={OCCASION_HOLDERS[occ]}
                 className="min-h-[120px] resize-none border-none bg-transparent text-base leading-[1.95] text-[#04202E] outline-none"
               />
@@ -491,7 +495,7 @@ export function DesktopBuilder({ step }: { step: 1 | 2 | 3 }) {
                         {/* مربع عکس — گالری → عکس قدیمی → ایموجی + گرادیان */}
                         <div className="relative aspect-square overflow-hidden rounded-[20px] bg-[#F2FAFD]">
                           {cover ? (
-                            <img src={cover} alt={a.name} loading="lazy" className="h-full w-full object-cover" />
+                            <img src={cover} alt={a.name} width={96} height={96} loading="lazy" decoding="async" className="h-full w-full object-cover" />
                           ) : (
                             <span
                               className="flex h-full w-full items-center justify-center bg-[linear-gradient(135deg,#E3F6FD_0%,#F7FBFD_55%,#FFF1F5_100%)] text-5xl"
@@ -796,7 +800,7 @@ export function DesktopBuilder({ step }: { step: 1 | 2 | 3 }) {
                   style={{ background: sel.bg }}
                 >
                   {mainCover ? (
-                    <img src={mainCover} alt={sel.name} loading="lazy" className="h-full w-full object-cover" />
+                    <img src={mainCover} alt={sel.name} width={48} height={48} loading="lazy" decoding="async" className="h-full w-full object-cover" />
                   ) : (
                     <Plush kind={sel.kind} size={34} />
                   )}
@@ -815,7 +819,7 @@ export function DesktopBuilder({ step }: { step: 1 | 2 | 3 }) {
                   thumb={
                     <span className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-[14px] bg-[#F2FAFD] text-xl">
                       {cover ? (
-                        <img src={cover} alt={l.productName} loading="lazy" className="h-full w-full object-cover" />
+                        <img src={cover} alt={l.productName} width={48} height={48} loading="lazy" decoding="async" className="h-full w-full object-cover" />
                       ) : (
                         <span aria-hidden="true">{entry?.emoji ?? "🎁"}</span>
                       )}

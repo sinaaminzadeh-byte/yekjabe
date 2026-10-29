@@ -28,6 +28,7 @@ import {
 } from "@/lib/orders/message-media";
 import { isMessageExpired } from "@/lib/orders/retention";
 import { isViewableStatus } from "@/lib/orders/gift-view";
+import { isValidRequestNonce } from "@/lib/orders/crypto";
 
 // admin-configurable limits (owner round 30) — Setting keys with the code
 // defaults as fallback; clamped to the same bounds the admin UI enforces.
@@ -52,7 +53,10 @@ export async function POST(req: Request) {
     const form = await req.formData();
     const code = String(form.get("code") ?? "").trim().toUpperCase();
     const key = String(form.get("key") ?? "").trim();
-    if (!/^PN-\d{6}-\d{4}$/.test(code) || key.length < 8) throw new AppError(400, "bad_input");
+    // S-10 (audit wave 38): the Idempotency-Key used as proof gets the same
+    // strict charset/length check as the checkout route — no whitespace or
+    // control characters in storage identifiers.
+    if (!/^PN-\d{6}-\d{4}$/.test(code) || !isValidRequestNonce(key)) throw new AppError(400, "bad_input");
 
     const order = await db.order.findUnique({ where: { code } });
     if (!order || order.idempotencyKey !== key) throw new AppError(404, "not_found");

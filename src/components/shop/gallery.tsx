@@ -136,14 +136,20 @@ export function Gallery({
 
   return (
     <div className={`flex flex-col gap-2.5 ${className}`}>
-      {/* main 1:1 image — all frames stacked, opacity crossfade on switch */}
+      {/* main 1:1 image — all frames stacked, opacity crossfade on switch.
+        P-08 (audit wave 38): explicit intrinsic size + async decoding + a
+        background placeholder — the browser reserves the square before the
+        file arrives, so the product page never jumps while images load. */}
       <div className={`relative aspect-square w-full overflow-hidden bg-[#F2FAFD] ${rounded}`}>
         {images.map((src, i) => (
           <img
             key={`${i}-${src}`}
             src={src}
             alt={i === active ? name : ""}
+            width={640}
+            height={640}
             loading={i === 0 ? undefined : "lazy"}
+            decoding="async"
             className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-500 ${i === active ? "opacity-100" : "opacity-0"}`}
           />
         ))}
@@ -172,7 +178,7 @@ export function Gallery({
                 onClick={() => setIdx(i)}
                 className={`shrink-0 overflow-hidden rounded-[14px] border-2 transition-all ${thumbClass} ${i === active ? "border-[#00ABE7]" : "border-transparent opacity-75"}`}
               >
-                <img src={src} alt="" loading="lazy" className="h-full w-full object-cover" />
+                <img src={src} alt="" width={96} height={96} loading="lazy" decoding="async" className="h-full w-full object-cover" />
               </button>
             ))}
           </div>

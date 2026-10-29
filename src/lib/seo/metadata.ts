@@ -107,7 +107,9 @@ export interface PostSeoInput {
 /**
  * Blog-post SEO bundle (round 34-h): document title = metaTitle||title,
  * description = metaDescription||excerpt, og:type=article + og:image (cover)
- * + og:url, and canonical /post?slug=… — one call from PostScreen.
+ * + og:url, and canonical /blog/<slug> — one call from PostScreen.
+ * SEO-10 (audit wave 38): canonical/og:url moved from the legacy
+ * /post?slug=… form to the clean /blog/<slug> path.
  */
 export function usePostSeo(post: PostSeoInput | null): void {
   useDocumentMeta(
@@ -122,9 +124,9 @@ export function usePostSeo(post: PostSeoInput | null): void {
             description: post.metaDescription || post.excerpt || undefined,
             image: post.cover ?? undefined,
             type: "article",
-            url: `/post?slug=${encodeURIComponent(post.slug)}`,
+            url: `/blog/${encodeURIComponent(post.slug)}`,
           },
-          canonical: `/post?slug=${encodeURIComponent(post.slug)}`,
+          canonical: `/blog/${encodeURIComponent(post.slug)}`,
         }
       : undefined,
   );

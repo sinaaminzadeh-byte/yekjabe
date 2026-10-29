@@ -1,6 +1,11 @@
 "use client";
 
 // ── Persian error boundary — dev.hash-route 500 equivalent (Phase C §4) ──
+// A-11 (audit wave 38): render-time crashes are logged as a structured JSON
+// line to the console (name/message/digest/timestamp) — best-effort, no deps,
+// no network calls (the page must stay renderable even when logging fails).
+import { useEffect } from "react";
+
 export default function PishnamError({
   error,
   reset,
@@ -8,6 +13,25 @@ export default function PishnamError({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
+  useEffect(() => {
+    try {
+      console.error(
+        JSON.stringify({
+          ts: new Date().toISOString(),
+          level: "error",
+          scope: "client-boundary",
+          path: typeof window !== "undefined" ? window.location.hash || "/" : "",
+          name: error.name,
+          message: error.message,
+          digest: error.digest,
+          stack: error.stack?.split("\n").slice(0, 6).join(" | "),
+        }),
+      );
+    } catch {
+      /* best-effort */
+    }
+  }, [error]);
+
   return (
     <div
       dir="rtl"

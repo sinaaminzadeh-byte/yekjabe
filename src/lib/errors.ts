@@ -1,5 +1,8 @@
 // ── errors.ts — one error type, one HTTP mapper (guide §A2) ──
 // Every API route throws AppError; the mapper renders { error, details? } JSON.
+// A-11 (audit wave 38): unexpected (non-AppError) exceptions are logged as ONE
+// structured JSON line — name/message/path/timestamp — so ops can grep/join
+// them without a log shipper. Best-effort only: logging never throws.
 
 export class AppError extends Error {
   status: number;
@@ -14,11 +17,29 @@ export class AppError extends Error {
   }
 }
 
-export function toErrorResponse(e: unknown): { body: { error: string; details?: Record<string, unknown> }; status: number } {
+/** Structured single-line error log (A-11). Console-only by design (no deps). */
+export function logServerError(e: unknown, path = ""): void {
+  try {
+    const line = {
+      ts: new Date().toISOString(),
+      level: "error",
+      scope: "api",
+      path,
+      name: e instanceof Error ? e.name : typeof e,
+      message: e instanceof Error ? e.message : String(e),
+      stack: e instanceof Error ? e.stack?.split("\n").slice(0, 6).join(" | ") : undefined,
+    };
+    console.error(JSON.stringify(line));
+  } catch {
+    /* logging must never be the thing that breaks the request */
+  }
+}
+
+export function toErrorResponse(e: unknown, path = ""): { body: { error: string; details?: Record<string, unknown> }; status: number } {
   if (e instanceof AppError) {
     return { body: { error: e.code, ...(e.details ? { details: e.details } : {}) }, status: e.status };
   }
-  console.error("[api] unhandled error:", e);
+  logServerError(e, path);
   return { body: { error: "server_error" }, status: 500 };
 }
 

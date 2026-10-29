@@ -5,10 +5,13 @@
 // also saves the orderer's name on the account and mints the SAME 30-day
 // customer session (owner: بعد از وریفای، حساب بساز و لاگین کن).
 // gift_recv = گیرنده‌ی هدیه در صفحه‌ی نمایش هدیه (owner round 29: بدون رمز کارت)
+// S-07 (audit wave 38): same-site origin guard — verify mints session
+// cookies, so a cross-site form/fetch posting here must never succeed.
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { env } from "@/lib/env";
 import { toErrorResponse, AppError } from "@/lib/errors";
+import { assertSameOrigin } from "@/lib/auth/session";
 import { validPhone, normCode } from "@/lib/auth/phone";
 import { verifyOtp, type OtpPurpose } from "@/lib/auth/otp";
 import { createSession } from "@/lib/auth/session";
@@ -18,6 +21,7 @@ const PURPOSES: OtpPurpose[] = ["login", "checkout_orderer", "gift_recv"];
 
 export async function POST(req: Request) {
   try {
+    assertSameOrigin(req); // S-07 — cross-site POST → 403 (no-Origin callers pass)
     const body = (await req.json().catch(() => ({}))) as Record<string, unknown>;
     const phone = validPhone(body.phone);
     const code = normCode(body.code);

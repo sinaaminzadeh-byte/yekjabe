@@ -551,7 +551,7 @@ export function BlogStudio({ role }: { role?: string | null }) {
               <span className="mb-2 block text-[11px] font-bold text-[#4A6572]">پیش‌نمایش نتیجه‌ی گوگل</span>
               <div className="rounded-[12px] bg-white p-4 shadow-sm">
                 <span className="block font-mono text-[12px] leading-[1.8] text-[#4D5156]" dir="ltr">
-                  {SITE.url.replace("https://", "")} › post?slug={serpSlug}
+                  {SITE.url.replace("https://", "")} › blog/{serpSlug}
                 </span>
                 <span className="mt-0.5 block truncate text-[19px] font-medium leading-[1.6] text-[#1A0DAB]">
                   {serpTitle}

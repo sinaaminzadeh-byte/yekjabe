@@ -52,7 +52,9 @@ export function productJsonLd(slug: string) {
       priceCurrency: "IRR",
       price: String(BOX_PRICE_TOMAN * TOMAN_TO_IRR),
       availability: "https://schema.org/InStock",
-      url: `${SITE.url}/product/${p.slug}`,
+      // SEO-08 (audit wave 38): the REAL public URL is the query-param form
+      // /product?slug=<slug> — the old /product/<slug> path never existed
+      url: `${SITE.url}/product?slug=${encodeURIComponent(p.slug)}`,
     },
   };
 }
@@ -107,7 +109,9 @@ export interface ArticleJsonLdInput {
 
 /** Minimal schema.org BlogPosting with «جعبه آبی» author/publisher Organization. */
 export function articleJsonLd(input: ArticleJsonLdInput) {
-  const pageUrl = `${SITE.url}/post?slug=${encodeURIComponent(input.slug)}`;
+  // SEO-10 (audit wave 38): clean /blog/<slug> URL — matches the 301 target
+  // of the legacy /post?slug=… form and the sitemap entries
+  const pageUrl = `${SITE.url}/blog/${encodeURIComponent(input.slug)}`;
   return {
     "@context": "https://schema.org",
     "@type": "BlogPosting",

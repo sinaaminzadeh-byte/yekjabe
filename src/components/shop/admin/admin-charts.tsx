@@ -54,6 +54,11 @@ export function RevenueBars({ data }: { data: { label: string; orders: number; r
 }
 
 // ── status donut — distribution of the 11-state machine ──
+// UX-14 (audit wave 38): slices LOOKED clickable but did nothing — with an
+// optional onSlice callback each slice (and its legend row) jumps to the
+// orders tab with that status filter. Hover behavior (center readout +
+// highlight) is untouched; without the callback the chart stays exactly as
+// it was.
 const DONUT_COLORS: Record<string, string> = {
   delivered: "#7BE3B4",
   shipped: "#00ABE7",
@@ -68,7 +73,13 @@ const DONUT_COLORS: Record<string, string> = {
   refunded: "#C9B6F2",
 };
 
-export function StatusDonut({ data }: { data: { status: string; count: number; label: string }[] }) {
+export function StatusDonut({
+  data,
+  onSlice,
+}: {
+  data: { status: string; count: number; label: string }[];
+  onSlice?: (status: string) => void;
+}) {
   const [active, setActive] = useState<number | null>(null);
   const total = data.reduce((a, d) => a + d.count, 0);
   if (total === 0) {
@@ -107,6 +118,9 @@ export function StatusDonut({ data }: { data: { status: string; count: number; l
               className="cursor-pointer transition-all"
               onMouseEnter={() => setActive(s.i)}
               onMouseLeave={() => setActive(null)}
+              onClick={onSlice ? () => onSlice(s.status) : undefined}
+              role={onSlice ? "button" : undefined}
+              aria-label={onSlice ? `فیلتر سفارش‌ها: ${s.label}` : undefined}
             />
           ))}
         </svg>
@@ -116,19 +130,34 @@ export function StatusDonut({ data }: { data: { status: string; count: number; l
         </div>
       </div>
       <div className="grid w-full grid-cols-2 gap-x-4 gap-y-1.5">
-        {segsWithOffset.map((s) => (
-          <button
-            key={s.status}
-            type="button"
-            onMouseEnter={() => setActive(s.i)}
-            onMouseLeave={() => setActive(null)}
-            className={`flex items-center gap-1.5 text-right transition-opacity ${active !== null && active !== s.i ? "opacity-45" : ""}`}
-          >
-            <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: DONUT_COLORS[s.status] ?? "#B9CBD4" }} aria-hidden="true" />
-            <span className="truncate text-[11px] font-bold text-[#04202E]">{s.label}</span>
-            <span className="ms-auto text-[11px] font-black text-[#4A6572]">{fa(s.count)}</span>
-          </button>
-        ))}
+        {segsWithOffset.map((s) =>
+          onSlice ? (
+            <button
+              key={s.status}
+              type="button"
+              onClick={() => onSlice(s.status)}
+              onMouseEnter={() => setActive(s.i)}
+              onMouseLeave={() => setActive(null)}
+              title={`دیدن سفارش‌های «${s.label}»`}
+              className={`flex items-center gap-1.5 rounded-[10px] px-1 py-0.5 text-right transition-opacity hover:bg-[#F2FAFD] ${active !== null && active !== s.i ? "opacity-45" : ""}`}
+            >
+              <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: DONUT_COLORS[s.status] ?? "#B9CBD4" }} aria-hidden="true" />
+              <span className="truncate text-[11px] font-bold text-[#04202E]">{s.label}</span>
+              <span className="ms-auto text-[11px] font-black text-[#4A6572]">{fa(s.count)}</span>
+            </button>
+          ) : (
+            <span
+              key={s.status}
+              onMouseEnter={() => setActive(s.i)}
+              onMouseLeave={() => setActive(null)}
+              className={`flex items-center gap-1.5 text-right transition-opacity ${active !== null && active !== s.i ? "opacity-45" : ""}`}
+            >
+              <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: DONUT_COLORS[s.status] ?? "#B9CBD4" }} aria-hidden="true" />
+              <span className="truncate text-[11px] font-bold text-[#04202E]">{s.label}</span>
+              <span className="ms-auto text-[11px] font-black text-[#4A6572]">{fa(s.count)}</span>
+            </span>
+          ),
+        )}
       </div>
     </div>
   );

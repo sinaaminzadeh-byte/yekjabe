@@ -41,14 +41,22 @@ export async function createSession(phone: string, kind: SessionKind): Promise<v
   });
 }
 
+// P-04 (audit wave 38): every getSession() used to fire an UPDATE on Session —
+// one DB write per admin/customer request, most of them pointless. Throttle:
+// the write happens only when the last touch is older than 5 minutes (the
+// field is compared FIRST, no write, no round-trip cost beyond the read we
+// already do). Best-effort as before — a failed touch never breaks a request.
+const LASTSEEN_THROTTLE_MS = 5 * 60_000;
+
 export async function getSession(kind: SessionKind): Promise<Session | null> {
   const jar = await cookies();
   const token = jar.get(COOKIE[kind])?.value;
   if (!token) return null;
   const s = await db.session.findUnique({ where: { id: sha(token) } });
   if (!s || s.kind !== kind || s.expiresAt.getTime() < Date.now()) return null;
-  // touch lastSeenAt (best-effort; keep reads cheap)
-  void db.session.update({ where: { id: s.id }, data: { lastSeenAt: new Date() } }).catch(() => {});
+  if (Date.now() - s.lastSeenAt.getTime() > LASTSEEN_THROTTLE_MS) {
+    void db.session.update({ where: { id: s.id }, data: { lastSeenAt: new Date() } }).catch(() => {});
+  }
   return { id: s.id, phone: s.phone, kind: s.kind, expiresAt: s.expiresAt };
 }
 

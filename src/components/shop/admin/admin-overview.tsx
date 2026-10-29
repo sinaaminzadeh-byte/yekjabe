@@ -9,6 +9,11 @@ import { useToast } from "@/hooks/use-toast";
 import { RevenueBars, StatusDonut, HBars } from "./admin-charts";
 import type { Tab } from "./admin-nav";
 import { adminFetch } from "./admin-cache";
+import { requestFocus } from "./admin-focus";
+import { timeAgoFa } from "./admin-shared";
+// A-08 (audit wave 38): STATUS_FA here was a verbatim duplicate of the panel's
+// STATUS_LABEL map — one source of truth now (admin-ui.tsx)
+import { STATUS_LABEL } from "./admin-ui";
 
 interface OverviewData {
   generatedAt: string;
@@ -53,28 +58,9 @@ interface OverviewData {
   }[];
 }
 
-const STATUS_FA: Record<string, string> = {
-  awaiting_payment: "در انتظار پرداخت",
-  payment_under_review: "رسید در بررسی",
-  paid: "پرداخت شد",
-  preparing: "بسته‌بندی",
-  shipped: "در راه",
-  delivered: "تحویل شد",
-  failed: "پرداخت ناموفق",
-  cancelled: "لغو شد",
-  expired: "منقضی شد",
-  refund_requested: "درخواست مرجوعی",
-  refunded: "مرجوع شد",
-};
-
-function timeAgoFa(iso: string): string {
-  const mins = Math.floor((Date.now() - new Date(iso).getTime()) / 60000);
-  if (mins < 1) return "همین حالا";
-  if (mins < 60) return `${fa(mins)} دقیقه پیش`;
-  const hrs = Math.floor(mins / 60);
-  if (hrs < 24) return `${fa(hrs)} ساعت پیش`;
-  return `${fa(Math.floor(hrs / 24))} روز پیش`;
-}
+const STATUS_FA: Record<string, string> = Object.fromEntries(
+  Object.entries(STATUS_LABEL).map(([k, v]) => [k, v.label]),
+);
 
 function KpiCard({
   n,
@@ -229,7 +215,8 @@ export function OverviewTab({ onNavigate }: { onNavigate: (t: Tab) => void }) {
         </div>
         <div className="rounded-[24px] border border-[#DDEEF5] bg-white p-5 lg:col-span-2">
           <h3 className="mb-3 mt-0 text-[15px] font-black text-[#04202E]">وضعیت سفارش‌ها</h3>
-          <StatusDonut data={statusRows} />
+          {/* UX-14 — هر تکه‌ی دونات (و ردیف راهنما) به تب سفارش‌ها با همان فیلتر می‌پرد */}
+          <StatusDonut data={statusRows} onSlice={(status) => requestFocus({ tab: "orders", status })} />
         </div>
       </div>
 
@@ -321,12 +308,13 @@ export function OverviewTab({ onNavigate }: { onNavigate: (t: Tab) => void }) {
           </button>
           <button
             type="button"
-            onClick={() => onNavigate("orders")}
+            onClick={() => requestFocus({ tab: "orders", hasMedia: true })}
             className="flex items-center justify-between rounded-[22px] border border-[#DDEEF5] bg-white p-4 text-right transition-all hover:-translate-y-0.5 hover:shadow-[0_10px_24px_rgba(4,32,46,0.08)]"
           >
             <div>
               <span className="block text-[18px] font-black text-[#04202E]">{fa(k.mediaAttachments)}</span>
-              <span className="text-[12px] font-bold text-[#4A6572]">پیوست رسانه‌ای (۶۰ روز)</span>
+              {/* UX-13 — now clickable: jumps to سفارش‌ها filtered to hasMedia */}
+              <span className="text-[12px] font-bold text-[#4A6572]">پیوست رسانه‌ای (۶۰ روز) — دیدن سفارش‌ها</span>
             </div>
             <span className="text-[24px]" aria-hidden="true">🎙️</span>
           </button>

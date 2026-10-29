@@ -20,6 +20,8 @@ import { ForwardIcon } from "@/components/shop/icons";
 import { MobileTopBar } from "@/components/shop/nav";
 import { ADMIN_TABS, AdminPills, AdminSidebar, useBadges, type Tab } from "@/components/shop/admin/admin-nav";
 import { AdminOtpGate, UNLOCK_KEY } from "@/components/shop/admin/admin-gate";
+import { subscribeFocus, type FocusRequest } from "@/components/shop/admin/admin-focus";
+import { adminFetch } from "@/components/shop/admin/admin-cache";
 
 // ── lazy per-tab chunks — only the active tab's code is downloaded ──
 function tabLoader() {
@@ -59,6 +61,19 @@ export function AdminScreen() {
     }
   });
   const [tab, setTab] = useState<Tab>("overview");
+  // UX-05/13/14/15 — cross-tab focus: any tab can request a navigation that
+  // carries context (order code / status filter / hasMedia). The shell is the
+  // only owner of the active tab; it also forwards the request payload to the
+  // target tab as a prop so the filter UI prefills.
+  const [focus, setFocus] = useState<FocusRequest | null>(null);
+  useEffect(
+    () =>
+      subscribeFocus((f) => {
+        setFocus(f);
+        setTab(f.tab);
+      }),
+    [],
+  );
   // role chip + owner-only tabs — fetched right after the gate opens
   const [role, setRole] = useState<AdminRole | null>(null);
   const [adminName, setAdminName] = useState("");
@@ -67,9 +82,9 @@ export function AdminScreen() {
   useEffect(() => {
     if (!unlocked) return;
     let alive = true;
-    fetch("/api/admin/me", { cache: "no-store" })
-      .then((r) => (r.ok ? r.json() : null))
-      .then((j: { admin?: { role?: string; name?: string } } | null) => {
+    // A-07 — every admin GET goes through the shared cache wrapper
+    adminFetch<{ admin?: { role?: string; name?: string } }>("/api/admin/me", { fresh: true })
+      .then((j) => {
         if (!alive || !j?.admin) return;
         if (j.admin.role === "owner" || j.admin.role === "operator") setRole(j.admin.role);
         setAdminName(j.admin.name ?? "");
@@ -131,8 +146,8 @@ export function AdminScreen() {
 
           <div className="mt-4">
             {safeTab === "overview" && <OverviewTab onNavigate={setTab} />}
-            {safeTab === "orders" && <OrdersTab />}
-            {safeTab === "payments" && <PaymentsTab />}
+            {safeTab === "orders" && <OrdersTab focus={focus} />}
+            {safeTab === "payments" && <PaymentsTab focusOrderCode={focus?.tab === "payments" ? focus.paymentOrderCode ?? null : null} />}
             {safeTab === "products" && <ProductsTab />}
             {safeTab === "renewals" && <RenewalsTab />}
             {safeTab === "customers" && <CustomersTab />}

@@ -1,6 +1,11 @@
 "use client";
 
 // ── Home screen: mobile (390 design) + desktop (1200 landing) ──
+// P-10 (audit wave 38): both shells used to MOUNT on every device (one hidden
+// by CSS) — double the sliders, double the observers, double the data effects.
+// Now each branch renders only when the matchMedia branch is active; the first
+// render already knows the answer (synchronous matchMedia read — no flash).
+import { useIsDesktop } from "@/hooks/use-media-query";
 import { Logo } from "../logo";
 import { Plush } from "../plush";
 import {
@@ -31,7 +36,11 @@ import {
 
 /* ═══════════════ MOBILE HOME ═══════════════ */
 export function MobileHome() {
+  // single render: on desktop this component mounts NOTHING (the desktop
+  // shell is rendered by DesktopHome — no hidden duplicate DOM anymore)
+  const isDesktop = useIsDesktop();
   const nextNo = usePishnam((s) => s.nextNo);
+  if (isDesktop) return null;
 
   return (
     <div className="flex min-h-screen flex-col bg-[#F2FAFD] md:hidden">
@@ -231,9 +240,11 @@ export function Marquee({ className = "" }: { className?: string }) {
 
 /* ═══════════════ DESKTOP HOME ═══════════════ */
 export function DesktopHome() {
+  const isDesktop = useIsDesktop();
   const nextNo = usePishnam((s) => s.nextNo);
   const done = useCharityDone();
   const pct = Math.min(100, Math.round((done / CHARITY_TARGET) * 100));
+  if (!isDesktop) return null;
 
   return (
     <div className="hidden bg-[#F2FAFD] md:block">

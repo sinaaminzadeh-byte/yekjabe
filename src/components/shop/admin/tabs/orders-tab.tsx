@@ -8,13 +8,18 @@
 // UX-03: destructive transitions (لغو/مرجوع) need a confirm. UX-08: retention
 // deadline rendered in the modal. UX-11: Persian payment-status labels.
 // UX-16: mobile sticky action bar; backdrop tap no longer closes the modal.
-import { useEffect, useMemo, useRef, useState } from "react";
+// Wave 38: UX-05 (jump to the receipts queue scoped to this order), UX-12
+// (post tracking code input saved via PATCH), UX-13 (hasMedia filter fed by
+// the dashboard KPI), UX-14 (status filter fed by the dashboard donut),
+// A-12 («داده دمو» chip on seeded rows), A-14 (stable React keys).
+import { useEffect, useMemo, useState } from "react";
 import { fa, money } from "@/lib/fa";
 import { useToast } from "@/hooks/use-toast";
 import { ForwardIcon } from "@/components/shop/icons";
 import { TRANSITIONS, STEP_LABELS, type OrderStatus } from "@/lib/orders/status";
 import { jalaliDate, jalaliDateTime } from "@/components/shop/admin/admin-shared";
 import { adminFetch, invalidateAdminCache } from "@/components/shop/admin/admin-cache";
+import { requestFocus, type FocusRequest } from "@/components/shop/admin/admin-focus";
 import {
   ConfirmButton,
   EVENT_LABEL,
@@ -78,6 +83,12 @@ const FILTERS: { key: string; label: string }[] = [
 /** transitions that must not fire on one click (UX-03) */
 const NEEDS_CONFIRM: OrderStatus[] = ["cancelled", "refunded", "refund_requested"];
 
+/** A-12 — seeded demo rows are labeled so the owner never mistakes them for real sales */
+const isDemoCode = (code: string): boolean => code.startsWith("PN-DEMO");
+
+/** UX-12 — the postal tracking input appears from «تحویل به پست» onward */
+const TRACKING_STATUSES = new Set(["shipped", "delivered", "refund_requested", "refunded"]);
+
 const ACTION_LABEL: Record<string, string> = {
   preparing: "شروع بسته‌بندی",
   shipped: "تحویل به پست",
@@ -101,12 +112,13 @@ function mediaKindOf(key: string): "image" | "video" | "audio" {
 const mediaUrl = (orderId: string, key: string) => `/api/admin/orders/${orderId}/media?key=${encodeURIComponent(key)}`;
 const MEDIA_KIND_FA = { image: "عکس", video: "ویدیو", audio: "ویس" } as const;
 
-export function OrdersTab() {
+export function OrdersTab({ focus }: { focus?: FocusRequest | null }) {
   const [data, setData] = useState<OrdersResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [detailId, setDetailId] = useState<string | null>(null);
   const [status, setStatus] = useState<string>("all");
+  const [hasMedia, setHasMedia] = useState(false);
   const [page, setPage] = useState(1);
   const [pages, setPages] = useState(1);
   const [total, setTotal] = useState(0);
@@ -114,12 +126,28 @@ export function OrdersTab() {
   const [q, setQ] = useState(""); // debounced — drives the server search
   const { toast } = useToast();
 
+  // UX-13/14 — a dashboard KPI / donut slice jumps here with prefilled filters.
+  // Applied with the React-documented «adjust state when a prop changes»
+  // pattern (setState during render, batched) — no effect cascades.
+  const [lastSeq, setLastSeq] = useState<number | null>(null);
+  if (focus && focus.tab === "orders" && focus.seq !== lastSeq) {
+    setLastSeq(focus.seq);
+    setStatus(typeof focus.status === "string" ? focus.status : "all");
+    setHasMedia(Boolean(focus.hasMedia));
+    if (focus.orderCode) {
+      setQInput(focus.orderCode);
+      setQ(focus.orderCode);
+    }
+    setPage(1);
+  }
+
   const url = useMemo(() => {
     const sp = new URLSearchParams({ page: String(page), pageSize: "20" });
     if (status !== "all") sp.set("status", status);
+    if (hasMedia) sp.set("hasMedia", "1");
     if (q.trim()) sp.set("q", q.trim());
     return `/api/admin/orders?${sp.toString()}`;
-  }, [page, status, q]);
+  }, [page, status, hasMedia, q]);
 
   const load = (silent = false, fresh = false) => {
     if (!silent) setRefreshing(true);
@@ -247,6 +275,23 @@ export function OrdersTab() {
               </button>
             );
           })}
+          {/* UX-13 — «دارای پیوست» filter (fed by the dashboard media KPI too) */}
+          <button
+            type="button"
+            aria-pressed={hasMedia}
+            onClick={() => {
+              setPage(1);
+              setHasMedia((v) => !v);
+            }}
+            className="h-10 shrink-0 rounded-full px-4 text-[13px] font-bold transition-all"
+            style={{
+              background: hasMedia ? "#5B4A8A" : "#fff",
+              border: `1.5px solid ${hasMedia ? "#5B4A8A" : "#CFE6EF"}`,
+              color: hasMedia ? "#fff" : "#5B4A8A",
+            }}
+          >
+            دارای پیوست رسانه‌ای
+          </button>
         </div>
         <input
           type="text"
@@ -290,6 +335,9 @@ export function OrdersTab() {
                       {o.code}
                     </span>
                     <StatusChip s={o.status} />
+                    {isDemoCode(o.code) && (
+                      <span title="این ردیف با اسکریپت دمو ساخته شده — فروش واقعی نیست" className="rounded-full bg-[#F0F3F5] px-2 py-0.5 text-[10.5px] font-bold text-[#7C99A6]">داده دمو</span>
+                    )}
                     {o.paymentMethod === "manual_transfer" && (
                       <span className="rounded-full bg-[#E7E0FA] px-2 py-0.5 text-[10.5px] font-bold text-[#5B4A8A]">کارت‌به‌کارت</span>
                     )}
@@ -424,6 +472,7 @@ interface DetailOrder {
   charmPaws: number;
   mediaCount: number;
   mediaKeys: string[];
+  postTrackingCode: string;
   retentionPlan: string;
   messageExpiresAt: string | null;
   messagePurgeStatus: string;
@@ -458,12 +507,16 @@ function OrderDetailModal({
   const [busyTo, setBusyTo] = useState<OrderStatus | null>(null);
   const [receiptOf, setReceiptOf] = useState<string | null>(null); // UX-04 inline receipt
   const [lightbox, setLightbox] = useState<{ orderId: string; key: string } | null>(null); // UX-01 full image preview
+  // UX-12 — کد رهگیری پست: local draft + save via PATCH + copy-friendly
+  const [trackDraft, setTrackDraft] = useState<string>("");
+  const [trackBusy, setTrackBusy] = useState(false);
   const { toast } = useToast();
 
   const load = (fresh = false) => {
     adminFetch<{ order: DetailOrder }>(`/api/admin/orders/${id}`, { fresh })
       .then((j) => {
         setO(j.order);
+        setTrackDraft(j.order.postTrackingCode ?? "");
         setErr(false);
       })
       .catch(() => setErr(true));
@@ -490,6 +543,60 @@ function OrderDetailModal({
     const ok = await onTransition({ id: o.id, code: o.code }, to);
     setBusyTo(null);
     if (ok) load(true); // re-pull timeline + status so the modal stays honest
+  };
+
+  // UX-12 — ثبت کد رهگیری پست (PATCH /api/admin/orders/{id})
+  const saveTracking = async () => {
+    if (!o) return;
+    const code = trackDraft.trim();
+    if (!code) return;
+    setTrackBusy(true);
+    try {
+      const res = await fetch(`/api/admin/orders/${o.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ postTrackingCode: code.slice(0, 40) }),
+      });
+      if (!res.ok) {
+        const b = (await res.json().catch(() => ({}))) as { error?: string };
+        toast({ title: "ثبت نشد!", description: b.error === "bad_tracking_code" ? "کد رهگیری حداکثر ۴۰ نویسه است." : "خطای سرور — دوباره تلاش کن." });
+        return;
+      }
+      invalidateAdminCache();
+      setO((prev) => (prev ? { ...prev, postTrackingCode: code } : prev));
+      toast({ title: "کد رهگیری ذخیره شد ✓", description: "در تایم‌لاین سفارش و صفحه رهگیری مشتری می‌بینند." });
+      load(true); // the event lands in the timeline
+    } catch {
+      toast({ title: "خطای شبکه", description: "دوباره تلاش کن." });
+    } finally {
+      setTrackBusy(false);
+    }
+  };
+
+  // UX-12 — copy-friendly: one click puts the code on the clipboard
+  const copyTracking = async () => {
+    const code = (o?.postTrackingCode || trackDraft).trim();
+    if (!code) return;
+    try {
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(code);
+        toast({ title: "کپی شد ✓" });
+        return;
+      }
+      throw new Error("legacy");
+    } catch {
+      try {
+        const ta = document.createElement("textarea");
+        ta.value = code;
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand("copy");
+        document.body.removeChild(ta);
+        toast({ title: "کپی شد ✓" });
+      } catch {
+        toast({ title: "کپی نشد — دستی انتخاب کن" });
+      }
+    }
   };
 
   const allowed = o ? ((TRANSITIONS[o.status as OrderStatus] ?? []) as OrderStatus[]).filter((s) => s !== "expired" && s !== "failed") : [];
@@ -542,7 +649,18 @@ function OrderDetailModal({
               <div className="flex flex-wrap items-center gap-2">
                 <span className="rounded-[12px] bg-[#04202E] px-3 py-1.5 text-[13px] font-extrabold text-white" dir="ltr">{o.code}</span>
                 <StatusChip s={o.status} />
+                {isDemoCode(o.code) && (
+                  <span title="این ردیف با اسکریپت دمو ساخته شده — فروش واقعی نیست" className="rounded-full bg-[#F0F3F5] px-2.5 py-1 text-[11px] font-bold text-[#7C99A6]">داده دمو</span>
+                )}
                 {o.giftOpened && <span className="rounded-full bg-[#D7F5E4] px-2.5 py-1 text-[11px] font-bold text-[#2E7D53]">کارت باز شد 🎉</span>}
+                {/* UX-05 — پرش به صف رسیدها محدود به همین سفارش */}
+                <button
+                  type="button"
+                  onClick={() => requestFocus({ tab: "payments", paymentOrderCode: o.code })}
+                  className="rounded-full bg-[#E3F6FD] px-3 py-1.5 text-[11.5px] font-extrabold text-[#006387] transition-colors hover:bg-[#D6F1FB]"
+                >
+                  صف رسیدها ↰
+                </button>
               </div>
               <button type="button" onClick={onClose} aria-label="بستن" className="flex h-10 w-10 items-center justify-center rounded-full border border-[#D3E8F0] bg-white text-[#04202E]">
                 ✕
@@ -580,8 +698,8 @@ function OrderDetailModal({
             <div className="mb-4 rounded-[18px] border border-[#EDF6FA] p-4">
               <h4 className="m-0 mb-2 text-[13px] font-black text-[#04202E]">هدیه</h4>
               <div className="mb-2 flex flex-wrap gap-1.5">
-                {o.items.map((it, i) => (
-                  <span key={i} className="rounded-full bg-[#E3F6FD] px-2.5 py-1 text-[11px] font-extrabold text-[#006387]">{it.titleSnapshot} ×{fa(it.qty)}</span>
+                {o.items.map((it) => (
+                  <span key={`${it.titleSnapshot}×${it.qty}`} className="rounded-full bg-[#E3F6FD] px-2.5 py-1 text-[11px] font-extrabold text-[#006387]">{it.titleSnapshot} ×{fa(it.qty)}</span>
                 ))}
                 {(o.charmHearts > 0 || o.charmPaws > 0) && (
                   <span className="rounded-full bg-[#FFE0EA] px-2.5 py-1 text-[11px] font-extrabold text-[#B03A5B]">❤️ {fa(o.charmHearts)} · 🐾 {fa(o.charmPaws)}</span>
@@ -648,8 +766,8 @@ function OrderDetailModal({
               <div className="mb-4 rounded-[18px] border border-[#EDF6FA] p-4">
                 <h4 className="m-0 mb-2 text-[13px] font-black text-[#04202E]">تلاش‌های پرداخت</h4>
                 <div className="flex flex-col gap-1.5">
-                  {o.payments.map((p, i) => (
-                    <div key={i} className="flex flex-wrap items-center justify-between gap-2 rounded-[14px] bg-[#F5FBFD] px-3 py-2 text-[12px] font-bold text-[#4A6572]">
+                  {o.payments.map((p) => (
+                    <div key={p.id} className="flex flex-wrap items-center justify-between gap-2 rounded-[14px] bg-[#F5FBFD] px-3 py-2 text-[12px] font-bold text-[#4A6572]">
                       <span>#{fa(p.attemptNo)} — {p.method === "zarinpal" ? "زرین‌پال" : "کارت‌به‌کارت"}</span>
                       <span>{money(p.amountToman)} تومان</span>
                       {/* UX-11 — Persian payment status, not raw English */}
@@ -677,6 +795,54 @@ function OrderDetailModal({
                     </div>
                   ))}
                 </div>
+              </div>
+            )}
+
+            {/* UX-12 — کد رهگیری پست: input from «تحویل به پست» onward, shown
+                in the detail + timeline, copy-friendly for the post receipt */}
+            {TRACKING_STATUSES.has(o.status) && (
+              <div className="mb-4 rounded-[18px] border border-[#EDF6FA] p-4">
+                <h4 className="m-0 mb-2 text-[13px] font-black text-[#04202E]">کد رهگیری پست</h4>
+                <div className="flex flex-wrap items-center gap-2">
+                  <input
+                    type="text"
+                    value={trackDraft}
+                    maxLength={40}
+                    dir="ltr"
+                    onChange={(e) => setTrackDraft(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") void saveTracking();
+                    }}
+                    placeholder="مثلاً ۲۴ رقمی پست یا بارکد مرسوله"
+                    aria-label="کد رهگیری پست"
+                    className="h-10 min-w-[220px] flex-1 rounded-[14px] border-[1.5px] border-[#CFE6EF] bg-[#F8FDFF] px-3.5 text-[13px] text-[#04202E] outline-none focus:border-[#00ABE7]"
+                  />
+                  <button
+                    type="button"
+                    disabled={trackBusy || trackDraft.trim().length === 0}
+                    onClick={() => void saveTracking()}
+                    className="flex h-10 items-center rounded-full bg-[#04202E] px-4 text-[12.5px] font-extrabold text-white transition-transform active:scale-95 disabled:opacity-50"
+                  >
+                    {trackBusy ? "…" : "ذخیره کد رهگیری"}
+                  </button>
+                  {(o.postTrackingCode || trackDraft.trim()) && (
+                    <button
+                      type="button"
+                      onClick={() => void copyTracking()}
+                      className="flex h-10 items-center rounded-full border-[1.5px] border-[#CFE6EF] bg-white px-4 text-[12.5px] font-extrabold text-[#006387] transition-colors hover:bg-[#F2FAFD]"
+                    >
+                      کپی
+                    </button>
+                  )}
+                </div>
+                {o.postTrackingCode ? (
+                  <p className="m-0 mt-2 text-[11.5px] font-bold text-[#4A6572]">
+                    ثبت‌شده: <span dir="ltr" className="font-black text-[#04202E]">{o.postTrackingCode}</span>
+                    {" "}— مشتری آن را در صفحه رهگیری می‌بیند.
+                  </p>
+                ) : (
+                  <p className="m-0 mt-2 text-[11.5px] font-semibold text-[#7C99A6]">هنوز ثبت نشده — بعد از تحویل مرسوله به پست، بارکد را همین‌جا ذخیره کن.</p>
+                )}
               </div>
             )}
 

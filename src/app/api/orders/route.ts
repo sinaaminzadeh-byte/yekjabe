@@ -23,7 +23,13 @@ export async function GET() {
       orderBy: { no: "desc" },
       take: 50,
     });
-    return NextResponse.json({ orders });
+    // S-08 (audit wave 38): legacy rows carry the card code as plaintext in
+    // the `password` column — it must never reach the browser. Gift opening
+    // goes through the scrypt hash path (cardPasswordHash on v2 orders +
+    // POST /api/gifts/{code}/open), so no client reads this field.
+    return NextResponse.json({
+      orders: orders.map(({ password: _password, ...rest }) => rest),
+    });
   } catch (e) {
     const { body, status } = toErrorResponse(e);
     return NextResponse.json(body, { status });
