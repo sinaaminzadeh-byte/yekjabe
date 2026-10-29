@@ -983,3 +983,28 @@ Stage Summary:
 - بخش «تقویم مناسبت‌ها» + «نقشه مهربونی» با دو سبک قابل‌سوییچ و کاملاً تعاملی فقط به‌صورت UI ساخته شد؛ هیچ API/DB/امکانات واقعی اضافه نشد (طبق خواسته‌ی مالک: بعد از تأیید، سبک منتخب نگه داشته می‌شود و داده‌ها به DB/ادمین وصل خواهند شد).
 - نوار «🎛️ پیش‌نمایش UI — داده‌ها نمایشی است» روی سکشن هست؛ بعد از انتخاب مالک حذف می‌شود.
 - نکته فنی برای اتصال آینده: occasions باید جدول/Setting در ادمین بشود (مدیریت مناسبت‌ها) و آمار استان‌ها از Order (شهر گیرنده) تجمیع شود؛ نقشه و گرید جلالی آماده‌ی داده واقعی‌اند.
+
+---
+Task ID: 32
+Agent: main (Z.ai Code)
+Task: استقرار Vercel — علت ERROR بودن ۲۰/۲۰ دیپلوی + PostgreSQL به‌عنوان دیتابیس نهایی + تک‌برنچ شدن main/launch-v1
+
+Work Log:
+- DIAGNOSIS (Vercel API با توکن مالک — فقط در /tmp، هیچ‌وقت در ریپو): هر ۲۰ دیپلوی از راند ۲۴ به بعد ERROR با «bun run build exited 1»؛ خطای واقعی: TS error `ordererFirstName does not exist` در api/admin/orders/route.ts:46. ریشه: روی Vercel هرگز `prisma generate` اجرا نمی‌شد و `next build` به‌جای کلاینت تازه، تایپ‌های stale از build cache (اسکیمای قدیمی قبل از فیلدهای orderer راند ۲۶) را type-check می‌کرد → سایت production روی نسخه‌ی کهن قفل شده بود (همان «نسخه نمایشی فایل‌های قبلی» از نگاه مالک).
+- کشف دوم: `prisma/schema.postgres.prisma` دست‌نویس از راند‌های اول با اسکیمای واقعی هم‌گام نبود — GiftOrder/SmsTemplate/RetentionRenewal را نداشت و VoiceNote/RateBucket از خودش داشت.
+- کشف سوم: برنچ محلی launch-v1 سه کامیت عقب‌تر از origin بود (343bb17 در برابر 73a68c2) — همان «قاطی شدن» که مالک می‌ترسید؛ با push صحیح + track تازه هر دو برنچ اکنون روی یک کامیت‌اند و main برنچ production رسمی Vercel است (target=production ref=main ✓).
+- FIXES (کامیت 5b8dd86):
+  • scripts/prisma-boot.mjs به‌عنوان postinstall: انتخاب اسکیما از روی پروتکل DATABASE_URL (postgres→schema.postgres.prisma / file→SQLite) + generate تازه — دیگر هیچ buildی با کلاینت stale تایپ‌چک نمی‌شود.
+  • scripts/sync-pg-schema.mjs + `bun run pg:sync`: بازتولید خودکار اسکیمای PG از schema.prisma (تک‌منبع حقیقت، ۲۳ مدل).
+  • scripts/prebuild.mjs در ابتدای `build`: روی PostgreSQL → `prisma db push` + seedهای idempotent (commerce+blog) قبل از next build؛ روی SQLite محلی no-op.
+  • scripts/post-build.mjs: زنجیره‌ی cp standalone گارد شد (روی Vercel skip، وگرنه cp crash می‌کرد)؛ next.config هم روی VERCEL بدون output:standalone بیلد می‌شود.
+- ENV روی Vercel (production+preview+development): SITE_URL=https://yekdoost-zeta.vercel.app، SESSION_SECRET/CRON_SECRET/ADMIN_PANEL_PASSWORD تصادفی — مقادیر فقط در /tmp/yekdoost-prod-secrets.txt (هرگز در ریپو نیستند؛ مالک باید رمز ادمین را جایی امن نگه دارد).
+- DATABASE_URL موجود روی Vercel = **Prisma Postgres** (db.prisma.io:5432) — یعنی PostgreSQL واقعی، دقیقاً طبق خواسته‌ی مالک؛ db push موفق، seed موفق (products:10 settings:11 posts:3 experiences:2).
+- /verify: route.ts که در این راند دوباره اضافه کرده بودم حذف شد — مکانیزم واقعی deep-link از راند ۲۳ همان src/proxy.ts (rewrite همه‌ی مسیرها به shell) + hash-route.ts (خواندن pathname) است؛ route مستقل زیر سایه‌ی proxy هرگز اجرا نمی‌شد. تست زنده: /verify شِل SPA را می‌دهد و router صفحه‌ی verify را نشان می‌دهد.
+- استقرار: push → دیپلوی production از 5b8dd86 **READY** در ۶۵ ثانیه؛ alias روی yekdoost-zeta.vercel.app ✓. تست‌های اولیه: GET / → 200 شِل SPA؛ /api/home-content → slides واقعی از PG ✓ (خواندن دیتابیس production سالم).
+- نکته‌ی بیلد جدید: پیش از push، `bunx tsc --noEmit` محلی صفر خطا (کلاینت sqlite = تایپ‌های PG، چون مدل‌ها یکسان شدند).
+
+Stage Summary:
+- خط لوله استقرار Vercel سالم شد: هر push به main = دیپلوی production خودکار با PG واقعی + seed خودکار؛ launch-v1 فقط mirror است (preview deploy).
+- مالک باید بعداً روی Vercel اضافه کند: IPPANEL_API_KEY/IPPANEL_SENDER/OWNER_MOBILE (پیامک واقعی OTP — بدون آن در production صف پیامک fail می‌شود)، ZARINPAL_MERCHANT_ID (فعلاً simulate فعال است)، و بعداً S3 برای مدیای خصوصی.
+- محدودیت شناخته‌شده: tick دقیقه‌ای instrumentation فقط روی lambda گرم اجرا می‌شود؛ برای انقضای رزرو ۱۰دقیقه‌ای/تخلیه‌ی صف SMS در production بهتر است یک pinger خارجی هر دقیقه /api/jobs/minutely را با x-cron-secret بزند (یا Vercel Cron).
