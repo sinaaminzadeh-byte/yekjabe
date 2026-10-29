@@ -9,6 +9,16 @@ export async function register() {
   // bundled handler skips instrumentation.register(). It runs synchronously
   // from src/lib/db.ts (via src/lib/sqlite-serverless.ts) instead.
 
+  // ── S-01 (audit wave 37): نگهبان سکرت‌های پروداکشن ──
+  // در production اگر SESSION_SECRET / ADMIN_PANEL_PASSWORD / CRON_SECRET
+  // غایب یا برابر پیش‌فرض عمومی باشند، بالا آمدن سرور همین‌جا با خطای بلند
+  // رد می‌شود (سایت بی‌دفاع سروِ نمی‌شود). در dev و در فاز build کاری نمی‌کند.
+  // جزئیات و درِ دوم (getter های env) → src/lib/env.ts
+  if (process.env.NEXT_PHASE !== "phase-production-build") {
+    const { assertProdSecrets } = await import("@/lib/env");
+    assertProdSecrets();
+  }
+
   if (process.env.INTERNAL_CRON === "0") return;
   if (process.env.NEXT_PHASE === "phase-production-build") return;
 

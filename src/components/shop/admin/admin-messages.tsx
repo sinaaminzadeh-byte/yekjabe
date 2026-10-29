@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { fa } from "@/lib/fa";
 import { useToast } from "@/hooks/use-toast";
 import { jalaliDateTime, timeAgoFa } from "./admin-shared";
+import { adminFetch, invalidateAdminCache } from "./admin-cache";
 
 interface Msg {
   id: string;
@@ -28,9 +29,8 @@ export function MessagesTab({ onChanged }: { onChanged?: () => void }) {
   const { toast } = useToast();
 
   const load = () =>
-    fetch("/api/admin/messages", { cache: "no-store" })
-      .then((r) => (r.ok ? r.json() : Promise.reject()))
-      .then((j: { messages: Msg[] }) => {
+    adminFetch<{ messages: Msg[] }>("/api/admin/messages")
+      .then((j) => {
         setMsgs(j.messages);
         setSel((cur) => cur ?? j.messages.find((m) => !m.read)?.id ?? j.messages[0]?.id ?? null);
       })
@@ -54,6 +54,7 @@ export function MessagesTab({ onChanged }: { onChanged?: () => void }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id: m.id, read: true }),
       }).catch(() => {});
+      invalidateAdminCache();
       onChanged?.();
     }
   };

@@ -330,6 +330,7 @@ model Order {
   @@index([recipientPhone])
   @@index([status, expiresAt])
   @@index([messagePurgeStatus, messageExpiresAt])
+  @@index([createdAt(sort: Desc)])
 }
 
 model OrderItem {
@@ -359,6 +360,7 @@ model OrderEvent {
   createdAt  DateTime @default(now())
 
   @@index([orderId, createdAt])
+  @@index([createdAt(sort: Desc)])
 }
 
 model Payment {

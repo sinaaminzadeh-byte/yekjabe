@@ -41,15 +41,19 @@ export function isViewableStatus(status: string): boolean {
  * براش ثبت شده یا نه»: the display page asks this BEFORE spending an SMS.
  * Counts only (no PII, no content):
  *  - viewable: shipped | delivered  → پیام‌ها الان قابل باز شدن‌اند
- *  - pending : paid | packing       → جعبه آماده/در حال ارسال است
- * awaiting_payment / expired / cancelled never count — an unpaid or dead
- * order must not reveal that a gift was ever drafted for this phone.
+ *  - pending : paid | preparing     → جعبه آماده/در حال ارسال است
+ * S-13 (audit wave 37): «packing» غلط تایپی بود — استاتوس واقعی جدول Order
+ * در همین مرحله «preparing» است (src/lib/orders/status.ts) و با نام قبلی
+ * سفارش‌های «در حال آماده‌سازی» از شمارش هدیه‌های در راه جا می‌ماندند.
+ * awaiting_payment / payment_under_review / expired / cancelled never count —
+ * an unpaid or dead order must not reveal that a gift was ever drafted for
+ * this phone.
  */
 export async function recipientPackageCounts(phone: string): Promise<{ viewable: number; pending: number }> {
   const { db } = await import("../db");
   const [viewable, pending] = await Promise.all([
     db.order.count({ where: { recipientPhone: phone, status: { in: ["shipped", "delivered"] } } }),
-    db.order.count({ where: { recipientPhone: phone, status: { in: ["paid", "packing"] } } }),
+    db.order.count({ where: { recipientPhone: phone, status: { in: ["paid", "preparing"] } } }),
   ]);
   return { viewable, pending };
 }

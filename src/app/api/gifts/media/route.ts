@@ -3,13 +3,17 @@
 // prepared (awaiting_payment → preparing). Proof = code + Idempotency-Key pair
 // (the same secret that created the order — works for guests AND accounts).
 // GET : stream a file — ONLY to the session whose phone matches recipientPhone
-//       (viewable status + not expired) or the order's own sender (preview).
-//       Anonymous mode changes nothing here: files belong to the gift, not the
-//       sender identity; senderName/phone never appear in any response.
+//       (viewable status + not expired) or the order's own sender (preview),
+//       OR to an authenticated admin seat (UX-01: پنل مدیریت must be able to
+//       open the gifts' attachments; requireAdmin from src/lib/auth/session).
+//       ?download=1 forces Content-Disposition: attachment (the دانلود button);
+//       default stays inline. Anonymous mode changes nothing here: files belong
+//       to the gift, not the sender identity; senderName/phone never appear in
+//       any response.
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { AppError, toErrorResponse } from "@/lib/errors";
-import { assertSameOrigin, getSession } from "@/lib/auth/session";
+import { assertSameOrigin, getSession, requireAdmin } from "@/lib/auth/session";
 import { clientIp, isRateLimited, rateLimit } from "@/lib/rate-limit";
 import {
   MESSAGE_MEDIA_MAX_BYTES,
@@ -112,16 +116,29 @@ export async function GET(req: Request) {
       order.recipientPhone === session?.phone &&
       isViewableStatus(order.status) &&
       !isMessageExpired(order); // expired media dies for the recipient — even before purge
-    if (!isSender && !isRecipient) throw new AppError(404, "not_found");
+
+    // UX-01 — admin seats may open ANY attachment (inline, like the customer view)
+    let isAdmin = false;
+    if (!isSender && !isRecipient) {
+      try {
+        await requireAdmin();
+        isAdmin = true;
+      } catch {
+        isAdmin = false;
+      }
+    }
+    if (!isSender && !isRecipient && !isAdmin) throw new AppError(404, "not_found");
 
     const buf = await readMessageFile(key);
     if (!buf) throw new AppError(404, "not_found");
+    const download = new URL(req.url).searchParams.get("download") === "1";
+    const filename = key.split("/").pop() ?? "attachment";
     return new NextResponse(new Uint8Array(buf), {
       headers: {
         "Content-Type": mimeFromKey(key),
         "Content-Length": String(buf.length),
         "Cache-Control": "private, no-store",
-        "Content-Disposition": "inline",
+        "Content-Disposition": `${download ? "attachment" : "inline"}; filename="${filename}"`,
         "X-Content-Type-Options": "nosniff",
       },
     });

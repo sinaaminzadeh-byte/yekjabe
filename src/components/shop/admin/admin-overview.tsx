@@ -8,6 +8,7 @@ import { fa, money } from "@/lib/fa";
 import { useToast } from "@/hooks/use-toast";
 import { RevenueBars, StatusDonut, HBars } from "./admin-charts";
 import type { Tab } from "./admin-nav";
+import { adminFetch } from "./admin-cache";
 
 interface OverviewData {
   generatedAt: string;
@@ -116,14 +117,10 @@ export function OverviewTab({ onNavigate }: { onNavigate: (t: Tab) => void }) {
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
 
-  const load = (silent = false) => {
+  const load = (silent = false, fresh = false) => {
     if (!silent) setLoading(true);
-    fetch("/api/admin/overview", { cache: "no-store" })
-      .then((r) => {
-        if (!r.ok) throw new Error();
-        return r.json();
-      })
-      .then((j: OverviewData) => {
+    adminFetch<OverviewData>("/api/admin/overview", { fresh })
+      .then((j) => {
         setData(j);
         setErr(false);
       })
@@ -174,6 +171,17 @@ export function OverviewTab({ onNavigate }: { onNavigate: (t: Tab) => void }) {
 
   return (
     <div className="flex flex-col gap-4">
+      {/* manual refresh — bypasses the shared TTL cache */}
+      <div className="flex justify-end">
+        <button
+          type="button"
+          onClick={() => load(false, true)}
+          className="flex h-9 items-center gap-1.5 rounded-full border border-[#CFE6EF] bg-white px-3.5 text-[11.5px] font-extrabold text-[#006387] hover:bg-[#F2FAFD]"
+        >
+          <span aria-hidden="true">↻</span> تازه‌سازی داشبورد
+        </button>
+      </div>
+
       {/* ── KPI row 1: money ── */}
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
         <KpiCard

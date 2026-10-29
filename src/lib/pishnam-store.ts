@@ -614,12 +614,17 @@ export const usePishnam = create<PishnamState>()(
 
           // message media (mission §۱/§۴) — private upload BEFORE any redirect:
           // the zarinpal path navigates away immediately, so files must land first.
-          const metas = get().mediaFiles;
-          if (metas.length > 0) {
+          // A-05 (audit wave 37): فقط متاهایی که File واقعی در حافظه دارند
+          // قابل آپلودند؛ بقیه «فایل‌های روح» هستند (متابعد از رفرش صفحه
+          // File از بین رفته) — همین‌جا از state حذف می‌شوند تا شمارنده‌ها و
+          // mediaCount سفارش، صادقانه با واقعیت یکی باشند (دیگر skipِ بی‌صدا نیست).
+          const uploadable = get().mediaFiles.filter((m) => mediaFileMap.has(m.id));
+          if (uploadable.length !== get().mediaFiles.length) set({ mediaFiles: uploadable });
+          if (uploadable.length > 0) {
             await Promise.all(
-              metas.map(async (m) => {
+              uploadable.map(async (m) => {
                 const file = getMediaFile(m.id);
-                if (!file) return;
+                if (!file) return; // unreachable after the filter — defense in depth
                 try {
                   const form = new FormData();
                   form.set("code", ack.code);
@@ -660,11 +665,29 @@ export const usePishnam = create<PishnamState>()(
             status2: ack.status,
             retentionPlan: s.retention,
             messageState: "unopened",
-            mediaCount: metas.length,
+            mediaCount: uploadable.length,
             v2: true,
           };
           const rest = get().orders.filter((o) => o.id !== mirrored.id);
           set({ orders: [mirrored, ...rest], nextNo: Math.max(get().nextNo, mirrored.no + 1) });
+
+          // A-05 (audit wave 37): سفارش با موفقیت ثبت شد → پیش‌نویسِ خصوصی پاک
+          // می‌شود تا پیام هدیه، نام/شماره/آدرس گیرنده و مدیای خصوصی برای همیشه
+          // در localStorage نم‌انند (اشتراک دستگاه = لو رفتن حریم خصوصی).
+          // ردیف سفارشِ محلی (mirrored) مقادیر را کپی کرده و صفحهٔ موفقیت و
+          // «هدیه‌هام» به همان ردیف تکیه می‌کنند — نه به فیلدهای پیش‌نویس.
+          // orderer (سبد خریدار) عمداً می‌ماند — همان قانون resetBuilder:
+          // هویت خریدار به حساب چسبیده، نه به هدیه.
+          clearMediaFiles();
+          set({
+            message: "",
+            receiver: DEFAULT_RECEIVER,
+            senderName: "",
+            senderPhrase: "",
+            mediaFiles: [],
+            photoAdded: false,
+            videoAdded: false,
+          });
           return { ok: true, ack };
         } catch {
           return { ok: false, error: "network" };
@@ -764,6 +787,27 @@ export const usePishnam = create<PishnamState>()(
       name: "pishnam-app",
       storage: createJSONStorage(() => localStorage),
       version: 6,
+      // A-05 (audit wave 37) — rehydration sanitizer:
+      // File objects هرگز از یک رفرش جان سالم به در نمی‌برند (در mediaFileMap
+      // حافظه‌ای زندگی می‌کنند). اگر متای مدیا در persisted state مانده باشد ولی
+      // File واقعی‌اش در حافظه نباشد، یعنی «فایل روح» است: عکس/ویدیویی که کاربر
+      // انتخاب کرده ولی دیگر وجود ندارد. قبلاً همین متاهای مرده بی‌صدا در ثبت
+      // نهایی skip می‌شدند و سفارش بدون عکسِ وعده‌داده‌شده می‌رفت. حالا در همان
+      // لحظهٔ hydrate از state حذف می‌شوند تا شمارنده‌ها و UI صادق بمانند.
+      merge: (persisted, current) => {
+        const p = (persisted ?? {}) as Partial<PishnamState>;
+        const files = Array.isArray(p.mediaFiles)
+          ? p.mediaFiles.filter((m) => mediaFileMap.has(m.id))
+          : [];
+        return {
+          ...current,
+          ...p,
+          mediaFiles: files,
+          // پرچم‌های «عکس/فیلم اضافه کردم» هم فقط وقتی زنده‌اند که فایل واقعی باشد
+          photoAdded: files.some((m) => m.kind === "image"),
+          videoAdded: files.some((m) => m.kind !== "image"),
+        };
+      },
       // v2→v3: sender privacy + retention + addons + media meta (fresh defaults)
       // v3→v4: BUGFIX — persisted 5 hearts/3 paws defaults auto-charged every
       // visitor 8 paid charms; force them back to opt-in zero on upgrade.

@@ -6,6 +6,27 @@ import { db } from "@/lib/db";
 import { AppError, toErrorResponse } from "@/lib/errors";
 import { requireAdmin } from "@/lib/auth/session";
 
+// Admin-side media-key validator (UX-01). The customer upload path keeps its
+// strict PN-\d{6}-\d{4} regex in lib/orders/message-media.ts — untouched. This
+// list-membership check is only for READING stored attachments in the panel
+// (no traversal: no "..", must live under the order's own messages/ folder).
+const MEDIA_EXT = new Set(["jpg", "png", "webp", "mp4", "webm", "mp3", "wav", "ogg", "m4a"]);
+function parseAdminMediaKeys(orderCode: string, json: string): string[] {
+  try {
+    const arr: unknown = JSON.parse(json);
+    if (!Array.isArray(arr)) return [];
+    return arr.filter(
+      (k): k is string =>
+        typeof k === "string" &&
+        !k.includes("..") &&
+        k.startsWith(`messages/${orderCode}/`) &&
+        MEDIA_EXT.has(k.split(".").pop() ?? ""),
+    );
+  } catch {
+    return [];
+  }
+}
+
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   try {
@@ -14,7 +35,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
       where: { id },
       include: {
         items: { select: { titleSnapshot: true, unitPriceToman: true, qty: true } },
-        payments: { orderBy: { createdAt: "asc" }, select: { method: true, status: true, attemptNo: true, amountToman: true, refId: true, createdAt: true } },
+        payments: { orderBy: { createdAt: "asc" }, select: { id: true, method: true, status: true, attemptNo: true, amountToman: true, refId: true, receiptKey: true, createdAt: true } },
         events: { orderBy: { createdAt: "asc" }, take: 60 },
         renewals: { orderBy: { createdAt: "desc" }, select: { code: true, plan: true, priceToman: true, status: true, createdAt: true } },
       },
@@ -44,6 +65,9 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
         charmHearts: o.charmHearts,
         charmPaws: o.charmPaws,
         mediaCount: o.mediaCount,
+        // UX-01: the admin must SEE the attachments, not just their count —
+        // the modal gallery streams each key through /api/gifts/media (admin branch)
+        mediaKeys: parseAdminMediaKeys(o.code, o.mediaKeys),
         retentionPlan: o.retentionPlan,
         messageShownAt: o.messageShownAt,
         messageExpiresAt: o.messageExpiresAt,
@@ -61,7 +85,16 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
         expiresAt: o.expiresAt,
         createdAt: o.createdAt,
         items: o.items,
-        payments: o.payments,
+        payments: o.payments.map((p) => ({
+          id: p.id,
+          method: p.method,
+          status: p.status,
+          attemptNo: p.attemptNo,
+          amountToman: p.amountToman,
+          refId: p.refId,
+          hasReceipt: Boolean(p.receiptKey),
+          createdAt: p.createdAt,
+        })),
         renewals: o.renewals,
         events: o.events.map((e) => ({
           id: e.id,

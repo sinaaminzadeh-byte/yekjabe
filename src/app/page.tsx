@@ -2,6 +2,7 @@
 
 // ── Pishnam — the real gift web-app (UI rebuilt in React from the design system) ──
 import { useEffect } from "react";
+import dynamic from "next/dynamic";
 import { useHashRoute, navigate } from "@/lib/hash-route";
 import { useHasMounted } from "@/hooks/use-has-mounted";
 import { bootSync } from "@/lib/pishnam-sync";
@@ -24,7 +25,6 @@ import {
 import { GiftExperience } from "@/components/shop/screens/gift-experience";
 import { VerifyScreen, GiftViewScreen } from "@/components/shop/screens/verify";
 import { MobileTrack, DesktopTrack } from "@/components/shop/screens/track";
-import { AdminScreen } from "@/components/shop/screens/admin";
 import { PayGateway } from "@/components/shop/screens/pay-gateway";
 import { StoriesScreen } from "@/components/shop/screens/stories";
 import { BlogIndex, PostScreen } from "@/components/shop/screens/blog";
@@ -36,6 +36,23 @@ import {
   ReviewsPage,
   ShippingPage,
 } from "@/components/shop/screens/info";
+
+// ── P-07 (audit wave 37): پنل مدیریت فقط برای مدیر بارگیری می‌شود ──
+// پیش از این AdminScreen استاتیک import شده بود و کل کدِ پنل ادمین در باندل
+// اصلیِ «هر بازدیدکننده» دانلود می‌شد. با next/dynamic (همان الگوی
+// blog-studio → mdx-core) پنل به یک chunk جدا می‌رود و فقط وقتی مسیر #/admin
+// باز شود لود می‌شود. ssr:false چون کل اپ بعد از mount رندر می‌شود.
+const AdminScreen = dynamic(
+  () => import("@/components/shop/screens/admin").then((m) => m.AdminScreen),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="flex min-h-[60vh] animate-pulse items-center justify-center text-sm font-bold text-[#4A6572]">
+        در حال آماده‌سازی پنل مدیریت…
+      </div>
+    ),
+  },
+);
 
 export default function PishnamApp() {
   // The app is state-driven (persisted store + hash route): until hydration

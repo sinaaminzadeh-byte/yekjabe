@@ -5,6 +5,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { fa, money } from "@/lib/fa";
 import { jalaliDate } from "./admin-shared";
+import { adminFetch } from "./admin-cache";
 
 interface CustomerRow {
   phone: string;
@@ -38,12 +39,10 @@ export function CustomersTab() {
   useEffect(() => {
     const t = setTimeout(
       () =>
-        fetch(`/api/admin/customers?q=${encodeURIComponent(q)}`, { cache: "no-store" })
-          .then((r) => {
-            if (!r.ok) throw new Error();
-            return r.json();
-          })
-          .then((j: { customers: CustomerRow[]; total: number; totalSpent: number; registered: number }) => {
+        adminFetch<{ customers: CustomerRow[]; total: number; totalSpent: number; registered: number }>(
+          `/api/admin/customers?q=${encodeURIComponent(q)}`,
+        )
+          .then((j) => {
             setRows(j.customers);
             setMeta({ total: j.total, totalSpent: j.totalSpent, registered: j.registered });
             setErr(false);

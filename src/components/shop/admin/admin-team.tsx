@@ -7,6 +7,7 @@ import { useEffect, useState } from "react";
 import { fa } from "@/lib/fa";
 import { useToast } from "@/hooks/use-toast";
 import { jalaliDateTime } from "./admin-shared";
+import { adminFetch, invalidateAdminCache } from "./admin-cache";
 
 interface Seat {
   id: string;
@@ -26,9 +27,8 @@ export function TeamTab() {
   const { toast } = useToast();
 
   const load = () =>
-    fetch("/api/admin/team", { cache: "no-store" })
-      .then((r) => (r.ok ? r.json() : Promise.reject()))
-      .then((j: { seats: Seat[] }) => setSeats(j.seats))
+    adminFetch<{ seats: Seat[] }>("/api/admin/team")
+      .then((j) => setSeats(j.seats))
       .catch(() => setSeats([]));
 
   useEffect(() => {
@@ -58,6 +58,7 @@ export function TeamTab() {
         setPhone("");
         setName("");
         setRole("operator");
+        invalidateAdminCache();
         await load();
       }
     } catch {
@@ -81,6 +82,7 @@ export function TeamTab() {
         });
         return;
       }
+      invalidateAdminCache();
       await load();
       toast({ title: "ثبت شد ✓" });
     } catch {
@@ -97,6 +99,7 @@ export function TeamTab() {
         return;
       }
       toast({ title: j.deactivated ? "به‌جای حذف، غیرفعال شد (آخرین ادمین)" : "حذف شد ✓" });
+      invalidateAdminCache();
       await load();
     } catch {
       toast({ title: "خطای شبکه" });
