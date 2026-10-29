@@ -7,7 +7,7 @@
 // Files are content-named → Cache-Control immutable; deletion invalidates via 404.
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { readPublicMedia, isSafeMediaFilename } from "@/lib/media";
+import { readPublicMedia, isSafeMediaFilename, publicMediaFallback } from "@/lib/media";
 
 export async function GET(_req: Request, { params }: { params: Promise<{ key: string[] }> }) {
   const { key } = await params;
@@ -33,14 +33,22 @@ export async function GET(_req: Request, { params }: { params: Promise<{ key: st
     }
 
     const asset = await readPublicMedia(storageKey);
-    if (!asset) return new NextResponse("not found", { status: 404 });
-    return new NextResponse(new Uint8Array(asset.buf), {
-      headers: {
-        "Content-Type": asset.mime,
-        "Cache-Control": "public, max-age=31536000, immutable",
-        "X-Content-Type-Options": "nosniff",
-      },
-    });
+    if (asset) {
+      return new NextResponse(new Uint8Array(asset.buf), {
+        headers: {
+          "Content-Type": asset.mime,
+          "Cache-Control": "public, max-age=31536000, immutable",
+          "X-Content-Type-Options": "nosniff",
+        },
+      });
+    }
+    // File missing on this instance's disk (ephemeral serverless /tmp after a
+    // cold start) — fall back to the copy bundled into /public at build time.
+    // Relative Location: RFC 7231 allows it and it sidesteps any internal-host
+    // mismatch between the lambda's req.url and the public site URL.
+    const fallback = publicMediaFallback(storageKey);
+    if (fallback) return new NextResponse(null, { status: 307, headers: { Location: fallback } });
+    return new NextResponse("not found", { status: 404 });
   } catch {
     return new NextResponse("not found", { status: 404 });
   }

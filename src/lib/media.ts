@@ -92,6 +92,32 @@ export function isSafeMediaFilename(file: string): boolean {
   return /^[A-Za-z0-9._-]{1,120}\.(jpg|png|webp)$/.test(file) && !file.includes("..");
 }
 
+/**
+ * Static-bundle fallback for SEEDED media (round 34 deploy fix): prebuild
+ * copies scripts/img34 → public/media-defaults/… so serverless filesystems
+ * (Vercel lambda — ephemeral disk) can still serve the default galleries,
+ * blog covers and the default logo through a static redirect, while admin
+ * uploads keep streaming from the data root.
+ *   products/<cuid>-<stem>.<ext> → /media-defaults/products/<stem>.<ext>
+ *   posts/<file> | branding/<file> → /media-defaults/<folder>/<file>
+ * Returns null for keys that can never map to a bundled default.
+ */
+export function publicMediaFallback(key: string): string | null {
+  if (key.includes("..")) return null;
+  const slash = key.indexOf("/");
+  if (slash <= 0) return null;
+  const folder = key.slice(0, slash);
+  const file = key.slice(slash + 1);
+  if (!isSafeMediaFilename(file)) return null;
+  if (folder === "posts" || folder === "branding") return `/media-defaults/${folder}/${file}`;
+  if (folder === "products") {
+    const dash = file.indexOf("-");
+    const stem = dash > 0 ? file.slice(dash + 1) : file; // strip the <productId>- prefix
+    return isSafeMediaFilename(stem) ? `/media-defaults/products/${stem}` : null;
+  }
+  return null;
+}
+
 /** Parses the refundPhotos JSON column — never trusts the shape. */
 export function parsePhotoKeys(json: string): string[] {
   try {
