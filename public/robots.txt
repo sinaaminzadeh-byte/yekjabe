@@ -12,3 +12,6 @@ Allow: /
 
 User-agent: *
 Allow: /
+
+# Sitemap (round 34-h)
+Sitemap: https://yekdoost.ir/sitemap.xml

@@ -389,7 +389,7 @@ export async function zarinpalCreate(orderCode: string, totalToman: number): Pro
       merchant_id: env.ZARINPAL_MERCHANT_ID,
       amount: totalToman * 10, // IRR ×10 — NEVER remove (critic trap)
       callback_url: `${env.SITE_URL}/api/payment/zarinpal/callback`,
-      description: `یک دوست — سفارش ${orderCode}`,
+      description: `جعبه آبی — سفارش ${orderCode}`,
     }),
     signal: AbortSignal.timeout(12000),
   });

@@ -87,7 +87,7 @@ export function DesktopHeader() {
   return (
     <header className="sticky top-0 z-40 border-b border-[#D3E8F0] bg-[#F2FAFD]/95 backdrop-blur">
       <div className="mx-auto flex w-full max-w-[1200px] flex-wrap items-center justify-between gap-y-3 px-6 py-3">
-        <button type="button" onClick={() => navigate("home")} aria-label="یک دوست — خانه">
+        <button type="button" onClick={() => navigate("home")} aria-label="لوگوی جعبه آبی — خانه">
           <Logo size={46} />
         </button>
         <nav aria-label="منوی اصلی" className="flex flex-wrap items-center gap-x-6 text-[15px] font-bold">
@@ -140,7 +140,7 @@ export function DesktopHeader() {
             onClick={() => navigate("pick")}
             className="flex h-12 items-center rounded-full bg-[#04202E] px-6 text-[15px] font-extrabold text-white transition-transform hover:scale-[1.03]"
           >
-            بساز و بفرست
+            جعبه آبی‌تو بساز
           </button>
         </div>
       </div>

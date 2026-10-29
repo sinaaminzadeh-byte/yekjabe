@@ -44,6 +44,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "
 import type { CatalogEntry } from "@/lib/pishnam-store";
 import { FavHeart, FavFilterChips, SurpriseButton } from "@/components/shop/fav";
 import { MessageIdeas } from "@/components/shop/ideas";
+import { AttrsBlock, Gallery, entryCover } from "../gallery";
 
 /* tiny numbered chip for the in-step subsections (قدم ۱ = بخش ۱ و ۲ سبد قبلی) */
 function SubNum({ n, title }: { n: string; title: string }) {
@@ -107,7 +108,7 @@ export function MobilePick() {
   const PRIVACY_OPTIONS: { key: SenderDisplayMode; title: string; sub: string; emoji: string }[] = [
     { key: "name", title: "اسمم نمایش داده بشه", sub: senderName || user?.name || "اسم خودت", emoji: "🙂" },
     { key: "phrase", title: "یه عبارت دلخواه", sub: senderPhrase || "مثلاً: از طرف همسرت", emoji: "✍️" },
-    { key: "anon", title: "کاملاً ناشناس", sub: "یک هدیه برای تو", emoji: "🎁" },
+    { key: "anon", title: "کاملاً ناشناس", sub: "یه هدیه برای تو", emoji: "🎁" },
   ];
 
   return (
@@ -484,69 +485,111 @@ export function MobileExtras() {
             <h2 className="m-0 text-lg font-black">افزودنی‌ها</h2>
             <span className="text-[12px] font-bold text-[#4A6572]">کنار هدیه‌ت بذاریم تو جعبه</span>
           </div>
-          <div className="mt-2.5 flex flex-col gap-2.5">
+          {/* round 34: modern 2-col product cards — whole card opens the
+           * detail sheet; + / Counter live in the card's bottom row */}
+          <div className="mt-2.5 grid grid-cols-2 gap-3">
             {catalogAddons.map((a) => {
               const q = addonQty(a.variantId);
               const out = !a.inStock;
+              const on = q > 0;
+              const imgs = a.images ?? [];
+              const cover = entryCover(a);
               return (
                 <div
                   key={a.variantId}
-                  className="flex items-center gap-3 rounded-[24px] border-[1.5px] bg-white p-3"
-                  style={{ borderColor: q > 0 ? "#9FD9F0" : "#DDEEF5", opacity: out ? 0.6 : 1 }}
+                  role="button"
+                  tabIndex={0}
+                  aria-label={`جزئیات و عکس ${a.name}`}
+                  onClick={() => setDetail(a)}
+                  onKeyDown={(e) => {
+                    if (e.target !== e.currentTarget) return;
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      setDetail(a);
+                    }
+                  }}
+                  className={`relative flex cursor-pointer flex-col rounded-[24px] border-[1.5px] bg-white p-2 pb-2.5 text-right outline-none transition-all focus-visible:ring-2 focus-visible:ring-[#00ABE7] ${
+                    on ? "border-[#00ABE7] ring-2 ring-[#00ABE7]/15" : "border-[#DDEEF5]"
+                  }`}
+                  style={{ opacity: out ? 0.6 : 1 }}
                 >
-                  <button
-                    type="button"
-                    onClick={() => setDetail(a)}
-                    aria-label={`جزئیات و عکس ${a.name}`}
-                    className="flex min-w-0 flex-1 items-center gap-3 text-right"
-                  >
-                    <div className="flex h-[68px] w-[68px] shrink-0 items-center justify-center overflow-hidden rounded-[18px] bg-[#F2FAFD] text-[26px]">
-                      {a.image ? (
-                        <img src={a.image} alt={a.name} className="h-full w-full object-cover" />
-                      ) : (
-                        <span aria-hidden="true">{a.emoji || "🎁"}</span>
-                      )}
-                    </div>
-                    <span className="flex min-w-0 flex-1 flex-col items-start gap-1">
-                      <span className="w-full truncate text-[15px] font-black leading-[1.7] text-[#04202E]">{a.name}</span>
-                      {out ? (
-                        <span className="text-[13.5px] font-black text-[#4A6572] opacity-70">فعلاً ناموجوده</span>
-                      ) : (
-                        <span className="flex items-baseline gap-1">
-                          <span className="text-[15.5px] font-black text-[#04202E]">{money(a.priceToman)}</span>
-                          <span className="text-[10.5px] font-bold text-[#4A6572]">تومان</span>
-                        </span>
-                      )}
-                      <span className="flex items-center gap-0.5 text-[11px] font-extrabold text-[#0087B8]">
-                        جزئیات و عکس
-                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                          <path d="M15 6l-6 6 6 6" />
-                        </svg>
-                      </span>
+                  {on && (
+                    <span className="absolute right-2.5 top-2.5 z-10 flex h-6 w-6 items-center justify-center rounded-full bg-[#00ABE7] shadow-[0_4px_10px_rgba(0,171,231,0.35)]">
+                      <CheckIcon size={13} stroke="#fff" />
                     </span>
-                  </button>
-                  {out ? (
-                    <span className="shrink-0 rounded-full bg-[#F2FAFD] px-3 py-2 text-[11px] font-extrabold text-[#4A6572]">ناموجوده</span>
-                  ) : q === 0 ? (
-                    <button
-                      type="button"
-                      onClick={() => addAddon(a.variantId)}
-                      aria-label={`افزودن ${a.name} کنار هدیه`}
-                      className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#00ABE7] text-[22px] font-black leading-none text-white transition-transform active:scale-90"
-                    >
-                      +
-                    </button>
-                  ) : (
-                    <Counter
-                      value={q}
-                      onMinus={() => (q === 1 ? removeAddon(a.variantId) : addAddon(a.variantId))}
-                      onPlus={() => addAddon(a.variantId)}
-                      minusLabel="کمتر"
-                      plusLabel="بیشتر"
-                      plusBg="#00ABE7"
-                      plusStroke="#04202E"
-                    />
                   )}
+                  {/* square image — gallery → legacy photo → emoji+gradient */}
+                  <div className="relative aspect-square overflow-hidden rounded-[20px] bg-[#F2FAFD]">
+                    {cover ? (
+                      <img src={cover} alt={a.name} loading="lazy" className="h-full w-full object-cover" />
+                    ) : (
+                      <span
+                        className="flex h-full w-full items-center justify-center bg-[linear-gradient(135deg,#E3F6FD_0%,#F7FBFD_55%,#FFF1F5_100%)] text-4xl"
+                        aria-hidden="true"
+                      >
+                        {a.emoji || "🎁"}
+                      </span>
+                    )}
+                    {imgs.length > 1 && (
+                      <span className="absolute left-2 top-2 rounded-full bg-white/90 px-2 py-0.5 text-[10px] font-extrabold text-[#04202E]">
+                        عکس +{fa(imgs.length - 1)}
+                      </span>
+                    )}
+                    {out && (
+                      <span className="absolute inset-0 flex items-center justify-center">
+                        <span className="rounded-full bg-white/90 px-3 py-1 text-[11px] font-extrabold text-[#04202E]">ناموجوده</span>
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex min-w-0 flex-1 flex-col gap-1 px-1 pt-2">
+                    <span className="line-clamp-2 min-h-[3.2em] text-[14px] font-black leading-[1.6] text-[#04202E]">{a.name}</span>
+                    {!out && q > 0 ? (
+                      /* selected: price above, full-width counter below — they
+                       * can't share one row inside a 2-col card (round 34 QA fix) */
+                      <div className="mt-auto flex flex-col gap-1.5 pt-1">
+                        <span className="flex items-baseline justify-center gap-1">
+                          <span className="text-[14.5px] font-black text-[#04202E]">{money(a.priceToman)}</span>
+                          <span className="text-[10px] font-bold text-[#4A6572]">تومان</span>
+                        </span>
+                        <span onClick={(e) => e.stopPropagation()} className="block">
+                          <Counter
+                            small
+                            value={q}
+                            onMinus={() => (q === 1 ? removeAddon(a.variantId) : addAddon(a.variantId))}
+                            onPlus={() => addAddon(a.variantId)}
+                            minusLabel="کمتر"
+                            plusLabel="بیشتر"
+                            plusBg="#00ABE7"
+                            plusStroke="#04202E"
+                          />
+                        </span>
+                      </div>
+                    ) : (
+                      <div className="mt-auto flex items-end justify-between gap-1 pt-1.5">
+                        {out ? (
+                          <span className="pb-1 text-[12px] font-black leading-[1.6] text-[#4A6572]">فعلاً ناموجوده</span>
+                        ) : (
+                          <span className="flex items-baseline gap-1 pb-1">
+                            <span className="text-[14.5px] font-black text-[#04202E]">{money(a.priceToman)}</span>
+                            <span className="text-[10px] font-bold text-[#4A6572]">تومان</span>
+                          </span>
+                        )}
+                        {!out && (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              addAddon(a.variantId);
+                            }}
+                            aria-label={`افزودن ${a.name} کنار هدیه`}
+                            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#00ABE7] text-[20px] font-black leading-none text-white transition-transform active:scale-90"
+                          >
+                            +
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </div>
                 </div>
               );
             })}
@@ -604,19 +647,21 @@ export function MobileExtras() {
         </div>
       )}
 
-      {/* جزئیات افزودنی — Bottom-Sheet آیفونی (owner request) */}
+      {/* جزئیات افزودنی — Bottom-Sheet آیفونی + گالری و مشخصات (round 34) */}
       <Sheet open={detail !== null} onOpenChange={(o) => !o && setDetail(null)}>
         <SheetContent side="bottom" className="rounded-t-[30px] border-[#DDEEF5] bg-white px-0 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-2">
           {detail && (
-            <div className="flex flex-col gap-4 px-6 pt-2 text-right">
+            <div className="flex max-h-[78vh] flex-col gap-4 overflow-y-auto px-6 pt-2 text-right">
               <span className="mx-auto h-1.5 w-12 rounded-full bg-[#DDEEF5]" aria-hidden="true" />
-              <div className="flex h-[190px] items-center justify-center overflow-hidden rounded-[24px] bg-[#F2FAFD]">
-                {detail.image ? (
-                  <img src={detail.image} alt={detail.name} className="h-full w-full object-cover" />
-                ) : (
-                  <span className="text-6xl" aria-hidden="true">{detail.emoji || "🎁"}</span>
-                )}
-              </div>
+              {/* گالری: عکس‌های محصول → عکس قدیمی → ایموجی + گرادیان پاستلی */}
+              <Gallery
+                key={detail.variantId}
+                images={detail.images?.length ? detail.images : detail.image ? [detail.image] : []}
+                name={detail.name}
+                emoji={detail.emoji}
+                rounded="rounded-[24px]"
+                thumbClass="h-14 w-14"
+              />
               <SheetHeader className="gap-1 space-y-0 p-0 text-right">
                 <SheetTitle className="text-right text-[20px] font-black text-[#04202E]">{detail.name}</SheetTitle>
                 <SheetDescription className="text-right text-[14px] font-extrabold text-[#006387]">
@@ -626,6 +671,8 @@ export function MobileExtras() {
               <p className="m-0 text-[13.5px] font-medium leading-[2] text-[#1F3E4D]">
                 {detail.description || "برای این افزودنی هنوز توضیحی ثبت نشده — سوالی داری قبل از خرید بهمون پیام بده."}
               </p>
+              {/* سایز / رنگ‌ها / جدول مشخصات — فقط وقتی ادمین ثبت کرده باشد */}
+              <AttrsBlock entry={detail} />
               {detail.inStock && (
                 <button
                   type="button"
@@ -687,6 +734,7 @@ function Counter({
   plusLabel,
   plusBg,
   plusStroke,
+  small,
 }: {
   value: number;
   onMinus: () => void;
@@ -695,23 +743,25 @@ function Counter({
   plusLabel: string;
   plusBg: string;
   plusStroke: string;
+  small?: boolean; // inline compact variant — addon grid cards (round 34)
 }) {
+  const btn = small ? "h-9 w-9" : "h-11 w-11";
   return (
     <div className="flex items-center gap-1 rounded-full bg-white p-1">
       <button
         type="button"
         aria-label={minusLabel}
         onClick={onMinus}
-        className="flex h-11 w-11 items-center justify-center rounded-full border-none bg-[#F2FAFD]"
+        className={`flex ${btn} items-center justify-center rounded-full border-none bg-[#F2FAFD]`}
       >
         <MinusIcon />
       </button>
-      <span className="min-w-[38px] text-center text-xl font-black">{fa(value)}</span>
+      <span className={`${small ? "min-w-[28px] text-lg" : "min-w-[38px] text-xl"} text-center font-black`}>{fa(value)}</span>
       <button
         type="button"
         aria-label={plusLabel}
         onClick={onPlus}
-        className="flex h-11 w-11 items-center justify-center rounded-full border-none"
+        className={`flex ${btn} items-center justify-center rounded-full border-none`}
         style={{ background: plusBg }}
       >
         <PlusSmall stroke={plusStroke} />
@@ -726,6 +776,9 @@ export function MobileCheckout() {
   const hearts = usePishnam((s) => s.hearts);
   const paws = usePishnam((s) => s.paws);
   const addonLines = usePishnam((s) => s.addonLines);
+  // سبد — بندانگشتِ عکس هر ردیف از کاتالوگ (round 34)
+  const catalog = usePishnam((s) => s.catalog);
+  const catalogAddons = usePishnam((s) => s.catalogAddons);
   const receiver = usePishnam((s) => s.receiver);
   const setReceiver = usePishnam((s) => s.setReceiver);
   const quote = usePishnam((s) => s.quote);
@@ -746,18 +799,24 @@ export function MobileCheckout() {
 
   // cart rows straight from the SERVER quote lines — main gift + «افزودنی‌ها»
   // (each addon is an independent item, mission §۵) + retention + shipping
-  interface CartRow { key: string; emoji?: string; plush?: boolean; bg: string; title: string; sub: string; amount: string; }
+  // + a catalog thumbnail per row (round 34); amounts stay server-authoritative
+  interface CartRow { key: string; img?: string | null; emoji?: string; plush?: boolean; bg: string; title: string; sub: string; amount: string; }
+  const mainEntry = catalog[kind];
   const cartRows: CartRow[] = quote
     ? [
-        ...(quote.lines ?? []).map((l, i) => ({
-          key: l.variantId,
-          plush: i === 0,
-          emoji: i === 0 ? undefined : l.sku.startsWith("AD-") ? "🎁" : undefined,
-          bg: i === 0 ? sel.bg : "#F2FAFD",
-          title: l.productName,
-          sub: i === 0 ? "جعبه‌ی کادویی + کارت پستال QR" : `افزودنی × ${fa(l.qty)}`,
-          amount: money(l.lineToman),
-        })),
+        ...(quote.lines ?? []).map((l, i) => {
+          const entry = i === 0 ? mainEntry : catalogAddons.find((x) => x.variantId === l.variantId);
+          return {
+            key: l.variantId,
+            img: entryCover(entry),
+            plush: i === 0,
+            emoji: i === 0 ? undefined : entry?.emoji ?? (l.sku.startsWith("AD-") ? "🎁" : undefined),
+            bg: i === 0 ? sel.bg : "#F2FAFD",
+            title: l.productName,
+            sub: i === 0 ? "جعبه آبی + کارت پستال QR" : `افزودنی × ${fa(l.qty)}`,
+            amount: money(l.lineToman),
+          };
+        }),
         ...(quote.charms > 0
           ? [{ key: "charms", emoji: "❤️", bg: "#FFE9F0", title: `قلب و پنجه × ${fa(hearts + paws)}`, sub: "برای بچه‌های بی‌سرپرست و حیوونا", amount: money(quote.charms) }]
           : []),
@@ -825,10 +884,16 @@ export function MobileCheckout() {
         {cartRows.map((r) => (
           <div key={r.key} className="flex items-center gap-3 border-b border-[#E3F0F5] py-3">
             <div
-              className="flex h-16 w-16 shrink-0 items-center justify-center rounded-[18px] text-2xl"
+              className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-[18px] text-2xl"
               style={{ background: r.bg }}
             >
-              {r.plush ? <Plush kind={sel.kind} size={54} /> : <span aria-hidden="true">{r.emoji ?? "🎁"}</span>}
+              {r.img ? (
+                <img src={r.img} alt={r.title} loading="lazy" className="h-full w-full object-cover" />
+              ) : r.plush ? (
+                <Plush kind={sel.kind} size={54} />
+              ) : (
+                <span aria-hidden="true">{r.emoji ?? "🎁"}</span>
+              )}
             </div>
             <div className="flex flex-1 flex-col gap-0.5">
               <span className="text-[15px] font-extrabold">{r.title}</span>
@@ -990,7 +1055,7 @@ export function MobileCheckout() {
       </div>
 
       <div className="px-6 pt-3.5 text-center text-[12.5px] font-medium leading-[1.9] text-[#4A6572]">
-        با پرداخت، قوانین و شرایط یک دوست رو قبول می‌کنی. رسید قلب‌ها و پنجه‌ها بعد از ارسال
+        با پرداخت، قوانین و شرایط جعبه آبی رو قبول می‌کنی. رسید قلب‌ها و پنجه‌ها بعد از ارسال
         هدیه‌ها تو دفتر مهربونی ثبت می‌شه.
       </div>
 

@@ -9,6 +9,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { navigate } from "@/lib/hash-route";
 import { Plush } from "@/components/shop/plush";
+import { Logo, refreshBranding } from "@/components/shop/logo";
 import { ForwardIcon } from "@/components/shop/icons";
 import { PLUSH_MAP, PLUSHES, OCCASIONS, type PlushKind } from "@/lib/pishnam-data";
 import { DEFAULT_HOME_SLIDES, HERO_HASHES, HERO_ROUTES, MAX_HOME_SLIDES, type HeroSlide } from "@/lib/home-slides";
@@ -22,6 +23,7 @@ import { CustomersTab } from "@/components/shop/admin/admin-customers";
 import { MessagesTab } from "@/components/shop/admin/admin-messages";
 import { TeamTab } from "@/components/shop/admin/admin-team";
 import { jalaliDateTime } from "@/components/shop/admin/admin-shared";
+import { BlogStudio } from "@/components/shop/blog/blog-studio";
 
 const STATUS_LABEL: Record<string, { label: string; bg: string }> = {
   awaiting_payment: { label: "در انتظار پرداخت", bg: "#F0F3F5" },
@@ -432,7 +434,7 @@ export function AdminScreen() {
             {safeTab === "slides" && <SlidesTab />}
             {safeTab === "reviews" && <ReviewsTab />}
             {safeTab === "stories" && <StoriesModTab />}
-            {safeTab === "blog" && <BlogTab />}
+            {safeTab === "blog" && <BlogTab role={role} />}
             {safeTab === "team" && role === "owner" && <TeamTab />}
             {safeTab === "settings" && role === "owner" && <SettingsTab />}
             {safeTab === "sms" && role === "owner" && <SmsTab />}
@@ -1244,8 +1246,53 @@ interface AdminProduct {
   kind: "main_gift" | "addon";
   emoji: string;
   image: string | null;
+  images: { id: string; url: string; alt: string; sortOrder: number }[];
+  sizeLabel: string;
+  colors: string;
+  specs: string;
   isActive: boolean;
   variant: { id: string; sku: string; priceToman: number; stock: number; isActive: boolean } | null;
+}
+
+interface SpecRow {
+  label: string;
+  value: string;
+}
+
+// «مشخصات و ظاهر» — gallery cap is server-enforced too (products/[id]/images)
+const GALLERY_MAX = 6;
+
+// specs lives as a JSON string column — legacy/junk rows must never crash the panel
+function isSpecRow(r: unknown): r is SpecRow {
+  return (
+    typeof r === "object" &&
+    r !== null &&
+    typeof (r as { label?: unknown }).label === "string" &&
+    typeof (r as { value?: unknown }).value === "string"
+  );
+}
+
+function parseSpecs(raw: string): SpecRow[] {
+  try {
+    const arr: unknown = JSON.parse(raw || "[]");
+    if (!Array.isArray(arr)) return [];
+    return arr
+      .filter(isSpecRow)
+      .slice(0, 12)
+      .map((r) => ({ label: r.label, value: r.value }));
+  } catch {
+    return [];
+  }
+}
+
+function GallerySpinner({ size = 20 }: { size?: number }) {
+  return (
+    <span
+      aria-hidden="true"
+      className="inline-block animate-spin rounded-full border-2 border-[#00ABE7] border-t-transparent"
+      style={{ width: size, height: size }}
+    />
+  );
 }
 
 const PLACEHOLDER_IMG =
@@ -1262,7 +1309,10 @@ function ProductsTab() {
   const [busy, setBusy] = useState(false);
   const [openId, setOpenId] = useState<string | null>(null); // expanded edit card
   const [edit, setEdit] = useState({ name: "", emoji: "", description: "", price: "", stock: "" });
-  const [uploadingId, setUploadingId] = useState<string | null>(null);
+  const [galleryBusyId, setGalleryBusyId] = useState<string | null>(null); // any in-flight gallery op
+  const [uploadProgress, setUploadProgress] = useState<{ productId: string; done: number; total: number } | null>(null);
+  const [altDraft, setAltDraft] = useState(""); // alt applied to the next uploads
+  const [attrs, setAttrs] = useState<{ sizeLabel: string; colors: string; rows: SpecRow[] }>({ sizeLabel: "", colors: "", rows: [] });
   const { toast } = useToast();
 
   const load = () => {
@@ -1341,45 +1391,115 @@ function ProductsTab() {
     }
   };
 
-  // ── image upload / remove (owner request: عکس برای افزودنی‌ها) ──
-  const uploadImage = async (p: AdminProduct, file: File) => {
-    setUploadingId(p.id);
-    try {
-      const fd = new FormData();
-      fd.set("file", file);
-      const res = await fetch(`/api/admin/products/${p.id}/image`, { method: "POST", body: fd });
-      const b = (await res.json().catch(() => ({}))) as { error?: string; image?: string };
-      if (!res.ok) {
-        const msg =
-          b.error === "file_too_large"
-            ? "حجم عکس بیشتر از ۵ مگابایته."
-            : b.error === "bad_file_type"
-              ? "فقط عکس JPG / PNG / WebP قبوله."
-              : "آپلود نشد — دوباره تلاش کن.";
-        toast({ title: "عکس ذخیره نشد", description: msg });
-        return;
+  // ── گالری تصاویر (round 34): multi-upload / reorder / delete via /images API ──
+  const galleryErrText = (code: string | undefined) =>
+    code === "gallery_full"
+      ? "سقف گالری ۶ عکسه."
+      : code === "file_too_large"
+        ? "حجم عکس بیشتر از ۵ مگابایته."
+        : code === "bad_file_type"
+          ? "فقط عکس JPG / PNG / WebP قبوله."
+          : "آپلود نشد — دوباره تلاش کن.";
+
+  const uploadImages = async (p: AdminProduct, files: File[]) => {
+    if (!files.length) return;
+    const room = GALLERY_MAX - p.images.length;
+    if (room <= 0) {
+      toast({ title: "سقف گالری ۶ عکسه", description: "برای عکس جدید، اول یکی از عکس‌ها رو حذف کن." });
+      return;
+    }
+    const queue = files.slice(0, room);
+    if (files.length > room) {
+      toast({ title: `${fa(files.length - room)} عکس جا نشد`, description: `فقط جا برای ${fa(room)} عکس دیگه هست.` });
+    }
+    setGalleryBusyId(p.id);
+    let done = 0;
+    for (const file of queue) {
+      setUploadProgress({ productId: p.id, done, total: queue.length });
+      try {
+        const fd = new FormData();
+        fd.set("file", file);
+        const alt = altDraft.trim().slice(0, 120);
+        if (alt) fd.set("alt", alt);
+        const res = await fetch(`/api/admin/products/${p.id}/images`, { method: "POST", body: fd });
+        const b = (await res.json().catch(() => ({}))) as { error?: string };
+        if (!res.ok) {
+          toast({ title: `«${file.name}» ذخیره نشد`, description: galleryErrText(b.error) });
+          if (b.error === "gallery_full") break; // server is the source of truth on the cap
+        } else {
+          done++;
+        }
+      } catch {
+        toast({ title: `«${file.name}» آپلود نشد`, description: "دوباره تلاش کن." });
       }
-      toast({ title: "عکس ثبت شد ✓", description: "تو صفحه خرید و جزئیات محصول نمایش داده می‌شه." });
+    }
+    setUploadProgress(null);
+    setGalleryBusyId(null);
+    if (done > 0) {
+      toast({
+        title: done === 1 ? "عکس ثبت شد ✓" : `${fa(done)} عکس ثبت شد ✓`,
+        description: "اولین عکس، کاور محصول می‌شه و تو صفحه‌ی خرید نمایش داده می‌شه.",
+      });
+      setAltDraft("");
       load();
-    } catch {
-      toast({ title: "آپلود نشد — دوباره تلاش کن" });
-    } finally {
-      setUploadingId(null);
     }
   };
 
-  const removeImage = async (p: AdminProduct) => {
-    setUploadingId(p.id);
+  const moveImage = async (p: AdminProduct, imageId: string, dir: -1 | 1) => {
+    const ordered = [...p.images].sort((a, b) => a.sortOrder - b.sortOrder);
+    const idx = ordered.findIndex((i) => i.id === imageId);
+    const next = idx + dir;
+    if (idx < 0 || next < 0 || next >= ordered.length) return;
+    const order = [...ordered];
+    const tmp = order[idx];
+    order[idx] = order[next];
+    order[next] = tmp;
+    setGalleryBusyId(p.id);
     try {
-      const res = await fetch(`/api/admin/products/${p.id}/image`, { method: "DELETE" });
+      const res = await fetch(`/api/admin/products/${p.id}/images`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ order: order.map((i) => i.id) }),
+      });
+      if (!res.ok) throw new Error();
+      load();
+    } catch {
+      toast({ title: "جابه‌جایی نشد — دوباره تلاش کن" });
+    } finally {
+      setGalleryBusyId(null);
+    }
+  };
+
+  const deleteImage = async (p: AdminProduct, imageId: string) => {
+    setGalleryBusyId(p.id);
+    try {
+      const res = await fetch(`/api/admin/products/${p.id}/images?imageId=${encodeURIComponent(imageId)}`, {
+        method: "DELETE",
+      });
       if (!res.ok) throw new Error();
       toast({ title: "عکس حذف شد" });
       load();
     } catch {
       toast({ title: "حذف نشد — دوباره تلاش کن" });
     } finally {
-      setUploadingId(null);
+      setGalleryBusyId(null);
     }
+  };
+
+  // ── مشخصات و ظاهر — separate save (price/stock keep their own flow) ──
+  const saveAttrs = async (p: AdminProduct) => {
+    const specs = attrs.rows
+      .map((r) => ({ label: r.label.trim().slice(0, 40), value: r.value.trim().slice(0, 120) }))
+      .filter((r) => r.label !== "" && r.value !== "");
+    await patch(
+      p,
+      {
+        sizeLabel: attrs.sizeLabel.trim().slice(0, 60),
+        colors: attrs.colors.trim().slice(0, 200),
+        specs,
+      },
+      "مشخصات ذخیره شد ✓",
+    );
   };
 
   const openEdit = (p: AdminProduct) => {
@@ -1391,6 +1511,8 @@ function ProductsTab() {
       price: String(p.variant?.priceToman ?? 0),
       stock: String(p.variant?.stock ?? 0),
     });
+    setAttrs({ sizeLabel: p.sizeLabel ?? "", colors: p.colors ?? "", rows: parseSpecs(p.specs ?? "[]") });
+    setAltDraft("");
   };
 
   const saveEdit = async (p: AdminProduct) => {
@@ -1493,6 +1615,7 @@ function ProductsTab() {
         <div className="flex flex-col gap-2.5">
           {products.map((p) => {
             const expanded = openId === p.id;
+            const orderedImages = [...(p.images ?? [])].sort((a, b) => a.sortOrder - b.sortOrder);
             return (
               <div key={p.id} className="flex flex-col rounded-[22px] border border-[#DDEEF5] bg-white px-4 py-3.5">
                 <div className="flex flex-wrap items-center gap-3">
@@ -1504,7 +1627,7 @@ function ProductsTab() {
                     ) : (
                       <span className="text-2xl" aria-hidden="true">{p.emoji || "🎁"}</span>
                     )}
-                    {uploadingId === p.id && (
+                    {galleryBusyId === p.id && (
                       <span className="absolute inset-0 flex items-center justify-center bg-white/70 text-[10px] font-black text-[#006387]">…</span>
                     )}
                   </span>
@@ -1567,46 +1690,118 @@ function ProductsTab() {
 
                 {expanded && (
                   <div className="mt-4 flex flex-col gap-4 border-t border-[#EFF6F9] pt-4">
-                    <div className="grid grid-cols-1 gap-4 md:grid-cols-[200px_1fr]">
-                      {/* photo picker */}
-                      <div className="flex flex-col items-center gap-2">
-                        <span className="flex h-[120px] w-[120px] items-center justify-center overflow-hidden rounded-[20px] border-[1.5px] border-dashed border-[#CFE6EF] bg-[#F8FDFF]">
-                          {p.image ? (
-                             
-                            <img src={p.image} alt={p.name} className="h-full w-full object-cover" />
-                          ) : (
-                            <span className="text-4xl" aria-hidden="true">{p.emoji || "🎁"}</span>
-                          )}
-                        </span>
-                        <label className="cursor-pointer rounded-full bg-[#04202E] px-4 py-2 text-[11.5px] font-extrabold text-white">
-                          {uploadingId === p.id ? "در حال آپلود…" : p.image ? "تغییر عکس" : "افزودن عکس"}
-                          <input
-                            type="file"
-                            accept="image/jpeg,image/png,image/webp"
-                            className="hidden"
-                            onChange={(e) => {
-                              const f = e.target.files?.[0];
-                              e.target.value = "";
-                              if (f) void uploadImage(p, f);
-                            }}
-                          />
-                        </label>
-                        {p.image && (
-                          <button
-                            type="button"
-                            onClick={() => void removeImage(p)}
-                            className="text-[11px] font-bold text-[#B02A52] underline"
-                          >
-                            حذف عکس
-                          </button>
-                        )}
-                        <span className="text-center text-[10.5px] font-medium leading-[1.7] text-[#4A6572]">
-                          JPG / PNG / WebP — حداکثر ۵ مگابایت
+                    {/* ── گالری تصاویر (round 34) ── */}
+                    <section className="flex flex-col gap-3 rounded-[16px] border border-[#DDEEF5] bg-[#F8FDFF] p-4">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <span className="text-[13.5px] font-black text-[#04202E]">گالری تصاویر</span>
+                        <span className="rounded-full bg-white px-3 py-1 text-[10.5px] font-bold text-[#4A6572]">
+                          {orderedImages.length} از {GALLERY_MAX} — اولین عکس، کاور محصوله
                         </span>
                       </div>
+                      <div className="flex flex-wrap items-start gap-3">
+                        {orderedImages.map((img, idx) => (
+                          <span key={img.id} className="flex flex-col items-center gap-1.5">
+                            <span className="relative block h-[104px] w-[104px] overflow-hidden rounded-[16px] border-[1.5px] border-[#DDEEF5] bg-white">
+                              <img src={img.url} alt={img.alt || p.name} className="h-full w-full object-cover" />
+                              {idx === 0 && (
+                                <span className="absolute right-1.5 top-1.5 rounded-full bg-[#04202E]/85 px-2 py-0.5 text-[9.5px] font-black text-white">
+                                  کاور
+                                </span>
+                              )}
+                              {galleryBusyId === p.id && (
+                                <span className="absolute inset-0 flex items-center justify-center bg-white/60">
+                                  <GallerySpinner />
+                                </span>
+                              )}
+                            </span>
+                            <span className="flex items-center gap-1">
+                              <button
+                                type="button"
+                                disabled={idx === 0 || galleryBusyId === p.id}
+                                onClick={() => void moveImage(p, img.id, -1)}
+                                aria-label={`عکس ${idx + 1} — جابه‌جایی به راست`}
+                                className="flex h-6 w-6 items-center justify-center rounded-lg border-[1.5px] border-[#DDEEF5] bg-white text-[10px] text-[#006387] disabled:opacity-40"
+                              >
+                                ▶
+                              </button>
+                              <button
+                                type="button"
+                                disabled={idx === orderedImages.length - 1 || galleryBusyId === p.id}
+                                onClick={() => void moveImage(p, img.id, 1)}
+                                aria-label={`عکس ${idx + 1} — جابه‌جایی به چپ`}
+                                className="flex h-6 w-6 items-center justify-center rounded-lg border-[1.5px] border-[#DDEEF5] bg-white text-[10px] text-[#006387] disabled:opacity-40"
+                              >
+                                ◀
+                              </button>
+                              <button
+                                type="button"
+                                disabled={galleryBusyId === p.id}
+                                onClick={() => void deleteImage(p, img.id)}
+                                aria-label={`حذف عکس ${idx + 1}`}
+                                className="flex h-6 w-6 items-center justify-center rounded-lg bg-[#FFE9F0] text-[12px] font-black text-[#B02A52] disabled:opacity-40"
+                              >
+                                ×
+                              </button>
+                            </span>
+                          </span>
+                        ))}
+                        {orderedImages.length < GALLERY_MAX ? (
+                          <label
+                            className={`flex h-[104px] w-[104px] cursor-pointer flex-col items-center justify-center gap-1 rounded-[16px] border-[1.5px] border-dashed bg-white text-center transition-colors ${
+                              galleryBusyId === p.id ? "border-[#CFE6EF] opacity-70" : "border-[#00ABE7] hover:bg-[#F2FAFD]"
+                            }`}
+                          >
+                            {uploadProgress?.productId === p.id ? (
+                              <>
+                                <GallerySpinner />
+                                <span className="px-1 text-[9.5px] font-bold leading-[1.5] text-[#006387]">
+                                  آپلود {fa(uploadProgress.done + 1)} از {fa(uploadProgress.total)}
+                                </span>
+                              </>
+                            ) : (
+                              <>
+                                <span className="text-xl font-black leading-none text-[#00ABE7]">+</span>
+                                <span className="px-1 text-[9.5px] font-bold leading-[1.5] text-[#4A6572]">افزودن عکس</span>
+                              </>
+                            )}
+                            <input
+                              type="file"
+                              multiple
+                              accept="image/jpeg,image/png,image/webp"
+                              className="hidden"
+                              disabled={galleryBusyId === p.id}
+                              onChange={(e) => {
+                                const files = Array.from(e.target.files ?? []);
+                                e.target.value = "";
+                                if (files.length) void uploadImages(p, files);
+                              }}
+                            />
+                          </label>
+                        ) : (
+                          <span className="flex h-[104px] w-[104px] items-center justify-center rounded-[16px] border-[1.5px] border-dashed border-[#CFE6EF] bg-white px-2 text-center text-[9.5px] font-bold leading-[1.6] text-[#4A6572]">
+                            سقف گالری ۶ عکسه
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex flex-col gap-1">
+                        <label className="flex flex-col gap-1 text-[11px] font-bold text-[#4A6572]">
+                          متن جایگزین عکس (اختیاری — موقع آپلود ثبت می‌شه)
+                          <input
+                            value={altDraft}
+                            onChange={(e) => setAltDraft(e.target.value)}
+                            maxLength={120}
+                            placeholder="مثلاً عروسک پشمالوی قهوه‌ای با روبان کرم"
+                            className="h-9 max-w-[340px] rounded-xl border-[1.5px] border-[#CFE6EF] bg-white px-3 text-[12px] font-semibold text-[#04202E]"
+                          />
+                        </label>
+                        <span className="text-[10.5px] font-medium leading-[1.7] text-[#4A6572]">
+                          JPG / PNG / WebP — حداکثر ۵ مگابایت — چند عکس رو با هم انتخاب کنی پشت‌سرهم آپلود می‌شن.
+                        </span>
+                      </div>
+                    </section>
 
-                      {/* fields */}
-                      <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                    {/* fields */}
+                    <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
                         <label className="flex flex-col gap-1 text-[11.5px] font-bold text-[#4A6572]">
                           نام محصول
                           <input
@@ -1652,7 +1847,92 @@ function ProductsTab() {
                           />
                         </label>
                       </div>
-                    </div>
+
+                      {/* ── مشخصات و ظاهر (round 34) — هر دو نوع محصول ── */}
+                    <section className="flex flex-col gap-3 rounded-[16px] border border-[#DDEEF5] bg-[#F8FDFF] p-4">
+                      <div className="flex flex-col gap-0.5">
+                        <span className="text-[13.5px] font-black text-[#04202E]">مشخصات و ظاهر</span>
+                        <span className="text-[11.5px] font-medium text-[#4A6572]">
+                          برای هدیه‌های اصلی و افزودنی‌ها — تو صفحه‌ی جزئیات محصول نمایش داده می‌شه.
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                        <label className="flex flex-col gap-1 text-[11.5px] font-bold text-[#4A6572]">
+                          اندازه / ابعاد
+                          <input
+                            value={attrs.sizeLabel}
+                            onChange={(e) => setAttrs((a) => ({ ...a, sizeLabel: e.target.value }))}
+                            maxLength={60}
+                            placeholder="حدود ۳۰ سانتی‌متر"
+                            className="h-11 rounded-xl border-[1.5px] border-[#CFE6EF] bg-white px-3 text-[13px] font-bold text-[#04202E]"
+                          />
+                        </label>
+                        <label className="flex flex-col gap-1 text-[11.5px] font-bold text-[#4A6572]">
+                          رنگ‌ها (با ویرگول جدا کن)
+                          <input
+                            value={attrs.colors}
+                            onChange={(e) => setAttrs((a) => ({ ...a, colors: e.target.value }))}
+                            maxLength={200}
+                            placeholder="قهوه‌ای، کرم"
+                            className="h-11 rounded-xl border-[1.5px] border-[#CFE6EF] bg-white px-3 text-[13px] font-bold text-[#04202E]"
+                          />
+                        </label>
+                      </div>
+                      <span className="text-[11.5px] font-bold text-[#4A6572]">جدول مشخصات</span>
+                      {attrs.rows.map((row, i) => (
+                        <span key={i} className="flex items-center gap-2">
+                          <input
+                            value={row.label}
+                            onChange={(e) => {
+                              const v = e.target.value;
+                              setAttrs((a) => ({ ...a, rows: a.rows.map((r, j) => (j === i ? { ...r, label: v } : r)) }));
+                            }}
+                            maxLength={40}
+                            placeholder="عنوان (مثلاً جنس)"
+                            className="h-10 min-w-0 flex-1 rounded-xl border-[1.5px] border-[#CFE6EF] bg-white px-3 text-[12.5px] font-bold text-[#04202E]"
+                          />
+                          <input
+                            value={row.value}
+                            onChange={(e) => {
+                              const v = e.target.value;
+                              setAttrs((a) => ({ ...a, rows: a.rows.map((r, j) => (j === i ? { ...r, value: v } : r)) }));
+                            }}
+                            maxLength={120}
+                            placeholder="مقدار (مثلاً پشم و پنبه)"
+                            className="h-10 min-w-0 flex-[1.6] rounded-xl border-[1.5px] border-[#CFE6EF] bg-white px-3 text-[12.5px] font-bold text-[#04202E]"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setAttrs((a) => ({ ...a, rows: a.rows.filter((_, j) => j !== i) }))}
+                            aria-label={`حذف ردیف ${i + 1}`}
+                            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#FFE9F0] text-[14px] font-black text-[#B02A52]"
+                          >
+                            ×
+                          </button>
+                        </span>
+                      ))}
+                      <span className="flex flex-wrap items-center justify-between gap-2">
+                        <button
+                          type="button"
+                          disabled={attrs.rows.length >= 12}
+                          onClick={() => setAttrs((a) => ({ ...a, rows: [...a.rows, { label: "", value: "" }] }))}
+                          className="h-10 rounded-full border-[1.5px] border-[#CFE6EF] bg-white px-4 text-[11.5px] font-extrabold text-[#006387] disabled:opacity-50"
+                        >
+                          + ردیف جدید
+                        </button>
+                        <button
+                          type="button"
+                          disabled={busy}
+                          onClick={() => void saveAttrs(p)}
+                          className="h-10 rounded-full bg-[#04202E] px-5 text-[11.5px] font-extrabold text-white disabled:opacity-60"
+                        >
+                          ذخیره مشخصات
+                        </button>
+                      </span>
+                      <span className="text-[10.5px] font-medium leading-[1.7] text-[#4A6572]">
+                        ردیف‌هایی که عنوان یا مقدارشون خالی باشه موقع ذخیره حذف می‌شن.
+                      </span>
+                    </section>
                     <div className="flex items-center justify-end gap-2">
                       <button
                         type="button"
@@ -1947,370 +2227,13 @@ function StoriesModTab() {
   );
 }
 
-/* ═══════════ TAB 5 — BLOG AUTHORING (Phase C) ═══════════ */
+/* ═══════════ TAB 5 — BLOG STUDIO (round 34-h) ═══════════ */
+// The full studio (list + MDXEditor + SEO panel) lives in
+// components/shop/blog/blog-studio.tsx and lazily loads the editor so this
+// tab's bundle cost is paid only when «بلاگ» is opened.
 
-interface PublicPost {
-  slug: string;
-  title: string;
-  excerpt: string;
-  tags: string;
-  publishedAt: string;
-}
-
-interface SessionPost {
-  id: string;
-  title: string;
-  slug: string;
-  excerpt: string;
-  tags: string;
-  content: string;
-  published: boolean;
-}
-
-const SLUG_RE = /^[a-z0-9-]{3,60}$/;
-
-function BlogTab() {
-  const [publicPosts, setPublicPosts] = useState<PublicPost[] | null>(null);
-  const [drafts, setDrafts] = useState<SessionPost[]>([]); // posts created/edited this session (id known)
-  const [editing, setEditing] = useState<SessionPost | null>(null);
-  const [title, setTitle] = useState("");
-  const [slug, setSlug] = useState("");
-  const [excerpt, setExcerpt] = useState("");
-  const [tags, setTags] = useState("");
-  const [content, setContent] = useState("");
-  const [publish, setPublish] = useState(false);
-  const [busy, setBusy] = useState(false);
-  const [err, setErr] = useState("");
-  const { toast } = useToast();
-
-  const load = () => {
-    fetch("/api/posts", { cache: "no-store" })
-      .then((r) => {
-        if (!r.ok) throw new Error();
-        return r.json();
-      })
-      .then((j: { posts?: PublicPost[] }) => setPublicPosts(j.posts ?? []))
-      .catch(() => setPublicPosts([]));
-  };
-
-  useEffect(() => {
-    load();
-  }, []);
-
-  const resetForm = () => {
-    setEditing(null);
-    setTitle("");
-    setSlug("");
-    setExcerpt("");
-    setTags("");
-    setContent("");
-    setPublish(false);
-    setErr("");
-  };
-
-  const startEdit = (p: SessionPost) => {
-    setEditing(p);
-    setTitle(p.title);
-    setSlug(p.slug);
-    setExcerpt(p.excerpt);
-    setTags(p.tags);
-    setContent(p.content);
-    setPublish(p.published);
-    setErr("");
-    window.scrollTo({ top: 0, behavior: "smooth" });
-  };
-
-  const submit = async () => {
-    if (busy) return;
-    setErr("");
-    if (title.trim().length < 3) {
-      setErr("عنوان حداقل ۳ حرف.");
-      return;
-    }
-    if (content.trim().length < 50) {
-      setErr("متن پست حداقل ۵۰ حرف.");
-      return;
-    }
-    if (slug && !SLUG_RE.test(slug)) {
-      setErr("اسلاگ فقط حروف کوچک انگلیسی، عدد و خط تیره (۳ تا ۶۰ کاراکتر).");
-      return;
-    }
-    setBusy(true);
-    try {
-      const payload = {
-        title: title.trim(),
-        ...(slug ? { slug } : {}),
-        excerpt: excerpt.trim(),
-        content: content.trim(),
-        tags: tags.trim(),
-        publish,
-      };
-      const res = await fetch(editing ? `/api/admin/posts/${editing.id}` : "/api/admin/posts", {
-        method: editing ? "PATCH" : "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-      const b = (await res.json().catch(() => ({}))) as {
-        ok?: boolean;
-        error?: string;
-        post?: { id: string; slug: string; published: boolean };
-      };
-      if (res.status === 409) {
-        setErr("این اسلاگ قبلاً استفاده شده — یه اسلاگ دیگه بزن یا خالی بذار.");
-        return;
-      }
-      if (!res.ok || !b.post) {
-        setErr("ذخیره نشد — فیلدها رو چک کن (عنوان ≥۳، متن ≥۵۰ حرف).");
-        return;
-      }
-      const saved: SessionPost = {
-        id: b.post.id,
-        slug: b.post.slug,
-        title: title.trim(),
-        excerpt: excerpt.trim(),
-        tags: tags.trim(),
-        content: content.trim(),
-        published: b.post.published,
-      };
-      setDrafts((prev) => {
-        const without = prev.filter((d) => d.id !== saved.id);
-        return [saved, ...without];
-      });
-      toast({
-        title: editing ? "پست به‌روز شد ✓" : publish ? "پست منتشر شد ✓" : "پیش‌نویس ذخیره شد ✓",
-        description: publish ? `آدرس پست: /post?slug=${saved.slug}` : "وقتی منتشرش کنی تو بلاگ می‌افته.",
-      });
-      resetForm();
-      load();
-    } catch {
-      setErr("خطای شبکه — دوباره تلاش کن.");
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const togglePublish = async (p: SessionPost) => {
-    try {
-      const res = await fetch(`/api/admin/posts/${p.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ publish: !p.published }),
-      });
-      const b = (await res.json().catch(() => ({}))) as { post?: { published: boolean } };
-      if (!res.ok || !b.post) throw new Error();
-      setDrafts((prev) => prev.map((d) => (d.id === p.id ? { ...d, published: b.post!.published } : d)));
-      toast({ title: b.post.published ? "پست منتشر شد ✓" : "پست از بلاگ برداشته شد" });
-      load();
-    } catch {
-      toast({ title: "انجام نشد!", description: "دوباره تلاش کن." });
-    }
-  };
-
-  const removePost = async (p: SessionPost) => {
-    if (!window.confirm(`پست «${p.title}» برای همیشه حذف بشه؟`)) return;
-    try {
-      const res = await fetch(`/api/admin/posts/${p.id}`, { method: "DELETE" });
-      if (!res.ok) {
-        toast({ title: "حذف نشد!", description: "حذف پست فقط با حساب مالک ممکنه." });
-        return;
-      }
-      setDrafts((prev) => prev.filter((d) => d.id !== p.id));
-      toast({ title: "پست حذف شد" });
-      load();
-    } catch {
-      toast({ title: "خطای شبکه", description: "دوباره تلاش کن." });
-    }
-  };
-
-  // list = this-session posts (full control) + public posts not shadowed by them
-  const rows: (
-    | { kind: "session"; p: SessionPost }
-    | { kind: "public"; p: PublicPost }
-  )[] = [
-    ...drafts.map((p) => ({ kind: "session" as const, p })),
-    ...(publicPosts ?? [])
-      .filter((p) => !drafts.some((d) => d.slug === p.slug))
-      .map((p) => ({ kind: "public" as const, p })),
-  ];
-
-  return (
-    <div className="flex flex-col gap-5">
-      {/* editor */}
-      <div className="rounded-[20px] border border-[#DDEEF5] bg-white p-4 md:p-5">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <h3 className="m-0 text-[16px] font-black">{editing ? "ویرایش پست" : "پست جدید"}</h3>
-          {editing && (
-            <button type="button" onClick={resetForm} className="text-[12.5px] font-extrabold text-[#00779F] underline">
-              لغو ویرایش
-            </button>
-          )}
-        </div>
-        <div className="mt-3 grid gap-3 md:grid-cols-2">
-          <input
-            type="text"
-            value={title}
-            onChange={(e) => setTitle(e.target.value.slice(0, 120))}
-            placeholder="عنوان پست (حداقل ۳ حرف)"
-            aria-label="عنوان پست"
-            className="h-11 rounded-[14px] border-[1.5px] border-[#CFE6EF] bg-white px-3.5 text-[14px] font-semibold text-[#04202E] outline-none focus:border-[#00ABE7]"
-          />
-          <input
-            type="text"
-            dir="ltr"
-            value={slug}
-            onChange={(e) => setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "-").slice(0, 60))}
-            placeholder="slug — خالی بذار: از روی عنوان ساخته می‌شه"
-            aria-label="اسلاگ پست"
-            className="h-11 rounded-[14px] border-[1.5px] border-[#CFE6EF] bg-white px-3.5 text-left font-mono text-[13px] text-[#04202E] outline-none focus:border-[#00ABE7]"
-          />
-          <input
-            type="text"
-            value={excerpt}
-            onChange={(e) => setExcerpt(e.target.value.slice(0, 300))}
-            placeholder="خلاصه (اختیاری — تو کارت بلاگ نمایش داده می‌شه)"
-            aria-label="خلاصه پست"
-            className="h-11 rounded-[14px] border-[1.5px] border-[#CFE6EF] bg-white px-3.5 text-[14px] font-semibold text-[#04202E] outline-none focus:border-[#00ABE7]"
-          />
-          <input
-            type="text"
-            value={tags}
-            onChange={(e) => setTags(e.target.value.slice(0, 120))}
-            placeholder="تگ‌ها با ویرگول: هدیه، یلدا"
-            aria-label="تگ‌های پست"
-            className="h-11 rounded-[14px] border-[1.5px] border-[#CFE6EF] bg-white px-3.5 text-[14px] font-semibold text-[#04202E] outline-none focus:border-[#00ABE7]"
-          />
-        </div>
-        <textarea
-          value={content}
-          onChange={(e) => setContent(e.target.value.slice(0, 20_000))}
-          rows={10}
-          placeholder="متن پست (حداقل ۵۰ حرف)…"
-          aria-label="متن پست"
-          className="mt-3 w-full resize-y rounded-[14px] border-[1.5px] border-[#CFE6EF] bg-[#F8FDFF] px-3.5 py-3 font-mono text-[13px] leading-[2] text-[#04202E] outline-none focus:border-[#00ABE7]"
-        />
-        <div className="mt-1.5 flex flex-wrap items-center justify-between gap-2">
-          <span className="text-[11.5px] font-semibold text-[#4A6572]">
-            مارک‌داون ساده: # تیتر · **پررنگ** · *کج* · - لیست · [متن](https://لینک)
-          </span>
-          <span className="text-[11.5px] font-extrabold text-[#4A6572]" dir="ltr">
-            {fa(content.trim().length)} / {fa(20_000)}
-          </span>
-        </div>
-        {err && <span className="mt-2 block text-[12.5px] font-bold text-[#B02A52]">{err}</span>}
-        <div className="mt-3 flex flex-wrap items-center gap-3 border-t border-[#EDF6FA] pt-3">
-          <label className="flex cursor-pointer items-center gap-2 text-[13px] font-extrabold text-[#04202E]">
-            <input
-              type="checkbox"
-              checked={publish}
-              onChange={(e) => setPublish(e.target.checked)}
-              className="h-5 w-5 accent-[#00ABE7]"
-            />
-            انتشار در بلاگ
-          </label>
-          <button
-            type="button"
-            onClick={() => void submit()}
-            disabled={busy}
-            className="flex h-11 flex-1 items-center justify-center rounded-full bg-[#04202E] px-6 text-[13.5px] font-extrabold text-white transition-transform active:scale-95 disabled:opacity-60 md:flex-none"
-          >
-            {busy ? "در حال ذخیره…" : editing ? "ذخیره‌ی تغییرات" : "ذخیره‌ی پست"}
-          </button>
-        </div>
-      </div>
-
-      {/* list */}
-      {publicPosts === null ? (
-        <div className="h-[120px] animate-pulse rounded-[20px] bg-white/70" />
-      ) : rows.length === 0 ? (
-        <div className="flex flex-col items-center gap-3 rounded-[24px] border-2 border-dashed border-[#99D6EE] bg-white/60 px-6 py-12 text-center">
-          <span className="text-[40px]">✍️</span>
-          <p className="m-0 text-[14.5px] font-bold">هنوز پستی نیست — اولین پست رو از فرم بالا بنویس.</p>
-        </div>
-      ) : (
-        <div className="flex flex-col gap-3">
-          {rows.map((row) =>
-            row.kind === "session" ? (
-              <div key={`s-${row.p.id}`} className="rounded-[20px] border border-[#DDEEF5] bg-white p-4">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <span className="text-[14.5px] font-black">{row.p.title}</span>
-                  <div className="flex items-center gap-2">
-                    <span
-                      className="rounded-full px-3 py-1 text-[11px] font-extrabold"
-                      style={{ background: row.p.published ? "#D7F5E4" : "#FFF3C9", color: row.p.published ? "#2E7D53" : "#8A6D1F" }}
-                    >
-                      {row.p.published ? "منتشرشده" : "پیش‌نویس"}
-                    </span>
-                    <span className="rounded-[10px] bg-[#F2F7F9] px-2 py-0.5 font-mono text-[10.5px] text-[#4A6572]" dir="ltr">
-                      {row.p.slug}
-                    </span>
-                  </div>
-                </div>
-                {row.p.excerpt && (
-                  <p className="mb-0 mt-1.5 text-[12.5px] font-medium leading-[1.9] text-[#4A6572]">{row.p.excerpt}</p>
-                )}
-                <div className="mt-3 flex flex-wrap gap-2 border-t border-[#EDF6FA] pt-3">
-                  <button
-                    type="button"
-                    onClick={() => startEdit(row.p)}
-                    className="h-10 rounded-full bg-[#E3F6FD] px-4 text-[12.5px] font-extrabold text-[#006387] active:scale-95"
-                  >
-                    ویرایش
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => void togglePublish(row.p)}
-                    className="h-10 rounded-full bg-[#D7F5E4] px-4 text-[12.5px] font-extrabold text-[#2E7D53] active:scale-95"
-                  >
-                    {row.p.published ? "لغو انتشار" : "انتشار"}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => void removePost(row.p)}
-                    className="h-10 rounded-full bg-[#FFE9F0] px-4 text-[12.5px] font-extrabold text-[#B02A52] active:scale-95"
-                  >
-                    حذف
-                  </button>
-                  {row.p.published && (
-                    <button
-                      type="button"
-                      onClick={() => navigate("post", { slug: row.p.slug })}
-                      className="h-10 rounded-full px-3 text-[12.5px] font-extrabold text-[#00779F] underline"
-                    >
-                      دیدن در بلاگ ↗
-                    </button>
-                  )}
-                </div>
-              </div>
-            ) : (
-              <div key={`p-${row.p.slug}`} className="rounded-[20px] border border-[#DDEEF5] bg-white p-4">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <span className="text-[14.5px] font-black">{row.p.title}</span>
-                  <div className="flex items-center gap-2">
-                    <span className="rounded-full bg-[#D7F5E4] px-3 py-1 text-[11px] font-extrabold text-[#2E7D53]">منتشرشده</span>
-                    <span className="text-[11.5px] font-semibold text-[#4A6572]">
-                      {new Intl.DateTimeFormat("fa-IR", { dateStyle: "medium" }).format(new Date(row.p.publishedAt))}
-                    </span>
-                  </div>
-                </div>
-                {row.p.excerpt && (
-                  <p className="mb-0 mt-1.5 text-[12.5px] font-medium leading-[1.9] text-[#4A6572]">{row.p.excerpt}</p>
-                )}
-                <div className="mt-3 border-t border-[#EDF6FA] pt-3">
-                  <button
-                    type="button"
-                    onClick={() => navigate("post", { slug: row.p.slug })}
-                    className="h-10 rounded-full bg-[#E3F6FD] px-4 text-[12.5px] font-extrabold text-[#006387] active:scale-95"
-                  >
-                    دیدن در بلاگ ↗
-                  </button>
-                </div>
-              </div>
-            ),
-          )}
-        </div>
-      )}
-    </div>
-  );
+function BlogTab({ role }: { role?: string | null }) {
+  return <BlogStudio role={role} />;
 }
 
 /* ═══════════ TAB 7 — SMS (owner-only, «پیامک‌ها») ═══════════ */
@@ -2915,6 +2838,137 @@ function SettingsRow({
   );
 }
 
+/* ── لوگوی سایت (round 34, owner-only) — آپلود/حذف + پیش‌نمایش ──
+ * POST/DELETE /api/admin/branding/logo; after success refreshBranding()
+ * swaps every mounted <Logo/> in the app instantly (no reload). */
+function LogoCard() {
+  const [logoUrl, setLogoUrl] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const { toast } = useToast();
+
+  useEffect(() => {
+    let alive = true;
+    fetch("/api/branding", { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : { logoUrl: null }))
+      .then((j: { logoUrl?: unknown }) => {
+        if (alive) setLogoUrl(typeof j.logoUrl === "string" ? j.logoUrl : null);
+      })
+      .catch(() => {
+        if (alive) setLogoUrl(null);
+      });
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  const brandErr = (code: string | undefined) =>
+    code === "file_too_large"
+      ? "حجم لوگو بیشتر از ۵ مگابایته."
+      : code === "bad_file_type"
+        ? "فقط عکس JPG / PNG / WebP قبوله."
+        : code === "owner_only"
+          ? "این کار فقط با حساب مالک ممکنه."
+          : "دوباره تلاش کن.";
+
+  const upload = async (file: File) => {
+    setBusy(true);
+    try {
+      const fd = new FormData();
+      fd.set("file", file);
+      const res = await fetch("/api/admin/branding/logo", { method: "POST", body: fd });
+      const b = (await res.json().catch(() => ({}))) as { ok?: boolean; logoUrl?: string | null; error?: string };
+      if (!res.ok || !b.logoUrl) {
+        toast({ title: "لوگو آپلود نشد", description: brandErr(b.error) });
+        return;
+      }
+      setLogoUrl(b.logoUrl);
+      refreshBranding({ logoUrl: b.logoUrl });
+      toast({ title: "لوگو عوض شد ✓", description: "کل سایت همین حالا لوگوی جدید رو نشون می‌ده." });
+    } catch {
+      toast({ title: "آپلود نشد — دوباره تلاش کن" });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const remove = async () => {
+    setBusy(true);
+    try {
+      const res = await fetch("/api/admin/branding/logo", { method: "DELETE" });
+      const b = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string };
+      if (!res.ok || !b.ok) {
+        toast({ title: "حذف نشد", description: brandErr(b.error) });
+        return;
+      }
+      setLogoUrl(null);
+      refreshBranding({ logoUrl: null });
+      toast({ title: "لوگو حذف شد", description: "لوگوی پیش‌فرض جعبه آبی برگشت." });
+    } catch {
+      toast({ title: "حذف نشد — دوباره تلاش کن" });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <section className="rounded-[24px] border border-[#DDEEF5] bg-white p-5">
+      <h2 className="m-0 text-[16px] font-black text-[#04202E]">لوگوی سایت</h2>
+      <p className="mb-4 mt-1 text-[12px] font-medium text-[#4A6572]">
+        لوگو رو آپلود کن؛ بعد از آپلود، لوگو جای متنِ برند توی کل سایت می‌شینه.
+      </p>
+      <div className="flex flex-wrap items-center gap-4">
+        {logoUrl ? (
+          <img
+            src={logoUrl}
+            alt="لوگوی سایت"
+            width={72}
+            height={72}
+            style={{ width: 72, height: 72, objectFit: "contain" }}
+            className="rounded-[18px]"
+          />
+        ) : (
+          <span className="flex min-h-[72px] items-center" aria-label="لوگوی پیش‌فرض">
+            <Logo size={72} />
+          </span>
+        )}
+        <div className="flex flex-col gap-2">
+          <span className="flex flex-wrap items-center gap-2">
+            <label
+              className={`cursor-pointer rounded-full bg-[#04202E] px-5 py-2.5 text-[12px] font-extrabold text-white ${busy ? "opacity-60" : ""}`}
+            >
+              {busy ? <span className="inline-flex items-center gap-2">در حال آپلود… <GallerySpinner size={14} /></span> : logoUrl ? "تغییر لوگو" : "آپلود لوگو"}
+              <input
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                className="hidden"
+                disabled={busy}
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  e.target.value = "";
+                  if (f) void upload(f);
+                }}
+              />
+            </label>
+            {logoUrl && (
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => void remove()}
+                className="h-10 rounded-full border-[1.5px] border-[#F7C5D3] bg-white px-4 text-[11.5px] font-extrabold text-[#B02A52] disabled:opacity-60"
+              >
+                حذف لوگو
+              </button>
+            )}
+          </span>
+          <span className="text-[10.5px] font-medium leading-[1.7] text-[#4A6572]">
+            JPG / PNG / WebP — حداکثر ۵ مگابایت — بهترین حالت، عکس مربعیه.
+          </span>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 function SettingsTab() {
   const [s, setS] = useState<SettingsShape>(SETTINGS_DEFAULT);
   const [loading, setLoading] = useState(true);
@@ -2982,6 +3036,9 @@ function SettingsTab() {
 
   return (
     <div className="flex flex-col gap-4">
+      {/* لوگوی سایت (round 34) */}
+      <LogoCard />
+
       {/* قلب قرمز و پنجه */}
       <section className="rounded-[24px] border border-[#F7C5D3] bg-[#FFF8FA] p-5">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">

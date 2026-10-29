@@ -113,7 +113,7 @@ export function AdminSidebar({
           <Plush kind="bear" size={30} />
         </span>
         <div className="flex flex-col">
-          <span className="text-[15px] font-black text-[#04202E]">پیشنام</span>
+          <span className="text-[15px] font-black text-[#04202E]">جعبه آبی</span>
           <span className="text-[11px] font-bold text-[#4A6572]">دفتر مدیریت فروشگاه</span>
         </div>
       </div>

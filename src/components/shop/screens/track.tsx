@@ -378,7 +378,7 @@ function CopyGiftButton({ o, dark = false }: { o: GiftOrder; dark?: boolean }) {
       type="button"
       onClick={async () => {
         const link = `${window.location.origin}/gift`;
-        const text = `یه بغل از یک دوست ♥\nهدیه‌ی شماره‌ی ${fa(o.no)} برای ${o.to}\nپیامش فقط با تأیید شماره موبایلش باز می‌شه\n${link}`;
+        const text = `یه جعبه آبی رسید ♥\nهدیه‌ی شماره‌ی ${fa(o.no)} برای ${o.to}\nپیامش فقط با تأیید شماره موبایلش باز می‌شه\n${link}`;
         const ok = await copyText(text);
         if (ok) setBurst((n) => n + 1);
         toast(

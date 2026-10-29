@@ -16,6 +16,10 @@ const patchSchema = z.object({
   priceToman: z.number().int().min(0).max(100_000_000).optional(),
   stock: z.number().int().min(0).max(9999).optional(),
   variantIsActive: z.boolean().optional(),
+  // display attributes (round 34) — display-only, pricing stays on the variant
+  sizeLabel: z.string().trim().max(60).optional(),
+  colors: z.string().trim().max(200).optional(),
+  specs: z.array(z.object({ label: z.string().trim().min(1).max(40), value: z.string().trim().min(1).max(120) })).max(12).optional(),
 });
 
 export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -40,6 +44,9 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
           ...(v.description !== undefined ? { description: v.description } : {}),
           ...(v.emoji !== undefined ? { emoji: v.emoji } : {}),
           ...(v.isActive !== undefined ? { isActive: v.isActive } : {}),
+          ...(v.sizeLabel !== undefined ? { sizeLabel: v.sizeLabel } : {}),
+          ...(v.colors !== undefined ? { colors: v.colors } : {}),
+          ...(v.specs !== undefined ? { specs: JSON.stringify(v.specs) } : {}),
         },
       });
       const variant = product.variants[0];

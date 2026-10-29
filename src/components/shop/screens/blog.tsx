@@ -1,21 +1,28 @@
 "use client";
 
-// ── Blog: index (#/blog) + post (#/post?slug=…) — Phase C, guide 13-f ──
-// Index reads GET /api/posts (published only). PostScreen reads
-// GET /api/posts/[slug] and renders the content through the safe <Markdown>
-// renderer — no raw HTML ever reaches the DOM.
+// ── Blog: index (/blog) + post (/post?slug=…) — round 34-h «جعبه آبی» ──
+// Index reads GET /api/posts (published only, cover included). PostScreen reads
+// GET /api/posts/[slug] (cover + metaTitle + metaDescription) and renders the
+// body through <MarkdownPro> — the hand-rolled XSS-safe renderer (no raw HTML
+// ever reaches the DOM). SEO: usePostSeo (title/desc/OG/canonical) + JSON-LD
+// BlogPosting + BreadcrumbList.
 import { useEffect, useState } from "react";
 import { Plush } from "../plush";
 import { BackIcon, ForwardIcon } from "../icons";
 import { navigate } from "@/lib/hash-route";
-import { Markdown } from "../md";
-import { useDocumentMeta } from "@/lib/seo/metadata";
+import { MarkdownPro, countWords } from "../blog/md-pro";
+import { useDocumentMeta, usePostSeo } from "@/lib/seo/metadata";
+import { articleJsonLd, breadcrumbJsonLd } from "@/lib/seo/jsonld";
+import { SITE } from "@/lib/seo/site";
+import { JsonLd } from "../jsonld";
+import { fa } from "@/lib/fa";
 
 interface PostRow {
   slug: string;
   title: string;
   excerpt: string;
   tags: string;
+  cover: string | null;
   publishedAt: string;
 }
 
@@ -25,13 +32,13 @@ const faDate = (iso: string) =>
 const tagList = (tags: string) =>
   tags.split(/[،,]/).map((t) => t.trim()).filter(Boolean);
 
-function TagChips({ tags }: { tags: string }) {
+function TagChips({ tags, max = 3 }: { tags: string; max?: number }) {
   const list = tagList(tags);
   if (list.length === 0) return null;
   return (
     <div className="flex flex-wrap gap-1.5">
-      {list.slice(0, 4).map((t) => (
-        <span key={t} className="rounded-full bg-[#E7E0FA] px-2.5 py-1 text-[11.5px] font-extrabold text-[#5B4A8A]">
+      {list.slice(0, max).map((t) => (
+        <span key={t} className="rounded-full bg-[#E3F6FD] px-2.5 py-1 text-[11.5px] font-extrabold text-[#006387]">
           {t}
         </span>
       ))}
@@ -51,17 +58,31 @@ function MobileBar({ back, label }: { back: "home" | "blog"; label?: string }) {
         <BackIcon size={22} />
       </button>
       {label && <span className="text-sm font-bold text-[#4A6572]">{label}</span>}
-      <span aria-hidden="true" className="text-[22px]">✉️</span>
+      <span aria-hidden="true" className="text-[22px]">🧸</span>
     </div>
   );
 }
 
-/* ═══════════ blog index (#/blog) ═══════════ */
+/** Pastel empty-state art for cards without a cover. */
+function PastelArt() {
+  return (
+    <div
+      className="flex aspect-[16/9] w-full items-center justify-center rounded-[20px] border border-[#DDEEF5]"
+      style={{ backgroundImage: "linear-gradient(135deg,#E3F6FD 0%,#F2FAFD 55%,#FFF7FA 100%)" }}
+      aria-hidden="true"
+    >
+      <span className="text-[38px] drop-shadow-sm">🧸</span>
+    </div>
+  );
+}
+
+/* ═══════════ blog index (/blog) ═══════════ */
 
 export function BlogIndex() {
   useDocumentMeta({
-    title: "بلاگ یک دوست",
-    description: "راهنمای هدیه دادن، ایده‌های عروسک پولیشی و قصه‌های پشمالوی یک دوست — متن‌های کوتاه برای بهانه‌های قشنگ.",
+    title: "بلاگ جعبه آبی",
+    description:
+      "ایده‌های هدیه دادن، راهنمای عروسک پولیشی و قصه‌های پشمالوی جعبه آبی — متن‌های کوتاه و گرم برای بهانه‌های قشنگ.",
   });
 
   const [posts, setPosts] = useState<PostRow[] | null>(null);
@@ -88,14 +109,14 @@ export function BlogIndex() {
         {/* hero */}
         <section className="flex flex-col items-start gap-3">
           <span className="rounded-[14px] bg-[#04202E] px-3.5 py-[7px] text-[13px] font-bold text-white">
-            بلاگ یک دوست
+            بلاگ جعبه آبی
           </span>
           <h1 className="m-0 text-[30px] font-black leading-[1.45] text-[#04202E] md:text-[40px]">
             از هدیه دادن، با حروف
           </h1>
           <p className="m-0 max-w-[640px] text-[15px] font-medium leading-[2] text-[#1F3E4D] md:text-[16.5px]">
-            ایده‌های هدیه، راهنمای بهانه‌گیری و چیزهایی که درباره‌ی عروسک‌های پولیشی دوست داریم
-            باهات در میون بذاریم.
+            ایده‌های هدیه، راهنمای بهانه‌گیری و چیزهایی که درباره‌ی جعبه‌های آبی و عروسک‌های
+            پولیشی دوست داریم باهات در میون بذاریم.
           </p>
         </section>
 
@@ -108,7 +129,7 @@ export function BlogIndex() {
           ) : posts === null ? (
             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
               {[0, 1, 2].map((i) => (
-                <div key={i} className="h-[200px] animate-pulse rounded-[24px] bg-white/70" />
+                <div key={i} className="h-[300px] animate-pulse rounded-[24px] bg-white/70" />
               ))}
             </div>
           ) : posts.length === 0 ? (
@@ -126,16 +147,32 @@ export function BlogIndex() {
                   key={p.slug}
                   type="button"
                   onClick={() => navigate("post", { slug: p.slug })}
-                  className="flex flex-col items-start gap-3 rounded-[24px] border border-[#DDEEF5] bg-white p-5 text-right transition-all hover:-translate-y-0.5 hover:border-[#00ABE7] hover:shadow-[0_10px_24px_rgba(4,32,46,0.07)]"
+                  className="group flex flex-col items-start gap-3 rounded-[24px] border border-[#DDEEF5] bg-white p-4 text-right transition-all duration-200 hover:-translate-y-1 hover:border-[#00ABE7] hover:shadow-[0_14px_30px_rgba(4,32,46,0.10)]"
                 >
-                  <span className="text-[12.5px] font-bold text-[#4A6572]">
-                    {p.publishedAt ? faDate(p.publishedAt) : ""}
-                  </span>
-                  <span className="text-[17px] font-black leading-[1.7] text-[#04202E]">{p.title}</span>
-                  {p.excerpt && (
-                    <span className="text-[13.5px] font-medium leading-[2] text-[#4A6572]">{p.excerpt}</span>
+                  {p.cover ? (
+                    <img
+                      src={p.cover}
+                      alt={p.title}
+                      loading="lazy"
+                      className="aspect-[16/9] w-full rounded-[20px] border border-[#DDEEF5] object-cover"
+                    />
+                  ) : (
+                    <PastelArt />
                   )}
-                  <TagChips tags={p.tags} />
+                  <span className="flex items-center gap-2 text-[12px] font-bold text-[#4A6572]">
+                    <time dateTime={p.publishedAt || undefined}>
+                      {p.publishedAt ? faDate(p.publishedAt) : ""}
+                    </time>
+                  </span>
+                  <span className="text-[17px] font-black leading-[1.7] text-[#04202E] group-hover:text-[#00779F]">
+                    {p.title}
+                  </span>
+                  {p.excerpt && (
+                    <span className="line-clamp-2 text-[13.5px] font-medium leading-[2] text-[#4A6572]">
+                      {p.excerpt}
+                    </span>
+                  )}
+                  <TagChips tags={p.tags} max={3} />
                   <span className="mt-auto flex items-center gap-1.5 pt-1 text-[13px] font-extrabold text-[#00779F]">
                     خواندن پست
                     <ForwardIcon size={15} stroke="#00779F" />
@@ -146,8 +183,23 @@ export function BlogIndex() {
           )}
         </section>
 
-        {/* cross-link: stories */}
-        <section className="pt-8">
+        {/* cross-link: pick */}
+        <section className="grid gap-4 pt-8 md:grid-cols-2">
+          <button
+            type="button"
+            onClick={() => navigate("pick")}
+            className="flex w-full items-center gap-4 rounded-[24px] bg-[#00ABE7] p-5 text-right transition-transform hover:scale-[1.01]"
+          >
+            <span aria-hidden="true" className="text-[26px]">🧸</span>
+            <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+              <span className="text-[15.5px] font-black text-[#04202E]">یه جعبه آبی بفرست</span>
+              <span className="text-[13px] font-semibold leading-[1.9] text-[#04202E]/80">
+                یه دوست پشمالو با پیام خودت — «یکی دوستت داره».
+              </span>
+            </span>
+            <ForwardIcon size={20} stroke="#04202E" />
+          </button>
+
           <button
             type="button"
             onClick={() => navigate("stories")}
@@ -170,11 +222,17 @@ export function BlogIndex() {
   );
 }
 
-/* ═══════════ single post (#/post?slug=…) ═══════════ */
+/* ═══════════ single post (/post?slug=…) ═══════════ */
 
 interface FullPost extends PostRow {
   content: string;
+  metaTitle: string;
+  metaDescription: string;
+  updatedAt: string;
 }
+
+const readingMinutes = (content: string) =>
+  Math.max(1, Math.ceil(countWords(content) / 200));
 
 export function PostScreen({ slug }: { slug: string }) {
   // fetch result is slug-tagged: a mismatch means a new slug is in flight → loading
@@ -205,10 +263,10 @@ export function PostScreen({ slug }: { slug: string }) {
     };
   }, [slug]);
 
-  useDocumentMeta({
-    title: show?.post?.title ?? "بلاگ یک دوست",
-    description: show?.post?.excerpt || undefined,
-  });
+  const post = show?.kind === "ok" ? (show.post as FullPost) : null;
+
+  // SEO: metaTitle/metaDescription + OG article bundle + canonical
+  usePostSeo(post);
 
   if (!slug || show?.kind === "notfound") {
     return (
@@ -219,7 +277,7 @@ export function PostScreen({ slug }: { slug: string }) {
             <Plush kind="panda" size={130} />
             <span className="text-[18px] font-black text-[#04202E]">پست پیدا نشد</span>
             <span className="max-w-[380px] text-[13.5px] font-medium leading-[1.95] text-[#4A6572]">
-              شاید این پست جابه‌جا شده یا منتشر نشده. بقیه‌ی پست‌ها منتظرتن!
+              شاید این پست جابه‌جا شده یا منتشر نشده. بقیه‌ی پست‌های جعبه آبی منتظرتن!
             </span>
             <button
               type="button"
@@ -235,7 +293,7 @@ export function PostScreen({ slug }: { slug: string }) {
     );
   }
 
-  if (!show || show.kind === "err") {
+  if (!show || show.kind === "err" || !post) {
     return (
       <div className="flex min-h-screen flex-col bg-[#F2FAFD]">
         <MobileBar back="blog" />
@@ -262,23 +320,56 @@ export function PostScreen({ slug }: { slug: string }) {
     );
   }
 
-  const post = show.post as FullPost;
-
   return (
     <div className="flex min-h-screen flex-col bg-[#F2FAFD]">
+      {/* JSON-LD: BlogPosting + BreadcrumbList (خانه ← بلاگ ← پست) */}
+      <JsonLd
+        data={articleJsonLd({
+          slug: post.slug,
+          headline: post.metaTitle || post.title,
+          description: post.metaDescription || post.excerpt,
+          image: post.cover,
+          datePublished: post.publishedAt,
+          dateModified: post.updatedAt || post.publishedAt,
+        })}
+      />
+      <JsonLd
+        data={breadcrumbJsonLd([
+          { name: "خانه", url: `${SITE.url}/` },
+          { name: "بلاگ", url: `${SITE.url}/blog` },
+          { name: post.title },
+        ])}
+      />
+
       <MobileBar back="blog" label="بلاگ" />
 
       <main className="mx-auto w-full max-w-[760px] flex-1 px-4 pb-12 pt-3 md:px-6 md:pt-8">
         <article className="flex flex-col gap-4 rounded-[28px] border border-[#DDEEF5] bg-white p-5 md:p-9">
+          {post.cover ? (
+            <img
+              src={post.cover}
+              alt={post.title}
+              className="aspect-[16/9] w-full rounded-[20px] border border-[#DDEEF5] object-cover"
+            />
+          ) : (
+            <PastelArt />
+          )}
           <h1 className="m-0 text-[26px] font-black leading-[1.6] text-[#04202E] md:text-[34px]">{post.title}</h1>
           <div className="flex flex-wrap items-center gap-2.5">
             <span className="rounded-full bg-[#E3F6FD] px-3 py-1 text-[12px] font-extrabold text-[#006387]">
-              {post.publishedAt ? faDate(post.publishedAt) : "در انتظار انتشار"}
+              {post.publishedAt ? (
+                <time dateTime={post.publishedAt}>{faDate(post.publishedAt)}</time>
+              ) : (
+                "در انتظار انتشار"
+              )}
             </span>
-            <TagChips tags={post.tags} />
+            <span className="rounded-full bg-[#F2FAFD] px-3 py-1 text-[12px] font-extrabold text-[#00779F]">
+              ⏱ {fa(readingMinutes(post.content))} دقیقه مطالعه
+            </span>
+            <TagChips tags={post.tags} max={4} />
           </div>
           <div className="border-t border-[#EDF6FA] pt-5">
-            <Markdown text={post.content} />
+            <MarkdownPro text={post.content} />
           </div>
         </article>
 
@@ -299,9 +390,9 @@ export function PostScreen({ slug }: { slug: string }) {
           >
             <span aria-hidden="true" className="text-[26px]">🧸</span>
             <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-              <span className="text-[15.5px] font-black text-[#04202E]">یه هدیه پشمالو بفرست</span>
+              <span className="text-[15.5px] font-black text-[#04202E]">یه جعبه آبی بفرست</span>
               <span className="text-[13px] font-semibold leading-[1.9] text-[#04202E]/80">
-                دوستت منتظره؟ یه دوست پشمالو انتخاب کن و بغلش رو بفرست.
+                یه دوست پشمالو انتخاب کن، پیام خودت رو بذار توش و بغلش رو بفرست — «یکی دوستت داره».
               </span>
             </span>
             <ForwardIcon size={20} stroke="#04202E" />

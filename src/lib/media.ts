@@ -10,7 +10,7 @@ const EXT: Record<string, string> = { "image/jpeg": "jpg", "image/png": "png", "
 
 /** Writes the file under .data/<folder>/<stem>.<ext> and returns the storage key. */
 export async function storeMediaFile(
-  folder: "experiences" | "refunds" | "products",
+  folder: "experiences" | "refunds" | "products" | "posts" | "branding",
   stem: string,
   buf: Buffer,
   mime: string,
@@ -28,7 +28,11 @@ export async function deleteMediaFile(key: string): Promise<void> {
   try {
     const { rm } = await import("fs/promises");
     const allowed =
-      key.startsWith("experiences/") || key.startsWith("refunds/") || key.startsWith("products/");
+      key.startsWith("experiences/") ||
+      key.startsWith("refunds/") ||
+      key.startsWith("products/") ||
+      key.startsWith("posts/") || // blog covers + inline images (round 34)
+      key.startsWith("branding/"); // site logo (round 34)
     if (key.includes("..") || !allowed) return; // path-traversal guard
     await rm(dataFile(key), { force: true });
   } catch {
@@ -49,6 +53,43 @@ export async function readProductImage(key: string): Promise<{ buf: Buffer; mime
   } catch {
     return null;
   }
+}
+
+/**
+ * Reads any PUBLIC media asset by storage key (round 34): product gallery
+ * photos, blog covers/inline images, site logo. Traversal-guarded + prefix
+ * allowlist — private folders (messages/receipts/refunds) are NEVER readable
+ * through this path.
+ */
+export async function readPublicMedia(key: string): Promise<{ buf: Buffer; mime: string } | null> {
+  if (key.includes("..")) return null;
+  const ok =
+    key.startsWith("products/") || key.startsWith("posts/") || key.startsWith("branding/");
+  if (!ok) return null;
+  try {
+    const { readFile } = await import("fs/promises");
+    const buf = await readFile(dataFile(key));
+    const ext = key.split(".").pop() ?? "";
+    return { buf, mime: MIME_FROM_EXT[ext] ?? "application/octet-stream" };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Public URL for a storage key (products/posts/branding). Returns null for
+ * empty/unknown prefixes so callers can fall back to emoji/plush art.
+ */
+export function publicMediaUrl(key: string): string | null {
+  if (!key) return null;
+  if (key.startsWith("products/")) return `/api/media/${key}`;
+  if (key.startsWith("posts/") || key.startsWith("branding/")) return `/api/media/${key}`;
+  return null;
+}
+
+/** Strict filename guard for public media streaming — uuid-ish stem + image ext. */
+export function isSafeMediaFilename(file: string): boolean {
+  return /^[A-Za-z0-9._-]{1,120}\.(jpg|png|webp)$/.test(file) && !file.includes("..");
 }
 
 /** Parses the refundPhotos JSON column — never trusts the shape. */

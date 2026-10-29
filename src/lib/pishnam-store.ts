@@ -118,7 +118,14 @@ export interface CatalogEntry {
   emoji?: string;
   // catalog photo (public) — null until the admin uploads one from the panel
   image?: string | null;
+  // ordered gallery (round 34) — public immutable URLs (`/api/media/...`),
+  // empty/undefined = no photos seeded yet → UI falls back to image/emoji
+  images?: string[];
   description?: string | null;
+  // display-only attributes (round 34) — admin-managed, never client-edited
+  sizeLabel?: string | null;
+  colors?: string[];
+  specs?: { label: string; value: string }[];
   variantId: string;
   priceToman: number;
   inStock: boolean;
@@ -427,6 +434,7 @@ export const usePishnam = create<PishnamState>()(
           };
           const map: Record<string, CatalogEntry> = {};
           const addons: CatalogEntry[] = [];
+          // entries pass through whole (images/sizeLabel/colors/specs included)
           for (const p of data.products) {
             map[p.slug] = p;
             if (p.kind === "addon") addons.push(p);

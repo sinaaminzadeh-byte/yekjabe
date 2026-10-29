@@ -149,14 +149,14 @@ export async function downloadGiftCard(
   /* ── brand row ── */
   ctx.fillStyle = "#04202E";
   ctx.font = "900 54px Vazirmatn, sans-serif";
-  ctx.fillText("یک دوست ♥", right, 176);
+  ctx.fillText("جعبه آبی ♥", right, 176);
 
   // gift-number chip on the opposite corner
   chip(ctx, 132, 186, `هدیه‌ی شماره‌ی ${fa(o.no)}`, "#04202E", "#FFFFFF");
 
   ctx.fillStyle = "#4A6572";
   ctx.font = "500 26px Vazirmatn, sans-serif";
-  ctx.fillText("یه بغل، تو یه جعبه", right, 244);
+  ctx.fillText("یکی دوستت داره.", right, 244);
 
   /* ── plush medallion ── */
   const cx = W / 2;
@@ -248,7 +248,7 @@ export async function downloadGiftCard(
   ctx.fillStyle = "#8FB3C0";
   ctx.font = "600 22px Vazirmatn, sans-serif";
   ctx.textAlign = "center";
-  ctx.fillText("با ♥ ساخته شده در یک دوست · yekdoost.ir", cx, H - 152);
+  ctx.fillText("با ♥ ساخته شده در جعبه آبی · yekdoost.ir", cx, H - 152);
   ctx.textAlign = "right";
 
   /* ── download ── */

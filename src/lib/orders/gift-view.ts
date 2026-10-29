@@ -16,7 +16,7 @@ export interface SenderLabel {
   label: string;
 }
 
-export const ANON_LABEL = "یک هدیه برای تو";
+export const ANON_LABEL = "یه هدیه برای تو";
 
 /**
  * Legacy rows (pre-privacy) only have `anonymous` — they map to anon. Real

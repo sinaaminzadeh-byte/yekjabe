@@ -30,6 +30,10 @@ model Post {
   slug        String    @unique // latin, immutable-forever (guide 13-f)
   excerpt     String    @default("") // ≤300 chars for cards/meta
   tags        String    @default("") // comma-separated Persian tags
+  // round 34 — blog studio: featured image + per-page SEO overrides
+  coverKey        String @default("") // storage key .data/posts/<uuid>.<ext> (featured image)
+  metaTitle       String @default("") // ≤60 chars — empty falls back to title
+  metaDescription String @default("") // ≤160 chars — empty falls back to excerpt
   publishedAt DateTime?
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
@@ -196,12 +200,34 @@ model Product {
   // empty = no photo yet, UI falls back to the emoji. Uploaded from the admin
   // «محصولات» tab via POST /api/admin/products/[id]/image (magic-byte sniffed).
   imageKey    String           @default("")
+  // round 34 — gift studio: display attributes (admin-managed, display-only —
+  // pricing stays server-authoritative on the variant)
+  sizeLabel   String           @default("") // «حدود ۳۰ سانتی‌متر» — shown as a chip
+  colors      String           @default("") // comma-separated color names — dots on PDP
+  specs       String           @default("[]") // JSON [{"label":"…","value":"…"}] — specs table
+  images      ProductImage[]
   isActive    Boolean          @default(true)
   createdAt   DateTime         @default(now())
   updatedAt   DateTime         @updatedAt
   variants    ProductVariant[]
 
   @@index([isActive])
+}
+
+// ── Product gallery (round 34): multiple ordered photos per product/addon ──
+// Cover stays Product.imageKey (first image syncs to it — legacy consumers).
+// Keys live in .data/products/<uuid>.<ext>, streamed publicly via
+// GET /api/media/product/[file] (DB-validated, immutable cache).
+model ProductImage {
+  id        String   @id @default(cuid())
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  productId String
+  key       String   @unique // .data/products/<stem>.<ext>
+  alt       String   @default("") // Persian alt text (SEO + a11y)
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+
+  @@index([productId, sortOrder])
 }
 
 model ProductVariant {
@@ -422,6 +448,11 @@ model Setting {
   value     String
   updatedAt DateTime @updatedAt
 }
+
+// Setting keys used by branding (round 34):
+//   site_logo = storage key .data/branding/logo.<ext> — uploaded in admin
+//   «تنظیمات» via POST /api/admin/branding/logo; empty/unset = the default
+//   SVG mark + wordmark renders. Streamed publicly: GET /api/branding/logo.
 
 model DailyCounter {
   day   String @id // Asia/Tehran YYYYMMDD

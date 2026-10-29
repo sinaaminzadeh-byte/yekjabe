@@ -1,7 +1,7 @@
 "use client";
 
 // ── SiteFooter — one footer for mobile + desktop (replaces the legacy
-// desktop-only footer). Columns: brand / quick access / یک دوست / راهنما /
+// desktop-only footer). Columns: brand / quick access / جعبه آبی / راهنما /
 // contact, plus a bottom bar with © and the password-protected admin door.
 import { Logo } from "./logo";
 import { navigate } from "@/lib/hash-route";
@@ -28,11 +28,11 @@ const QUICK: LinkItem[] = [
 ];
 
 const PISHNAM: LinkItem[] = [
-  { label: "وبلاگ یک دوست", go: () => navigate("blog") },
+  { label: "وبلاگ جعبه آبی", go: () => navigate("blog") },
   { label: "تجربه‌های مهربونی", go: () => navigate("stories") },
   { label: "نظرهای مشتری‌ها", go: () => navigate("reviews") },
   { label: "دفتر مهربونی", go: () => navigate("impact") },
-  { label: "درباره‌ی یک دوست", go: () => navigate("about") },
+  { label: "درباره‌ی جعبه آبی", go: () => navigate("about") },
 ];
 
 const GUIDE: LinkItem[] = [
@@ -75,10 +75,10 @@ export function SiteFooter() {
         {/* brand */}
         <div className="flex min-w-[220px] flex-[1_1_240px] flex-col gap-3.5">
           <Logo size={44} />
-          <span className="text-[15px] font-bold text-[#BFE9F8]">یه بغل، تو یه جعبه</span>
+          <span className="text-[15px] font-bold text-[#BFE9F8]">یکی دوستت داره.</span>
           <p className="m-0 max-w-[280px] text-[13px] font-medium leading-[1.95] text-[#7FA9BC]">
-            جعبه‌ی هدیه‌ی عروسک پولیشی با کارت پستال QR، پیام صوتی و ارسال مستقیم دم در
-            خانه‌ی دوستت.
+            جعبه آبی، یه هدیه با یه دوست پشمالو و یه پیام از طرف تو؛ برای خوشحال کردن
+            آدم‌هایی که برات مهمن.
           </p>
           <span className="w-fit rounded-full border border-[#0E3C52] px-3 py-1.5 text-[11.5px] font-bold text-[#7FA9BC]">
             نماد اعتماد الکترونیکی — به‌زودی
@@ -86,7 +86,7 @@ export function SiteFooter() {
         </div>
 
         <Col title="دسترسی سریع" items={QUICK} />
-        <Col title="یک دوست" items={PISHNAM} />
+        <Col title="جعبه آبی" items={PISHNAM} />
         <Col title="راهنما" items={GUIDE} />
 
         {/* contact */}
@@ -98,7 +98,7 @@ export function SiteFooter() {
             rel="noreferrer noopener"
             className="text-[14px] font-semibold text-[#BFE9F8] transition-colors hover:text-[#00ABE7] md:text-[15px]"
           >
-            اینستاگرام یک دوست@
+            اینستاگرام جعبه‌آبی@
           </a>
           <a
             href="https://t.me/yekdoost"
@@ -106,7 +106,7 @@ export function SiteFooter() {
             rel="noreferrer noopener"
             className="text-[14px] font-semibold text-[#BFE9F8] transition-colors hover:text-[#00ABE7] md:text-[15px]"
           >
-            تلگرام یک دوست@
+            تلگرام جعبه‌آبی@
           </a>
           <span className="text-[14px] font-semibold text-[#BFE9F8] md:text-[15px]" dir="ltr">
             hello@yekdoost.ir
@@ -118,7 +118,7 @@ export function SiteFooter() {
       <div className="border-t border-[#0E3C52]">
         <div className="mx-auto flex w-full max-w-[1200px] flex-wrap items-center justify-between gap-2 px-5 py-4 md:px-6">
           <span className="text-[12.5px] font-medium text-[#7FA9BC]">
-            یک دوست · همه‌ی حقوق محفوظ است · ۱۴۰۴
+            جعبه آبی · همه‌ی حقوق محفوظ است · ۱۴۰۴
           </span>
           <button
             type="button"

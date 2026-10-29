@@ -18,6 +18,8 @@ import {
 import { JsonLd } from "../jsonld";
 import { Plush } from "../plush";
 import { Logo } from "../logo";
+import { usePishnam, type CatalogEntry } from "@/lib/pishnam-store";
+import { AttrsBlock, Gallery, hasAttrs } from "../gallery";
 import {
   BackIcon,
   HeartIcon,
@@ -29,6 +31,7 @@ import {
 } from "../icons";
 import { BOX_PRICE, PLUSHES, PLUSH_MAP } from "@/lib/pishnam-data";
 import { faPrice } from "@/lib/fa";
+import { useEffect } from "react";
 
 /* ═══════════════ screen root ═══════════════ */
 
@@ -56,13 +59,22 @@ function ProductDetail({ product }: { product: ProductSeo }) {
   ];
   const others = PLUSHES.filter((p) => p.kind !== product.slug);
 
+  // catalog entry for this slug — real photos/attrs when seeded (round 34).
+  // Same cached pattern as the friends page: loadCatalog is 60s-stale-safe.
+  const entry = usePishnam((s) => s.catalog[product.slug]);
+  const catalogLoaded = usePishnam((s) => s.catalogLoaded);
+  const loadCatalog = usePishnam((s) => s.loadCatalog);
+  useEffect(() => {
+    if (!catalogLoaded) void loadCatalog();
+  }, [catalogLoaded, loadCatalog]);
+
   return (
     <>
       {productLd && <JsonLd data={productLd} />}
       <JsonLd data={faqJsonLd(product.faq)} />
       <JsonLd data={breadcrumbJsonLd(crumbs)} />
-      <MobileProduct product={product} others={others} />
-      <DesktopProduct product={product} others={others} />
+      <MobileProduct product={product} others={others} entry={entry} />
+      <DesktopProduct product={product} others={others} entry={entry} />
     </>
   );
 }
@@ -118,11 +130,11 @@ function ProductArt({ product, plushSize }: { product: ProductSeo; plushSize: nu
       {/* placeholder gift-box + postcard art (real photos land at deploy wave) */}
       <div className="absolute bottom-[6%] left-[6%] rotate-[-6deg] rounded-[18px] border-[2.5px] border-[#04202E] bg-white px-3.5 pb-2 pt-3 text-center shadow-[0_10px_22px_rgba(4,32,46,0.12)]">
         <QrCode size={46} />
-        <div className="mt-1 text-[10.5px] font-bold text-[#4A6572]">کارت پستال رمزدار</div>
+        <div className="mt-1 text-[10.5px] font-bold text-[#4A6572]">کارت پستال QR</div>
       </div>
       <div className="absolute bottom-[8%] right-[7%] rotate-[7deg] rounded-[14px] border-[2.5px] border-[#04202E] bg-[#00ABE7] px-3 py-2 text-center">
         <div className="text-[10px] font-bold text-[#04202E]">جعبه‌ی هدیه</div>
-        <div className="text-[13px] font-black leading-[1.3] text-[#04202E]">یه بغل، تو یه جعبه</div>
+        <div className="text-[13px] font-black leading-[1.3] text-[#04202E]">یکی دوستت داره.</div>
       </div>
     </div>
   );
@@ -172,10 +184,13 @@ function FaqItem({ q, a }: { q: string; a: string }) {
 function MobileProduct({
   product,
   others,
+  entry,
 }: {
   product: ProductSeo;
   others: typeof PLUSHES;
+  entry?: CatalogEntry;
 }) {
+  const photos = entry?.images ?? [];
   return (
     <div className="flex min-h-screen flex-col bg-[#F2FAFD] text-[#04202E] md:hidden">
       {/* top bar */}
@@ -195,9 +210,15 @@ function MobileProduct({
         <Crumbs name={product.nameFa} />
       </div>
 
-      {/* hero art */}
-      <div className="mx-5 mt-2.5 h-[300px] overflow-hidden rounded-[32px]">
-        <ProductArt product={product} plushSize={228} />
+      {/* hero — real photo gallery when seeded (round 34), SVG art otherwise */}
+      <div className="mx-5 mt-2.5">
+        {photos.length > 0 ? (
+          <Gallery images={photos} name={product.nameFa} rounded="rounded-[28px]" thumbClass="h-16 w-16" />
+        ) : (
+          <div className="h-[300px] overflow-hidden rounded-[32px]">
+            <ProductArt product={product} plushSize={228} />
+          </div>
+        )}
       </div>
 
       {/* name + tagline + description */}
@@ -219,6 +240,14 @@ function MobileProduct({
           <PawSticker size={30} />
         </span>
       </div>
+
+      {/* مشخصات — سایز / رنگ‌ها / جدول مشخصات، فقط وقتی ادمین ثبت کرده باشد (round 34) */}
+      {entry && hasAttrs(entry) && (
+        <section className="mx-5 mt-4 flex flex-col gap-3 rounded-[24px] border border-[#DDEEF5] bg-white px-4 py-4">
+          <h2 className="m-0 text-[17px] font-extrabold">مشخصات</h2>
+          <AttrsBlock entry={entry} heading={null} />
+        </section>
+      )}
 
       {/* features */}
       <section className="flex flex-col gap-2.5 px-5 pt-6">
@@ -287,7 +316,7 @@ function MobileProduct({
           onClick={() => navigate("pick", { kind: product.slug })}
           className="flex h-12 flex-1 items-center justify-center rounded-full bg-[#04202E] px-6 text-[15px] font-extrabold text-white transition-transform active:scale-[0.98]"
         >
-          بساز و بفرست
+          این رو انتخاب می‌کنم
         </button>
       </div>
     </div>
@@ -299,10 +328,13 @@ function MobileProduct({
 function DesktopProduct({
   product,
   others,
+  entry,
 }: {
   product: ProductSeo;
   others: typeof PLUSHES;
+  entry?: CatalogEntry;
 }) {
+  const photos = entry?.images ?? [];
   return (
     <div className="hidden min-h-screen flex-col bg-[#F2FAFD] text-[#04202E] md:flex">
       <div className="mx-auto w-full max-w-[1200px] px-6 pt-5">
@@ -313,13 +345,20 @@ function DesktopProduct({
       <section className="mx-auto w-full max-w-[1200px] px-6 pt-4">
         <div className="flex flex-wrap items-center gap-10">
           <div className="flex min-w-0 flex-[1_1_420px] justify-center">
-            <div className="aspect-square w-[min(460px,100%)] overflow-hidden rounded-[40px]">
-              <ProductArt product={product} plushSize={300} />
-            </div>
+            {/* gallery (photos seeded) یا هنر SVG قبلی — round 34 */}
+            {photos.length > 0 ? (
+              <div className="w-[min(460px,100%)]">
+                <Gallery images={photos} name={product.nameFa} rounded="rounded-[28px]" thumbClass="h-20 w-20" />
+              </div>
+            ) : (
+              <div className="aspect-square w-[min(460px,100%)] overflow-hidden rounded-[40px]">
+                <ProductArt product={product} plushSize={300} />
+              </div>
+            )}
           </div>
           <div className="flex min-w-0 flex-[1_1_460px] flex-col items-start gap-4">
             <span className="self-start rounded-2xl bg-[#04202E] px-4 py-2 text-[13.5px] font-bold text-white">
-              جعبه‌ی هدیه‌ی یک دوست
+              جعبه آبی
             </span>
             <h1 className="m-0 text-[40px] font-black leading-[1.35]">{product.nameFa}</h1>
             <p className="m-0 text-[19px] font-bold text-[#006387]">{product.shortTagline}</p>
@@ -338,7 +377,7 @@ function DesktopProduct({
                 onClick={() => navigate("pick", { kind: product.slug })}
                 className="flex h-[58px] items-center rounded-full bg-[#04202E] px-[34px] text-[17px] font-extrabold text-white transition-transform hover:scale-[1.03]"
               >
-                بساز و بفرست
+                این رو انتخاب می‌کنم
               </button>
               <button
                 type="button"
@@ -350,9 +389,16 @@ function DesktopProduct({
             </div>
             <div className="mt-2 flex flex-wrap gap-x-[22px] gap-y-2 text-sm font-bold text-[#4A6572]">
               <span>ارسال ناشناس</span>
-              <span>کارت QR رمزدار</span>
+              <span>کارت QR خصوصی</span>
               <span>پیام صوتی ۹۰ ثانیه‌ای</span>
             </div>
+            {/* مشخصات — سایز / رنگ‌ها / جدول مشخصات (round 34) */}
+            {entry && hasAttrs(entry) && (
+              <div className="mt-1 flex max-w-[560px] self-stretch flex-col gap-3 rounded-[24px] border border-[#DDEEF5] bg-white px-5 py-4">
+                <h2 className="m-0 text-[18px] font-extrabold">مشخصات</h2>
+                <AttrsBlock entry={entry} heading={null} />
+              </div>
+            )}
           </div>
         </div>
       </section>
@@ -372,7 +418,7 @@ function DesktopProduct({
             <h2 className="m-0 text-[22px] font-black">برای چه بهانه‌ای؟</h2>
             <OccasionChips product={product} />
             <p className="m-0 text-[14.5px] font-medium leading-[2] text-[#1F3E4D]">
-              هر جعبه با کارت پستال QR رمزدار و پیام صوتی خودت می‌رسه؛ اگه اسمت رو ننویسی،
+              هر جعبه با کارت پستال QR و پیام صوتی خودت می‌رسه؛ اگه اسمت رو ننویسی،
               هیچ‌کس نمی‌دونه کی فرستاده.
             </p>
           </div>

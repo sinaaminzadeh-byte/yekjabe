@@ -399,13 +399,13 @@ function sentExtra(o: GiftOrder): string {
 }
 
 function recvExtra(o: GiftOrder): string {
-  return o.opened ? "کارت باز شده" : "کارت رمزدار";
+  return o.opened ? "کارت باز شده" : "هنوز باز نشده";
 }
 
 function orderWho(o: GiftOrder): string {
   return o.dir === "sent"
     ? `برای ${o.to}`
-    : `از ${o.senderName || (o.senderMode === "anon" ? "یک هدیه برای تو" : "یه دوست ناشناس")}`;
+    : `از ${o.senderName || (o.senderMode === "anon" ? "یه هدیه برای تو" : "یه دوست ناشناس")}`;
 }
 
 function orderExtra(o: GiftOrder): string {
@@ -943,7 +943,7 @@ function ReceivedGiftsList({ desktop = false }: { desktop?: boolean }) {
               <div className="flex min-w-0 flex-1 flex-col gap-1">
                 <div className="flex items-center justify-between gap-2">
                   <span className="truncate text-[15.5px] font-extrabold">
-                    {g.senderMode === "anon" ? "یک هدیه برای تو 🎁" : `از ${g.senderLabel}`}
+                    {g.senderMode === "anon" ? "یه هدیه برای تو 🎁" : `از ${g.senderLabel}`}
                   </span>
                   <span className="shrink-0 rounded-[12px] bg-[#04202E] px-2.5 py-[3px] text-[12px] font-extrabold text-white">{fa(g.no)}</span>
                 </div>
@@ -2142,10 +2142,10 @@ function MobileFlowBlock({ flow }: { flow: OtpFlow }) {
             />
           </div>
           <span className="text-[11.5px] font-semibold leading-[1.8] text-[#4A6572]">
-            اگه جا بذاری، «رفیق یک دوستی» صدات می‌کنیم.
+            اگه جا بذاری، «رفیق جعبه آبی» صدات می‌کنیم.
           </span>
           <button type="button" onClick={flow.submitLogin} className={PRIMARY_BTN_CLS}>
-            ورود به یک دوست
+            ورود به جعبه آبی
           </button>
         </div>
       )}
@@ -2254,7 +2254,7 @@ function LoginFlowBlock({ flow }: { flow: OtpFlow }) {
             onKeyDown={(e) => e.key === "Enter" && flow.submitLogin()}
           />
           <button type="button" onClick={flow.submitLogin} className={PRIMARY_BTN_CLS}>
-            ورود به یک دوست
+            ورود به جعبه آبی
           </button>
         </div>
       )}
@@ -2312,7 +2312,7 @@ function LoggedInBlock() {
           {user.name.slice(0, 1) || "پ"}
         </span>
         <div className="flex min-w-0 flex-col gap-1">
-          <span className="text-[17px] font-extrabold">{user.name || "رفیق یک دوستی"}</span>
+          <span className="text-[17px] font-extrabold">{user.name || "رفیق جعبه آبی"}</span>
           <span dir="ltr" className="text-[13.5px] font-semibold text-[#4A6572]">
             {fa(user.phone)}
           </span>
@@ -2442,7 +2442,7 @@ export function DesktopLogin() {
           <span className="absolute left-10 top-[200px] h-3.5 w-3.5 rounded-full border-2 border-[#04202E] bg-[#FFE08A]" />
           <div className="relative flex flex-col gap-3.5">
             <Logo size={44} />
-            <h2 className="m-0 mt-4 text-[38px] font-black leading-[1.5]">یه بغل، تو یه جعبه</h2>
+            <h2 className="m-0 mt-4 text-[38px] font-black leading-[1.5]">یکی دوستت داره.</h2>
             <p className="m-0 text-[16px] font-semibold leading-[2]">
               هدیه‌هات رو از همین‌جا بفرست، پیام‌هات رو ببین و هر قلب و پنجه‌ای که جمع می‌شه رو یه جا نگه دار.
             </p>
@@ -2501,10 +2501,10 @@ function DesktopFooter({ compact = false }: { compact?: boolean }) {
       <div className="mx-auto flex w-full max-w-[1200px] flex-wrap justify-between gap-9 px-6 pb-10 pt-14 box-border">
         <div className="flex flex-[1_1_280px] flex-col gap-3.5">
           <Logo size={44} />
-          <span className="text-[15px] font-bold text-[#BFE9F8]">یه بغل، تو یه جعبه</span>
+          <span className="text-[15px] font-bold text-[#BFE9F8]">یکی دوستت داره.</span>
         </div>
         <div className="flex flex-col gap-2.5 text-[15px] font-semibold">
-          <span className="text-base font-extrabold text-[#00ABE7]">یک دوست</span>
+          <span className="text-base font-extrabold text-[#00ABE7]">جعبه آبی</span>
           <FooterLink label="ماموریت" route="mission" />
           <FooterLink label="درباره‌ی ما" route="about" />
           <FooterLink label="دفتر مهربونی" route="impact" />
@@ -2517,12 +2517,12 @@ function DesktopFooter({ compact = false }: { compact?: boolean }) {
         </div>
         <div className="flex flex-col gap-2.5 text-[15px] font-semibold">
           <span className="text-base font-extrabold text-[#00ABE7]">ما رو دنبال کن</span>
-          <span>یک دوست@ اینستاگرام</span>
-          <span>یک دوست@ تلگرام</span>
+          <span>جعبه‌آبی@ اینستاگرام</span>
+          <span>جعبه‌آبی@ تلگرام</span>
         </div>
       </div>
       <div className="border-t border-[#0E3C52] px-6 py-[18px] text-center text-[13px] font-medium text-[#BFE9F8]">
-        یک دوست · همه‌ی حقوق محفوظ است
+        جعبه آبی · همه‌ی حقوق محفوظ است
       </div>
     </footer>
   );

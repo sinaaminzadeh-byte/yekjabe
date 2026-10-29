@@ -1,9 +1,10 @@
 // ── /api/posts — published blog list (public read, Phase C) ──
-// Cards payload only: slug/title/excerpt/tags/publishedAt. Content lives on
-// the [slug] route; drafts never appear here (published=true gate).
+// Cards payload only: slug/title/excerpt/tags/publishedAt/cover. Content lives
+// on the [slug] route; drafts never appear here (published=true gate).
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { toErrorResponse } from "@/lib/errors";
+import { publicMediaUrl } from "@/lib/media";
 
 export async function GET() {
   try {
@@ -16,10 +17,13 @@ export async function GET() {
         title: true,
         excerpt: true,
         tags: true,
+        coverKey: true,
         publishedAt: true,
       },
     });
-    return NextResponse.json({ posts });
+    return NextResponse.json({
+      posts: posts.map((p) => ({ ...p, cover: publicMediaUrl(p.coverKey) })),
+    });
   } catch (e) {
     const { body, status } = toErrorResponse(e);
     return NextResponse.json(body, { status });

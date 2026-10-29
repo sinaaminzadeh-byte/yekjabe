@@ -12,7 +12,11 @@ export async function GET() {
     const [variants, settings] = await Promise.all([
       db.productVariant.findMany({
         where: { isActive: true, product: { isActive: true } },
-        include: { product: true },
+        include: {
+          product: {
+            include: { images: { orderBy: { sortOrder: "asc" } } },
+          },
+        },
         orderBy: { sku: "asc" },
       }),
       db.setting.findMany({
@@ -37,6 +41,21 @@ export async function GET() {
       const n = Number(String(v ?? "").replace(/[^0-9]/g, ""));
       return Number.isFinite(n) && n >= min && n <= max ? n : dflt;
     };
+    // specs/attrs are admin-managed display-only fields (round 34) — never
+    // trusted from the client, parsed defensively
+    const parseSpecs = (json: string): { label: string; value: string }[] => {
+      try {
+        const arr = JSON.parse(json);
+        if (!Array.isArray(arr)) return [];
+        return arr
+          .filter((s): s is { label: string; value: string } =>
+            typeof s?.label === "string" && typeof s?.value === "string")
+          .slice(0, 12)
+          .map((s) => ({ label: s.label.slice(0, 40), value: s.value.slice(0, 120) }));
+      } catch {
+        return [];
+      }
+    };
     return NextResponse.json({
       products: variants.map((v) => ({
         slug: v.product.slug,
@@ -45,7 +64,15 @@ export async function GET() {
         emoji: v.product.emoji,
         // catalog photo (public marketing asset) — null until the admin uploads one
         image: v.product.imageKey ? `/api/products/${v.product.slug}/image` : null,
+        // full gallery (round 34) — ordered, public immutable URLs
+        images: v.product.images.map((i) => `/api/media/${i.key}`),
         description: v.product.description || null,
+        // display attributes (round 34)
+        sizeLabel: v.product.sizeLabel || null,
+        colors: v.product.colors
+          ? v.product.colors.split(/[,،]/).map((c) => c.trim()).filter(Boolean).slice(0, 8)
+          : [],
+        specs: parseSpecs(v.product.specs),
         variantId: v.id,
         sku: v.sku,
         priceToman: v.priceToman,

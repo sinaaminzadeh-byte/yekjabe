@@ -63,7 +63,7 @@ export function BoxPreview({ compact = false }: { compact?: boolean }) {
       {/* post stamp (top-left, rotated) */}
       <div className="absolute left-3 top-5 rotate-[-6deg] rounded-[6px] border-[2px] border-dashed border-[#0A6E99] bg-[#F0FAFF] px-2 py-1 text-center leading-none">
         <HeartSticker size={compact ? 14 : 18} fill="#F0426B" stroke="#0A6E99" strokeWidth={2.4} />
-        <div className="mt-0.5 text-[7.5px] font-black text-[#0A6E99]">یک دوست</div>
+        <div className="mt-0.5 text-[7.5px] font-black text-[#0A6E99]">جعبه آبی</div>
       </div>
 
       {/* shipping label sticker — the gift number */}
@@ -107,7 +107,7 @@ export function BoxPreview({ compact = false }: { compact?: boolean }) {
               <span key={i} className="inline-block w-[2px] bg-[#04202E]/85" style={{ height: `${8 + w * 3}px` }} />
             ))}
           </div>
-          <div className="text-[9px] font-black leading-[1.5] text-[#0A6E99]">پست پیشتاز یک دوست · یه بغل، تو یه جعبه</div>
+          <div className="text-[9px] font-black leading-[1.5] text-[#0A6E99]">پست پیشتاز جعبه آبی · یکی دوستت داره.</div>
         </div>
       </div>
     </div>

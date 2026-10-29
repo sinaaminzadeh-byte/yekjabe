@@ -99,7 +99,7 @@ export function MobileHome() {
 
       {/* products */}
       <div className="flex items-baseline justify-between px-5 pb-3 pt-[26px]">
-        <h2 className="m-0 text-[22px] font-extrabold">دوست‌های پشمالو</h2>
+        <h2 className="m-0 text-[22px] font-extrabold">دوست پشمالوت رو انتخاب کن</h2>
         <button
           type="button"
           onClick={() => navigate("friends")}
@@ -158,12 +158,11 @@ export function MobileHome() {
           </span>
         </div>
         <h2 className="m-0 text-2xl font-black leading-[1.5]">
-          با هر قلب، یه هدیه می‌ره پیش یه بچه
+          یه ذره مهربونی بیشتر
         </h2>
         <p className="m-0 text-[14.5px] font-medium leading-[1.95] text-[#D3EEF9]">
-          قلب قرمز و پنجه رو می‌تونی هر چندتا که دلت خواست روی جعبه‌ت بچسبونی. پولش می‌ره
-          برای هدیه به بچه‌های بی‌سرپرست و پناهگاه حیوونا؛ مدارکش رو هم همیشه همین‌جا
-          می‌ذاریم.
+          اگه دوست داشتی، می‌تونی همراه جعبه آبی‌ات سهمی هم برای مهربونی بیشتر کنار بذاری؛
+          برای بچه‌هایی که به حمایت نیاز دارن یا حیوان‌هایی که دنبال یه پناه امن می‌گردن.
         </p>
         <button
           type="button"
@@ -208,13 +207,13 @@ export function MobileHome() {
 export function Marquee({ className = "" }: { className?: string }) {
   const line = (
     <>
-      <span>یه بغل، تو یه جعبه</span>
+      <span>یکی دوستت داره</span>
       <span className="text-[#F0426B]">♥</span>
-      <span>یه بغل، تو یه جعبه</span>
+      <span>یکی دوستت داره</span>
       <span className="text-[#00ABE7]">♥</span>
-      <span>یه بغل، تو یه جعبه</span>
+      <span>یکی دوستت داره</span>
       <span className="text-[#F0426B]">♥</span>
-      <span>یه بغل، تو یه جعبه</span>
+      <span>یکی دوستت داره</span>
       <span className="text-[#00ABE7]">♥</span>
     </>
   );
@@ -247,7 +246,7 @@ export function DesktopHome() {
       <section id="how" className="mx-auto w-full max-w-[1200px] px-6 pt-20 box-border">
         <div className="mb-7 flex flex-col gap-2">
           <span className="text-sm font-extrabold text-[#006387]">سه قدم ساده</span>
-          <h2 className="m-0 text-[38px] font-black leading-[1.4]">چطوری کار می‌کنه؟</h2>
+          <h2 className="m-0 text-[38px] font-black leading-[1.4]">فقط یه عروسک نیست!</h2>
         </div>
         <div className="flex flex-wrap gap-[18px]">
           <div className="flex min-w-0 flex-[1_1_300px] flex-col gap-3.5 rounded-[32px] bg-[#CFEFFB] p-[26px]">
@@ -295,7 +294,7 @@ export function DesktopHome() {
         <div className="mb-7 flex flex-wrap items-end justify-between gap-4">
           <div className="flex flex-col gap-2">
             <span className="text-sm font-extrabold text-[#006387]">یه قیمت برای همه</span>
-            <h2 className="m-0 text-[38px] font-black leading-[1.4]">دوست‌های پشمالو</h2>
+            <h2 className="m-0 text-[38px] font-black leading-[1.4]">دوست پشمالوت رو انتخاب کن</h2>
           </div>
           <div className="rounded-[22px] border border-[#DDEEF5] bg-white px-[22px] py-3.5 text-[15px] font-semibold leading-[1.8] text-[#1F3E4D]">
             همه‌ی جعبه‌ها <b className="text-[#04202E]">{faPrice(BOX_PRICE)}</b>؛ چون مهربونی وزن
@@ -337,7 +336,7 @@ export function DesktopHome() {
             onClick={() => navigate("friends")}
             className="flex h-12 items-center gap-2 rounded-full border-2 border-[#04202E] bg-white px-6 text-[14.5px] font-extrabold text-[#04202E] transition-colors hover:bg-[#04202E] hover:text-white"
           >
-            صفحه‌ی دوستای پشمالو و پروسه‌ی کارمون
+            دیدن دوستای پشمالو
           </button>
         </div>
         <FavoritesStrip desktop />
@@ -357,16 +356,18 @@ export function DesktopHome() {
             </div>
           </div>
           <div className="flex min-w-0 flex-[1_1_380px] flex-col gap-3.5">
-            <span className="text-sm font-extrabold text-[#006387]">کارت پستالِ رمزدار</span>
-            <h2 className="m-0 text-[36px] font-black leading-[1.45]">فقط یه QR، یه دنیا حرف</h2>
+            <span className="text-sm font-extrabold text-[#006387]">یه پیام کوچیک، برای یه آدم مهم</span>
+            <h2 className="m-0 text-[36px] font-black leading-[1.45]">حرفی داری که می‌خوای براش بمونه؟</h2>
             <p className="m-0 text-base font-medium leading-[2] text-[#1F3E4D]">
-              همراه هر جعبه یه کارت پستال می‌فرستیم که فقط یه QR روشه. دوستت اسکنش می‌کنه،
-              رمزی که تو انتخاب کردی رو می‌زنه و صفحه‌ی خودش باز می‌شه؛ با پیام، عکس یا
-              ویدیوی تو.
+              پیام خودت رو به جعبه آبی اضافه کن؛ از یه متن کوتاه گرفته تا صدا، عکس یا
+              ویدئو، هر چیزی که این هدیه رو براش شخصی‌تر می‌کنه.
+            </p>
+            <p className="m-0 text-base font-medium leading-[2] text-[#1F3E4D]">
+              با اسکن کد روی کارت و تأیید شماره‌ی خودش، می‌تونه پیام مخصوص خودش رو ببینه.
             </p>
             <div className="mt-1 flex flex-wrap gap-2.5">
               <span className="rounded-2xl border-[1.5px] border-[#CFE6EF] bg-white px-4 py-2 text-sm font-bold">۱. اسکن می‌کنه</span>
-              <span className="rounded-2xl border-[1.5px] border-[#CFE6EF] bg-white px-4 py-2 text-sm font-bold">۲. رمز رو می‌زنه</span>
+              <span className="rounded-2xl border-[1.5px] border-[#CFE6EF] bg-white px-4 py-2 text-sm font-bold">۲. شماره‌ش رو تأیید می‌کنه</span>
               <span className="rounded-2xl border-[1.5px] border-[#CFE6EF] bg-white px-4 py-2 text-sm font-bold">۳. پیامت رو می‌بینه</span>
             </div>
             <button
@@ -393,19 +394,19 @@ export function DesktopHome() {
               </span>
             </div>
             <h2 className="m-0 text-[38px] font-black leading-[1.5]">
-              با هر قلب، یه هدیه می‌ره پیش یه بچه
+              یه ذره مهربونی بیشتر
             </h2>
             <p className="m-0 text-[16.5px] font-medium leading-[2] text-[#D3EEF9]">
-              قلب قرمز و پنجه رو هر چندتا که دلت خواست می‌تونی هنگام سفارش به جعبه اضافه
-              کنی. پولش می‌ره برای هدیه به بچه‌های بی‌سرپرست و پناهگاه حیوونا. رسید و عکس
-              تحویل همه‌ی ارسال‌ها تو دفتر مهربونی ثبت می‌شه.
+              اگه دوست داشتی، می‌تونی همراه جعبه آبی‌ات سهمی هم برای مهربونی بیشتر کنار بذاری؛
+              برای بچه‌هایی که به حمایت نیاز دارن یا حیوان‌هایی که دنبال یه پناه امن می‌گردن.
+              رسید و عکس تحویل همه‌ی ارسال‌ها تو دفتر مهربونی ثبت می‌شه.
             </p>
             <button
               type="button"
               onClick={() => navigate("extras")}
               className="flex h-[54px] items-center rounded-full bg-[#00ABE7] px-[30px] text-base font-extrabold text-[#04202E] transition-transform hover:scale-[1.03]"
             >
-              قلب اضافه کن
+              می‌خوام سهمی داشته باشم
             </button>
           </div>
           <div className="flex min-w-0 flex-[1_1_320px] flex-col gap-3.5 rounded-[30px] bg-[#0A3146] p-7">
@@ -431,7 +432,7 @@ export function DesktopHome() {
 
       {/* faq */}
       <section id="faq" className="mx-auto w-full max-w-[1200px] px-6 pt-[88px] box-border">
-        <h2 className="m-0 mb-7 text-[38px] font-black leading-[1.4]">سؤال‌های رایج</h2>
+        <h2 className="m-0 mb-7 text-[38px] font-black leading-[1.4]">چند تا سؤال که شاید برات پیش اومده</h2>
         <div className="flex flex-wrap gap-4">
           {DESKTOP_FAQ.map((f) => (
             <div

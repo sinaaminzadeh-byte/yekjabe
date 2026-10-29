@@ -4,6 +4,7 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { toErrorResponse } from "@/lib/errors";
+import { publicMediaUrl } from "@/lib/media";
 
 export async function GET(_req: Request, { params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
@@ -16,14 +17,19 @@ export async function GET(_req: Request, { params }: { params: Promise<{ slug: s
         excerpt: true,
         content: true,
         tags: true,
+        coverKey: true,
+        metaTitle: true,
+        metaDescription: true,
         published: true,
         publishedAt: true,
         updatedAt: true,
       },
     });
     if (!post || !post.published) return NextResponse.json({ error: "not_found" }, { status: 404 });
-    const { published: _published, ...publicPost } = post;
-    return NextResponse.json({ post: publicPost });
+    const { published: _published, coverKey: _coverKey, ...publicPost } = post;
+    return NextResponse.json({
+      post: { ...publicPost, cover: publicMediaUrl(post.coverKey) },
+    });
   } catch (e) {
     const { body, status } = toErrorResponse(e);
     return NextResponse.json(body, { status });

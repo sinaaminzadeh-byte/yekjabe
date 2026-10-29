@@ -39,7 +39,7 @@ const PROCESS_STEPS = [
   {
     n: "۲",
     title: "پیامت رو می‌نویسی",
-    body: "نامه‌ت، عکس یا ویدیوت و یه رمز مخصوص خودت؛ همه‌ش می‌شه یه کارت پستال QR رمزدار که فقط خود گیرنده بازش می‌کنه.",
+    body: "نامه‌ت، عکس یا ویدیوت؛ همه‌ش می‌شه یه کارت پستال QR که فقط خود گیرنده با تأیید شماره‌ش بازش می‌کنه.",
     bg: "#FFE0EA",
     accent: "#F0426B",
     icon: "mail" as const,
@@ -47,7 +47,7 @@ const PROCESS_STEPS = [
   {
     n: "۳",
     title: "ما با دست بسته‌بندیش می‌کنیم",
-    body: "عروسک، قلب و پنجه‌ها و کارتت با دقت تو جعبه‌ی کادویی چیده می‌شن؛ سفارش‌ها حداکثر ۲ روز کاری بعد از پرداخت راهی می‌شن.",
+    body: "عروسک، قلب و پنجه‌ها و کارتت با دقت تو جعبه آبی چیده می‌شن؛ سفارش‌ها حداکثر ۲ روز کاری بعد از پرداخت راهی می‌شن.",
     bg: "#FFF3C9",
     accent: "#D9A400",
     icon: "box" as const,
@@ -430,7 +430,7 @@ export function FriendsMobile() {
         <span className="absolute left-16 top-24 -rotate-6 opacity-80" aria-hidden="true"><PawSticker size={34} /></span>
         <h1 className="m-0 text-[30px] font-black leading-[1.4]">دوستای پشمالو</h1>
         <p className="m-0 pt-1.5 text-[13.5px] font-medium leading-[2] text-[#4A6572]">
-          {fa(plush.length || 6)} تا رفیق پشمالو، هرکدوم یه جور بغل می‌کنن؛ با جعبه‌ی کادویی، کارت پستال QR رمزدار و پیام صوتی می‌رسن. یه کم پایین‌تر بخش افزودنی‌ها هم منتظره — اگه دلت خواست یه سورپرایز کوچیک هم کنار بغل بذار.
+          {fa(plush.length || 6)} تا رفیق پشمالو، هرکدوم یه جور بغل می‌کنن؛ با جعبه آبی، کارت پستال QR و پیام صوتی می‌رسن. یه کم پایین‌تر بخش افزودنی‌ها هم منتظره — اگه دلت خواست یه سورپرایز کوچیک هم کنار بغل بذار.
         </p>
         <div className="pointer-events-none flex items-end justify-center gap-1 pt-4" aria-hidden="true">
           {PLUSHES.map((p, i) => (
@@ -633,7 +633,7 @@ export function FriendsDesktop() {
           <h1 className="m-0 text-[38px] font-black leading-[1.5] text-[#04202E]">دوستای پشمالو</h1>
           <p className="m-0 pt-3 text-[15px] font-medium leading-[2.1] text-[#4A6572]">
             {fa(plush.length || 6)} تا رفیق پشمالو که هرکدوم یه جور بغل می‌کنن. انتخاب با دلت — قیمت همه‌شون یکیه:
-            {" "}<b className="text-[#04202E]">{money(BOX_PRICE)} تومان</b> با جعبه‌ی کادویی، کارت پستال QR رمزدار و پیام صوتی. پایین‌تر هم بخش افزودنی‌هاست؛ اکسسوری‌های قشنگی که کنار عروسک، تو جعبه می‌ذاریم.
+            {" "}<b className="text-[#04202E]">{money(BOX_PRICE)} تومان</b> با جعبه آبی، کارت پستال QR و پیام صوتی. پایین‌تر هم بخش افزودنی‌هاست؛ اکسسوری‌های قشنگی که کنار عروسک، تو جعبه می‌ذاریم.
           </p>
         </div>
         <div className="pointer-events-none flex items-end justify-center gap-4 pt-6" aria-hidden="true">
@@ -737,7 +737,7 @@ export function FriendsDesktop() {
 export function FriendsScreen() {
   useDocumentMeta({
     title: "دوستای پشمالو",
-    description: "معرفی عروسک‌های پولیشی یک دوست: خرس، خرگوش، گربه، پاندا، گوسفند و اردک — همه با یه قیمت و جعبه‌ی هدیه‌ی آماده برای ارسال.",
+    description: "معرفی دوستای پشمالوی جعبه آبی: خرس، خرگوش، گربه، پاندا، گوسفند و اردک — همه با یه قیمت و جعبه‌ی هدیه‌ی آماده برای ارسال.",
   });
   return (
     <>

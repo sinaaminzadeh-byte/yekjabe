@@ -1,0 +1,120 @@
+/* ═══ blog-prose.css — shared brand styles for the blog pro renderer ═══
+   The public renderer (md-pro.tsx) replicates these with inline Tailwind
+   classes; THIS file is imported by the MDXEditor core (mdx-core.tsx) so the
+   admin editor shows the exact same visual language while writing:
+   - light-blue gradient underline under H2/H3 («جعبه آبی» brand)
+   - the 5 directive boxes (quote/info/tip/love/warn)
+   No tailwind-blue classes here — brand hexes only. */
+
+/* ── heading underline (same as public h2/h3) ── */
+.bp-editor h2,
+.bp-editor h3 {
+  position: relative;
+  color: #04202e;
+  font-weight: 900;
+}
+.bp-editor h2::after,
+.bp-editor h3::after {
+  content: "";
+  display: block;
+  border-radius: 9999px;
+  background-image: linear-gradient(to left, #7fd4f2, #e3f6fd 70%, transparent);
+}
+.bp-editor h2::after {
+  height: 7px;
+  width: 62%;
+  margin-top: 6px;
+}
+.bp-editor h3::after {
+  height: 5px;
+  width: 42%;
+  margin-top: 4px;
+  opacity: 0.8;
+}
+
+/* ── directive boxes (block containers :::quote|info|tip|love|warn) ── */
+.bp-box {
+  border-radius: 18px;
+  padding: 14px 18px;
+  margin: 6px 0;
+}
+.bp-box > .bp-box-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 900;
+  font-size: 14.5px;
+  margin-bottom: 4px;
+}
+
+.bp-box-quote {
+  background: #f2fafd;
+  border-inline-start: 4px solid #00abe7;
+  position: relative;
+  overflow: hidden;
+  font-style: italic;
+}
+.bp-box-quote::before {
+  content: "”";
+  position: absolute;
+  top: -26px;
+  inset-inline-start: 8px;
+  font-size: 90px;
+  font-weight: 900;
+  line-height: 1;
+  color: rgba(0, 171, 231, 0.14);
+  pointer-events: none;
+}
+
+.bp-box-info {
+  background: #e3f6fd;
+  border: 1.5px solid #99d6ee;
+}
+.bp-box-info > .bp-box-title {
+  color: #006387;
+}
+
+.bp-box-tip {
+  background: #ddf3ea;
+  border: 1.5px solid #b7e4d2;
+}
+.bp-box-tip > .bp-box-title {
+  color: #2e7d53;
+}
+
+.bp-box-love {
+  background: #ffe9f1;
+  border: 1.5px solid #f7c5d3;
+}
+.bp-box-love > .bp-box-title,
+.bp-box-love .bp-accent {
+  color: #b02a52;
+}
+
+.bp-box-warn {
+  background: #fff3c9;
+  border: 1.5px solid #f0e0a0;
+}
+.bp-box-warn > .bp-box-title {
+  color: #8a6d1f;
+}
+
+.bp-box p {
+  margin: 2px 0;
+  line-height: 2.05;
+}
+
+/* RTL content + brand font inside the editor */
+.bp-editor,
+.bp-editor p,
+.bp-editor li,
+.bp-editor h1,
+.bp-editor h2,
+.bp-editor h3,
+.bp-editor h4 {
+  font-family: Vazirmatn, sans-serif;
+}
+.bp-editor p,
+.bp-editor li {
+  color: #1f3e4d;
+}

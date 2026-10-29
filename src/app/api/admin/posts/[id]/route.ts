@@ -13,6 +13,10 @@ const patchSchema = z.object({
   excerpt: z.string().trim().max(300).optional(),
   content: z.string().trim().min(50).max(20_000).optional(),
   tags: z.string().trim().max(120).optional(),
+  // round 34 — blog studio SEO fields (coverKey:"" removes the featured image)
+  metaTitle: z.string().trim().max(70).optional(),
+  metaDescription: z.string().trim().max(200).optional(),
+  coverKey: z.string().trim().max(200).optional(),
   publish: z.boolean().optional(),
 });
 
@@ -39,6 +43,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
 
     const data: {
       title?: string; slug?: string; excerpt?: string; content?: string; tags?: string;
+      metaTitle?: string; metaDescription?: string; coverKey?: string;
       published?: boolean; publishedAt?: Date | null;
     } = {};
     if (input.title !== undefined) data.title = input.title;
@@ -46,6 +51,17 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     if (input.excerpt !== undefined) data.excerpt = input.excerpt;
     if (input.content !== undefined) data.content = input.content;
     if (input.tags !== undefined) data.tags = input.tags;
+    if (input.metaTitle !== undefined) data.metaTitle = input.metaTitle;
+    if (input.metaDescription !== undefined) data.metaDescription = input.metaDescription;
+    if (input.coverKey !== undefined) {
+      data.coverKey = input.coverKey;
+      // the replaced cover file is garbage-collected here (single writer)
+      const prev = await db.post.findUnique({ where: { id }, select: { coverKey: true } });
+      if (prev?.coverKey && prev.coverKey !== input.coverKey && input.coverKey) {
+        const { deleteMediaFile } = await import("@/lib/media");
+        await deleteMediaFile(prev.coverKey);
+      }
+    }
     if (input.publish !== undefined) {
       data.published = input.publish;
       data.publishedAt = input.publish ? (current.publishedAt ?? new Date()) : null;

@@ -429,15 +429,15 @@ function StyleOne(p: Shared) {
       <div className="flex flex-col gap-6 pt-8 md:flex-row md:items-center md:justify-between md:pt-10">
         <div className="flex max-w-[560px] flex-col items-start gap-3">
           <span className="flex items-center gap-2 rounded-full bg-[#FFE0EA] px-4 py-1.5 text-[12.5px] font-extrabold text-[#C22553]">
-            🗓️ تقویم یک دوست
+            🗓️ تقویم جعبه آبی
           </span>
           <h2 className="m-0 text-[30px] font-black leading-[1.4] text-[#04202E] md:text-[38px]">
-            تقویم مناسبت‌ها
+            این ماه، بهونه‌های قشنگی برای هدیه دادن داریم
           </h2>
           <p className="m-0 text-[14px] font-medium leading-[2.1] text-[#1F3E4D] md:text-[15.5px]">
-            هر مناسبت، یه بهانه‌ی قشنگه برای فرستادن یه بغل به دوست پشمالوت. اینجا می‌تونی
-            مناسبت‌های نزدیک رو ببینی، هدیه‌ی همون روز رو انتخاب کنی و یه نگاه بندازی که
-            مهربونی «یک دوست» توی کدوم شهرهای ایران پخش شده.
+            تولدها، روزهای خاص و مناسبت‌هایی که می‌تونن یه فرصت باشن برای خوشحال کردن یکی که
+            برات مهمه. اینجا می‌تونی مناسبت‌های نزدیک رو ببینی، هدیه‌ی همون روز رو انتخاب کنی
+            و یه نگاه بندازی که جعبه‌های آبی توی کدوم شهرهای ایران پخش شدن.
           </p>
           {next && (
             <button
@@ -485,11 +485,11 @@ function StyleOne(p: Shared) {
         <div className="order-2 flex flex-col gap-3 rounded-[30px] border border-[#DDEEF5] bg-white p-5 md:p-7 lg:order-1">
           <div className="flex flex-col gap-1">
             <h3 className="m-0 flex items-center gap-2 text-[19px] font-black text-[#04202E]">
-              📍 آمار ارسال هدیه در استان‌ها
+              📍 جعبه‌های آبی به کجاها رسیدن؟
             </h3>
             <p className="m-0 text-[12.5px] font-medium leading-[1.9] text-[#4A6572]">
-              هر نقطه‌ی رنگی روی نقشه یعنی تعداد بسته‌هایی که تا امروز به اون استان رفته.
-              روی استان‌ها بزن یا هاور کن!
+              هر نقطه روی نقشه، یه هدیه‌ست که به دست کسی رسیده. اینجا می‌تونی ببینی جعبه‌های
+              آبی تا امروز مهمون کدوم شهرها شدن. روی استان‌ها بزن یا هاور کن!
             </p>
           </div>
 
@@ -615,9 +615,10 @@ function StyleOne(p: Shared) {
       <div id={`occasions-rail-${p.platform}`} className="mt-9 flex scroll-mt-24 flex-col gap-3 rounded-[30px] border border-[#DDEEF5] bg-white p-5 md:p-7">
         <div className="flex flex-wrap items-end justify-between gap-2">
           <div className="flex flex-col gap-1">
-            <h3 className="m-0 text-[19px] font-black text-[#04202E]">🎁 پیشنهاد هدیه برای مناسبت‌های پیش رو</h3>
+            <h3 className="m-0 text-[19px] font-black text-[#04202E]">🎁 برای این مناسبت چی بفرستم؟</h3>
             <p className="m-0 text-[12.5px] font-medium text-[#4A6572]">
-              با توجه به تقویم، برای هر مناسبت یه دوست پشمالو پیشنهاد دادیم
+              اگه نمی‌دونی چی انتخاب کنی، از اینجا شروع کن؛ برای هر مناسبت یه دوست پشمالو
+              پیشنهاد دادیم
               {p.sel ? ` — الان: ${p.sel.title}` : ""}.
             </p>
           </div>
@@ -659,12 +660,12 @@ function StyleTwo(p: Shared) {
         {/* سربرگ */}
         <div className="relative flex flex-col gap-3 md:max-w-[640px]">
           <span className="w-fit rounded-full bg-[#00ABE7]/15 px-4 py-1.5 text-[12.5px] font-extrabold text-[#5FD4FF] ring-1 ring-inset ring-[#00ABE7]/40">
-            🗓️ تقویم مهربونی یک دوست
+            🗓️ تقویم مهربونی جعبه آبی
           </span>
-          <h2 className="m-0 text-[30px] font-black leading-[1.4] md:text-[40px]">برای هر بهانه، یه بغل</h2>
+          <h2 className="m-0 text-[30px] font-black leading-[1.4] md:text-[40px]">این ماه، بهونه‌های قشنگی برای هدیه دادن داریم</h2>
           <p className="m-0 text-[14px] font-medium leading-[2.1] text-[#D3EEF9] md:text-[15.5px]">
-            مناسبت‌های نزدیک رو از تقویم بردار، هدیه‌ش رو انتخاب کن و ببین مهربونی از کدوم
-            استان‌های ایران داره می‌پره بیرون. هر نقطه‌ی روشن، یه جعبه‌ی باز شده‌ست.
+            مناسبت‌های نزدیک رو از تقویم بردار و هدیه‌ش رو انتخاب کن. هر نقطه‌ی روشن روی
+            نقشه، یه جعبه‌ی باز شده‌ست.
           </p>
           {next && (
             <button
@@ -710,9 +711,9 @@ function StyleTwo(p: Shared) {
           <div className="flex flex-col rounded-[28px] border border-white/12 bg-white/[0.06] p-5 backdrop-blur-sm md:p-7">
             <div className="flex flex-wrap items-end justify-between gap-2">
               <div className="flex flex-col">
-                <h3 className="m-0 text-[19px] font-black">📍 نقشه‌ی مهربونی</h3>
+                <h3 className="m-0 text-[19px] font-black">📍 جعبه‌های آبی به کجاها رسیدن؟</h3>
                 <p className="m-0 text-[12px] font-medium text-[#8FD8F2]">
-                  هر لکه‌ی آبی، تعداد بسته‌های رسیده به اون استان
+                  هر لکه‌ی آبی، یه هدیه‌ست که به دست کسی رسیده
                 </p>
               </div>
               <div className="rounded-2xl bg-white/[0.07] px-4 py-2 text-center ring-1 ring-inset ring-white/10">
@@ -761,9 +762,9 @@ function StyleTwo(p: Shared) {
         <div id={`occasions-rail-${p.platform}`} className="relative mt-8 scroll-mt-24">
           <div className="mb-3 flex flex-wrap items-end justify-between gap-2">
             <div className="flex flex-col gap-1">
-              <h3 className="m-0 text-[19px] font-black">🎁 پیشنهاد هدیه برای مناسبت‌های پیش رو</h3>
+              <h3 className="m-0 text-[19px] font-black">🎁 برای این مناسبت چی بفرستم؟</h3>
               <p className="m-0 text-[12.5px] font-medium text-[#8FD8F2]">
-                {p.sel ? `پیشنهادهای ${p.sel.title} جلوتر از بقیه‌ست` : "برای هر مناسبت، یه دوست پشمالو پیشنهاد دادیم"}
+                {p.sel ? `پیشنهادهای ${p.sel.title} جلوتر از بقیه‌ست` : "اگه نمی‌دونی چی انتخاب کنی، از اینجا شروع کن"}
               </p>
             </div>
             {p.sel && (

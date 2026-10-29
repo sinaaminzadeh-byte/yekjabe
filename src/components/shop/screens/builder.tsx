@@ -34,10 +34,11 @@ import {
   type PlushKind,
 } from "@/lib/pishnam-data";
 import { PROVINCES } from "@/lib/orders/provinces";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import type { CatalogEntry } from "@/lib/pishnam-store";
+import { AttrsBlock, Gallery, entryCover } from "../gallery";
 
 export function DesktopBuilder({ step }: { step: 1 | 2 | 3 }) {
   const kind = usePishnam((s) => s.kind);
@@ -69,6 +70,8 @@ export function DesktopBuilder({ step }: { step: 1 | 2 | 3 }) {
   const retentionPrices = usePishnam((s) => s.retentionPrices);
   // «افزودنی‌ها» (قدم ۲)
   const catalogAddons = usePishnam((s) => s.catalogAddons);
+  // سایدبار سبد — بندانگشتِ عکس ردیف‌ها از کاتالوگ (round 34)
+  const catalog = usePishnam((s) => s.catalog);
   const addonLines = usePishnam((s) => s.addonLines);
   const addAddon = usePishnam((s) => s.addAddon);
   const removeAddon = usePishnam((s) => s.removeAddon);
@@ -100,6 +103,7 @@ export function DesktopBuilder({ step }: { step: 1 | 2 | 3 }) {
   }, [fetchQuote, kind, hearts, paws, receiver.province, addonLines, retention]);
   const total = quote?.total ?? 0;
   const sel = PLUSHES.find((p) => p.kind === kind) ?? PLUSHES[0];
+  const mainCover = entryCover(catalog[kind]); // بندانگشت ردیف اصلی سبد (round 34)
   const valid = receiver.name.trim() !== "" && receiver.phone.trim().length >= 8 && receiver.address.trim() !== "";
   const canPay = valid && ordererVerified;
 
@@ -304,7 +308,7 @@ export function DesktopBuilder({ step }: { step: 1 | 2 | 3 }) {
                     [
                       { key: "name", label: "نمایش اسمم", hint: senderName || user?.name || "اسم خودت" },
                       { key: "phrase", label: "عبارت دلخواه", hint: senderPhrase || "مثلاً: از طرف همسرت" },
-                      { key: "anon", label: "کاملاً ناشناس", hint: "یک هدیه برای تو" },
+                      { key: "anon", label: "کاملاً ناشناس", hint: "یه هدیه برای تو" },
                     ] as { key: SenderDisplayMode; label: string; hint: string }[]
                   ).map((opt) => {
                     const on = senderDisplay === opt.key;
@@ -445,55 +449,104 @@ export function DesktopBuilder({ step }: { step: 1 | 2 | 3 }) {
               جعبه بچسبونیم. پول قلب‌ها و پنجه‌ها می‌ره برای هدیه به بچه‌های بی‌سرپرست و
               پناهگاه حیوونا.
             </p>
-            {/* «افزودنی‌ها» — همراه هدیه اصلی، از مدیریت محصولات (mission §۵) */}
+            {/* «افزودنی‌ها» — همراه هدیه اصلی، از مدیریت محصولات (mission §۵)
+             * round 34: گرید ۳ ستونه‌ی کارت‌های مدرن — کل کارت شیت جزئیات را باز می‌کند */}
             {catalogAddons.length > 0 && (
-              <div className="flex flex-col gap-2.5 rounded-3xl border border-[#DDEEF5] bg-white px-5 py-4">
+              <div className="flex flex-col gap-3 rounded-3xl border border-[#DDEEF5] bg-[#F8FDFF] px-5 py-4">
                 <div className="flex items-baseline justify-between">
                   <span className="text-[16px] font-black">افزودنی‌ها</span>
                   <span className="text-[12px] font-bold text-[#4A6572]">کنار هدیه‌ت بذاریم تو جعبه</span>
                 </div>
-                <div className="flex flex-wrap gap-2.5">
+                <div className="grid grid-cols-3 gap-3">
                   {catalogAddons.map((a) => {
                     const q = addonLines.find((l) => l.variantId === a.variantId)?.qty ?? 0;
                     const out = !a.inStock;
+                    const on = q > 0;
+                    const imgs = a.images ?? [];
+                    const cover = entryCover(a);
                     return (
                       <div
                         key={a.variantId}
-                        className="flex min-w-[240px] flex-[1_1_240px] items-center gap-3 rounded-[20px] border-[1.5px] px-3.5 py-3"
-                        style={{ borderColor: q > 0 ? "#00ABE7" : "#DDEEF5", opacity: out ? 0.55 : 1 }}
+                        role="button"
+                        tabIndex={0}
+                        aria-label={`جزئیات و عکس ${a.name}`}
+                        onClick={() => setDetail(a)}
+                        onKeyDown={(e) => {
+                          if (e.target !== e.currentTarget) return;
+                          if (e.key === "Enter" || e.key === " ") {
+                            e.preventDefault();
+                            setDetail(a);
+                          }
+                        }}
+                        className={`relative flex cursor-pointer flex-col rounded-[24px] border-[1.5px] bg-white p-2.5 pb-3 text-right outline-none transition-all hover:-translate-y-0.5 hover:shadow-[0_10px_24px_rgba(4,32,46,0.07)] focus-visible:ring-2 focus-visible:ring-[#00ABE7] ${
+                          on ? "border-[#00ABE7] ring-2 ring-[#00ABE7]/15" : "border-[#DDEEF5]"
+                        }`}
+                        style={{ opacity: out ? 0.6 : 1 }}
                       >
-                        <span className="flex h-[52px] w-[52px] shrink-0 items-center justify-center overflow-hidden rounded-[16px] bg-[#F2FAFD] text-2xl">
-                          {a.image ? (
-                            <img src={a.image} alt={a.name} className="h-full w-full object-cover" />
-                          ) : (
-                            <span aria-hidden="true">{a.emoji || "🎁"}</span>
-                          )}
-                        </span>
-                        <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-                          <span className="text-[14.5px] font-extrabold">{a.name}</span>
-                          <span className="text-[12px] font-bold text-[#4A6572]">{out ? "ناموجود" : `${money(a.priceToman)} تومان`}</span>
-                          <button
-                            type="button"
-                            onClick={() => setDetail(a)}
-                            className="w-fit text-[11.5px] font-extrabold text-[#006387] underline underline-offset-4"
-                          >
-                            جزئیات و عکس
-                          </button>
-                        </div>
-                        {out ? (
-                          <span className="rounded-full bg-[#F2FAFD] px-3 py-1.5 text-[11px] font-extrabold text-[#4A6572]">ناموجوده</span>
-                        ) : q === 0 ? (
-                          <button type="button" onClick={() => addAddon(a.variantId)} className="h-10 rounded-full bg-[#00ABE7] px-4 text-[12.5px] font-extrabold text-[#04202E]">
-                            + اضافه کن
-                          </button>
-                        ) : (
-                          <DC
-                            value={q}
-                            onMinus={() => (q === 1 ? removeAddon(a.variantId) : addAddon(a.variantId))}
-                            onPlus={() => addAddon(a.variantId)}
-                            plusBg="#00ABE7"
-                          />
+                        {on && (
+                          <span className="absolute right-3 top-3 z-10 flex h-6 w-6 items-center justify-center rounded-full bg-[#00ABE7] shadow-[0_4px_10px_rgba(0,171,231,0.35)]">
+                            <CheckIcon size={13} stroke="#fff" />
+                          </span>
                         )}
+                        {/* مربع عکس — گالری → عکس قدیمی → ایموجی + گرادیان */}
+                        <div className="relative aspect-square overflow-hidden rounded-[20px] bg-[#F2FAFD]">
+                          {cover ? (
+                            <img src={cover} alt={a.name} loading="lazy" className="h-full w-full object-cover" />
+                          ) : (
+                            <span
+                              className="flex h-full w-full items-center justify-center bg-[linear-gradient(135deg,#E3F6FD_0%,#F7FBFD_55%,#FFF1F5_100%)] text-5xl"
+                              aria-hidden="true"
+                            >
+                              {a.emoji || "🎁"}
+                            </span>
+                          )}
+                          {imgs.length > 1 && (
+                            <span className="absolute left-2.5 top-2.5 rounded-full bg-white/90 px-2 py-0.5 text-[10.5px] font-extrabold text-[#04202E]">
+                              عکس +{fa(imgs.length - 1)}
+                            </span>
+                          )}
+                          {out && (
+                            <span className="absolute inset-0 flex items-center justify-center">
+                              <span className="rounded-full bg-white/90 px-3 py-1 text-[11.5px] font-extrabold text-[#04202E]">ناموجوده</span>
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex min-w-0 flex-1 flex-col gap-1 px-0.5 pt-2.5">
+                          <span className="line-clamp-2 min-h-[3em] text-[15px] font-black leading-[1.6] text-[#04202E]">{a.name}</span>
+                          <div className="mt-auto flex items-end justify-between gap-1 pt-1.5">
+                            {out ? (
+                              <span className="pb-1.5 text-[12.5px] font-black leading-[1.6] text-[#4A6572]">فعلاً ناموجوده</span>
+                            ) : (
+                              <span className="flex items-baseline gap-1 pb-1.5">
+                                <span className="text-[15.5px] font-black text-[#04202E]">{money(a.priceToman)}</span>
+                                <span className="text-[10.5px] font-bold text-[#4A6572]">تومان</span>
+                              </span>
+                            )}
+                            {!out &&
+                              (q === 0 ? (
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    addAddon(a.variantId);
+                                  }}
+                                  aria-label={`افزودن ${a.name} کنار هدیه`}
+                                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#00ABE7] text-[22px] font-black leading-none text-white transition-transform active:scale-90"
+                                >
+                                  +
+                                </button>
+                              ) : (
+                                <span onClick={(e) => e.stopPropagation()}>
+                                  <DC
+                                    value={q}
+                                    onMinus={() => (q === 1 ? removeAddon(a.variantId) : addAddon(a.variantId))}
+                                    onPlus={() => addAddon(a.variantId)}
+                                    plusBg="#00ABE7"
+                                  />
+                                </span>
+                              ))}
+                          </div>
+                        </div>
                       </div>
                     );
                   })}
@@ -535,28 +588,32 @@ export function DesktopBuilder({ step }: { step: 1 | 2 | 3 }) {
               </div>
             )}
 
-            {/* جزئیات افزودنی — Bottom-Sheet */}
+            {/* جزئیات افزودنی — مدال وسط‌چین با گالری و مشخصات (round 34) */}
             <Sheet open={detail !== null} onOpenChange={(o) => !o && setDetail(null)}>
-              <SheetContent side="bottom" className="rounded-t-[30px] border-[#DDEEF5] bg-white px-0 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-2">
+              <SheetContent side="bottom" className="mx-auto mb-6 max-w-lg rounded-[30px] border-[#DDEEF5] bg-white px-0 pb-6 pt-2">
                 {detail && (
-                  <div className="flex flex-col gap-4 px-6 pt-2 text-right">
+                  <div className="flex max-h-[76vh] flex-col gap-4 overflow-y-auto px-7 pt-2 text-right">
                     <span className="mx-auto h-1.5 w-12 rounded-full bg-[#DDEEF5]" aria-hidden="true" />
-                    <div className="flex h-[190px] items-center justify-center overflow-hidden rounded-[24px] bg-[#F2FAFD]">
-                      {detail.image ? (
-                        <img src={detail.image} alt={detail.name} className="h-full w-full object-cover" />
-                      ) : (
-                        <span className="text-6xl" aria-hidden="true">{detail.emoji || "🎁"}</span>
-                      )}
-                    </div>
+                    {/* گالری: عکس‌های محصول → عکس قدیمی → ایموجی + گرادیان پاستلی */}
+                    <Gallery
+                      key={detail.variantId}
+                      images={detail.images?.length ? detail.images : detail.image ? [detail.image] : []}
+                      name={detail.name}
+                      emoji={detail.emoji}
+                      rounded="rounded-[24px]"
+                      thumbClass="h-16 w-16"
+                    />
                     <SheetHeader className="gap-1 space-y-0 p-0 text-right">
-                      <SheetTitle className="text-right text-[20px] font-black text-[#04202E]">{detail.name}</SheetTitle>
-                      <SheetDescription className="text-right text-[14px] font-extrabold text-[#006387]">
+                      <SheetTitle className="text-right text-[21px] font-black text-[#04202E]">{detail.name}</SheetTitle>
+                      <SheetDescription className="text-right text-[14.5px] font-extrabold text-[#006387]">
                         {detail.inStock ? `${money(detail.priceToman)} تومان` : "فعلاً ناموجوده"}
                       </SheetDescription>
                     </SheetHeader>
-                    <p className="m-0 text-[13.5px] font-medium leading-[2] text-[#1F3E4D]">
+                    <p className="m-0 text-[14px] font-medium leading-[2] text-[#1F3E4D]">
                       {detail.description || "برای این افزودنی هنوز توضیحی ثبت نشده — سوالی داری قبل از خرید بهمون پیام بده."}
                     </p>
+                    {/* سایز / رنگ‌ها / جدول مشخصات — فقط وقتی ادمین ثبت کرده باشد */}
+                    <AttrsBlock entry={detail} />
                     {detail.inStock && (
                       <button
                         type="button"
@@ -565,7 +622,7 @@ export function DesktopBuilder({ step }: { step: 1 | 2 | 3 }) {
                           setDetail(null);
                           toast({ title: "به سبد اضافه شد ✓", description: detail.name });
                         }}
-                        className="h-[52px] w-full rounded-full bg-[#00ABE7] text-[15px] font-extrabold text-[#04202E] transition-transform active:scale-[0.98]"
+                        className="h-[52px] w-full rounded-full bg-[#00ABE7] text-[15px] font-extrabold text-[#04202E] transition-transform hover:-translate-y-0.5 hover:shadow-[0_10px_24px_rgba(4,32,46,0.07)] active:scale-[0.98]"
                       >
                         + بذارش کنار هدیه تو جعبه
                       </button>
@@ -728,10 +785,45 @@ export function DesktopBuilder({ step }: { step: 1 | 2 | 3 }) {
           </div>
 
           <div className="flex flex-col gap-2">
-            <Row label={`${sel.name}، دوست پشمالو`} sub="جعبه‌ی کادویی + کارت پستال QR" amount={quote ? money(quote.lines?.[0]?.lineToman ?? 0) : "…"} />
-            {(quote?.lines ?? []).slice(1).map((l) => (
-              <Row key={l.variantId} label={l.productName} sub={`افزودنی × ${fa(l.qty)}`} amount={money(l.lineToman)} />
-            ))}
+            {/* بندانگشت‌های ۴۸px — عکس کاتالوگ → پلاش/ایموجی (round 34)؛ مبالغ دست‌نخورده */}
+            <Row
+              label={`${sel.name}، دوست پشمالو`}
+              sub="جعبه آبی + کارت پستال QR"
+              amount={quote ? money(quote.lines?.[0]?.lineToman ?? 0) : "…"}
+              thumb={
+                <span
+                  className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-[14px]"
+                  style={{ background: sel.bg }}
+                >
+                  {mainCover ? (
+                    <img src={mainCover} alt={sel.name} loading="lazy" className="h-full w-full object-cover" />
+                  ) : (
+                    <Plush kind={sel.kind} size={34} />
+                  )}
+                </span>
+              }
+            />
+            {(quote?.lines ?? []).slice(1).map((l) => {
+              const entry = catalogAddons.find((x) => x.variantId === l.variantId);
+              const cover = entryCover(entry);
+              return (
+                <Row
+                  key={l.variantId}
+                  label={l.productName}
+                  sub={`افزودنی × ${fa(l.qty)}`}
+                  amount={money(l.lineToman)}
+                  thumb={
+                    <span className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-[14px] bg-[#F2FAFD] text-xl">
+                      {cover ? (
+                        <img src={cover} alt={l.productName} loading="lazy" className="h-full w-full object-cover" />
+                      ) : (
+                        <span aria-hidden="true">{entry?.emoji ?? "🎁"}</span>
+                      )}
+                    </span>
+                  }
+                />
+              );
+            })}
             {hearts + paws > 0 && <Row label={`قلب و پنجه × ${fa(hearts + paws)}`} sub="برای بچه‌های بی‌سرپرست و حیوونا" amount={quote ? money(quote.charms) : "…"} />}
             {quote && quote.retention > 0 && (
               <Row label={`نگهداری پیام ${quote.retentionPlan === "12m" ? "۱ ساله" : "۶ ماهه"}`} sub="ساعت از اولین نمایش موفق پیام" amount={money(quote.retention)} />
@@ -893,12 +985,15 @@ function DField({ label, value, onChange, placeholder, tel, className, id, error
   );
 }
 
-function Row({ label, sub, amount, muted }: { label: string; sub?: string; amount: string; muted?: boolean }) {
+function Row({ label, sub, amount, muted, thumb }: { label: string; sub?: string; amount: string; muted?: boolean; thumb?: ReactNode }) {
   return (
     <div className="flex items-center justify-between gap-3">
-      <div className="flex flex-col">
-        <span className="text-[14px] font-extrabold">{label}</span>
-        {sub && <span className="text-[11.5px] font-medium text-[#4A6572]">{sub}</span>}
+      <div className="flex min-w-0 items-center gap-2.5">
+        {thumb}
+        <div className="flex min-w-0 flex-col">
+          <span className="text-[14px] font-extrabold">{label}</span>
+          {sub && <span className="text-[11.5px] font-medium text-[#4A6572]">{sub}</span>}
+        </div>
       </div>
       <span className={`text-[13.5px] font-extrabold ${muted ? "text-[#4A6572]" : ""}`}>{amount}</span>
     </div>

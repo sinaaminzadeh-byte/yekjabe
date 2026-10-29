@@ -92,3 +92,38 @@ export function breadcrumbJsonLd(items: BreadcrumbItem[]) {
 export function toJsonLdScript(obj: unknown): string {
   return JSON.stringify(obj).replace(/</g, "\\u003c");
 }
+
+/* ── BlogPosting/Article builder (round 34-h, blog studio) ── */
+
+export interface ArticleJsonLdInput {
+  slug: string;
+  headline: string;
+  description?: string | null;
+  /** Cover image URL (site-relative or absolute). */
+  image?: string | null;
+  datePublished?: string | null;
+  dateModified?: string | null;
+}
+
+/** Minimal schema.org BlogPosting with «جعبه آبی» author/publisher Organization. */
+export function articleJsonLd(input: ArticleJsonLdInput) {
+  const pageUrl = `${SITE.url}/post?slug=${encodeURIComponent(input.slug)}`;
+  return {
+    "@context": "https://schema.org",
+    "@type": "BlogPosting",
+    headline: input.headline,
+    ...(input.description ? { description: input.description } : {}),
+    ...(input.image ? { image: input.image.startsWith("http") ? input.image : `${SITE.url}${input.image}` } : {}),
+    ...(input.datePublished ? { datePublished: input.datePublished } : {}),
+    ...(input.dateModified ? { dateModified: input.dateModified } : {}),
+    author: { "@type": "Organization", name: "جعبه آبی", url: SITE.url },
+    publisher: {
+      "@type": "Organization",
+      name: "جعبه آبی",
+      url: SITE.url,
+      slogan: "یکی دوستت داره",
+    },
+    mainEntityOfPage: { "@type": "WebPage", "@id": pageUrl },
+    inLanguage: "fa-IR",
+  };
+}

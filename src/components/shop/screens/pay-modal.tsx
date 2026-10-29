@@ -141,7 +141,7 @@ export function PayModal() {
             </span>
           </DialogTitle>
           <DialogDescription className="sr-only">
-            پرداخت سفارش هدیه یک دوست
+            پرداخت سفارش جعبه آبی
           </DialogDescription>
         </DialogHeader>
 

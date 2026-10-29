@@ -53,7 +53,7 @@ function Splash() {
       <div className="pishnam-glow rounded-[22px]">
         <Logo size={72} />
       </div>
-      <span className="text-sm font-bold text-[#4A6572]">یه بغل، تو یه جعبه…</span>
+      <span className="text-sm font-bold text-[#4A6572]">یکی دوستت داره…</span>
     </div>
   );
 }

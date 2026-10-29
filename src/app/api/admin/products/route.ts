@@ -18,6 +18,10 @@ const createSchema = z.object({
   emoji: z.string().trim().max(8).optional().default("🎁"),
   priceToman: z.number().int().min(0).max(100_000_000),
   stock: z.number().int().min(0).max(9999).default(0),
+  // display attributes (round 34)
+  sizeLabel: z.string().trim().max(60).optional().default(""),
+  colors: z.string().trim().max(200).optional().default(""),
+  specs: z.array(z.object({ label: z.string().trim().min(1).max(40), value: z.string().trim().min(1).max(120) })).max(12).optional().default([]),
 });
 
 export async function GET() {
@@ -25,7 +29,10 @@ export async function GET() {
     await requireAdmin();
     const products = await db.product.findMany({
       orderBy: [{ kind: "asc" }, { createdAt: "asc" }],
-      include: { variants: true },
+      include: {
+        variants: true,
+        images: { orderBy: { sortOrder: "asc" } },
+      },
     });
     return NextResponse.json({
       products: products.map((p) => ({
@@ -36,6 +43,15 @@ export async function GET() {
         kind: p.kind,
         emoji: p.emoji,
         image: p.imageKey ? `/api/products/${p.slug}/image?v=${p.updatedAt.getTime()}` : null,
+        images: p.images.map((i) => ({
+          id: i.id,
+          url: `/api/media/${i.key}`,
+          alt: i.alt,
+          sortOrder: i.sortOrder,
+        })),
+        sizeLabel: p.sizeLabel,
+        colors: p.colors,
+        specs: p.specs,
         isActive: p.isActive,
         variant: p.variants[0]
           ? {
@@ -79,6 +95,9 @@ export async function POST(req: Request) {
         description: v.description,
         kind: v.kind,
         emoji: v.emoji || "🎁",
+        sizeLabel: v.sizeLabel,
+        colors: v.colors,
+        specs: JSON.stringify(v.specs),
         variants: {
           create: { sku: `${skuPrefix}-${slug}`.slice(0, 40), size: "one", priceToman: v.priceToman, stock: v.stock },
         },
