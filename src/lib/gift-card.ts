@@ -3,7 +3,7 @@
 // Pure browser API (no React), RTL-aware via ctx.direction + Vazirmatn webfont.
 import { fa } from "./fa";
 import { PLUSH_MAP, OCCASIONS } from "./pishnam-data";
-import type { GiftOrder } from "./pishnam-store";
+import type { BoardOrder } from "./pishnam-store";
 
 const W = 1080;
 const H = 1350;
@@ -89,7 +89,7 @@ function chip(
 }
 
 export async function downloadGiftCard(
-  o: GiftOrder,
+  o: BoardOrder,
   plushSvg?: SVGSVGElement | null,
 ): Promise<boolean> {
   const canvas = document.createElement("canvas");

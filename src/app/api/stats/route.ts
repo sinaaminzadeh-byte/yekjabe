@@ -2,7 +2,10 @@
 // All counters come straight from the DB (no invented marketing numbers);
 // the only fixed claim is the 98% satisfaction badge, owned by the brand.
 // Cached for 30s in module memory — cheap reads, no cache infra needed.
+// A-04: the gift counter reads the ONE order truth (Order table) — the
+// «هدیه‌ی شماره» is the #### tail of the newest PN- code.
 import { NextResponse } from "next/server";
+import { codeSuffixNo } from "@/lib/orders/code";
 
 export const revalidate = 0;
 
@@ -31,7 +34,7 @@ export async function GET() {
       db.order.count({ where: { status: { in: ["paid", "preparing", "shipped"] } } }),
       db.review.aggregate({ where: { approved: true }, _avg: { stars: true }, _count: { _all: true } }),
       db.experience.count({ where: { status: "published" } }),
-      db.giftOrder.findFirst({ orderBy: { no: "desc" }, select: { no: true } }),
+      db.order.findFirst({ orderBy: { createdAt: "desc" }, select: { code: true } }),
     ]);
     const data: StatsPayload = {
       products,
@@ -40,7 +43,7 @@ export async function GET() {
       reviews: reviewAgg._count._all,
       avgStars: Math.round((reviewAgg._avg.stars ?? 0) * 10) / 10,
       stories,
-      giftsNo: lastGift?.no ?? 100,
+      giftsNo: (lastGift ? codeSuffixNo(lastGift.code) : 0) || 100,
       satisfaction: 98,
     };
     cache = { at: Date.now(), data };

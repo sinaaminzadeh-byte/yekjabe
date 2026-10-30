@@ -1,6 +1,9 @@
 // ── POST /api/me/bootstrap — ONE session-scoped fetch (Phase B update) ──
-// Returns user + favorites + legacy demo orders + NEW commerce orders (mapped
-// for the client store, PII-guarded). Guests get nothing (acceptance A).
+// Returns user + favorites + the account's NEW commerce orders (mapped for the
+// client store, PII-guarded). A-04: the Order table is the ONE server-side
+// order truth — the dropped legacy table no longer exists, so this payload
+// carries ONLY mapped v2 rows (field names unchanged — the client merge in
+// pishnam-sync.ts depends on them). Guests get nothing (acceptance A).
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { toErrorResponse } from "@/lib/errors";
@@ -16,13 +19,8 @@ export async function GET() {
       // guests get nothing — no PII without a session (acceptance A)
       return NextResponse.json({ user: null, admin: false, orders: [], favorites: [] });
     }
-    const [user, legacyOrders, favorites, adminRow, newOrders] = await Promise.all([
+    const [user, favorites, adminRow, newOrders] = await Promise.all([
       db.appUser.findUnique({ where: { phone: session.phone } }),
-      db.giftOrder.findMany({
-        where: { OR: [{ userPhone: session.phone }, { phone: session.phone }] },
-        orderBy: { no: "desc" },
-        take: 50,
-      }),
       db.favorite.findMany({
         where: { userPhone: session.phone },
         orderBy: { createdAt: "asc" },
@@ -66,7 +64,7 @@ export async function GET() {
         paws: o.charmPaws,
         total: o.totalToman,
         date: new Intl.DateTimeFormat("fa-IR", { day: "numeric", month: "long" }).format(o.createdAt),
-        status: legacyStep(o.status as OrderStatus), // 4-step for legacy chips
+        status: legacyStep(o.status as OrderStatus), // 4-step display field for the board chips/timeline
         status2: o.status, // raw 11-state for new components
         // retention snapshot for the panel chips (no content here — never starts the clock)
         retentionPlan: o.retentionPlan,
@@ -100,7 +98,7 @@ export async function GET() {
     return NextResponse.json({
       user: { phone: session.phone, name: user?.name ?? "" },
       admin: Boolean(adminRow?.isActive),
-      orders: [...mappedNew, ...legacyOrders],
+      orders: mappedNew, // A-04: v2 rows ONLY — no legacy merge anymore
       favorites: favorites.map((f) => f.kind),
     });
   } catch (e) {

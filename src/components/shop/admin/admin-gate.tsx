@@ -3,22 +3,22 @@
 // ── admin gate (A-02 split) — OTP + server-side admin session (guide A7) ──
 // Two ways in: SMS OTP for registered admin seats, or the panel password
 // (.env ADMIN_PANEL_PASSWORD) compared constant-time on the server.
-import { useState } from "react";
+// A-03 (audit wave 4): the OTP half now runs on the shared useOtp machine
+// (purpose "login"); the password mode + its own /api/auth/admin-login call
+// stay exactly as they were. Visuals/copy untouched — including the generic
+// per-step failure lines (the gate keeps showing its own fallbacks instead of
+// the hook's messages, byte-for-byte like before).
+import { useRef, useState } from "react";
 import { Plush } from "@/components/shop/plush";
+import { useOtp } from "@/hooks/use-otp";
 
 export const UNLOCK_KEY = "pishnam-admin-ok";
-
-function toEnDigits(s: string): string {
-  return s.replace(/[۰-۹]/g, (d) => String("۰۱۲۳۴۵۶۷۸۹".indexOf(d)));
-}
 
 export function AdminOtpGate({ onOk }: { onOk: () => void }) {
   const [mode, setMode] = useState<"otp" | "password">("otp");
   const [step, setStep] = useState<"phone" | "code">("phone");
-  const [phone, setPhone] = useState("");
-  const [code, setCode] = useState("");
   const [password, setPassword] = useState("");
-  const [busy, setBusy] = useState(false);
+  const [busy, setBusy] = useState(false); // password mode only — OTP busy comes from the hook
   const [err, setErr] = useState(false);
   const [errMsg, setErrMsg] = useState("");
 
@@ -28,54 +28,33 @@ export function AdminOtpGate({ onOk }: { onOk: () => void }) {
     setTimeout(() => setErr(false), 1200);
   };
 
+  // A-03: shared OTP machine. A verify that succeeds but is NOT an admin seat
+  // must fail exactly like before (no enumeration, same generic message).
+  const adminOkRef = useRef(false);
+  const otp = useOtp({
+    purpose: "login",
+    onSuccess: (res) => {
+      if (!res.admin) return;
+      adminOkRef.current = true;
+      try {
+        sessionStorage.setItem(UNLOCK_KEY, "1");
+      } catch {}
+      onOk();
+    },
+  });
+
   const sendCode = async () => {
-    const p = toEnDigits(phone.trim());
-    if (!/^09\d{9}$/.test(p)) {
-      fail();
-      return;
-    }
-    setBusy(true);
-    try {
-      const res = await fetch("/api/auth/request", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phone: p }),
-      });
-      if (!res.ok) throw new Error("request failed");
+    if (await otp.request()) {
       setStep("code");
-    } catch {
+    } else {
       fail();
     }
-    setBusy(false);
   };
 
   const submit = async () => {
-    const p = toEnDigits(phone.trim());
-    const c = toEnDigits(code.trim());
-    if (!/^09\d{9}$/.test(p) || !/^\d{4}$/.test(c)) {
-      fail();
-      return;
-    }
-    setBusy(true);
-    try {
-      const res = await fetch("/api/auth/verify", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phone: p, code: c }),
-      });
-      const json = (await res.json()) as { ok?: boolean; admin?: boolean };
-      if (res.ok && json.ok && json.admin) {
-        try {
-          sessionStorage.setItem(UNLOCK_KEY, "1");
-        } catch {}
-        onOk();
-        return;
-      }
-      fail();
-    } catch {
-      fail();
-    }
-    setBusy(false);
+    adminOkRef.current = false;
+    const ok = await otp.verify();
+    if (!ok || !adminOkRef.current) fail();
   };
 
   // ورود با رمز — مسیر دوم (فوتر: «ورود مدیر»). سرور رمز را constant-time مقایسه می‌کند.
@@ -141,9 +120,9 @@ export function AdminOtpGate({ onOk }: { onOk: () => void }) {
             inputMode="numeric"
             dir="ltr"
             maxLength={11}
-            value={phone}
-            onChange={(e) => setPhone(e.target.value.replace(/[^\d۰-۹]/g, "").slice(0, 11))}
-            onKeyDown={(e) => e.key === "Enter" && !busy && void sendCode()}
+            value={otp.phone}
+            onChange={(e) => otp.setPhone(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && !otp.busy && void sendCode()}
             placeholder="09xxxxxxxxx"
             aria-label="شماره موبایل مدیریت"
             className={`h-[54px] w-full rounded-[18px] border-2 bg-white text-center text-[18px] font-black text-[#04202E] outline-none transition-shadow focus:shadow-[0_0_0_4px_rgba(0,171,231,0.15)] ${
@@ -156,9 +135,9 @@ export function AdminOtpGate({ onOk }: { onOk: () => void }) {
             inputMode="numeric"
             dir="ltr"
             maxLength={4}
-            value={code}
-            onChange={(e) => setCode(e.target.value.replace(/[^\d۰-۹]/g, "").slice(0, 4))}
-            onKeyDown={(e) => e.key === "Enter" && !busy && void submit()}
+            value={otp.code}
+            onChange={(e) => otp.setCode(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && !otp.busy && void submit()}
             placeholder="••••"
             aria-label="کد ورود چهاررقمی"
             className={`h-[54px] w-full rounded-[18px] border-2 bg-white text-center text-[20px] font-black tracking-[0.4em] text-[#04202E] outline-none transition-shadow focus:shadow-[0_0_0_4px_rgba(0,171,231,0.15)] ${
@@ -178,7 +157,7 @@ export function AdminOtpGate({ onOk }: { onOk: () => void }) {
         )}
         <button
           type="button"
-          disabled={busy}
+          disabled={mode === "password" ? busy : otp.busy}
           onClick={() =>
             mode === "password" ? void submitPassword() : step === "phone" ? void sendCode() : void submit()
           }
@@ -191,7 +170,7 @@ export function AdminOtpGate({ onOk }: { onOk: () => void }) {
             type="button"
             onClick={() => {
               setStep("phone");
-              setCode("");
+              otp.reset();
               setErr(false);
             }}
             className="text-[12.5px] font-bold text-[#4A6572] underline"

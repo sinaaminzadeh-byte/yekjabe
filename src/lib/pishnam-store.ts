@@ -27,7 +27,9 @@ export function statusToStep(s: GiftStatus): TrackStep {
 
 export type GiftStatus = "paid" | "packing" | "shipped" | "delivered";
 
-export interface GiftOrder {
+/** The ONE client-side board order — every row lives in the v2 Order table
+ *  (server truth) or is its optimistic local mirror (o-local-<code>). */
+export interface BoardOrder {
   id: string;
   no: number; // gift number (۱۰۱… or the #### tail of a PN- code)
   kind: PlushKind;
@@ -185,7 +187,7 @@ interface PishnamState {
   user: { phone: string; name: string } | null;
 
   // orders
-  orders: GiftOrder[];
+  orders: BoardOrder[];
   nextNo: number;
   selectedId: string | null;
 
@@ -248,8 +250,6 @@ interface PishnamState {
    * manual payment panel, which may be opened for an order that is NOT the
    * globally-pending one (dashboard/track rebuild the panel from bootstrap). */
   setOrderStatusByCode: (code: string, status: string) => void;
-  advanceStatus: (id: string) => void;
-  markOpened: (id: string) => void;
   resetBuilder: () => void;
   selectOrder: (id: string | null) => void;
   toggleFavorite: (k: PlushKind) => void;
@@ -283,17 +283,6 @@ function todayFa(): string {
   } catch {
     return "امروز";
   }
-}
-
-/** Server sync for LEGACY demo rows only — v2 orders live on the server. */
-function syncOrderPatch(get: () => PishnamState, id: string, body: Record<string, unknown>) {
-  const o = get().orders.find((x) => x.id === id);
-  if (!o || o.v2) return; // v2 orders are moved by the admin console, not the client
-  void fetch(`/api/orders/${id}`, {
-    method: "PATCH",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  }).catch(() => {});
 }
 
 export const usePishnam = create<PishnamState>()(
@@ -639,7 +628,7 @@ export const usePishnam = create<PishnamState>()(
           }
 
           // local mirror so «هدیه‌هام»/موفقیت work even before the next bootstrap
-          const mirrored: GiftOrder = {
+          const mirrored: BoardOrder = {
             id: `o-local-${ack.code}`,
             no: Number(ack.code.slice(-4)) || get().nextNo,
             kind: s.kind,
@@ -716,30 +705,6 @@ export const usePishnam = create<PishnamState>()(
         });
       },
 
-      advanceStatus: (id) => {
-        const cur = get().orders.find((o) => o.id === id);
-        const next: GiftStatus | null = !cur
-          ? null
-          : cur.status === "paid"
-            ? "packing"
-            : cur.status === "packing"
-              ? "shipped"
-              : "delivered";
-        set({
-          orders: get().orders.map((o) =>
-            o.id === id && next ? { ...o, status: next } : o,
-          ),
-        });
-        if (next) syncOrderPatch(get, id, { status: next });
-      },
-
-      markOpened: (id) => {
-        set({
-          orders: get().orders.map((o) => (o.id === id ? { ...o, opened: true } : o)),
-        });
-        syncOrderPatch(get, id, { opened: true });
-      },
-
       resetBuilder: () => {
         clearMediaFiles();
         set({
@@ -799,9 +764,15 @@ export const usePishnam = create<PishnamState>()(
         const files = Array.isArray(p.mediaFiles)
           ? p.mediaFiles.filter((m) => mediaFileMap.has(m.id))
           : [];
+        // A-04 — the Order table is the ONE order truth: rows persisted by the
+        // dropped legacy table (no v2 flag) are dead ghosts — they can never
+        // sync, refund or pay again, so they are dropped at the gate; every
+        // surviving row re-arrives from /api/me/bootstrap anyway.
+        const orders = Array.isArray(p.orders) ? p.orders.filter((o) => o?.v2 === true) : current.orders;
         return {
           ...current,
           ...p,
+          orders,
           mediaFiles: files,
           // پرچم‌های «عکس/فیلم اضافه کردم» هم فقط وقتی زنده‌اند که فایل واقعی باشد
           photoAdded: files.some((m) => m.kind === "image"),
@@ -876,7 +847,7 @@ export function useCharmsTotal(): number {
   return usePishnam((s) => s.hearts + s.paws);
 }
 
-export function useSelectedOrder(): GiftOrder | null {
+export function useSelectedOrder(): BoardOrder | null {
   return usePishnam(
     (s) => s.orders.find((o) => o.id === s.selectedId) ?? s.orders.find((o) => o.dir === "sent") ?? null,
   );

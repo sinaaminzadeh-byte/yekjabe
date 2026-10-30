@@ -16,17 +16,11 @@ import { navigate } from "@/lib/hash-route";
 import { usePishnam, type ReceivedGift } from "@/lib/pishnam-store";
 import { fa, money } from "@/lib/fa";
 import { OCCASIONS, plushLabel } from "@/lib/pishnam-data";
-
-/** Persian/Arabic digits → Latin (mirror of the dashboards helper). */
-function toEnDigits(s: string): string {
-  return s
-    .replace(/[۰-۹]/g, (d) => String("۰۱۲۳۴۵۶۷۸۹".indexOf(d)))
-    .replace(/[٠-٩]/g, (d) => String("٠١٢٣٤٥٦٧٨٩".indexOf(d)));
-}
+// A-03 (audit wave 4): the OTP half runs on the shared useOtp machine
+// (purpose "gift_recv") — steps/visuals/empty-state stay exactly as they were.
+import { useOtp } from "@/hooks/use-otp";
 
 type VerifyStep = "intro" | "phone" | "otp" | "checking" | "gifts" | "coming" | "empty";
-
-const RESend_SECONDS = 90;
 
 export function VerifyScreen() {
   // owner round 29 law: NO card password anywhere — the display page takes the
@@ -35,43 +29,11 @@ export function VerifyScreen() {
   // messages of their latest orders appear right here; tapping one opens its
   // full gift page (gift-view).
   const [step, setStep] = useState<VerifyStep>("intro");
-  const [phone, setPhone] = useState("");
-  const [code, setCode] = useState("");
-  const [devCode, setDevCode] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [err, setErr] = useState("");
-  const [resendIn, setResendIn] = useState(0);
   const user = usePishnam((s) => s.user);
   const login = usePishnam((s) => s.login);
   const receivedGifts = usePishnam((s) => s.receivedGifts);
   const receivedStatus = usePishnam((s) => s.receivedStatus);
   const fetchReceived = usePishnam((s) => s.fetchReceived);
-  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-
-  useEffect(() => {
-    return () => {
-      if (timerRef.current) clearInterval(timerRef.current);
-    };
-  }, []);
-
-  // already signed in → go straight to the received-gifts check
-  useEffect(() => {
-    if (user && step === "intro") {
-      setStep("checking");
-      void afterAuth();
-    }
-  }, [user, step]);
-
-  const startResend = () => {
-    setResendIn(RESend_SECONDS);
-    if (timerRef.current) clearInterval(timerRef.current);
-    timerRef.current = setInterval(() => {
-      setResendIn((s) => {
-        if (s <= 1 && timerRef.current) clearInterval(timerRef.current);
-        return Math.max(0, s - 1);
-      });
-    }, 1000);
-  };
 
   /** post-auth: unread gifts of THIS phone → show them right here */
   async function afterAuth() {
@@ -85,75 +47,44 @@ export function VerifyScreen() {
     }
   }
 
-  async function requestCode() {
-    const p = toEnDigits(phone).replace(/\D/g, "");
-    if (!/^09\d{9}$/.test(p)) {
-      setErr("شماره موبایل رو با ۰۹ وارد کن");
-      return;
-    }
-    setErr("");
-    setBusy(true);
-    try {
-      const res = await fetch("/api/auth/request", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phone: p, purpose: "gift_recv" }),
+  // A-03: shared OTP machine — phone/code/busy/err/resend/devCode live there;
+  // this screen keeps only its own step choreography.
+  const otp = useOtp({
+    purpose: "gift_recv",
+    onSuccess: (res) => {
+      login(res.user.phone, "");
+      setStep("checking");
+      void afterAuth();
+    },
+  });
+
+  // The two shortcut views are DERIVED during render (official react.dev
+  // adjust-during-render pattern — the house lint forbids setState-in-effect):
+  //  • signed-in visitor landing here → straight to the received-gifts check
+  //  • gift_recv probe said «no package for this number» → friendly empty state
+  const viewStep: VerifyStep = otp.noGifts ? "empty" : user && step === "intro" ? "checking" : step;
+
+  // the signed-in shortcut still needs its fetch kicked off (once — a failed
+  // probe must not loop); the result lands via the async callback, not the
+  // effect body itself (house lint: no synchronous setState inside effects)
+  const autoCheckStarted = useRef(false);
+  useEffect(() => {
+    if (user && step === "intro" && !autoCheckStarted.current) {
+      autoCheckStarted.current = true;
+      void fetchReceived().then((gifts) => {
+        if (gifts.length > 0) setStep("gifts");
+        else setStep("coming");
       });
-      const body = (await res.json().catch(() => ({}))) as { devCode?: string; noGifts?: boolean };
-      if (!res.ok) {
-        setErr(res.status === 429 ? "کمی صبر کن و دوباره امتحان کن" : "ارسال کد ناموفق بود");
-        return;
-      }
-      // owner law: no package registered for this number → no SMS, straight
-      // to the friendly empty state
-      if (body.noGifts) {
-        setStep("empty");
-        return;
-      }
-      setPhone(p);
-      setDevCode(body.devCode ?? "");
-      setStep("otp");
-      startResend();
-    } catch {
-      setErr("اینترنت قطعه؛ دوباره امتحان کن");
-    } finally {
-      setBusy(false);
     }
+  }, [user, step, fetchReceived]);
+
+  async function requestCode() {
+    if (await otp.request()) setStep("otp");
   }
 
   async function verifyCode() {
-    const c = toEnDigits(code).replace(/\D/g, "");
-    if (!/^\d{4}$/.test(c)) {
-      setErr("کد ۴ رقمی رو کامل وارد کن");
-      return;
-    }
-    setErr("");
-    setBusy(true);
-    try {
-      const res = await fetch("/api/auth/verify", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phone, code: c, purpose: "gift_recv" }),
-      });
-      if (!res.ok) {
-        const body = (await res.json().catch(() => ({}))) as { error?: string };
-        setErr(
-          body.error === "rate_limited"
-            ? "تلاش‌هایت زیاد شد؛ کمی صبر کن"
-            : body.error === "invalid_code"
-              ? "کد درست نیست"
-              : "کد منقضی شده؛ دوباره بگیر",
-        );
-        return;
-      }
-      login(phone, "");
-      setStep("checking");
-      await afterAuth();
-    } catch {
-      setErr("اینترنت قطعه؛ دوباره امتحان کن");
-    } finally {
-      setBusy(false);
-    }
+    // onSuccess (above) does the login + step transition when it returns true
+    await otp.verify();
   }
 
   return (
@@ -162,7 +93,7 @@ export function VerifyScreen() {
         <Logo size={56} />
       </div>
 
-      {step === "intro" && (
+      {viewStep === "intro" && (
         <div className="flex w-full max-w-md flex-col items-center gap-4 text-center">
           <span className="text-6xl" aria-hidden="true">📮</span>
           <h1 className="m-0 text-[26px] font-black leading-[1.5]">هدیه‌ات رسید؟ پیامت اینجاست!</h1>
@@ -201,7 +132,7 @@ export function VerifyScreen() {
         </div>
       )}
 
-      {step === "phone" && (
+      {viewStep === "phone" && (
         <div className="flex w-full max-w-md flex-col gap-3 text-center">
           <h1 className="m-0 text-[24px] font-black">شماره موبایلت چیه؟</h1>
           <p className="m-0 text-[13.5px] font-medium leading-[1.9] text-[#4A6572]">
@@ -211,21 +142,21 @@ export function VerifyScreen() {
             type="tel"
             inputMode="numeric"
             autoFocus
-            value={phone}
-            onChange={(e) => setPhone(e.target.value)}
+            value={fa(otp.phone)}
+            onChange={(e) => otp.setPhone(e.target.value)}
             placeholder="۰۹۱۲ ۱۲۳ ۴۵۶۷"
             aria-label="شماره موبایل گیرنده"
             className="box-border h-[58px] rounded-[20px] border-[1.5px] border-[#CFE6EF] bg-white px-4 text-center text-xl font-black tracking-widest text-[#04202E] outline-none focus:border-[#00ABE7]"
           />
-          {err && <p className="m-0 text-[12.5px] font-bold text-[#B02A52]">{err}</p>}
+          {otp.err && <p className="m-0 text-[12.5px] font-bold text-[#B02A52]">{otp.err}</p>}
           <button
             type="button"
-            disabled={busy}
+            disabled={otp.busy}
             onClick={() => void requestCode()}
             className="flex h-[54px] w-full items-center justify-center gap-2 rounded-full bg-[#00ABE7] text-base font-extrabold text-[#04202E] transition-transform active:scale-95 disabled:opacity-60"
           >
-            {busy ? "داریم چک می‌کنیم…" : "بفرست کد تأیید"}
-            {!busy && <ForwardIcon />}
+            {otp.busy ? "داریم چک می‌کنیم…" : "بفرست کد تأیید"}
+            {!otp.busy && <ForwardIcon />}
           </button>
           <button type="button" onClick={() => setStep("intro")} className="text-[12px] font-bold text-[#006387] underline underline-offset-4">
             برگشت
@@ -233,15 +164,15 @@ export function VerifyScreen() {
         </div>
       )}
 
-      {step === "otp" && (
+      {viewStep === "otp" && (
         <div className="flex w-full max-w-md flex-col gap-3 text-center">
           <h1 className="m-0 text-[24px] font-black">کد ۴ رقمی رو وارد کن</h1>
           <p className="m-0 text-[13.5px] font-medium leading-[1.9] text-[#4A6572]">
-            به <b dir="ltr">{fa(phone)}</b> پیامک شد
+            به <b dir="ltr">{fa(otp.phone)}</b> پیامک شد
           </p>
-          {devCode && (
+          {otp.devCode && (
             <div className="rounded-2xl bg-[#FFF3C9] px-4 py-2.5 text-[12.5px] font-bold text-[#7A5C00]">
-              حالت آزمایشی — کد تو: <b dir="ltr">{fa(devCode)}</b>
+              حالت آزمایشی — کد تو: <b dir="ltr">{fa(otp.devCode)}</b>
             </div>
           )}
           <input
@@ -249,41 +180,41 @@ export function VerifyScreen() {
             inputMode="numeric"
             maxLength={4}
             autoFocus
-            value={code}
-            onChange={(e) => setCode(e.target.value)}
+            value={fa(otp.code)}
+            onChange={(e) => otp.setCode(e.target.value)}
             placeholder="――――"
             aria-label="کد تأیید ۴ رقمی"
             className="box-border h-[58px] rounded-[20px] border-[1.5px] border-[#CFE6EF] bg-white px-4 text-center text-2xl font-black tracking-[0.4em] text-[#04202E] outline-none focus:border-[#00ABE7]"
           />
-          {err && <p className="m-0 text-[12.5px] font-bold text-[#B02A52]">{err}</p>}
+          {otp.err && <p className="m-0 text-[12.5px] font-bold text-[#B02A52]">{otp.err}</p>}
           <button
             type="button"
-            disabled={busy}
+            disabled={otp.busy}
             onClick={() => void verifyCode()}
             className="flex h-[54px] w-full items-center justify-center gap-2 rounded-full bg-[#00ABE7] text-base font-extrabold text-[#04202E] transition-transform active:scale-95 disabled:opacity-60"
           >
-            {busy ? "داریم چک می‌کنیم…" : "تأیید و دیدن پیام‌ها"}
-            {!busy && <HeartSticker size={20} fill="#04202E" stroke="none" />}
+            {otp.busy ? "داریم چک می‌کنیم…" : "تأیید و دیدن پیام‌ها"}
+            {!otp.busy && <HeartSticker size={20} fill="#04202E" stroke="none" />}
           </button>
           <button
             type="button"
-            disabled={resendIn > 0 || busy}
+            disabled={otp.resendIn > 0 || otp.busy}
             onClick={() => void requestCode()}
             className="text-[12px] font-bold text-[#006387] underline underline-offset-4 disabled:no-underline disabled:opacity-50"
           >
-            {resendIn > 0 ? `ارسال دوباره تا ${fa(resendIn)} ثانیه دیگر` : "ارسال دوباره‌ی کد"}
+            {otp.resendIn > 0 ? `ارسال دوباره تا ${fa(otp.resendIn)} ثانیه دیگر` : "ارسال دوباره‌ی کد"}
           </button>
         </div>
       )}
 
-      {step === "checking" && (
+      {viewStep === "checking" && (
         <div className="flex flex-col items-center gap-4 pt-16">
           <span className="h-12 w-12 animate-spin rounded-full border-4 border-[#CFE6EF] border-t-[#00ABE7]" />
           <span className="text-[15px] font-bold text-[#04202E]">داریم هدیه‌هایت را پیدا می‌کنیم…</span>
         </div>
       )}
 
-      {step === "gifts" && (
+      {viewStep === "gifts" && (
         <div className="flex w-full max-w-md flex-col gap-3 pt-4">
           <div className="text-center">
             <span className="text-5xl" aria-hidden="true">💝</span>
@@ -337,7 +268,7 @@ export function VerifyScreen() {
         </div>
       )}
 
-      {step === "coming" && (
+      {viewStep === "coming" && (
         <div className="flex w-full max-w-md flex-col items-center gap-4 pt-8 text-center">
           <span className="text-6xl" aria-hidden="true">📦</span>
           <h1 className="m-0 text-[22px] font-black">هدیه‌ات داره میاد!</h1>
@@ -358,7 +289,7 @@ export function VerifyScreen() {
         </div>
       )}
 
-      {step === "empty" && (
+      {viewStep === "empty" && (
         <div className="flex w-full max-w-md flex-col items-center gap-4 pt-8 text-center">
           <span className="text-6xl" aria-hidden="true">🍃</span>
           <h1 className="m-0 text-[22px] font-black">هنوز هدیه‌ای برای این شماره نیومده</h1>

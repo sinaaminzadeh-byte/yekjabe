@@ -3,7 +3,7 @@
 // now flows through ONE endpoint: GET /api/me/bootstrap → { user, admin,
 // orders(≤50), favorites }. Guests get empty payloads; the UI keeps working
 // local-first either way.
-import { usePishnam, type GiftOrder, type GiftStatus } from "./pishnam-store";
+import { usePishnam, type BoardOrder, type GiftStatus } from "./pishnam-store";
 import type { PlushKind } from "./pishnam-data";
 
 const STATUS_RANK: Record<string, number> = { paid: 0, packing: 1, shipped: 2, delivered: 3 };
@@ -12,7 +12,7 @@ interface ServerOrder {
   id: string;
   no: number;
   code?: string; // PN-YYMMDD-#### (v2 orders) — also supersedes the local mirror id
-  kind: GiftOrder["kind"];
+  kind: BoardOrder["kind"];
   to: string;
   city: string;
   address: string;
@@ -36,7 +36,7 @@ interface ServerOrder {
   paymentKey?: string; // idempotency key (sent/owned orders only)
   paymentMethod?: string; // zarinpal | manual_transfer
   retentionPlan?: string;
-  messageState?: GiftOrder["messageState"];
+  messageState?: BoardOrder["messageState"];
   messageExpiresAt?: string | null;
   mediaCount?: number;
   viewable?: boolean;
@@ -166,7 +166,9 @@ async function fetchBootstrap(): Promise<BootstrapPayload | null> {
  *     phone and are NOT part of this session's payload are dropped, so logging
  *     into a different account never shows the previous account's orders;
  *  2. mirror dedupe + merge (server rows supersede the optimistic o-local-*).
- * Local-only legacy demo orders and guest-made v2 rows (userPhone="") stay.
+ * A-04: the board holds v2 rows only — bootstrap returns just Order-table rows
+ * and the persist rehydrate drops pre-unification ghosts. Guest-made v2 rows
+ * (userPhone="") stay — the checkout flow still needs them.
  */
 function applyBootstrap(data: BootstrapPayload): number {
   const sessionPhone = data.user?.phone ?? null;

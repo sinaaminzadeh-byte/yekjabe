@@ -23,12 +23,12 @@ import { navigate, useHashRoute, type Route } from "@/lib/hash-route";
 import {
   usePishnam,
   useCharityDone,
-  type GiftOrder,
-  type GiftStatus,
+  type BoardOrder,
 } from "@/lib/pishnam-store";
 import { CHARITY_TARGET, PLUSH_MAP } from "@/lib/pishnam-data";
 import { fa } from "@/lib/fa";
 import { useToast } from "@/hooks/use-toast";
+import { useOtp } from "@/hooks/use-otp";
 import {
   pullFavorites,
   pullOrders,
@@ -44,14 +44,8 @@ import { orderChip, V2_CHIP, type OrderChip as ViewChip } from "@/lib/orders/ord
 // Honest customer-facing chips live in @/lib/orders/order-view (one source of
 // truth for dashboard + track): v2 orders show the real 11-state status —
 // legacyStep used to collapse «awaiting_payment» into «بسته‌بندی», which lied
-// about money. Legacy demo orders keep the classic 4-step chip.
-
-const NEXT_LABEL: Record<GiftStatus, string> = {
-  paid: "بسته‌بندی",
-  packing: "تحویل به پست",
-  shipped: "تحویل به دوستت",
-  delivered: "تمام شد",
-};
+// about money. A-04: every board row is a v2 Order-table row (or its local
+// mirror) — the 4-step `status` field stays only as the timeline fallback.
 
 /**
  * Damage-only refund request block (Phase C §4.8): shown on sent server orders
@@ -60,7 +54,7 @@ const NEXT_LABEL: Record<GiftStatus, string> = {
  * On success the raw status flips locally to refund_requested (chip updates),
  * then a best-effort pullOrders() confirms against the server.
  */
-function RefundBlock({ o, desktop = false }: { o: GiftOrder; desktop?: boolean }) {
+function RefundBlock({ o, desktop = false }: { o: BoardOrder; desktop?: boolean }) {
   const { toast } = useToast();
   const [open, setOpen] = useState(false);
   const [reason, setReason] = useState("");
@@ -247,7 +241,7 @@ interface PaymentHold {
   method: string;
 }
 
-export function useHold(o: GiftOrder | null): PaymentHold {
+export function useHold(o: BoardOrder | null): PaymentHold {
   const pendingOrder = usePishnam((s) => s.pendingOrder);
   return useMemo(
     () => ({
@@ -265,7 +259,7 @@ export function useHold(o: GiftOrder | null): PaymentHold {
   );
 }
 
-export function PaymentBlock({ o, desktop = false }: { o: GiftOrder; desktop?: boolean }) {
+export function PaymentBlock({ o, desktop = false }: { o: BoardOrder; desktop?: boolean }) {
   const { toast } = useToast();
   const hold = useHold(o);
   const [open, setOpen] = useState(false);
@@ -386,11 +380,11 @@ export function PaymentBlock({ o, desktop = false }: { o: GiftOrder; desktop?: b
   return null;
 }
 
-function displayStatus(o: GiftOrder): ViewChip {
+function displayStatus(o: BoardOrder): ViewChip {
   return orderChip(o);
 }
 
-function sentExtra(o: GiftOrder): string {
+function sentExtra(o: BoardOrder): string {
   const parts: string[] = [];
   if (o.anonymous) parts.push("ناشناس");
   if (o.hearts > 0) parts.push(`${fa(o.hearts)} قلب`);
@@ -398,17 +392,17 @@ function sentExtra(o: GiftOrder): string {
   return parts.length ? parts.join(" · ") : "بدون آپشن";
 }
 
-function recvExtra(o: GiftOrder): string {
+function recvExtra(o: BoardOrder): string {
   return o.opened ? "کارت باز شده" : "هنوز باز نشده";
 }
 
-function orderWho(o: GiftOrder): string {
+function orderWho(o: BoardOrder): string {
   return o.dir === "sent"
     ? `برای ${o.to}`
     : `از ${o.senderName || (o.senderMode === "anon" ? "یه هدیه برای تو" : "یه دوست ناشناس")}`;
 }
 
-function orderExtra(o: GiftOrder): string {
+function orderExtra(o: BoardOrder): string {
   return o.dir === "sent" ? sentExtra(o) : recvExtra(o);
 }
 
@@ -433,7 +427,7 @@ const CHARITY_RECEIPTS: ReceiptRow[] = [
   { bg: "#FFF3C9", name: "ارسال هدیه به خیریه‌ی نیکوکاری رأفت", meta: "۹ آذر · ۱۸ هدیه", tag: "رسید و عکس تحویل" },
 ];
 
-function buildReceipts(sent: GiftOrder[]): ReceiptRow[] {
+function buildReceipts(sent: BoardOrder[]): ReceiptRow[] {
   const mine: ReceiptRow[] = sent.map((o) => ({
     bg: "#DDF3EA",
     name: `ارسال هدیه برای ${o.to}`,
@@ -669,7 +663,7 @@ function CharmChips({
   );
 }
 
-function PlushThumb({ o, size, box }: { o: GiftOrder; size: number; box: number }) {
+function PlushThumb({ o, size, box }: { o: BoardOrder; size: number; box: number }) {
   return (
     <div
       className="flex shrink-0 items-center justify-center"
@@ -1015,8 +1009,7 @@ function ReceivedGiftsList({ desktop = false }: { desktop?: boolean }) {
   );
 }
 
-function MobileOrderCard({ o }: { o: GiftOrder }) {
-  const advanceStatus = usePishnam((s) => s.advanceStatus);
+function MobileOrderCard({ o }: { o: BoardOrder }) {
   const selectOrder = usePishnam((s) => s.selectOrder);
   const hold = useHold(o);
   const st = displayStatus(o);
@@ -1084,23 +1077,6 @@ function MobileOrderCard({ o }: { o: GiftOrder }) {
               {fa(o.mediaCount ?? 0)} فایل پیوست
             </span>
           )}
-        </div>
-      )}
-
-      {o.dir === "sent" && o.status !== "delivered" && !o.v2 && (
-        <div className="mt-3 flex items-center gap-3 border-t border-[#EDF6FA] pt-3">
-          <span className="shrink-0 text-[11.5px] font-semibold text-[#4A6572]">شبیه‌سازی مسیر</span>
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              advanceStatus(o.id);
-            }}
-            className="flex h-10 flex-1 items-center justify-center gap-1.5 rounded-full bg-[#FFF3C9] text-[13px] font-extrabold text-[#04202E] transition-transform active:scale-95"
-          >
-            قدم بعدی: {NEXT_LABEL[o.status]}
-            <ForwardIcon size={16} stroke="#04202E" />
-          </button>
         </div>
       )}
 
@@ -1240,8 +1216,7 @@ export function MobileMyGifts() {
 
 /* ═══════════════ 2 · DESKTOP MY GIFTS (16-هدیه‌هام) ═══════════════ */
 
-function DesktopOrderCard({ o }: { o: GiftOrder }) {
-  const advanceStatus = usePishnam((s) => s.advanceStatus);
+function DesktopOrderCard({ o }: { o: BoardOrder }) {
   const selectOrder = usePishnam((s) => s.selectOrder);
   const hold = useHold(o);
   const st = displayStatus(o);
@@ -1277,19 +1252,6 @@ function DesktopOrderCard({ o }: { o: GiftOrder }) {
             {st.label}
           </span>
           {o.v2 && o.status2 === "awaiting_payment" && hold.expiresAt && <CountdownBadge expiresAt={hold.expiresAt} />}
-          {o.dir === "sent" && o.status !== "delivered" && !o.v2 && (
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                advanceStatus(o.id);
-              }}
-              title="شبیه‌سازی مسیر ارسال"
-              className="rounded-[10px] bg-[#F2F7F9] px-2.5 py-1 text-[11.5px] font-extrabold text-[#006387] transition-colors hover:bg-[#E3F6FD]"
-            >
-              قدم بعدی: {NEXT_LABEL[o.status]}
-            </button>
-          )}
           {o.dir === "recv" && (
             <button
               type="button"
@@ -1636,110 +1598,45 @@ function useOtpFlow(): OtpFlow {
   const login = usePishnam((s) => s.login);
   const { toast } = useToast();
   const [step, setStep] = useState<"phone" | "otp" | "name">("phone");
-  const [phone, setPhoneRaw] = useState("");
-  const [otp, setOtpRaw] = useState("");
   const [name, setName] = useState("");
-  const [error, setError] = useState("");
-  const [timer, setTimer] = useState(0);
-  const [devCode, setDevCode] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
+  // A-03 (audit wave 39): the OTP state machine now lives in ONE shared hook
+  // (use-otp.ts) — this shell keeps only its own step choreography (the
+  // optional «اسم» step after verify) + toasts. Display shows Persian digits
+  // via fa() while the hook stores normalized EN digits.
+  const otp = useOtp({
+    purpose: "login",
+    resendSeconds: RESEND_SECONDS,
+    onSuccess: () => setStep("name"),
+  });
 
-  const norm = (s: string) => toEnDigits(s).replace(/\s/g, "");
-  const setPhone = (v: string) => setPhoneRaw(fa(v.replace(/[^\d۰-۹]/g, "").slice(0, 11)));
-  const setOtp = (v: string) => setOtpRaw(fa(v.replace(/[^\d۰-۹]/g, "").slice(0, 4)));
-
-  useEffect(() => {
-    if (step !== "otp" || timer <= 0) return;
-    const t = setInterval(() => setTimer((s) => (s > 0 ? s - 1 : 0)), 1000);
-    return () => clearInterval(t);
-  }, [step, timer]);
-
-  /**
-   * Asks the server for a 4-digit OTP (session flow, guide §4.3 — owner wants
-   * ALL verify codes 4-digit). No demo fallback code exists anymore — if the
-   * API is down we surface an honest error. Returns the dev-echo code in dev
-   * mode ("" otherwise).
-   */
-  const requestOtp = async (p: string): Promise<string> => {
-    try {
-      const res = await fetch("/api/auth/request", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phone: p }),
-      });
-      const json = (await res.json()) as { devCode?: string };
-      if (res.ok) return json.devCode ?? "";
-      return "";
-    } catch {
-      return ""; // offline — UI shows the honest «service unavailable» state
-    }
-  };
-
+  /** Asks the shared hook for a 4-digit OTP; advances only on real success
+   * (the old shell advanced even when the API failed — that bug dies here). */
   const submitPhone = () => {
-    const p = norm(phone);
-    if (!/^09\d{9}$/.test(p)) {
-      setError("شماره باید ۱۱ رقم باشه و با ۰۹ شروع بشه.");
-      return;
-    }
-    if (busy) return;
-    setError("");
-    setPhoneRaw(fa(p));
-    setBusy(true);
-    void requestOtp(p).then((code) => {
-      setDevCode(code);
-      setBusy(false);
+    if (otp.busy) return;
+    void otp.request().then((ok) => {
+      if (!ok) return;
       setStep("otp");
-      setTimer(RESEND_SECONDS);
-      if (!code) {
+      if (!otp.devCode) {
         toast({ title: "کد پیامک شد", description: "کد ۴ رقمی به همین شماره پیامک می‌شه." });
       }
     });
   };
 
   const submitOtp = () => {
-    const c = norm(otp);
-    if (!/^\d{4}$/.test(c)) {
-      setError("کد چهاررقمی رو کامل بزن.");
-      return;
-    }
-    if (busy) return;
-    setError("");
-    setBusy(true);
-    const p = norm(phone);
-    void (async () => {
-      let ok = false;
-      let serverError = "";
-      try {
-        const res = await fetch("/api/auth/verify", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ phone: p, code: c }),
-        });
-        if (res.ok) ok = true;
-        else serverError = "کد اشتباهه یا منقضی شده؛ دوباره امتحان کن.";
-      } catch {
-        // offline → compare against the demo/dev code
-        ok = devCode ? c === devCode : false;
-        if (!ok) serverError = "کد اشتباهه.";
-      }
-      setBusy(false);
-      if (ok) setStep("name");
-      else setError(serverError || "کد اشتباهه.");
-    })();
+    void otp.verify(); // onSuccess → «اسم» step (session is already minted)
   };
 
   const resend = () => {
-    if (timer > 0 || busy) return;
-    setTimer(RESEND_SECONDS);
-    setOtpRaw("");
-    void requestOtp(norm(phone)).then((code) => {
-      setDevCode(code);
-      toast({ title: "کد دوباره فرستاده شد", description: code ? `کد نمایشی: ${fa(code)}` : "کد ۴ رقمی پیامک شد." });
+    if (otp.resendIn > 0 || otp.busy) return;
+    void otp.request().then((ok) => {
+      if (ok) {
+        toast({ title: "کد دوباره فرستاده شد", description: "کد ۴ رقمی پیامک شد." });
+      }
     });
   };
 
   const submitLogin = () => {
-    const p = norm(phone);
+    const p = otp.phone; // already FA→EN normalized by the hook
     const trimmed = name.trim();
     login(p, trimmed);
     if (trimmed) {
@@ -1777,21 +1674,20 @@ function useOtpFlow(): OtpFlow {
 
   const restart = () => {
     setStep("phone");
-    setOtpRaw("");
-    setError("");
+    otp.reset();
   };
 
   return {
     step,
-    phone,
-    otp,
+    phone: fa(otp.phone),
+    otp: fa(otp.code),
     name,
-    error,
-    timer,
-    devCode,
-    busy,
-    setPhone,
-    setOtp,
+    error: otp.err,
+    timer: otp.resendIn,
+    devCode: otp.devCode || null,
+    busy: otp.busy,
+    setPhone: (v: string) => otp.setPhone(v.slice(0, 11)),
+    setOtp: otp.setCode,
     setName,
     submitPhone,
     submitOtp,

@@ -37,6 +37,15 @@ import { PROVINCES } from "@/lib/orders/provinces";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { useGiftMessage } from "@/hooks/use-gift-message";
+// A-03 (audit wave 4): shared OTP state machine + shared checkout logic —
+// the desktop shell keeps its visuals; the LOGIC lives in one place now.
+import { useOtp } from "@/hooks/use-otp";
+import {
+  evaluateCheckoutGate,
+  isValidIranMobile,
+  ordererPrefill,
+  payNow,
+} from "@/lib/shop/checkout-submit";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import type { CatalogEntry } from "@/lib/pishnam-store";
 import { AttrsBlock, Gallery, entryCover } from "../gallery";
@@ -107,8 +116,10 @@ export function DesktopBuilder({ step }: { step: 1 | 2 | 3 }) {
   const total = quote?.total ?? 0;
   const sel = PLUSHES.find((p) => p.kind === kind) ?? PLUSHES[0];
   const mainCover = entryCover(catalog[kind]); // بندانگشت ردیف اصلی سبد (round 34)
-  const valid = receiver.name.trim() !== "" && receiver.phone.trim().length >= 8 && receiver.address.trim() !== "";
-  const canPay = valid && ordererVerified;
+  // A-03: the pay gate (valid/canPay) is shared logic now
+  const gate = evaluateCheckoutGate({ receiver, ordererVerified });
+  const valid = gate.receiverOk;
+  const canPay = gate.canPay;
 
   // UX — precise missing-step hint, gentle inline validation on attempt
   const [attempted, setAttempted] = useState(false);
@@ -874,7 +885,7 @@ export function DesktopBuilder({ step }: { step: 1 | 2 | 3 }) {
           <button
             type="button"
             disabled={!canPay || !quote}
-            onClick={() => window.dispatchEvent(new CustomEvent("pishnam:pay"))}
+            onClick={payNow}
             className="flex h-[56px] items-center justify-center gap-2 rounded-full text-base font-extrabold transition-all active:scale-95"
             style={{ background: canPay && quote ? "#00ABE7" : "#CFE6EF", color: "#04202E", opacity: canPay && quote ? 1 : 0.75, cursor: canPay && quote ? "pointer" : "not-allowed" }}
           >
@@ -1016,96 +1027,42 @@ function DesktopOrderer() {
   const verified = useOrdererVerified();
   const { toast } = useToast();
 
+  // prefill از حساب کاربری زنده — همان قانون موبایل (A-03: shared rule)
   const prefilled = useRef(false);
   useEffect(() => {
     if (prefilled.current) return;
-    if (user && !orderer.name) {
-      setOrderer({
-        name: orderer.name || user.name,
-        phone: orderer.phone || user.phone,
-      });
+    const pre = ordererPrefill(orderer, user);
+    if (pre) {
+      setOrderer(pre);
       prefilled.current = true;
     }
-  }, [user, orderer.name, orderer.phone, setOrderer]);
+  }, [user, orderer, setOrderer]);
 
+  // A-03: shared OTP machine — same contract as the mobile flow
   const [phase, setPhase] = useState<"idle" | "code">("idle");
-  const [code, setCode] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
-  const [devCode, setDevCode] = useState("");
-  const [seconds, setSeconds] = useState(0);
-  useEffect(() => {
-    if (seconds <= 0) return;
-    const t = setInterval(() => setSeconds((s) => s - 1), 1000);
-    return () => clearInterval(t);
-  }, [seconds]);
+  const otp = useOtp({
+    purpose: "checkout_orderer",
+    onSuccess: (res) => {
+      login(res.user.phone || orderer.phone, res.user.name || orderer.name.trim());
+      setPhase("idle");
+      toast({ title: "شماره‌ت تأیید شد ✓", description: "حسابت آماده‌ست و این سفارش به همون ثبت می‌شه." });
+    },
+  });
 
-  const phoneReady = /^09\d{9}$/.test(orderer.phone.replace(/[۰-۹]/g, (d) => String("۰۱۲۳۴۵۶۷۸۹".indexOf(d))).replace(/\D/g, ""));
+  // the hook's phone mirrors the orderer field (the store input stays the source)
+  useEffect(() => {
+    otp.setPhone(orderer.phone);
+  }, [orderer.phone, otp.setPhone]);
+
+  const phoneReady = isValidIranMobile(orderer.phone);
   const nameReady = orderer.name.trim().length >= 3;
 
   const requestCode = async () => {
-    setError("");
-    setBusy(true);
-    try {
-      const res = await fetch("/api/auth/request", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phone: orderer.phone, purpose: "checkout_orderer" }),
-      });
-      const body = (await res.json().catch(() => ({}))) as { devCode?: string; error?: string; details?: { retryAfter?: number } };
-      if (!res.ok) {
-        if (body.error === "rate_limited") {
-          setSeconds(body.details?.retryAfter ?? 60);
-          setError("کد همین حالا فرستاده شده؛ چند لحظه دیگه دوباره بگیر.");
-        } else {
-          setError("ارسال کد نشد؛ شماره رو چک کن و دوباره بزن.");
-        }
-        return;
-      }
-      setPhase("code");
-      setCode("");
-      setSeconds(60);
-      if (body.devCode) setDevCode(body.devCode);
-    } catch {
-      setError("اینترنت قطعه؛ اتصالت رو چک کن.");
-    } finally {
-      setBusy(false);
-    }
+    if (await otp.request()) setPhase("code");
   };
 
   const submitCode = async () => {
-    const digits = code.replace(/[۰-۹]/g, (d) => String("۰۱۲۳۴۵۶۷۸۹".indexOf(d))).trim();
-    if (!/^\d{4}$/.test(digits)) {
-      setError("کد ۴ رقمی پیامک‌شده رو کامل وارد کن.");
-      return;
-    }
-    setError("");
-    setBusy(true);
-    try {
-      const res = await fetch("/api/auth/verify", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          phone: orderer.phone,
-          code: digits,
-          purpose: "checkout_orderer",
-          name: orderer.name.trim(),
-        }),
-      });
-      const body = (await res.json().catch(() => ({}))) as { ok?: boolean; user?: { phone: string; name: string }; error?: string };
-      if (!res.ok || !body.ok) {
-        setError(body.error === "invalid_code" ? "کد اشتباهه یا منقضی شده؛ دوباره چک کن." : "تأیید نشد؛ چند لحظه بعد دوباره امتحان کن.");
-        return;
-      }
-      login(body.user?.phone ?? orderer.phone, body.user?.name ?? orderer.name.trim());
-      setPhase("idle");
-      setDevCode("");
-      toast({ title: "شماره‌ت تأیید شد ✓", description: "حسابت آماده‌ست و این سفارش به همون ثبت می‌شه." });
-    } catch {
-      setError("اینترنت قطعه؛ اتصالت رو چک کن.");
-    } finally {
-      setBusy(false);
-    }
+    await otp.verify(orderer.name.trim());
   };
 
   return (
@@ -1136,7 +1093,7 @@ function DesktopOrderer() {
               کد ۴ رقمی پیامک‌شده به <b dir="ltr">{orderer.phone}</b> رو بزن:
             </span>
             <div className="flex flex-row-reverse justify-end gap-2" dir="ltr">
-              {code
+              {otp.code
                 .replace(/\D/g, "")
                 .slice(0, 4)
                 .padEnd(4, " ")
@@ -1147,15 +1104,15 @@ function DesktopOrderer() {
                     inputMode="numeric"
                     autoComplete={i === 0 ? "one-time-code" : "off"}
                     maxLength={1}
-                    disabled={busy}
+                    disabled={otp.busy}
                     aria-label={`رقم ${fa(i + 1)} از کد تأیید`}
                     value={c.trim()}
                     onChange={(e) => {
                       const ch = e.target.value.replace(/[۰-۹]/g, (d) => String("۰۱۲۳۴۵۶۷۸۹".indexOf(d))).replace(/\D/g, "").slice(-1);
                       if (ch) {
-                        const cur = code.replace(/\D/g, "").slice(0, 4).split("");
+                        const cur = otp.code.replace(/\D/g, "").slice(0, 4).split("");
                         cur[i] = ch;
-                        setCode(cur.join("").replace(/\s/g, ""));
+                        otp.setCode(cur.join("").replace(/\s/g, ""));
                         document.getElementById(`dstep5-otp-${Math.min(3, i + 1)}`)?.focus();
                       }
                     }}
@@ -1167,34 +1124,34 @@ function DesktopOrderer() {
                   />
                 ))}
             </div>
-            {devCode && (
+            {otp.devCode && (
               <span className="self-start rounded-xl bg-[#FFF3C9] px-2.5 py-1 text-[12px] font-extrabold text-[#7A5C00]">
-                کد آزمایشی (محیط توسعه): {fa(devCode)}
+                کد آزمایشی (محیط توسعه): {fa(otp.devCode)}
               </span>
             )}
-            {error && <span className="text-[13px] font-bold text-[#B02A52]">{error}</span>}
+            {otp.err && <span className="text-[13px] font-bold text-[#B02A52]">{otp.err}</span>}
             <div className="flex items-center gap-3">
               <button
                 type="button"
-                disabled={busy}
+                disabled={otp.busy}
                 onClick={() => void submitCode()}
                 className="flex h-[48px] items-center justify-center rounded-full bg-[#04202E] px-8 text-[14px] font-extrabold text-white transition-transform active:scale-95 disabled:opacity-60"
               >
-                {busy ? "در حال تأیید…" : "تأیید و ادامه"}
+                {otp.busy ? "در حال تأیید…" : "تأیید و ادامه"}
               </button>
               <button
                 type="button"
-                disabled={busy || seconds > 0}
+                disabled={otp.busy || otp.resendIn > 0}
                 onClick={() => void requestCode()}
                 className="h-[48px] rounded-full border border-[#CFE6EF] px-5 text-[13px] font-bold text-[#006387] disabled:opacity-50"
               >
-                {seconds > 0 ? `ارسال دوباره تا ${fa(seconds)} ثانیه` : "ارسال دوباره کد"}
+                {otp.resendIn > 0 ? `ارسال دوباره تا ${fa(otp.resendIn)} ثانیه` : "ارسال دوباره کد"}
               </button>
               <button
                 type="button"
                 onClick={() => {
                   setPhase("idle");
-                  setError("");
+                  otp.reset();
                 }}
                 className="text-[13px] font-bold text-[#006387] underline underline-offset-4"
               >
@@ -1208,14 +1165,14 @@ function DesktopOrderer() {
               <span aria-hidden="true">📱</span>
               <span>قبل از پرداخت، شماره‌ات رو با یه کد پیامکی تأیید کن — نه رمزی، نه فرم اضافه.</span>
             </span>
-            {error && <span className="text-[13px] font-bold text-[#B02A52]">{error}</span>}
+            {otp.err && <span className="text-[13px] font-bold text-[#B02A52]">{otp.err}</span>}
             <button
               type="button"
-              disabled={!phoneReady || !nameReady || busy}
+              disabled={!phoneReady || !nameReady || otp.busy}
               onClick={() => void requestCode()}
               className="h-[48px] rounded-full border-2 border-[#04202E] px-7 text-[14px] font-extrabold text-[#04202E] transition-transform active:scale-95 disabled:border-[#CFE6EF] disabled:text-[#7C99A7]"
             >
-              {busy ? "در حال ارسال…" : "دریافت کد تأیید"}
+              {otp.busy ? "در حال ارسال…" : "دریافت کد تأیید"}
             </button>
             {(!phoneReady || !nameReady) && (
               <span className="text-[12.5px] font-semibold text-[#7C99A7]">نام و نام خانوادگی و شماره موبایل خودت رو کامل کن</span>

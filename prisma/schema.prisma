@@ -59,33 +59,10 @@ model Experience {
 }
 
 // ── Pishnam domain ──
-
-model GiftOrder {
-  id         String   @id // client-side id (g-<no>-<ts>) keeps local↔server identity
-  no         Int      @unique
-  kind       String
-  to         String
-  city       String   @default("")
-  address    String   @default("")
-  phone      String   @default("")
-  message    String   @default("")
-  occasion   Int      @default(0)
-  password   String   @default("")
-  anonymous  Boolean  @default(false)
-  senderName String   @default("")
-  hearts     Int      @default(0)
-  paws       Int      @default(0)
-  total      Int      @default(0)
-  date       String   @default("")
-  status     String   @default("paid") // paid | packing | shipped | delivered
-  opened     Boolean  @default(false)
-  dir        String   @default("sent") // sent | recv
-  userPhone  String   @default("") // phone of the logged-in sender (empty = guest)
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
-
-  @@index([userPhone])
-}
+// A-04 (audit wave 39): the legacy GiftOrder table was retired — `Order` is
+// the single server-side order truth. Historical rows (0 in every known env)
+// are carried over by scripts/migrate-giftorders.sql in prebuild BEFORE the
+// table drop.
 
 model ContactMessage {
   id        String    @id @default(cuid())

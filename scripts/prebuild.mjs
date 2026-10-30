@@ -52,6 +52,21 @@ if (!/^(postgres|postgresql):\/\//i.test(raw)) {
   process.exit(0);
 }
 
+console.log("[prebuild] PostgreSQL detected → A-04 legacy GiftOrder→Order migration");
+// Must run BEFORE db push: the new schema drops the GiftOrder table, so this
+// is the last chance to carry any legacy rows (0 everywhere in practice, but
+// a production DB that collected them must not lose them). Raw SQL via the
+// prisma CLI — no generated client involved, idempotent by marker keys.
+try {
+  execSync(
+    `bunx prisma db execute --file scripts/migrate-giftorders.sql --url "${raw}" --silent`,
+    { stdio: "inherit", cwd: root },
+  );
+} catch (e) {
+  // A missing legacy table (fresh DBs) is fine — the migration is one-time.
+  console.warn("[prebuild] legacy migration skipped (GiftOrder table likely absent)");
+}
+
 console.log("[prebuild] PostgreSQL detected → prisma db push (postgres schema)");
 execSync(
   "bunx prisma db push --accept-data-loss --skip-generate --schema prisma/schema.postgres.prisma",

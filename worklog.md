@@ -1134,3 +1134,23 @@ Stage Summary:
 - سئوی واقعی حالا کار می‌کند: گوگل/تلگرام/واتساپ HTML کامل با متادیتای اختصاصی و JSON-LD می‌گیرند؛ آدرس‌ها تمیزند (/blog/[slug]) و آدرس‌های قدیمی ۳۰۱ می‌شوند. برای ایندکس واقعی فقط ثبت Search Console و دامنه نهایی باقی است (SITE.url هنوز yekdoost.ir).
 - امنیت: هدرها + rate-limit ماندگار + گارد مبدأ + قفل وضعیت سرور-محور + عدم افشای رمز/OTP/فیلد ادمین. با S-11 (حذف لاگ قدیمی حاوی کد) و S-12 (dockerignore) بسته امنیتی موج ۳ بسته شد.
 - نکته deploy: اسکیمای PG همگام (۲۵ مدل: postTrackingCode + RateLimitBucket)؛ prebuild نیاز به تغییری نداشت؛ خروجی bot-view کش s-maxage=300 دارد و روی lambda هم کار می‌کند (DB-محور است، نه فایل).
+
+---
+## Task ID: 39
+Agent: main (Z.ai Code) + 2 parallel subagents (39-a single-order-truth, 39-b otp/checkout-unify) + independent main-agent review
+Task: راند ۳۹ — «برو» مالک: اجرای موج ۴ گزارش ممیزی (دو مهاجرت بزرگ A-03 و A-04 + بستن ۴ مورد باقی‌مانده) با ۲ ایجنت موازی → بازبینی/تست مستقل → تأیید → به‌روزرسانی گزارش. با این راند **هر ۷۱ یافتهٔ ممیزی بسته شد (۷۱/۷۱)**.
+
+Work Log:
+- پیش‌نیاز (خودم، قبل از ایجنت‌ها): اسکریپت مهاجرت داده‌ی امن `scripts/migrate-giftorders.sql` (raw SQL، idempotent با کلید `legacy-<id>` روی idempotencyKey؛ نگاشت status/kind→OrderItem با LATERAL؛ رمز کارت plaintext قدیمی عمداً کپی نمی‌شود) + اتصال به prebuild **قبل از** `prisma db push` (آخرین فرصت قبل از drop جدول — روی Vercel جدول قدیمی ممکن بود ردیف داشته باشد).
+- تقسیم موج با مالکیت فایل گسسته: 39-a (A-04: bootstrap/orders*/stats/pishnam-sync/pishnam-store/gift-card/track/dashboards — ممنوع در prisma و flow/builder/verify/admin) و 39-b (A-03: flow/builder/verify/admin-gate + دو ماژول جدید مشترک — ممنوع در dashboards/server).
+- 39-a نتیجه: `/api/orders` و `/api/orders/[id]` (مسیر legacy) حذف شدند (صفر caller؛ refund زیرِ همان مسیر سالم ماند — curl: 401)، bootstrap فقط Order می‌خواند (شکل پاسخ بایت‌به‌بایت حفظ شد)، `giftsNo` در stats از `codeSuffixNo(code)` آخرین Order، تایپ کلاینت `GiftOrder→BoardOrder` (صفر رفرنس باقی نماند)، `syncOrderPatch`/`advanceStatus`/`markOpened` مرده‌ها حذف، rehydrate حالا ردیف‌های شبح غیر-v2 localStorage را می‌تراشد. خالص: −۲۴۲ خط.
+- 39-b نتیجه: `src/hooks/use-otp.ts` (قرارداد منجمد: request/verify/reset/resendIn/noGifts/devCode، نرمال‌سازی ارقام FA/AR، تایمر single-interval) جای ۵ نسخهٔ OTP نشست + `src/lib/shop/checkout-submit.ts` (گیت/پیش‌پر/payNow مشترک؛ کشف مهم: POST /api/checkout از قبل تک‌نسخه در store بود — مستند شد نه دوباره‌نویسی). fetchهای auth در UI: ۵→۱. E2E خودش: ویزارد دسکتاپ+موبایل، خطاهای کد اشتباه/ناقص، صفحهٔ هدیه با ارقام فارسی، گیت ادمین — همه ✓.
+- بازبینی و تکمیل خودم: ① ادغام `useOtpFlow` «هدیه‌هام» با هوک مشترک (39-a عمداً دست نزده بود؛ گزینهٔ `resendSeconds` به قرارداد اضافه شد تا ۳۰ث آن صفحه حفظ شود؛ باگ قدیمی «جلو رفتن مرحله حتی با شکست ارسال کد» هم مرده شد) ② drop مدل GiftOrder از هر دو اسکیما → db:push + pg:sync (۲۴ مدل) ③ رستور دیتای دمو sandbox (۴۸ سفارش/۱۰ رسید — خالی شده بود) ④ رفع سینتکس گزارش پس از اسکریپت دست‌ساز (کامای جاافتاده ×۶).
+- QA نهایی من (curl + agent-browser): tsc=۰ / eslint=۰ / rg: صفر رفرنس giftOrder در src/ / dev.log صفر خطا. مرورگر: ورود کامل «هدیه‌هام» با OTP واقعی (۴-باکس، ارقام فارسی، «کد نمایشی»، تایمر ۳۰ث، مرحلهٔ اسم، توست‌ها) ✓؛ ثبت سفارش واقعی از ویزارد — session-aware orderer (بدون OTP مجدد چون سشن زنده)، PayModal زرین‌پال/کارت‌به‌کارت، سفارش **PN-261030-0001** در DB (awaiting_payment/manual_transfer/۹۳۹٬۰۰۰) ✓؛ برد «هدیه‌هام»: فرستادهها ۱ + تایمر نگهداری پرداخت ✓؛ ادمین (رمز): KPI واقعی (کل: ۴۹ = ۴۸ دمو + ۱ واقعی، فروش ۳۰روزه ۳۹٬۸۱۳٬۰۰۰)، تب سفارش‌ها با چیپ‌ها و ردیف سفارش تازه + «داده دمو»، صف رسیدها با هشدار SLA و «بدون رسید» ✓؛ /track سفارش تازه را نشان داد ✓؛ گزارش ممیزی: ۷۱/۷۱ fixed، رندر سالم، کنسول پاک ✓؛ هدر: bg سفید خالص + لوگوی ۲۰۰×۵۰ (میراث راند ۳۷ پابرجا) ✓.
+- نکته QA: سقف‌های rate-limit ادمین/تست (auth_req: ۵ IP + ۳ شماره در ۱۰دقیقه، حتی برای درخواست‌های رد شده) حین تست پر شد — با پاک‌کردن ردیف‌های RateLimitBucket در دیتابیس sandbox آزاد شد؛ رفتار production دست نخورد.
+- گزارش ممیزی: ۶ یافتهٔ آخر → status:fixed + resolvedNote فارسی (A-03، A-04، P-13 با ارجاع به A-13، P-14 با ارجاع به A-04، P-06/P-15 اطلاع‌رسانی بسته شد)؛ چیپ تاریخ: «هر ۷۱ مورد بسته شد»؛ نقشه راه: موج ۴ ✔ رفع شد (راند ۳۹).
+
+Stage Summary:
+- ممیزی راند ۳۶ حالا کاملاً جمع شده است: ۷۱ یافته / ۷۱ بسته در ۴ موج (۲۳ + ۴۲ + ۶) طی راندهای ۳۷، ۳۸ و ۳۹ — هیچ مورد «باز»ی نمانده.
+- معماری سفارش تک‌جدولی شد (Order)، منطق OTP/پرداخت تک‌نسخه‌ای شد (use-otp + checkout-submit) و دو پوستهٔ موبایل/دسکتاپ فقط ظاهرند.
+- نکته deploy: اسکیمای PG همگام (۲۴ مدل — GiftOrder حذف)؛ prebuild اول مهاجرت legacy را اجرا می‌کند بعد db push؛ فایل SQL در باندل هست. برای ایندکس واقعی همچنان فقط ثبت Search Console و SITE.url نهایی باقی است.

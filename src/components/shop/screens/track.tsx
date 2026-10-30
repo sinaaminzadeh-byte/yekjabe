@@ -8,11 +8,10 @@ import { MobileTopBar } from "@/components/shop/nav";
 import { Plush } from "@/components/shop/plush";
 import { ForwardIcon, CheckIcon, QrCode } from "@/components/shop/icons";
 import {
-  usePishnam,
   useSelectedOrder,
   statusToStep,
   TRACK_STEPS,
-  type GiftOrder,
+  type BoardOrder,
 } from "@/lib/pishnam-store";
 import { PLUSH_MAP, OCCASIONS } from "@/lib/pishnam-data";
 import { fa, faPrice } from "@/lib/fa";
@@ -23,13 +22,6 @@ import { CountdownBadge } from "../manual-payment";
 import { PaymentBlock, useHold } from "./dashboards";
 
 /* ── local helpers ── */
-
-const NEXT_LABEL: Record<string, string> = {
-  paid: "بسته‌بندی",
-  packing: "تحویل به پست",
-  shipped: "تحویل به دوستت",
-  delivered: "",
-};
 
 /** Honest one-liner for v2 orders outside the classic 4-step journey. */
 function bannerNote(status2?: string): string {
@@ -49,11 +41,11 @@ function bannerNote(status2?: string): string {
   }
 }
 
-function who(o: GiftOrder): string {
+function who(o: BoardOrder): string {
   return o.dir === "sent" ? `برای ${o.to}` : `از ${o.senderName || "یه دوست ناشناس"}`;
 }
 
-function extras(o: GiftOrder): string {
+function extras(o: BoardOrder): string {
   const parts: string[] = [];
   if (o.anonymous) parts.push("ناشناس");
   if (o.hearts > 0) parts.push(`${fa(o.hearts)} قلب`);
@@ -61,7 +53,7 @@ function extras(o: GiftOrder): string {
   return parts.length ? parts.join(" · ") : "بدون آپشن";
 }
 
-function stepNote(i: number, current: number, o: GiftOrder): string {
+function stepNote(i: number, current: number, o: BoardOrder): string {
   if (i < current) return `${o.date} · انجام شد ✓`;
   if (i === current) return o.dir === "recv" ? "الان همین‌جا" : "الان اینجاییم";
   return "هنوز نه";
@@ -101,7 +93,7 @@ async function copyText(text: string): Promise<boolean> {
   }
 }
 
-function PlushTile({ o, size, box }: { o: GiftOrder; size: number; box: number }) {
+function PlushTile({ o, size, box }: { o: BoardOrder; size: number; box: number }) {
   return (
     <div
       data-giftcard-plush
@@ -122,7 +114,7 @@ function TimelineRow({
 }: {
   i: number;
   current: number;
-  o: GiftOrder;
+  o: BoardOrder;
   big?: boolean;
 }) {
   const { toast } = useToast();
@@ -228,7 +220,7 @@ function InfoRow({ k, v, dir = "rtl" }: { k: string; v: string; dir?: "rtl" | "l
   );
 }
 
-function PostcardCard({ o, compact = false }: { o: GiftOrder; compact?: boolean }) {
+function PostcardCard({ o, compact = false }: { o: BoardOrder; compact?: boolean }) {
   return (
     <div className="rounded-[24px] border border-[#DDEEF5] bg-white p-5">
       <div className="mb-3 flex items-center justify-between">
@@ -410,7 +402,7 @@ const STEP_FA_SUB: Record<string, string> = {
 /* ── share/copy gift info button (shared logic, two looks) + success micro-burst ── */
 const BURST_COLORS = ["#F0426B", "#00ABE7", "#FFF3C9", "#66CDF1", "#FFE0EA"];
 
-function CopyGiftButton({ o, dark = false }: { o: GiftOrder; dark?: boolean }) {
+function CopyGiftButton({ o, dark = false }: { o: BoardOrder; dark?: boolean }) {
   const { toast } = useToast();
   const [burst, setBurst] = useState(0);
 
@@ -471,7 +463,7 @@ function CopyGiftButton({ o, dark = false }: { o: GiftOrder; dark?: boolean }) {
 }
 
 /* ── download gift card as PNG (canvas-drawn, plush lifted from the live SVG) ── */
-export function DownloadGiftButton({ o, dark = false }: { o: GiftOrder; dark?: boolean }) {
+export function DownloadGiftButton({ o, dark = false }: { o: BoardOrder; dark?: boolean }) {
   const { toast } = useToast();
   const [busy, setBusy] = useState(false);
 
@@ -515,8 +507,6 @@ export function DownloadGiftButton({ o, dark = false }: { o: GiftOrder; dark?: b
 /* ═══ MOBILE ═══ */
 export function MobileTrack() {
   const o = useSelectedOrder();
-  const advanceStatus = usePishnam((s) => s.advanceStatus);
-  const { toast } = useToast();
   const hold = useHold(o);
   const chip = o ? orderChip(o) : null;
   const onJourney = o ? (!o.v2 || isOnJourney(o)) : true;
@@ -620,19 +610,6 @@ export function MobileTrack() {
                   <ForwardIcon size={16} stroke="#006387" />
                 </button>
               )}
-              {o.dir === "sent" && !o.v2 && o.status !== "delivered" && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    advanceStatus(o.id);
-                    toast({ title: "یه قدم جلوتر رفت! 🚚", description: "مسیر هدیه به‌روز شد." });
-                  }}
-                  className="flex h-[52px] flex-1 items-center justify-center gap-1.5 rounded-full bg-[#00ABE7] text-[14.5px] font-extrabold text-[#04202E] transition-transform active:scale-95"
-                >
-                  قدم بعدی: {NEXT_LABEL[o.status]}
-                  <ForwardIcon size={16} />
-                </button>
-              )}
               {o.dir === "sent" && o.status === "delivered" && (
                 <button
                   type="button"
@@ -658,8 +635,6 @@ export function MobileTrack() {
 /* ═══ DESKTOP ═══ */
 export function DesktopTrack() {
   const o = useSelectedOrder();
-  const advanceStatus = usePishnam((s) => s.advanceStatus);
-  const { toast } = useToast();
   const hold = useHold(o);
 
   if (!o)
@@ -798,19 +773,6 @@ export function DesktopTrack() {
                 >
                   مشاهده‌ی پیام
                   <ForwardIcon size={16} stroke="#006387" />
-                </button>
-              )}
-              {o.dir === "sent" && !o.v2 && o.status !== "delivered" && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    advanceStatus(o.id);
-                    toast({ title: "یه قدم جلوتر رفت! 🚚", description: "مسیر هدیه به‌روز شد." });
-                  }}
-                  className="flex h-[54px] items-center justify-center gap-2 rounded-full bg-[#00ABE7] text-[15px] font-extrabold text-[#04202E] transition-transform hover:scale-[1.02]"
-                >
-                  قدم بعدی: {NEXT_LABEL[o.status]}
-                  <ForwardIcon size={16} />
                 </button>
               )}
               {o.dir === "sent" && o.status === "delivered" && (
