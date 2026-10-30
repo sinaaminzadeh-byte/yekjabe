@@ -199,6 +199,187 @@ function LogoCard() {
   );
 }
 
+/* ── رمز ورود پنل (round 41, owner-only) — چرخش رمز بدون دیپلوی ──
+ * GET/POST/DELETE /api/admin/password — هش scrypt در Setting؛ بعد از اولین
+ * تغییر، متغیر محیطی سرور فقط فالبک است و دیگر نیازی به Vercel نیست. */
+function PanelPasswordCard() {
+  const [source, setSource] = useState<"panel" | "env" | null>(null);
+  const [current, setCurrent] = useState("");
+  const [next, setNext] = useState("");
+  const [repeat, setRepeat] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [show, setShow] = useState(false);
+  const [revertArmed, setRevertArmed] = useState(false);
+  const { toast } = useToast();
+
+  const loadSource = () => {
+    fetch("/api/admin/password", { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j: { source?: unknown } | null) => {
+        if (j?.source === "panel" || j?.source === "env") setSource(j.source);
+      })
+      .catch(() => {});
+  };
+
+  useEffect(() => {
+    loadSource();
+  }, []);
+
+  const rotate = async () => {
+    if (next.trim().length < 8) {
+      toast({ title: "رمز تازه کوتاه است", description: "حداقل ۸ کاراکتر لازمه." });
+      return;
+    }
+    if (next !== repeat) {
+      toast({ title: "تکرار رمز یکی نیست" });
+      return;
+    }
+    setBusy(true);
+    try {
+      const res = await fetch("/api/admin/password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ currentPassword: current, newPassword: next }),
+      });
+      const b = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string };
+      if (!res.ok || !b.ok) {
+        toast({
+          title: "عوض نشد",
+          description:
+            b.error === "wrong_password"
+              ? "رمز فعلی درست نیست."
+              : b.error === "rate_limited"
+                ? "چند بار تلاش کردی؛ کمی صبر کن."
+                : "دوباره تلاش کن.",
+        });
+        return;
+      }
+      setCurrent("");
+      setNext("");
+      setRepeat("");
+      setSource("panel");
+      toast({ title: "رمز پنل عوض شد ✓", description: "از ورود بعدی، همین رمز برای درِ پنله — بدون نیاز به Vercel." });
+    } catch {
+      toast({ title: "عوض نشد — اتصال را چک کن" });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const revert = async () => {
+    if (!revertArmed) {
+      setRevertArmed(true);
+      setTimeout(() => setRevertArmed(false), 3000);
+      return;
+    }
+    setBusy(true);
+    try {
+      const res = await fetch("/api/admin/password", { method: "DELETE" });
+      const b = (await res.json().catch(() => ({}))) as { ok?: boolean };
+      if (res.ok && b.ok) {
+        setSource("env");
+        toast({ title: "به رمز متغیر سرور برگشت", description: "متغیر ADMIN_PANEL_PASSWORD دوباره درِ پنله." });
+      } else {
+        toast({ title: "انجام نشد — دوباره تلاش کن" });
+      }
+    } catch {
+      toast({ title: "انجام نشد — اتصال را چک کن" });
+    } finally {
+      setBusy(false);
+      setRevertArmed(false);
+    }
+  };
+
+  return (
+    <section className="rounded-[24px] border border-[#DDEEF5] bg-white p-5">
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-col gap-0.5">
+          <h2 className="m-0 text-[16px] font-black text-[#04202E]">رمز ورود پنل</h2>
+          <span className="text-[12px] font-medium text-[#4A6572]">
+            رمز درِ «ورود با رمز عبور» — اینجا عوضش کن؛ دیگر نیازی به تغییر متغیر سرور و دیپلوی نیست.
+          </span>
+        </div>
+        <span
+          className="rounded-full px-3.5 py-1.5 text-[11px] font-extrabold"
+          style={{
+            background: source === "panel" ? "#E7F8EF" : "#F2FAFD",
+            color: source === "panel" ? "#1E7A46" : "#006387",
+          }}
+        >
+          {source === "panel" ? "منبع رمز: داخل پنل" : source === "env" ? "منبع رمز: متغیر سرور" : "…"}
+        </span>
+      </div>
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+        <label className="flex flex-col gap-1.5 text-[12.5px] font-bold text-[#4A6572]">
+          رمز فعلی
+          <input
+            type="password"
+            dir="ltr"
+            value={current}
+            onChange={(e) => setCurrent(e.target.value)}
+            autoComplete="current-password"
+            className="h-12 rounded-2xl border-[1.5px] border-[#CFE6EF] bg-[#F8FDFF] px-3.5 text-[14px] font-bold text-[#04202E] outline-none focus:border-[#00ABE7]"
+          />
+        </label>
+        <label className="flex flex-col gap-1.5 text-[12.5px] font-bold text-[#4A6572]">
+          رمز تازه (حداقل ۸ کاراکتر)
+          <div className="relative">
+            <input
+              type={show ? "text" : "password"}
+              dir="ltr"
+              value={next}
+              onChange={(e) => setNext(e.target.value)}
+              autoComplete="new-password"
+              className="h-12 w-full rounded-2xl border-[1.5px] border-[#CFE6EF] bg-[#F8FDFF] px-3.5 text-[14px] font-bold text-[#04202E] outline-none focus:border-[#00ABE7]"
+            />
+            <button
+              type="button"
+              onClick={() => setShow((v) => !v)}
+              aria-label={show ? "پنهان‌کردن رمز تازه" : "نمایش رمز تازه"}
+              className="absolute left-2 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full text-[#4A6572] transition-colors hover:bg-[#F2FAFD]"
+            >
+              {show ? "🙈" : "👁"}
+            </button>
+          </div>
+        </label>
+        <label className="flex flex-col gap-1.5 text-[12.5px] font-bold text-[#4A6572]">
+          تکرار رمز تازه
+          <input
+            type="password"
+            dir="ltr"
+            value={repeat}
+            onChange={(e) => setRepeat(e.target.value)}
+            autoComplete="new-password"
+            className="h-12 rounded-2xl border-[1.5px] border-[#CFE6EF] bg-[#F8FDFF] px-3.5 text-[14px] font-bold text-[#04202E] outline-none focus:border-[#00ABE7]"
+          />
+        </label>
+      </div>
+      <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+        <button
+          type="button"
+          disabled={busy || !current || !next}
+          onClick={() => void rotate()}
+          className="h-11 rounded-full bg-[#04202E] px-6 text-[13px] font-extrabold text-white disabled:opacity-50"
+        >
+          {busy ? "در حال تغییر…" : "تغییر رمز پنل"}
+        </button>
+        {source === "panel" && (
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => void revert()}
+            className={`h-10 rounded-full border-[1.5px] px-4 text-[11.5px] font-extrabold disabled:opacity-60 ${
+              revertArmed ? "border-[#F0426B] bg-[#FFF0F4] text-[#B02A52]" : "border-[#CFE6EF] bg-white text-[#4A6572]"
+            }`}
+          >
+            {revertArmed ? "مطمئنی؟ حذف رمز پنلی" : "برگشت به رمز متغیر سرور"}
+          </button>
+        )}
+      </div>
+    </section>
+  );
+}
+
 export function SettingsTab() {
   const [s, setS] = useState<SettingsShape>(SETTINGS_DEFAULT);
   const [loading, setLoading] = useState(true);
@@ -265,6 +446,9 @@ export function SettingsTab() {
     <div className="flex flex-col gap-4">
       {/* لوگوی سایت (round 34) */}
       <LogoCard />
+
+      {/* رمز ورود پنل (round 41) */}
+      <PanelPasswordCard />
 
       {/* قلب قرمز و پنجه */}
       <section className="rounded-[24px] border border-[#F7C5D3] bg-[#FFF8FA] p-5">
