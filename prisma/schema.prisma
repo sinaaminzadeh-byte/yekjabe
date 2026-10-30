@@ -461,3 +461,19 @@ model RateLimitBucket {
 
   @@index([expiresAt])
 }
+
+// ── DB-backed media blobs (round 42 — آپلود روی سرورلس) ──
+// فایل‌سیستم لامبدهای Vercel فقط-خواندنی است: هر نوشتن دیسکی (لوگو/عکس محصول/
+// کاور بلاگ/رسید/عکس تجربه) آنجا با EROFS شکست می‌خورد → «عکس آپلود نشد».
+// دیسک در سندباکس مسیرِ سریع می‌ماند؛ این جدول fallback قابل‌حمل است —
+// storeMediaFile/storeReceiptFile/storeMessageFile هنگام شکستِ نوشتنِ دیسک
+// بایت‌ها را همین‌جا می‌نویسند و هر خواننده‌ای وقتی فایل روی دیسکِ همان
+// نمونه نبود از همین‌جا برمی‌گرداند (همان key = همان قرارداد dataFile()).
+model MediaBlob {
+  key       String   @id // storage key — دقیقاً همان کلید dataFile()
+  mime      String
+  bytes     Bytes
+  size      Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}

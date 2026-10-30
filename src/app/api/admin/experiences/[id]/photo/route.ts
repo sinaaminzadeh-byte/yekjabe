@@ -9,6 +9,7 @@ import { db } from "@/lib/db";
 import { AppError, toErrorResponse } from "@/lib/errors";
 import { requireAdmin } from "@/lib/auth/session";
 import { dataFile } from "@/lib/data-root";
+import { getMediaBlob } from "@/lib/media-blob";
 
 const MIME_FROM_EXT: Record<string, string> = { jpg: "image/jpeg", png: "image/png", webp: "image/webp" };
 
@@ -29,7 +30,8 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
       const { readFile } = await import("fs/promises");
       buf = await readFile(dataFile(key));
     } catch {
-      buf = null;
+      // round 42 — uploaded on a read-only serverless FS → DB blob copy
+      buf = (await getMediaBlob(key))?.buf ?? null;
     }
     if (!buf) throw new AppError(404, "photo_gone");
 

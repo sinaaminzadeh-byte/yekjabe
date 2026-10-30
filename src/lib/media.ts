@@ -3,12 +3,19 @@
 // move to Arvan S3 behind the identical seam (mirrors payments/manual.ts).
 // Magic-byte sniffing is THE single source in payments/manual.ts — reused here.
 import { dataFile } from "@/lib/data-root";
+import { putMediaBlob, getMediaBlob, deleteMediaBlob } from "@/lib/media-blob";
 
 export const UPLOAD_MAX_BYTES = 5 * 1024 * 1024; // ۵ مگابایت
 
 const EXT: Record<string, string> = { "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp" };
 
-/** Writes the file under .data/<folder>/<stem>.<ext> and returns the storage key. */
+/**
+ * Writes the file under .data/<folder>/<stem>.<ext> and returns the storage key.
+ * Round 42: on a read-only filesystem (Vercel lambdas — the owner's deployed
+ * site!) the disk write throws EROFS, so the bytes are persisted in the
+ * MediaBlob table instead. The key contract is identical — readers fall back
+ * to the DB when the file is missing on their instance's disk.
+ */
 export async function storeMediaFile(
   folder: "experiences" | "refunds" | "products" | "posts" | "branding",
   stem: string,
@@ -18,9 +25,14 @@ export async function storeMediaFile(
   const { mkdir, writeFile } = await import("fs/promises");
   const path = await import("path");
   const key = `${folder}/${stem}.${EXT[mime] ?? "bin"}`;
-  const abs = dataFile(key);
-  await mkdir(path.dirname(abs), { recursive: true });
-  await writeFile(abs, buf);
+  try {
+    const abs = dataFile(key);
+    await mkdir(path.dirname(abs), { recursive: true });
+    await writeFile(abs, buf);
+  } catch {
+    // read-only / missing data root (serverless) → DB-backed fallback
+    await putMediaBlob(key, buf, mime);
+  }
   return key;
 }
 
@@ -34,7 +46,8 @@ export async function deleteMediaFile(key: string): Promise<void> {
       key.startsWith("posts/") || // blog covers + inline images (round 34)
       key.startsWith("branding/"); // site logo (round 34)
     if (key.includes("..") || !allowed) return; // path-traversal guard
-    await rm(dataFile(key), { force: true });
+    await rm(dataFile(key), { force: true }).catch(() => {});
+    await deleteMediaBlob(key); // round 42 — remove the DB copy too
   } catch {
     /* best effort */
   }
@@ -51,7 +64,9 @@ export async function readProductImage(key: string): Promise<{ buf: Buffer; mime
     const ext = key.split(".").pop() ?? "";
     return { buf, mime: MIME_FROM_EXT[ext] ?? "application/octet-stream" };
   } catch {
-    return null;
+    // file missing on this instance (serverless cold start / uploaded on a
+    // read-only FS) → the DB blob copy
+    return await getMediaBlob(key);
   }
 }
 
@@ -72,7 +87,8 @@ export async function readPublicMedia(key: string): Promise<{ buf: Buffer; mime:
     const ext = key.split(".").pop() ?? "";
     return { buf, mime: MIME_FROM_EXT[ext] ?? "application/octet-stream" };
   } catch {
-    return null;
+    // round 42 — uploaded on a read-only serverless FS → DB blob copy
+    return await getMediaBlob(key);
   }
 }
 

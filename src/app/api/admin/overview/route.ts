@@ -4,14 +4,16 @@
 //   + status distribution + top products + top provinces + recent activity.
 // All money figures are TOMAN, server-authoritative, paid-like statuses only.
 //
-// P-01 (Wave 2): the heavy lifting moved INTO the database. The old version
-// loaded 60 days of orders + every paid order ever + every inventory row and
-// aggregated in JS. Now: groupBy/aggregate for status mix, revenue windows and
-// provinces; $queryRaw (SQLite) for the distinct-buyer and top-product joins;
-// the only row-level pull left is the bounded 14-day series + 14 events.
+// P-01 (Wave 2): the heavy lifting moved INTO the database (groupBy/aggregate
+// for status mix, revenue windows and provinces).
+// P-06 (round 42): the three $queryRaw calls used SQLite-only SQL (rowid,
+// epoch-millis vs timestamp) — the tab 500-ed on PostgreSQL deploys (Vercel)
+// and the panel showed «اتصال به سرور برقرار نشد» ONLY on پیشخوان while every
+// other tab worked. They are now portable Prisma calls that run identically on
+// SQLite and PostgreSQL; the row-level pulls are bounded (60-day window for
+// items, phone+createdAt-only projection for buyers, small shop volumes).
 // The JSON shape is IDENTICAL to the previous contract (additive-only policy).
 import { NextResponse } from "next/server";
-import { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { toErrorResponse } from "@/lib/errors";
 import { requireAdmin } from "@/lib/auth/session";
@@ -39,8 +41,6 @@ function dayKeyToDate(key: string): Date {
 function faDigits(s: string | number): string {
   return String(s).replace(/\d/g, (d) => "۰۱۲۳۴۵۶۷۸۹"[Number(d)]);
 }
-
-const asNumber = (v: unknown): number => (typeof v === "number" ? v : Number(v ?? 0) || 0);
 
 export async function GET() {
   try {
@@ -72,7 +72,7 @@ export async function GET() {
       mediaSum,
       seriesRows,
       buyerRows,
-      itemsTopRaw,
+      itemsTopRows,
       provinceGroup,
       variantsLow,
       events,
@@ -101,35 +101,27 @@ export async function GET() {
         select: { status: true, totalToman: true, createdAt: true },
       }),
 
-      // ── distinct buyers (paid-like) — grouped in SQLite, orderer→user fallback ──
-      db.$queryRaw<{ phone: string; firstAt: number | Date }[]>(
-        Prisma.sql`SELECT COALESCE(NULLIF(ordererPhone, ''), userPhone) AS phone, MIN(createdAt) AS firstAt
-          FROM "Order"
-          WHERE status IN (${Prisma.join(PAID_LIKE)}) AND COALESCE(NULLIF(ordererPhone, ''), userPhone) != ''
-          GROUP BY phone`,
-      ),
+      // ── distinct buyers (paid-like) — phone+createdAt projection only;
+      // orderer→user fallback grouped in JS (portable, P-06) ──
+      db.order.findMany({
+        where: { status: { in: PAID_LIKE } },
+        select: { ordererPhone: true, userPhone: true, createdAt: true },
+      }),
 
-      // ── top products (60d paid-like) — joined + grouped in SQLite ──
-      db.$queryRaw<{ title: string; qty: number; revenue: number }[]>(
-        Prisma.sql`SELECT i.titleSnapshot AS title, SUM(i.qty) AS qty, SUM(i.qty * i.unitPriceToman) AS revenue
-          FROM OrderItem i
-          JOIN "Order" o ON o.id = i.orderId
-          WHERE o.status IN (${Prisma.join(PAID_LIKE)}) AND o.createdAt >= ${since60.getTime()}
-          GROUP BY i.titleSnapshot
-          ORDER BY revenue DESC, qty DESC, title ASC
-          LIMIT 5`,
-      ),
+      // ── top products (60d paid-like) — bounded item pull + JS aggregate
+      // (portable, P-06: SUM(qty*price) raw SQL was SQLite-only) ──
+      db.orderItem.findMany({
+        where: { order: { status: { in: PAID_LIKE }, createdAt: { gte: since60 } } },
+        select: { titleSnapshot: true, qty: true, unitPriceToman: true },
+      }),
 
-      // ── top provinces (60d paid-like) — grouped in SQLite; ties broken by
-      // first appearance (MIN(rowid)) so the ranking matches the old JS pass ──
-      db.$queryRaw<{ province: string; count: number }[]>(
-        Prisma.sql`SELECT province, COUNT(*) AS count, MIN(rowid) AS firstRow
-          FROM "Order"
-          WHERE status IN (${Prisma.join(PAID_LIKE)}) AND createdAt >= ${since60.getTime()}
-          GROUP BY province
-          ORDER BY count DESC, firstRow ASC
-          LIMIT 6`,
-      ),
+      // ── top provinces (60d paid-like) — grouped in the DB (portable, P-06;
+      // the old MIN(rowid) tie-break was SQLite-only → province-name tie-break) ──
+      db.order.groupBy({
+        by: ["province"],
+        where: { status: { in: PAID_LIKE }, createdAt: { gte: since60 } },
+        _count: { _all: true },
+      }),
 
       // ── critical inventory — DB-filtered + bounded (no whole-shelf load) ──
       db.productVariant.findMany({
@@ -157,11 +149,14 @@ export async function GET() {
     const revenueWeek = revenueWeekAgg._sum.totalToman ?? 0;
     const revenueMonth = revenueMonthAgg._sum.totalToman ?? 0;
 
-    // ── customers (distinct orderer phones, paid-like — DB grouped) ──
+    // ── customers (distinct orderer phones, paid-like — orderer→user fallback) ──
     const phoneFirst = new Map<string, number>();
-    for (const row of buyerRows) {
-      const first = row.firstAt instanceof Date ? row.firstAt.getTime() : Number(row.firstAt);
-      if (!phoneFirst.has(row.phone)) phoneFirst.set(row.phone, first);
+    for (const o of buyerRows) {
+      const phone = (o.ordererPhone || "").trim() || (o.userPhone || "").trim();
+      if (!phone) continue;
+      const t = o.createdAt.getTime();
+      const prev = phoneFirst.get(phone);
+      if (prev === undefined || t < prev) phoneFirst.set(phone, t);
     }
     const newCustomersWeek = [...phoneFirst.values()].filter((t) => t >= weekAgo.getTime()).length;
 
@@ -185,9 +180,24 @@ export async function GET() {
     // ── status distribution (all-time) ──
     const statusMap = new Map<string, number>(statusGroup.map((g) => [g.status, g._count._all]));
 
-    // ── top products / provinces (from the DB rows) ──
-    const topProducts = itemsTopRaw.map((r) => ({ title: r.title, qty: asNumber(r.qty), revenue: asNumber(r.revenue) }));
-    const topProvinces = provinceGroup.map((r) => ({ province: r.province || "—", count: asNumber(r.count) }));
+    // ── top products (JS aggregate over the bounded 60d item pull) ──
+    const itemAgg = new Map<string, { qty: number; revenue: number }>();
+    for (const it of itemsTopRows) {
+      const cur = itemAgg.get(it.titleSnapshot) ?? { qty: 0, revenue: 0 };
+      cur.qty += it.qty;
+      cur.revenue += it.qty * it.unitPriceToman;
+      itemAgg.set(it.titleSnapshot, cur);
+    }
+    const topProducts = [...itemAgg.entries()]
+      .map(([title, v]) => ({ title, qty: v.qty, revenue: v.revenue }))
+      .sort((a, b) => b.revenue - a.revenue || b.qty - a.qty || a.title.localeCompare(b.title, "fa"))
+      .slice(0, 5);
+
+    // ── top provinces (DB-grouped, deterministic name tie-break) ──
+    const topProvinces = provinceGroup
+      .map((g) => ({ province: g.province || "—", count: g._count._all }))
+      .sort((a, b) => b.count - a.count || a.province.localeCompare(b.province, "fa"))
+      .slice(0, 6);
 
     // ── low stock (bounded, DB-filtered) ──
     const lowStockList = variantsLow.map((v) => ({ title: v.product.name, stock: v.stock }));

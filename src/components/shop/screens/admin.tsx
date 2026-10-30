@@ -21,7 +21,7 @@ import { MobileTopBar } from "@/components/shop/nav";
 import { ADMIN_TABS, AdminPills, AdminSidebar, useBadges, type Tab } from "@/components/shop/admin/admin-nav";
 import { AdminOtpGate } from "@/components/shop/admin/admin-gate";
 import { subscribeFocus, type FocusRequest } from "@/components/shop/admin/admin-focus";
-import { ADMIN_SESSION_EXPIRED_EVENT, UNLOCK_KEY, adminFetch } from "@/components/shop/admin/admin-cache";
+import { ADMIN_SESSION_EXPIRED_EVENT, UNLOCK_KEY, adminFetch, adminLogout } from "@/components/shop/admin/admin-cache";
 
 // ── lazy per-tab chunks — only the active tab's code is downloaded ──
 function tabLoader() {
@@ -88,7 +88,26 @@ export function AdminScreen() {
   // role chip + owner-only tabs — fetched right after the gate opens
   const [role, setRole] = useState<AdminRole | null>(null);
   const [adminName, setAdminName] = useState("");
+  // UX-18 (round 42) — دکمه خروج: نشست سرور + کش تب‌ها + کلید گیت یک‌جا پاک
+  // می‌شوند و پنل با پیام روشن به گیت ورود برمی‌گردد.
+  const [loggingOut, setLoggingOut] = useState(false);
   const badges = useBadges(unlocked);
+
+  const handleLogout = async () => {
+    if (loggingOut) return;
+    setLoggingOut(true);
+    try {
+      await adminLogout();
+    } finally {
+      setRole(null);
+      setAdminName("");
+      setFocus(null);
+      setTab("overview");
+      setLoggingOut(false);
+      setSessionNotice("از پنل خارج شدی؛ کش پنل هم پاک شد. برای ورود دوباره رمز یا OTP لازم است.");
+      setUnlocked(false);
+    }
+  };
 
   useEffect(() => {
     if (!unlocked) return;
@@ -127,7 +146,7 @@ export function AdminScreen() {
 
   return (
     <div className="mx-auto flex w-full max-w-[1440px] gap-6 px-0 lg:px-6 lg:py-4">
-      <AdminSidebar tab={safeTab} onTab={setTab} role={role} adminName={adminName} badges={badges} />
+      <AdminSidebar tab={safeTab} onTab={setTab} role={role} adminName={adminName} badges={badges} onLogout={() => void handleLogout()} loggingOut={loggingOut} />
       <div className="flex min-h-screen w-full min-w-0 flex-col bg-[#F2FAFD] lg:min-h-0 lg:flex-1 lg:rounded-[28px] lg:border lg:border-[#DDEEF5] lg:bg-white/60 lg:px-5 lg:py-5">
         <MobileTopBar title="پنل مدیریت" back="home" />
         <main className="w-full flex-1 px-4 pb-24 pt-2 md:px-6 lg:px-1 lg:pb-6">
@@ -140,22 +159,35 @@ export function AdminScreen() {
               <p className="m-0 text-[12.5px] font-medium text-[#4A6572] md:text-[13.5px]">{activeDef?.desc ?? "نمای کلی فروشگاه"}</p>
             </div>
             {role && (
-              <span
-                className="flex items-center gap-2 self-start rounded-full px-4 py-2 text-[12px] font-extrabold lg:hidden"
-                style={{
-                  background: role === "owner" ? "#04202E" : "#E3F6FD",
-                  color: role === "owner" ? "#fff" : "#006387",
-                }}
-                title={adminName || undefined}
-              >
+              <div className="flex items-center gap-2 self-start lg:hidden">
                 <span
-                  className="inline-block h-2 w-2 rounded-full"
-                  style={{ background: role === "owner" ? "#7BE3B4" : "#00ABE7" }}
-                  aria-hidden="true"
-                />
-                {ROLE_LABEL[role]}
-                {adminName ? ` — ${adminName}` : ""}
-              </span>
+                  className="flex items-center gap-2 rounded-full px-4 py-2 text-[12px] font-extrabold"
+                  style={{
+                    background: role === "owner" ? "#04202E" : "#E3F6FD",
+                    color: role === "owner" ? "#fff" : "#006387",
+                  }}
+                  title={adminName || undefined}
+                >
+                  <span
+                    className="inline-block h-2 w-2 rounded-full"
+                    style={{ background: role === "owner" ? "#7BE3B4" : "#00ABE7" }}
+                    aria-hidden="true"
+                  />
+                  {ROLE_LABEL[role]}
+                  {adminName ? ` — ${adminName}` : ""}
+                </span>
+                {/* UX-18 — خروج در موبایل هم همیشه در دسترس است */}
+                <button
+                  type="button"
+                  onClick={() => void handleLogout()}
+                  disabled={loggingOut}
+                  aria-label="خروج از پنل مدیریت"
+                  className="flex h-11 items-center gap-1.5 rounded-full border-2 border-[#F0B7C9] bg-white px-4 text-[12.5px] font-extrabold text-[#B03A5B] transition-transform hover:scale-[1.02] disabled:opacity-60"
+                >
+                  <span aria-hidden="true">⎋</span>
+                  {loggingOut ? "…" : "خروج"}
+                </button>
+              </div>
             )}
           </div>
 

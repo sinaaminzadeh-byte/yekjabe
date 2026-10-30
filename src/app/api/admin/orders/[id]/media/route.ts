@@ -11,7 +11,7 @@ import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { AppError, toErrorResponse } from "@/lib/errors";
 import { requireAdmin } from "@/lib/auth/session";
-import { dataFile } from "@/lib/data-root";
+import { readMessageFile } from "@/lib/orders/message-media";
 
 const MIME_BY_EXT: Record<string, string> = {
   jpg: "image/jpeg",
@@ -53,13 +53,10 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
     }
     const mime = MIME_BY_EXT[ext] ?? "application/octet-stream";
 
-    const { readFile } = await import("fs/promises");
-    let buf: Buffer;
-    try {
-      buf = await readFile(dataFile(key));
-    } catch {
-      throw new AppError(404, "not_found");
-    }
+    // round 42: disk first, then the DB blob copy (uploads on read-only
+    // serverless filesystems live in MediaBlob under the same key)
+    const buf = await readMessageFile(key);
+    if (!buf) throw new AppError(404, "not_found");
 
     const filename = key.split("/").pop() ?? "attachment";
     const download = new URL(req.url).searchParams.get("download") === "1";

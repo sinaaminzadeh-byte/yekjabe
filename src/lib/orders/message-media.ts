@@ -5,6 +5,7 @@
 // Magic-byte sniffing is mandatory (never trust filename/mime).
 import { randomUUID } from "crypto";
 import { dataFile } from "@/lib/data-root";
+import { putMediaBlob, getMediaBlob, deleteMediaBlob } from "@/lib/media-blob";
 
 export const MESSAGE_MEDIA_MAX_BYTES = 10 * 1024 * 1024; // ۱۰ مگابایت per file
 export const MESSAGE_MEDIA_MAX_FILES = 3; // per order
@@ -55,27 +56,37 @@ export function sniffMessageMediaMime(buf: Buffer): string {
   return "";
 }
 
-/** Writes the file under .data/messages/<code>/ and returns its storage key. */
+/**
+ * Writes the file under .data/messages/<code>/ and returns its storage key.
+ * Round 42: read-only serverless FS (Vercel) → the bytes go to the MediaBlob
+ * table instead — same key, same seam, gift attachments survive deploys.
+ */
 export async function storeMessageFile(code: string, buf: Buffer, mime: string): Promise<string> {
   const { mkdir, writeFile } = await import("fs/promises");
   const path = await import("path");
   if (!/^PN-\d{6}-\d{4}$/.test(code)) throw new Error("bad_code");
   const ext = EXT[mime] ?? "bin";
   const key = `messages/${code}/${randomUUID()}.${ext}`;
-  const abs = dataFile(key);
-  await mkdir(path.dirname(abs), { recursive: true });
-  await writeFile(abs, buf);
+  try {
+    const abs = dataFile(key);
+    await mkdir(path.dirname(abs), { recursive: true });
+    await writeFile(abs, buf);
+  } catch {
+    // read-only / missing data root (serverless) → DB-backed fallback
+    await putMediaBlob(key, buf, mime);
+  }
   return key;
 }
 
 /** Reads a message media file back (null = missing/illegal key). */
 export async function readMessageFile(key: string): Promise<Buffer | null> {
+  if (!validMessageKey(key)) return null;
   try {
-    if (!validMessageKey(key)) return null;
     const { readFile } = await import("fs/promises");
     return await readFile(dataFile(key));
   } catch {
-    return null;
+    // round 42 — uploaded on a read-only serverless FS → DB blob copy
+    return (await getMediaBlob(key))?.buf ?? null;
   }
 }
 
@@ -83,7 +94,8 @@ export async function deleteMessageFile(key: string): Promise<void> {
   try {
     if (!validMessageKey(key)) return; // path-traversal guard
     const { rm } = await import("fs/promises");
-    await rm(dataFile(key), { force: true });
+    await rm(dataFile(key), { force: true }).catch(() => {});
+    await deleteMediaBlob(key); // round 42 — remove the DB copy too
   } catch {
     /* best effort — the purge job re-verifies and retries */
   }

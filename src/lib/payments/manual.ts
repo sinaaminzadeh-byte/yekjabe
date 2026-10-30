@@ -4,6 +4,7 @@
 // the Payment.receiptKey seam is identical in both worlds. All disk access goes
 // through dataFile() so serverless deploys can point DATA_ROOT at /tmp.
 import { dataFile } from "@/lib/data-root";
+import { putMediaBlob, getMediaBlob, deleteMediaBlob } from "@/lib/media-blob";
 
 export const RECEIPT_MAX_BYTES = 5 * 1024 * 1024;
 
@@ -17,15 +18,24 @@ export function sniffImageMime(buf: Buffer): "image/jpeg" | "image/png" | "image
 
 const EXT: Record<string, string> = { "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp" };
 
-/** Writes the file under .data/receipts/{code}/ and returns the storage key. */
+/**
+ * Writes the file under .data/receipts/{code}/ and returns the storage key.
+ * Round 42: read-only serverless FS (Vercel) → the bytes go to the MediaBlob
+ * table instead — same key, same seam, receipts stop dying on deploy.
+ */
 export async function storeReceiptFile(orderCode: string, buf: Buffer, mime: string): Promise<string> {
   const { mkdir, writeFile } = await import("fs/promises");
   const path = await import("path");
   const { randomUUID } = await import("crypto");
   const key = `receipts/${orderCode}/${randomUUID()}.${EXT[mime] ?? "bin"}`;
-  const abs = dataFile(key);
-  await mkdir(path.dirname(abs), { recursive: true });
-  await writeFile(abs, buf);
+  try {
+    const abs = dataFile(key);
+    await mkdir(path.dirname(abs), { recursive: true });
+    await writeFile(abs, buf);
+  } catch {
+    // read-only / missing data root (serverless) → DB-backed fallback
+    await putMediaBlob(key, buf, mime);
+  }
   return key;
 }
 
@@ -35,7 +45,9 @@ export async function readReceiptFile(key: string): Promise<Buffer | null> {
     if (key.includes("..") || !key.startsWith("receipts/")) return null; // path-traversal guard
     return await readFile(dataFile(key));
   } catch {
-    return null;
+    // round 42 — uploaded on a read-only serverless FS → DB blob copy
+    if (key.includes("..") || !key.startsWith("receipts/")) return null;
+    return (await getMediaBlob(key))?.buf ?? null;
   }
 }
 
@@ -43,7 +55,8 @@ export async function deleteReceiptFile(key: string): Promise<void> {
   try {
     const { rm } = await import("fs/promises");
     if (key.includes("..") || !key.startsWith("receipts/")) return;
-    await rm(dataFile(key), { force: true });
+    await rm(dataFile(key), { force: true }).catch(() => {});
+    await deleteMediaBlob(key); // round 42 — remove the DB copy too
   } catch {
     /* best effort */
   }

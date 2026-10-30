@@ -1185,3 +1185,22 @@ Work Log:
 Stage Summary:
 - مشکل فوری مالک روی Vercel است (متغیر به سرور نرسیده) و با چک‌لیست دقیق قابل حل است؛ ولی از این به بعد حتی اگر Vercel دردسر شود، بعد از «یک» ورود موفق، رمز از داخل خود پنل قابل تغییر است و هاست دیگر در زنجیره رمز نیست.
 - نکته امنیتی: هش scrypt در Setting می‌ماند و هرگز به کلاینت نمی‌رود؛ مسیر OTP برای شماره‌های ادمین به‌عنوان درِ پشتیبان پابرجاست.
+
+---
+## Task ID: 42
+Agent: main (Z.ai Code)
+Task: راند ۴۲ — گزارش مالک: «لوگو روی نسخه دیپلوی تغییر نکرد — گفت عکس آپلود نشد» + «منوی پیشخوان ارور اتصال به سرور می‌دهد ولی بقیه منوها دیتا نشان می‌دهند» + «دکمه خروج برای داشبورد ادمین بگذار که کش را هم پاک کند» — دو باگ بحرانی deploy-specific + یک فیچر
+
+Work Log:
+- DIAGNOSIS ① (پیشخوان): /api/admin/overview سه کوئری $queryRaw داشت که SQL مخصوص SQLite بود — MIN(rowid) (روی PostgreSQL وجود ندارد) و مقایسه‌ی createdAt >= epoch-millis (روی PG نوع timestamp می‌خواهد) → همان یک route روی Vercel ۵۰۰ می‌داد؛ بقیه تب‌ها چون Prisma استاندارد دارند سالم بودند = دقیقاً همان «فقط پیشخوان خراب است». سندباکس SQLite سالم بود و همین باعث پنهان‌ماندن باگ شده بود. (A-15)
+- DIAGNOSIS ② (آپلود): storeMediaFile/storeReceiptFile/storeMessageFile همه writeFile روی dataFile() هستند؛ لامبدهای Vercel دیسک فقط-خواندنی دارند → EROFS → POST /api/admin/branding/logo 500 → توست «لوگو آپلود نشد». یعنی روی دیپلوی «همه‌ی» آپلودهای ادمین/مشتری مرده بودند، نه فقط لوگو. (A-16)
+- FIX A-15: بازنویسی سه کوئری به Prisma قابل‌حمل — provinceGroup با db.order.groupBy؛ top-products با findMany محدودِ ۶۰ روزه OrderItem (relation filter) + جمع در JS (SUM(qty*price) خام قابل‌حمل نیست)؛ خریداران یکتا با findMany پروجکشن سبک (ordererPhone/userPhone/createdAt) + Map در JS. قرارداد JSON بدون تغییر (additive-only). import Prisma و asNumber حذف شد.
+- FIX A-16: مدل MediaBlob (key @id / mime / bytes Bytes / size) به schema.prisma + sync-pg-schema (۲۵ مدل، هر دو SQLite و PostgreSQL) + src/lib/media-blob.ts جدید (put/get/delete) + هر سه لایه‌ی ذخیره‌سازی: نوشتن = دیسک اول، در خطا → DB؛ خواندن = دیسک اول، نبود → DB؛ حذف = هر دو. دو ریدر مستقیم هم پچ شدند (admin/orders/[id]/media حالا readMessageFile را صدا می‌زند؛ experiences/[id]/photo فالبک getMediaBlob دارد). Guards (../ و prefix) عیناً حفظ شدند — MediaBlob فقط با کلیدِ مجازِ همان لایه نوشته/خوانده می‌شود.
+- FEATURE UX-19 (دکمه خروج): ① /api/auth/admin-logout جدید (assertSameOrigin + destroySession("admin") — ردیف Session حذف + کوکی صفر) ② adminLogout() در admin-cache.ts: fetch خروج → invalidateAdminCache() → پاک‌کردن UNLOCK_KEY ③ سایدبار دسکتاپ: دکمه صورتی «خروج از پنل» بالای «برگرد به خانه» ④ موبایل: قرص «خروج» کنار چیپ نقش در هدر (هدف لمسی ۴۴px) ⑤ بعد از خروج: role/name/focus/tab ریست + برگشت به گیت با notice «از پنل خارج شدی؛ کش پنل هم پاک شد…».
+- QA: tsc=۰ (بعد از فیکس تایپ Buffer→Bytes با new Uint8Array(buf)) / eslint=۰ / db:push ✓ (MediaBlob ساخته شد). curl: overview با دیتای دمو (۴۸ سفارش، ۴۲٫۳۸۷٫۰۰۰ تومان، topProducts=5, topProvinces=6, events=14) ✓، آپلود لوگو 201 ✓، سرو عکس 200 image/png ✓، admin-logout {"ok":true} ✓، overview بعد از خروج 401 ✓ (نشست واقعاً کشته شد). شبیه‌سازی سرورلس: DATA_ROOT=/proc/nonexistent-ro → storeMediaFile→DB ✓، readPublicMedia→DB ✓، deleteMediaFile هر دو را پاک کرد ✓ (blob rows=0). agent-browser: ورود رمزی → داشبورد کامل (KPI/چارت/دونات/سایدبار) ✓؛ آپلود لوگو از UI (input hidden با upload command) → توست «لوگو عوض شد ✓» ✓؛ خروج دسکتاپ → گیت + notice + unlock=null + cache=0 ✓؛ خروج موبایل → همان رفتار ✓؛ اسکرین‌شات ۳۹۰px و ۱۴۴۰px سالم. کنسول/dev.log پاک.
+- گزارش ممیزی: A-15 + A-16 (بحرانی/code/fixed) + UX-19 (متوسط/S/fixed) + چیپ «راند ۴۲ · ۷۶/۷۶» + موج «راند ۴۲ — آپلود و داشبورد روی نسخه دیپلوی».
+
+Stage Summary:
+- هر دو باگ deploy-specific بودند و در سندباکس نامرئی: پیشخوان فقط روی PostgreSQL، آپلود فقط روی فایل‌سیستم فقط-خواندنی. از این پس روی Vercel: داشبورد دیتا می‌دهد و هر آپلودی (لوگو/عکس محصول/کاور بلاگ/رسید کارت‌به‌کارت/عکس تجربه) در دیتابیس می‌ماند و با کول‌استارت نمی‌پرد.
+- دکمه خروج، نشست HttpOnly را سمت سرور هم نابود می‌کند (فقط UI نیست) — پنل روی سیستم مشترک امن شد.
+- یادداشت برای آینده: MESSAGE_MEDIA_MAX_BYTES=10MB از سقف بدنه‌ی ۴٫۵MB لامبدای Vercel بزرگ‌تر است (پلتفرم 413 می‌دهد)؛ فشرده‌سازی سمت کلاینت یا پایین‌آوردن سقف برای نسخه دیپلوی لازم است (خارج از محدوده این راند).

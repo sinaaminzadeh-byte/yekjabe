@@ -112,12 +112,16 @@ export function AdminSidebar({
   role,
   adminName,
   badges,
+  onLogout,
+  loggingOut,
 }: {
   tab: Tab;
   onTab: (t: Tab) => void;
   role: "owner" | "operator" | null;
   adminName: string;
   badges: Badges;
+  onLogout?: () => void;
+  loggingOut?: boolean;
 }) {
   const items = ADMIN_TABS.filter((t) => !t.ownerOnly || role === "owner");
   return (
@@ -175,6 +179,18 @@ export function AdminSidebar({
               {adminName ? ` — ${adminName}` : ""}
             </span>
           </div>
+        )}
+        {/* UX-18 (round 42) — خروج واقعی: نشست سرور + کوکی + کش تب‌ها پاک می‌شود */}
+        {onLogout && (
+          <button
+            type="button"
+            onClick={onLogout}
+            disabled={loggingOut}
+            className="mb-2 flex w-full items-center justify-center gap-2 rounded-full border-2 border-[#F0B7C9] bg-[#FFF7FA] py-2 text-[12.5px] font-extrabold text-[#B03A5B] transition-transform hover:scale-[1.02] disabled:opacity-60"
+          >
+            <span aria-hidden="true">⎋</span>
+            {loggingOut ? "در حال خروج…" : "خروج از پنل"}
+          </button>
         )}
         <button
           type="button"

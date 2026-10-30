@@ -73,6 +73,25 @@ export function adminCachePeek<T>(url: string): T | undefined {
   return hit.data as T;
 }
 
+/**
+ * UX-18 (round 42) — خروج کامل از پنل.
+ * ترتیب مهم است: اول نشستِ سمت سرور (کوکی HttpOnly + ردیف Session) تمام
+ * می‌شود، بعد کشِ همه‌ی تب‌ها پاک می‌شود و آخرین قدم کلیدِ گیت در
+ * sessionStorage است — نتیجه: با یک دکمه، هم ورود بسته می‌شود هم هیچ اثری
+ * از دیتای پنل (کش GETها) روی مرورگر نمی‌ماند.
+ */
+export async function adminLogout(): Promise<void> {
+  try {
+    await fetch("/api/auth/admin-logout", { method: "POST", cache: "no-store" });
+  } catch {
+    /* حتی اگر شبکه قطع بود، خروج سمت کلاینت کامل انجام می‌شود */
+  }
+  invalidateAdminCache();
+  try {
+    sessionStorage.removeItem(UNLOCK_KEY);
+  } catch {}
+}
+
 export async function adminFetch<T>(
   url: string,
   opts: { fresh?: boolean } = {},
