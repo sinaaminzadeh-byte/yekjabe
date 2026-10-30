@@ -109,7 +109,15 @@ export function publicMediaFallback(key: string): string | null {
   const folder = key.slice(0, slash);
   const file = key.slice(slash + 1);
   if (!isSafeMediaFilename(file)) return null;
-  if (folder === "posts" || folder === "branding") return `/media-defaults/${folder}/${file}`;
+  if (folder === "posts" || folder === "branding") {
+    // Round 40: باندل استاتیک فقط logo.png رسمی مالک را دارد؛ هر کلیدِ
+    // logo.<ext> آپلودیِ ادمین (که روی دیسک لامبدا گم می‌شود) به همان
+    // پیش‌فرض رسمی برمی‌گردد تا هدر هیچ‌وقت عکس شکسته نشان ندهد.
+    if (folder === "branding" && /^logo\.(jpg|png|webp)$/.test(file)) {
+      return "/media-defaults/branding/logo.png";
+    }
+    return `/media-defaults/${folder}/${file}`;
+  }
   if (folder === "products") {
     const dash = file.indexOf("-");
     const stem = dash > 0 ? file.slice(dash + 1) : file; // strip the <productId>- prefix

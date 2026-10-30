@@ -145,6 +145,9 @@ async function main() {
   // Applies the bundled default when the setting is missing or still points to
   // an old seed default — NEVER when the owner uploaded a custom logo (marker
   // Setting site_logo_source=owner, written by /api/admin/branding/logo).
+  // Round 40: even when nothing changes, the row is touched so `?v=updatedAt`
+  // (branding.ts) bumps on every deploy → browsers refetch the header logo
+  // (this is what made the owner think the new logo “wasn’t uploaded”).
   const logoSetting = await db.setting.findUnique({ where: { key: "site_logo" } });
   const logoSource = await db.setting.findUnique({ where: { key: "site_logo_source" } });
   const isOldDefault = logoSetting?.value === "branding/logo.jpg";
@@ -156,6 +159,10 @@ async function main() {
     }
     await db.setting.upsert({ where: { key: "site_logo" }, create: { key: "site_logo", value: key }, update: { value: key } });
     console.log(`  ✓ site logo: ${key}`);
+  } else if (logoSetting) {
+    // value untouched (owner-uploaded or already current) — just bump updatedAt
+    await db.setting.update({ where: { key: "site_logo" }, data: { value: logoSetting.value } });
+    console.log(`  = site logo: ${logoSetting.value} (cache-bust v bumped)`);
   } else {
     console.log("  = site logo: owner-uploaded or file missing — untouched");
   }

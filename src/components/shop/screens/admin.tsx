@@ -19,9 +19,9 @@ import { navigate } from "@/lib/hash-route";
 import { ForwardIcon } from "@/components/shop/icons";
 import { MobileTopBar } from "@/components/shop/nav";
 import { ADMIN_TABS, AdminPills, AdminSidebar, useBadges, type Tab } from "@/components/shop/admin/admin-nav";
-import { AdminOtpGate, UNLOCK_KEY } from "@/components/shop/admin/admin-gate";
+import { AdminOtpGate } from "@/components/shop/admin/admin-gate";
 import { subscribeFocus, type FocusRequest } from "@/components/shop/admin/admin-focus";
-import { adminFetch } from "@/components/shop/admin/admin-cache";
+import { ADMIN_SESSION_EXPIRED_EVENT, UNLOCK_KEY, adminFetch } from "@/components/shop/admin/admin-cache";
 
 // ── lazy per-tab chunks — only the active tab's code is downloaded ──
 function tabLoader() {
@@ -60,6 +60,17 @@ export function AdminScreen() {
       return false;
     }
   });
+  // UX-17 (round 40) — پیام «نشست تمام شد» وقتی ۴۰۱ از سرور می‌آید، به‌جای
+  // رها کردن کاربر داخل پنلی که همه تب‌هایش «اتصال به سرور برقرار نشد» می‌گوید.
+  const [sessionNotice, setSessionNotice] = useState<string | null>(null);
+  useEffect(() => {
+    const onExpired = () => {
+      setUnlocked(false);
+      setSessionNotice("نشست پنل تمام شده بود؛ برای ادامه دوباره وارد شو.");
+    };
+    window.addEventListener(ADMIN_SESSION_EXPIRED_EVENT, onExpired);
+    return () => window.removeEventListener(ADMIN_SESSION_EXPIRED_EVENT, onExpired);
+  }, []);
   const [tab, setTab] = useState<Tab>("overview");
   // UX-05/13/14/15 — cross-tab focus: any tab can request a navigation that
   // carries context (order code / status filter / hasMedia). The shell is the
@@ -99,7 +110,13 @@ export function AdminScreen() {
     return (
       <div className="flex min-h-screen flex-col bg-[#F2FAFD]">
         <MobileTopBar title="پنل مدیریت" back="home" />
-        <AdminOtpGate onOk={() => setUnlocked(true)} />
+        <AdminOtpGate
+          onOk={() => {
+            setSessionNotice(null);
+            setUnlocked(true);
+          }}
+          notice={sessionNotice}
+        />
       </div>
     );
   }

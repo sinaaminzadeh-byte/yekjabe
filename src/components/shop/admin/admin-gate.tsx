@@ -11,16 +11,18 @@
 import { useRef, useState } from "react";
 import { Plush } from "@/components/shop/plush";
 import { useOtp } from "@/hooks/use-otp";
+import { UNLOCK_KEY } from "./admin-cache";
 
-export const UNLOCK_KEY = "pishnam-admin-ok";
+export { UNLOCK_KEY };
 
-export function AdminOtpGate({ onOk }: { onOk: () => void }) {
+export function AdminOtpGate({ onOk, notice }: { onOk: () => void; notice?: string | null }) {
   const [mode, setMode] = useState<"otp" | "password">("otp");
   const [step, setStep] = useState<"phone" | "code">("phone");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false); // password mode only — OTP busy comes from the hook
   const [err, setErr] = useState(false);
   const [errMsg, setErrMsg] = useState("");
+  const [showPasswordHelp, setShowPasswordHelp] = useState(false);
 
   const fail = (msg?: string) => {
     setErrMsg(msg ?? "");
@@ -79,6 +81,10 @@ export function AdminOtpGate({ onOk }: { onOk: () => void }) {
         return;
       }
       fail(json.error === "rate_limited" ? "چند بار اشتباه زدی؛ ۱۵ دقیقه صبر کن." : "رمز درست نیست.");
+      // UX-17 (راند ۴۰): وقتی رمز رد شد، راهنمای عملی برای مالک — رمز پنل
+      // روی سرور واقعی از متغیر محیطی می‌آید (نگهبان S-01 رمز پیش‌فرض را
+      // در پروداکشن ممنوع می‌کند)، پس اگر فراموش شده باید در پنل هاست عوض شود.
+      if (json.error === "wrong_password") setShowPasswordHelp(true);
     } catch {
       fail();
     }
@@ -88,6 +94,11 @@ export function AdminOtpGate({ onOk }: { onOk: () => void }) {
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-[#F2FAFD] px-5">
       <div className="pishnam-reveal flex w-full max-w-[380px] flex-col items-center gap-4 rounded-[28px] border border-[#DDEEF5] bg-white p-7 text-center shadow-[0_14px_34px_rgba(4,32,46,0.06)]">
+        {notice && (
+          <span className="w-full rounded-[14px] bg-[#FFF3C9] px-3 py-2 text-[12px] font-extrabold leading-[1.8] text-[#8A6D1F]" role="status">
+            {notice}
+          </span>
+        )}
         <span className="flex h-[74px] w-[74px] items-center justify-center rounded-full bg-[#E3F6FD]">
           <Plush kind="bear" size={52} />
         </span>
@@ -153,6 +164,13 @@ export function AdminOtpGate({ onOk }: { onOk: () => void }) {
                 : step === "phone"
                   ? "شماره درست نیست یا سرویس در دسترس نیست."
                   : "کد درست نیست یا منقضی شده.")}
+          </span>
+        )}
+        {mode === "password" && showPasswordHelp && (
+          <span className="rounded-[14px] bg-[#F2FAFD] px-3 py-2 text-[11.5px] font-bold leading-[1.9] text-[#4A6572]">
+            رمز پنل روی نسخه آنلاین از متغیر <b dir="ltr">ADMIN_PANEL_PASSWORD</b> سرور می‌آید؛
+            اگر یادت رفته، در پنل هاست (Vercel ← Settings ← Environment Variables) مقدار تازه‌اش را بگذار
+            و دوباره دیپلوی بگیر.
           </span>
         )}
         <button
