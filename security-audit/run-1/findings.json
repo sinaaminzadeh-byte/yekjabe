@@ -1,0 +1,3959 @@
+[
+ {
+  "verdict": "confirmed",
+  "fingerprint": "admin-payments-discard-unguarded-delete",
+  "title": "Ungated 'discard' action lets any operator permanently delete any payment record + receipt file with no audit trail",
+  "description": "PATCH /api/admin/payments/{id}: approve (line 28) and reject (line 36) require payment.status==='pending_review' with a pre-check plus conditional updateMany; reopen (line 60) is owner-only with an explicit OrderEvent. The fourth action discard (line 70) runs db.payment.delete (line 72) plus deleteReceiptFile (line 73) for ANY payment status with no precondition, no role elevation and no OrderEvent. An operator can silently destroy verified-payment evidence (financial audit trail); ids are enumerable via GET /api/admin/payments.",
+  "root_cause": "discard branch written without the sibling guards (status precondition, owner check, audit event) on an operator-level route.",
+  "intended_behavior": "discard gated to pending_review via conditional updateMany, audited via OrderEvent, hard delete replaced with a tombstone (status failed) so the trail survives.",
+  "trace": [
+   {
+    "kind": "entrypoint",
+    "file": "src/app/api/admin/payments/[id]/route.ts",
+    "line": 14,
+    "scope": "PATCH /api/admin/payments/{id}",
+    "description": "assertSameOrigin (17) + requireAdmin() (18); operator suffices (session.ts:69 defaults min=operator)"
+   },
+   {
+    "kind": "propagation",
+    "file": "src/app/api/admin/payments/[id]/route.ts",
+    "line": 70,
+    "scope": "action discard branch",
+    "description": "reached with no precondition unlike approve(28)/reject(36)/reopen(60)"
+   },
+   {
+    "kind": "sink",
+    "file": "src/app/api/admin/payments/[id]/route.ts",
+    "line": 72,
+    "scope": "db.payment.delete + deleteReceiptFile",
+    "description": "row deleted for any status; receipt file + MediaBlob removed; no orderEvent anywhere in the branch"
+   }
+  ],
+  "evidence": [
+   {
+    "file": "src/app/api/admin/payments/[id]/route.ts",
+    "line": 28,
+    "description": "approve requires pending_review — the control discard lacks"
+   },
+   {
+    "file": "src/app/api/admin/payments/[id]/route.ts",
+    "line": 60,
+    "description": "reopen enforces role owner — the role control discard lacks"
+   },
+   {
+    "file": "src/app/api/admin/payments/[id]/route.ts",
+    "line": 72,
+    "description": "db.payment.delete with no status/role condition"
+   },
+   {
+    "file": "src/app/api/admin/payments/[id]/route.ts",
+    "line": 73,
+    "description": "deleteReceiptFile destroys the receipt image (disk + MediaBlob)"
+   },
+   {
+    "file": "src/app/api/admin/payments/route.ts",
+    "line": 29,
+    "description": "GET payments returns ids to any seat — targets enumerable"
+   }
+  ],
+  "conditions": [
+   {
+    "kind": "authentication_level",
+    "description": "caller holds any active admin session; operator role admitted"
+   },
+   {
+    "kind": "data_state",
+    "description": "a Payment row exists in any status; ids enumerable"
+   }
+  ],
+  "execution": {
+   "attacker_perspective": "operator seat sends PATCH {action:discard} to erase verified-payment evidence with no log",
+   "payloads": [
+    "{\"action\":\"discard\"}"
+   ],
+   "instructions": [
+    "source-only: behavior read from the discard branch vs sibling guards"
+   ],
+   "observed_result": "Source inspection established: line 70 opens the discard branch with no status/role check, line 72 hard-deletes the Payment row for any status, line 73 deletes the receipt file and MediaBlob, and the branch writes no OrderEvent, while approve/reject/reopen carry explicit guards at 28/36/60; GET /api/admin/payments exposes ids to operators. No execution was performed (source-only run)."
+  },
+  "remediation": {
+   "strategy": "Gate discard to pending_review via conditional updateMany; tombstone (status=failed) instead of hard delete; write OrderEvent; only then remove the receipt file.",
+   "code_changes": [
+    {
+     "file_name": "src/app/api/admin/payments/[id]/route.ts",
+     "fixed_code": "// see strategy — enforce the invariant at this site"
+    }
+   ]
+  },
+  "severity": {
+   "likelihood": {
+    "score": "medium",
+    "reason": "one request available to every operator; targets enumerable"
+   },
+   "impact": {
+    "score": "medium",
+    "reason": "permanent destruction of verified-payment evidence with no audit record — financial-integrity loss, no money movement/disclosure"
+   },
+   "overall_severity": "medium"
+  },
+  "confidence": {
+   "score": "high",
+   "reason": "missing control statically demonstrable against siblings"
+  }
+ },
+ {
+  "verdict": "confirmed",
+  "fingerprint": "admin-post-coverkey-arbitrary-delete-primitive",
+  "title": "Unvalidated post coverKey gives any operator a destructive file-deletion primitive over owner-managed and private media namespaces",
+  "description": "PATCH /api/admin/posts/{id} accepts coverKey as a free-form string (max 200, no prefix/shape/existence validation — zod at line 19); whenever the stored value is truthy and differs from a new truthy value, the previous (attacker-chosen) value is GC-deleted via deleteMediaFile() (lines 60-62) whose allowlist is products/|posts/|branding/|experiences/|refunds/ (src/lib/media.ts:42-47), removing the disk file and the MediaBlob row. Two PATCHes (poison then replace) delete any key under those prefixes: product gallery keys are operator-enumerable via GET /api/admin/products, experience photoKeys via GET /api/admin/experiences, and the logo stem is hard-coded branding/logo.{jpg,png,webp} (≤3 guesses). This defeats the owner-only logo controls at the file layer and destroys private moderation photos. Public leak ruled out (deletion primitive only).",
+  "root_cause": "coverKey stored unvalidated; replacement GC treats the stored string as deletion authorization with a namespace allowlist far wider than posts/.",
+  "intended_behavior": "coverKey constrained to ^posts\\/[A-Za-z0-9._-]+\\.(jpg|png|webp)$ plus existence; GC only deletes values matching the same shape.",
+  "trace": [
+   {
+    "kind": "entrypoint",
+    "file": "src/app/api/admin/posts/[id]/route.ts",
+    "line": 23,
+    "scope": "PATCH",
+    "description": "operator-level; zod accepts any coverKey ≤200 chars (19)"
+   },
+   {
+    "kind": "propagation",
+    "file": "src/app/api/admin/posts/[id]/route.ts",
+    "line": 62,
+    "scope": "coverKey GC",
+    "description": "prev (attacker-chosen) value passed to deleteMediaFile when truthy and differing"
+   },
+   {
+    "kind": "sink",
+    "file": "src/lib/media.ts",
+    "line": 49,
+    "scope": "deleteMediaFile",
+    "description": "rm + deleteMediaBlob for any key under the wide allowlist (42-47)"
+   }
+  ],
+  "evidence": [
+   {
+    "file": "src/app/api/admin/posts/[id]/route.ts",
+    "line": 19,
+    "description": "coverKey free-form — no shape validation"
+   },
+   {
+    "file": "src/app/api/admin/posts/[id]/route.ts",
+    "line": 62,
+    "description": "deleteMediaFile(prev.coverKey) on the stored unvalidated value"
+   },
+   {
+    "file": "src/lib/media.ts",
+    "line": 42,
+    "description": "allowlist includes experiences/, refunds/, products/, posts/, branding/"
+   },
+   {
+    "file": "src/app/api/admin/posts/image/route.ts",
+    "line": 48,
+    "description": "cover-slot upload GCs stored coverKey — same destructive seam"
+   },
+   {
+    "file": "src/app/api/admin/experiences/route.ts",
+    "line": 19,
+    "description": "GET experiences returns full rows incl. photoKey — operator-enumerable targets"
+   },
+   {
+    "file": "src/app/api/admin/branding/logo/route.ts",
+    "line": 23,
+    "description": "logo upload owner-only — control defeated at the file layer"
+   }
+  ],
+  "conditions": [
+   {
+    "kind": "authentication_level",
+    "description": "any operator seat"
+   },
+   {
+    "kind": "data_state",
+    "description": "existing Post row + target key (admin GETs / hard-coded logo stem)"
+   }
+  ],
+  "execution": {
+   "attacker_perspective": "operator PATCHes coverKey to a victim key, then PATCHes to another value — victim file+MediaBlob deleted; repeat with branding/logo.png breaks the site logo",
+   "payloads": [
+    "{\"coverKey\":\"experiences/<uuid>.jpg\"}",
+    "{\"coverKey\":\"posts/x.jpg\"}",
+    "{\"coverKey\":\"branding/logo.png\"}"
+   ],
+   "instructions": [
+    "source-only: two-step poison-then-replace read from branch + allowlist"
+   ],
+   "observed_result": "Source inspection established: coverKey passes zod with no shape/prefix/existence check (19) and is stored verbatim; the GC at 60-62 calls deleteMediaFile on the previous stored value, so poison-then-replace reaches deleteMediaFile with an arbitrary key; the allowlist admits products/posts/branding/experiences/refunds and the sink removes disk file + MediaBlob row. No execution was performed (source-only run)."
+  },
+  "remediation": {
+   "strategy": "Validate coverKey to the exact issued key shape at every write site (PATCH and POST); GC refuses values not matching the same shape.",
+   "code_changes": [
+    {
+     "file_name": "src/app/api/admin/posts/[id]/route.ts",
+     "fixed_code": "// see strategy — enforce the invariant at this site"
+    }
+   ]
+  },
+  "severity": {
+   "likelihood": {
+    "score": "medium",
+    "reason": "two PATCHes; keys enumerable / logo stem hard-coded"
+   },
+   "impact": {
+    "score": "medium",
+    "reason": "irreversible destruction of private moderation photos, product imagery, owner logo (disk+MediaBlob), circumventing owner-only controls; DB rows and money state intact"
+   },
+   "overall_severity": "medium"
+  },
+  "confidence": {
+   "score": "high",
+   "reason": "missing validation + destructive GC statically demonstrable"
+  }
+ },
+ {
+  "verdict": "confirmed",
+  "fingerprint": "admin-sms-logs-plaintext-otp-params-operator-readable",
+  "title": "Operator admins read live OTP codes from /api/admin/sms/logs (plaintext in SmsOutbox.params) and hijack owner/customer sessions",
+  "description": "Every OTP is written verbatim into SmsOutbox.params (otp.ts:50 passes {code} to sendSmsNow, persisted as JSON at sms/index.ts:238-240) and returned unmasked by GET /api/admin/sms/logs (params: r.params at line 39), callable by any operator seat (requireAdmin() default at line 10). An operator requests an OTP for any phone (POST /api/auth/request — rate caps admit a single request), reads the 4-digit code from the newest row, and verifies within the 5-minute TTL: for ADMIN_SEED_PHONES phones verify mints an owner seat (upsert role owner, lines 39-43) plus an admin session (44) — operator→owner takeover; for any other phone it mints a full customer session (46). Rows are never deleted (no retention anywhere).",
+  "root_cause": "sendSmsNow persists full delivery params incl. the live OTP code as plaintext JSON; the logs endpoint serves params verbatim to operator seats with no masking at write or read time.",
+  "intended_behavior": "Auth codes readable only by the verification flow: redact secret params at write time, mask at read time, ideally owner-only logs, plus SmsOutbox retention.",
+  "trace": [
+   {
+    "kind": "entrypoint",
+    "file": "src/app/api/auth/request/route.ts",
+    "line": 43,
+    "scope": "POST auth/request",
+    "description": "issueOtp for arbitrary valid phone; rate caps admit the one request"
+   },
+   {
+    "kind": "propagation",
+    "file": "src/lib/auth/otp.ts",
+    "line": 50,
+    "scope": "issueOtp→sendSmsNow",
+    "description": "code passed verbatim as params {code}; AuthCode stores only the HMAC hash so the outbox row is the sole plaintext copy"
+   },
+   {
+    "kind": "propagation",
+    "file": "src/lib/sms/index.ts",
+    "line": 239,
+    "scope": "SmsOutbox row",
+    "description": "params persisted plaintext; no retention delete anywhere in src"
+   },
+   {
+    "kind": "propagation",
+    "file": "src/app/api/admin/sms/logs/route.ts",
+    "line": 39,
+    "scope": "GET logs",
+    "description": "params: r.params returned verbatim to any operator seat"
+   },
+   {
+    "kind": "sink",
+    "file": "src/app/api/auth/verify/route.ts",
+    "line": 44,
+    "scope": "POST verify",
+    "description": "stolen code mints customer session (46); ADMIN_SEED_PHONES phone additionally upserts owner seat + admin session (39-44)"
+   }
+  ],
+  "evidence": [
+   {
+    "file": "src/lib/auth/otp.ts",
+    "line": 50,
+    "description": "live code into params {code}"
+   },
+   {
+    "file": "src/lib/sms/index.ts",
+    "line": 239,
+    "description": "params persisted plaintext; no retention"
+   },
+   {
+    "file": "src/app/api/admin/sms/logs/route.ts",
+    "line": 10,
+    "description": "requireAdmin() default operator"
+   },
+   {
+    "file": "src/app/api/admin/sms/logs/route.ts",
+    "line": 39,
+    "description": "params verbatim, no masking"
+   },
+   {
+    "file": "src/lib/auth/session.ts",
+    "line": 69,
+    "description": "requireAdmin default min operator"
+   },
+   {
+    "file": "src/app/api/auth/verify/route.ts",
+    "line": 44,
+    "description": "createSession admin for ADMIN_SEED_PHONES phones"
+   },
+   {
+    "file": "src/lib/env.ts",
+    "line": 102,
+    "description": "ADMIN_SEED_PHONES mechanism"
+   },
+   {
+    "file": "prisma/schema.prisma",
+    "line": 366,
+    "description": "SmsOutbox.params plain String JSON, no TTL"
+   }
+  ],
+  "conditions": [
+   {
+    "kind": "authorization_role",
+    "description": "operator seat (created via /api/admin/team)"
+   },
+   {
+    "kind": "authentication_level",
+    "description": "valid admin session"
+   },
+   {
+    "kind": "environmental_dependency",
+    "description": "operator→owner leg requires owner phone in ADMIN_SEED_PHONES; customer leg unconditional"
+   },
+   {
+    "kind": "timing_dependency",
+    "description": "code valid 5 min; attacker triggers issuance and reads immediately"
+   }
+  ],
+  "execution": {
+   "attacker_perspective": "authenticated operator: request OTP for target phone, read code from newest log row, verify — owner or customer session minted",
+   "payloads": [
+    "POST /api/auth/request {\"phone\":\"...\",\"purpose\":\"login\"}",
+    "GET /api/admin/sms/logs?page=1 → logs[0].params = {\"code\":\"NNNN\"}",
+    "POST /api/auth/verify {phone,code,purpose:\"login\"}"
+   ],
+   "instructions": [
+    "three ordinary same-origin API calls from the operator seat"
+   ],
+   "observed_result": "Source inspection established the full chain statically: otp.ts:50 passes the live code into params; sms/index.ts:238-240 persists it plaintext (AuthCode stores only an HMAC — the outbox is the sole plaintext copy); logs returns r.params verbatim to operator seats; verify exchanges the code for a customer session and an owner seat + admin session for seed phones; no retention job deletes SmsOutbox rows; no redaction/masking/TTL layer exists between write and response. No execution was performed (source-only run)."
+  },
+  "remediation": {
+   "strategy": "Never persist OTP codes: redact secret params at write (delivery keeps in-memory values); mask secret params at read as defense-in-depth; consider owner-only logs; add SmsOutbox retention.",
+   "code_changes": [
+    {
+     "file_name": "src/lib/sms/index.ts",
+     "fixed_code": "// see strategy — enforce the invariant at this site"
+    },
+    {
+     "file_name": "src/app/api/admin/sms/logs/route.ts",
+     "fixed_code": "// see strategy — enforce the invariant at this site"
+    }
+   ]
+  },
+  "severity": {
+   "likelihood": {
+    "score": "high",
+    "reason": "one operator + three ordinary calls; row written before delivery"
+   },
+   "impact": {
+    "score": "high",
+    "reason": "fully defeats operator/owner role separation (with ADMIN_SEED_PHONES): settings, team, SMS config, admin password, branding; all deployments: customer impersonation + private gift unlock"
+   },
+   "overall_severity": "high"
+  },
+  "confidence": {
+   "score": "high",
+   "reason": "every link statically verified; no intermediate control"
+  }
+ },
+ {
+  "verdict": "confirmed",
+  "fingerprint": "api.auth-request.gift-recv.no-gifts-existence-oracle",
+  "title": "/api/auth/request purpose=gift_recv answers 'is this phone an active gift recipient' to any unauthenticated caller",
+  "description": "Before spending SMS, gift_recv calls recipientPackageCounts (gift-view.ts:52-59) and returns 200 {ok:true,noGifts:true} (route:38-39) vs 201 {ok:true,…} + real OTP SMS otherwise. Needs only a valid-format phone. Three observable distinctions (status/body/SMS) = coarse existence oracle; production responses never contain the code. Pacing: 5/600s per IP (~720 phones/day/IP) + 3/600s per phone + otp_phone_hour caps actual SMS at 3/h per probed phone. The no-SMS-for-strangers owner law is sound; the flaw is answering the predicate in the HTTP response.",
+  "root_cause": "gift_recv pre-check short-circuits with a distinct response before the OTP path, exposing the internal predicate at the boundary.",
+  "intended_behavior": "Uniform 201 {ok:true} shape for every phone; enforce the no-SMS law inside the OTP layer by suppressing delivery. NOTE (verifier correction): coordinated client+server change — the shipped client consumes the distinct response (use-otp.ts:120 parses noGifts; verify.tsx:65 renders the empty gift-lock state), so either ship the client change (derive empty state post-auth from /api/gifts/received) or accept and document the disclosure as an owner product tradeoff.",
+  "trace": [
+   {
+    "kind": "entrypoint",
+    "file": "src/app/api/auth/request/route.ts",
+    "line": 36,
+    "scope": "gift_recv branch",
+    "description": "unauthenticated probe; valid-format phone only"
+   },
+   {
+    "kind": "propagation",
+    "file": "src/lib/orders/gift-view.ts",
+    "line": 55,
+    "scope": "recipientPackageCounts",
+    "description": "counts recipientPhone orders in shipped|delivered and paid|preparing"
+   },
+   {
+    "kind": "propagation",
+    "file": "src/app/api/auth/request/route.ts",
+    "line": 32,
+    "scope": "caps",
+    "description": "5/600 IP + 3/600 phone precede probe"
+   },
+   {
+    "kind": "sink",
+    "file": "src/app/api/auth/request/route.ts",
+    "line": 39,
+    "scope": "response",
+    "description": "200 {ok,noGifts:true} vs 201 + SMS"
+   }
+  ],
+  "evidence": [
+   {
+    "file": "src/app/api/auth/request/route.ts",
+    "line": 39,
+    "description": "distinct noGifts literal at status 200 vs 201 on line 45"
+   },
+   {
+    "file": "src/lib/orders/gift-view.ts",
+    "line": 55,
+    "description": "confidential predicate (coarse boolean)"
+   },
+   {
+    "file": "src/lib/auth/otp.ts",
+    "line": 55,
+    "description": "production return {} — clean oracle signal"
+   },
+   {
+    "file": "src/lib/auth/otp.ts",
+    "line": 50,
+    "description": "sendSmsNow side channel"
+   },
+   {
+    "file": "src/app/api/auth/request/route.ts",
+    "line": 33,
+    "description": "caps bound but do not close: 720 phones/day/IP"
+   }
+  ],
+  "conditions": [
+   {
+    "kind": "authentication_level",
+    "description": "none — regex-valid Iranian mobile only"
+   },
+   {
+    "kind": "data_state",
+    "description": "disclosed predicate: phone is recipient of ≥1 paid+ gift order (coarse boolean, no content/PII)"
+   }
+  ],
+  "execution": {
+   "attacker_perspective": "script POST gift_recv per candidate phone; read existence from 200-vs-201/noGifts or SMS arrival",
+   "payloads": [
+    "POST /api/auth/request {\"phone\":\"09xx\",\"purpose\":\"gift_recv\"}"
+   ],
+   "instructions": [
+    "compare responses within caps; source-only"
+   ],
+   "observed_result": "Source inspection only (verifier re-read route, gift-view.ts:52-59, otp.ts:35-56): complete branch lineage, deterministic 200/201+SMS distinction, two-cap pacing. No execution performed."
+  },
+  "remediation": {
+   "strategy": "Always issue via issueOtp and return uniform 201; issueOtp suppresses sendSmsNow when gift_recv && counts zero. Ship the client change in the same release (use-otp/verify consume noGifts today).",
+   "code_changes": [
+    {
+     "file_name": "src/app/api/auth/request/route.ts",
+     "fixed_code": "// see strategy — enforce the invariant at this site"
+    },
+    {
+     "file_name": "src/lib/auth/otp.ts",
+     "fixed_code": "// see strategy — enforce the invariant at this site"
+    },
+    {
+     "file_name": "src/hooks/use-otp.ts",
+     "fixed_code": "// see strategy — enforce the invariant at this site"
+    },
+    {
+     "file_name": "src/components/shop/screens/verify.tsx",
+     "fixed_code": "// see strategy — enforce the invariant at this site"
+    }
+   ]
+  },
+  "severity": {
+   "likelihood": {
+    "score": "medium",
+    "reason": "unauthenticated one-field request; caps pace only"
+   },
+   "impact": {
+    "score": "low",
+    "reason": "coarse existence boolean + ≤3 SMS/h on probed phone (stalking/enumeration value); no content, no PII beyond existence"
+   },
+   "overall_severity": "low"
+  },
+  "confidence": {
+   "score": "high",
+   "reason": "complete source lineage re-verified line-by-line; client dependency on noGifts also in source"
+  }
+ },
+ {
+  "verdict": "confirmed",
+  "fingerprint": "api.public-ugc-writes.same-origin-absent",
+  "title": "Public UGC write/probe routes accept cross-site form posts: S-07 same-origin control applied repo-wide except these five handlers",
+  "description": "Verified by full-file read + repo grep: assertSameOrigin is called at 30 sites across every browser-facing mutating handler and is absent from exactly the five public write/probe handlers: contact, reviews, experiences, track, auth/request. src/proxy.ts:75 matcher excludes /api so no global layer compensates. JSON routes call req.json() with no Content-Type inspection (fetch-standard parses any body) so text/plain form posts carry JSON without preflight; experiences:30 additionally accepts native multipart. Third-party pages relay unauthenticated writes through visitors browsers: moderation-queue spam, per-visitor IP quota burn, relayed OTP SMS. Bounded: no cross-site reads (no CORS), session cookie SameSite=Lax, all rows land in moderation queues.",
+  "root_cause": "S-07 (documented at auth/verify/route.ts:24) was standardized across all mutating handlers but never added to the five public UGC/probe handlers; JSON parsing ignores Content-Type.",
+  "intended_behavior": "Apply the existing one-line guard (assertSameOrigin(req)) at the top of all five handlers; no-Origin callers (curl, native clients) still pass.",
+  "trace": [
+   {
+    "kind": "entrypoint",
+    "file": "src/app/api/experiences/route.ts",
+    "line": 23,
+    "scope": "POST",
+    "description": "no assertSameOrigin anywhere in file (same contact:7, reviews:36, track:10, auth/request:21)"
+   },
+   {
+    "kind": "propagation",
+    "file": "src/lib/auth/session.ts",
+    "line": 95,
+    "scope": "assertSameOrigin defined",
+    "description": "guard enforced on 30 sibling call sites"
+   },
+   {
+    "kind": "propagation",
+    "file": "src/proxy.ts",
+    "line": 75,
+    "scope": "matcher excludes /api",
+    "description": "no compensating global layer"
+   },
+   {
+    "kind": "propagation",
+    "file": "src/app/api/contact/route.ts",
+    "line": 10,
+    "scope": "req.json().catch",
+    "description": "no Content-Type inspection; experiences:30 native multipart branch"
+   },
+   {
+    "kind": "sink",
+    "file": "src/app/api/experiences/route.ts",
+    "line": 68,
+    "scope": "db.experience.create",
+    "description": "cross-site submission persisted to visitor IP (sinks: reviews:46, contact:20, auth/request:43→SMS)"
+   }
+  ],
+  "evidence": [
+   {
+    "file": "src/lib/auth/session.ts",
+    "line": 107,
+    "description": "403 cross_origin — the control these five lack; no-Origin callers pass at 97"
+   },
+   {
+    "file": "src/app/api/auth/verify/route.ts",
+    "line": 24,
+    "description": "comment documents S-07 standard these five miss"
+   },
+   {
+    "file": "src/app/api/contact/route.ts",
+    "line": 10,
+    "description": "req.json().catch — no Content-Type check"
+   },
+   {
+    "file": "src/app/api/experiences/route.ts",
+    "line": 30,
+    "description": "multipart branch — simple request, reachable cross-site"
+   },
+   {
+    "file": "src/app/api/auth/request/route.ts",
+    "line": 32,
+    "description": "per-IP cap bounds but does not close relayed abuse"
+   }
+  ],
+  "conditions": [
+   {
+    "kind": "user_interaction",
+    "description": "victim visits attacker page that auto-submits forms; attacker never reads responses (no CORS)"
+   }
+  ],
+  "execution": {
+   "attacker_perspective": "third-party site stages auto-submitting forms; each visitor performs writes from own IP",
+   "payloads": [
+    "<form action=https://TARGET/api/auth/request enctype=text/plain …> (JSON-in-text/plain trick; req.json() ignores Content-Type)",
+    "<form action=https://TARGET/api/experiences enctype=multipart/form-data …>"
+   ],
+   "instructions": [
+    "source-only: control absence (5× full read + grep), matcher exclusion, parse behavior established; Request.json() content-type independence is documented platform behavior, stated not executed"
+   ],
+   "observed_result": "Source inspection only (verifier re-read all five handlers in full, grepped 30 sibling call sites, read proxy matcher): absence + no compensating layer verified. No execution performed."
+  },
+  "remediation": {
+   "strategy": "Add assertSameOrigin(req) at the top of all five handlers (curl/server-to-server/no-Origin native clients unaffected). Optional hardening: reject JSON bodies whose Content-Type is not application/json.",
+   "code_changes": [
+    {
+     "file_name": "src/app/api/experiences/route.ts",
+     "fixed_code": "// see strategy — enforce the invariant at this site"
+    },
+    {
+     "file_name": "src/app/api/auth/request/route.ts",
+     "fixed_code": "// see strategy — enforce the invariant at this site"
+    },
+    {
+     "file_name": "src/app/api/contact/route.ts",
+     "fixed_code": "// see strategy — enforce the invariant at this site"
+    },
+    {
+     "file_name": "src/app/api/reviews/route.ts",
+     "fixed_code": "// see strategy — enforce the invariant at this site"
+    },
+    {
+     "file_name": "src/app/api/track/route.ts",
+     "fixed_code": "// see strategy — enforce the invariant at this site"
+    }
+   ]
+  },
+  "severity": {
+   "likelihood": {
+    "score": "medium",
+    "reason": "only needs a public webpage; every visitor a fresh relay; caps pace abuse"
+   },
+   "impact": {
+    "score": "low",
+    "reason": "moderation-queue spam + visitor-IP quota burn + relayed OTP SMS (phone-capped); no cross-site reads, no session riding, writes pre-moderated"
+   },
+   "overall_severity": "low"
+  },
+  "confidence": {
+   "score": "medium",
+   "reason": "repo facts re-verified; JSON-route exploitation adds documented platform behavior (Request.json ignores Content-Type)"
+  }
+ },
+ {
+  "verdict": "confirmed",
+  "fingerprint": "api.track.phone-targeted-code-sweep-oracle",
+  "title": "/api/track generic 404 does not stop phone-targeted sweeps: sequential per-day 4-digit codes make code+phone a low-entropy capability",
+  "description": "track returns code/status/step/timestamps (+ postTrackingCode when shipped/refunding) when (code, phone) matches ANY of the four owner columns — phone merely typed and validPhone-ed. Codes are PN-YYMMDD-#### (code.ts:28) from a dense per-day counter starting at 0001 with derivable Tehran-date prefix → fixed-phone sweep of a day suffix range is valid, paced only by 20/600s per IP (~120/h). Match discloses third-party order existence, raw status, timestamps, and postTrackingCode. Generic 404 (track:23) defeats code-only probing, not (code,phone) pair sweeps.",
+  "root_cause": "capability entropy lives entirely in a sequential date-derived 4-digit suffix; the second factor (phone) is unproven and semi-public; cap sized for UX.",
+  "intended_behavior": "Per-order crypto-random secret component (or per-order token required alongside phone).",
+  "trace": [
+   {
+    "kind": "entrypoint",
+    "file": "src/app/api/track/route.ts",
+    "line": 12,
+    "scope": "rateLimit 20/600s per IP",
+    "description": "only brake"
+   },
+   {
+    "kind": "propagation",
+    "file": "src/lib/orders/code.ts",
+    "line": 28,
+    "scope": "nextOrderCode",
+    "description": "sequential per-day counter, padStart(4) dense from 0001; date prefix derivable"
+   },
+   {
+    "kind": "propagation",
+    "file": "src/app/api/track/route.ts",
+    "line": 22,
+    "scope": "ownership",
+    "description": "phone ∈ 4 owner columns via includes(), typed by caller, not proven"
+   },
+   {
+    "kind": "sink",
+    "file": "src/app/api/track/route.ts",
+    "line": 36,
+    "scope": "response",
+    "description": "status+timestamps+postTrackingCode on match; identical generic 404 otherwise"
+   }
+  ],
+  "evidence": [
+   {
+    "file": "src/app/api/track/route.ts",
+    "line": 23,
+    "description": "generic 404 for both no-order and no-ownership — defeats code-only probing, not pair sweeps"
+   },
+   {
+    "file": "src/lib/orders/code.ts",
+    "line": 28,
+    "description": "padStart(4) dense from 0001 — no random component"
+   },
+   {
+    "file": "src/app/api/track/route.ts",
+    "line": 22,
+    "description": "four-column any-match"
+   },
+   {
+    "file": "src/app/api/track/route.ts",
+    "line": 12,
+    "description": "20/600s — 120/h per IP"
+   }
+  ],
+  "conditions": [
+   {
+    "kind": "authentication_level",
+    "description": "none"
+   },
+   {
+    "kind": "data_state",
+    "description": "attacker knows target mobile; target is an owner (any of 4 columns) of an order in the swept day range"
+   }
+  ],
+  "execution": {
+   "attacker_perspective": "fix victim phone; iterate PN-<yymmdd>-0001..NNNN at ≤20/10min; a 200 confirms the pair + status + timeline (+ postal tracking code once shipped/refunding)",
+   "payloads": [
+    "POST /api/track {\"code\":\"PN-251213-0001\",\"phone\":\"09xx\"} … increment"
+   ],
+   "instructions": [
+    "sweep within budget across adjacent days; source-only"
+   ],
+   "observed_result": "Source inspection only (verifier re-read track route in full, code.ts counter, Caddyfile XFF overwrite): counter structure, four-column match, cap values, response contents, uniform 404 — sweep feasibility follows arithmetically. No execution performed."
+  },
+  "remediation": {
+   "strategy": "Add a crypto-random salt to the code (+16 bits, widening the track regex and DB column) so per-day sweep space becomes ~10^7+; keep generic 404 + cap.",
+   "code_changes": [
+    {
+     "file_name": "src/lib/orders/code.ts",
+     "fixed_code": "// see strategy — enforce the invariant at this site"
+    },
+    {
+     "file_name": "src/app/api/track/route.ts",
+     "fixed_code": "// see strategy — enforce the invariant at this site"
+    }
+   ]
+  },
+  "severity": {
+   "likelihood": {
+    "score": "medium",
+    "reason": "known phone + minutes-to-hours scripted probing at 120 req/h"
+   },
+   "impact": {
+    "score": "low",
+    "reason": "third-party order existence/status timeline/postal tracking code — narrow personal data, no content, no mutation"
+   },
+   "overall_severity": "low"
+  },
+  "confidence": {
+   "score": "high",
+   "reason": "all decisive facts repo source, re-verified (one evidence line corrected 16→23)"
+  }
+ },
+ {
+  "verdict": "confirmed",
+  "fingerprint": "bootstrap-recv-unpaid-draft-gift-disclosure",
+  "title": "Bootstrap recipient panel returns unpaid/expired/cancelled draft gifts, violating the source's own 'unpaid or dead order must not reveal a gift was drafted' invariant",
+  "description": "gift-view.ts:48-50 states the privacy law and /api/gifts/received:26 enforces shipped|delivered; /api/me/bootstrap:31 has NO status filter on any OR leg, so isRecv rows are mapped and returned at any status with draft metadata: kind, city, occasion, computed sender label incl. custom phrase, mediaCount, retentionPlan, messageState/messageExpiresAt, paymentHoldUntil (expiresAt of unpaid drafts — computed regardless of isRecv), raw status2, viewable:false. No message text/address/recipient-phone/paymentKey for recv rows. Client merges all rows unfiltered (pishnam-sync.ts:79+) and the dashboard counts recv rows for the received badge (dashboards.tsx:473) regardless of status. Recipient (or a stranger whose phone the buyer typo-ed) learns a gift was drafted + who allegedly sent it.",
+  "root_cause": "bootstrap query omits the status gate the sibling surface (gifts/received:26) and the stated invariant (gift-view.ts:48-50) require for recipient-facing rows.",
+  "intended_behavior": "Recipient-directed rows limited to shipped|delivered (like gifts/received) or at minimum paid|preparing+; drafts/dead statuses excluded from the recipientPhone leg.",
+  "trace": [
+   {
+    "kind": "entrypoint",
+    "file": "src/app/api/me/bootstrap/route.ts",
+    "line": 31,
+    "scope": "findMany OR",
+    "description": "recipientPhone leg (and all legs) have no status filter"
+   },
+   {
+    "kind": "propagation",
+    "file": "src/app/api/me/bootstrap/route.ts",
+    "line": 39,
+    "scope": "mapping",
+    "description": "isRecv rows mapped at any status; only content fields stripped"
+   },
+   {
+    "kind": "sink",
+    "file": "src/app/api/me/bootstrap/route.ts",
+    "line": 45,
+    "scope": "response",
+    "description": "draft metadata incl. senderLabelFor (44), paymentHoldUntil (84-87), status2 (68); dashboards badge (473) counts them"
+   }
+  ],
+  "evidence": [
+   {
+    "file": "src/lib/orders/gift-view.ts",
+    "line": 48,
+    "description": "stated invariant: unpaid or dead order must not reveal (comment 48-50)"
+   },
+   {
+    "file": "src/app/api/gifts/received/route.ts",
+    "line": 26,
+    "description": "sibling enforces shipped|delivered"
+   },
+   {
+    "file": "src/app/api/me/bootstrap/route.ts",
+    "line": 31,
+    "description": "no status predicate on any OR leg"
+   },
+   {
+    "file": "src/app/api/me/bootstrap/route.ts",
+    "line": 84,
+    "description": "paymentHoldUntil computed for isRecv rows too"
+   },
+   {
+    "file": "src/components/shop/screens/dashboards.tsx",
+    "line": 473,
+    "description": "badge from unfiltered recv rows; pishnam-sync merges all rows unfiltered"
+   }
+  ],
+  "conditions": [
+   {
+    "kind": "authorization_role",
+    "description": "any OTP-verified customer whose phone equals a draft recipientPhone (buyer-typed, may be a typo-ed stranger)"
+   },
+   {
+    "kind": "data_state",
+    "description": "order addressed to that phone in awaiting_payment/under_review/expired/cancelled"
+   }
+  ],
+  "execution": {
+   "attacker_perspective": "verified customer GET bootstrap; inspect recv rows with non-viewable status2 — proof a gift was drafted for this phone + metadata",
+   "payloads": [
+    "GET /api/me/bootstrap"
+   ],
+   "instructions": [
+    "static: compare where-clause with gifts/received and the invariant comment; controlled repro: order to account B unpaid, login as B"
+   ],
+   "observed_result": "Source inspection only (verifier re-read bootstrap in full, gift-view invariant, gifts/received, dashboards badge, pishnam-sync merge): query lacks the mandated gate; response carries draft metadata end-to-end and the client renders/counts it. No execution performed."
+  },
+  "remediation": {
+   "strategy": "Gate the recipientPhone leg of the bootstrap query to shipped|delivered (matching gifts/received) or paid|preparing+ at minimum; keep sender-side/session legs unchanged.",
+   "code_changes": [
+    {
+     "file_name": "src/app/api/me/bootstrap/route.ts",
+     "fixed_code": "// see strategy — enforce the invariant at this site"
+    }
+   ]
+  },
+  "severity": {
+   "likelihood": {
+    "score": "high",
+    "reason": "every recipient with a session sees it on normal sync whenever a draft names their phone; typo-ed phone discloses to a stranger"
+   },
+   "impact": {
+    "score": "low",
+    "reason": "draft existence + metadata disclosure (incl. sender label/phrase and unpaid-order hold deadline); no message text, address, media, or paymentKey"
+   },
+   "overall_severity": "low"
+  },
+  "confidence": {
+   "score": "high",
+   "reason": "invariant statement + disagreeing query + client render all in source and re-verified"
+  }
+ },
+ {
+  "verdict": "needs_validation",
+  "fingerprint": "caddyfile.XTransformPort.localhost-hop",
+  "title": "Repo Caddyfile exposes an unauthenticated ?XTransformPort= reverse-proxy hop to arbitrary localhost ports (sandbox-by-design; production config unproven)",
+  "description": "Caddyfile :81 matches any request with query XTransformPort=* and reverse-proxies to localhost:{query.XTransformPort} with no auth/IP restriction/port allowlist — all trace lines verified verbatim. If this exact file were the public ingress, any remote client steers the proxy at arbitrary loopback services. In the sandbox this is the documented inter-service convention (AGENTS.md hard rule); the production sketch in docs contains no such handle and is labeled a production sketch — but a sketch is not the deployed config: the repo additionally references Coolify, Vercel and a Netlify runtime as deploy paths, so the live production ingress cannot be proven from source.",
+  "claimed_root_cause": "sandbox Caddyfile selects the upstream port from a client-controlled query with no allowlist; repo contains no proof of the deployed production ingress.",
+  "trace": [
+   {
+    "kind": "entrypoint",
+    "file": "Caddyfile",
+    "line": 2,
+    "scope": "@transform_port_query",
+    "description": "client-supplied trigger"
+   },
+   {
+    "kind": "propagation",
+    "file": "Caddyfile",
+    "line": 6,
+    "scope": "handle",
+    "description": "no auth/source restriction"
+   },
+   {
+    "kind": "sink",
+    "file": "Caddyfile",
+    "line": 7,
+    "scope": "reverse_proxy localhost:{query.XTransformPort}",
+    "description": "arbitrary loopback port bridged to the public listener"
+   }
+  ],
+  "evidence": [
+   {
+    "file": "Caddyfile",
+    "line": 7,
+    "description": "upstream from query"
+   },
+   {
+    "file": "Caddyfile",
+    "line": 1,
+    "description": ":81 hostname-less plain HTTP"
+   },
+   {
+    "file": "AGENTS.md",
+    "line": 27,
+    "description": "sandbox convention documented as a hard rule"
+   },
+   {
+    "file": "docs/13-g-infra-ops.md",
+    "line": 89,
+    "description": "production sketch without the handle — intent, not deployment state"
+   }
+  ],
+  "blockers": [
+   "the actually deployed production ingress config is not in the repository — owner must confirm the live Caddyfile/platform ingress contains no XTransformPort handle",
+   "if a platform fronts production instead (Coolify-Traefik / Vercel / Netlify), confirm no analogous client-steered internal routing",
+   "whether :81 is bound publicly or firewalled is a network fact outside the repo"
+  ],
+  "validation_plan": {
+   "deployment": "Owner-observed config inspection: caddy adapt --config /etc/caddy/Caddyfile --pretty | grep -n XTransformPort (expect none) or direct file inspection of the live ingress; plus firewall confirmation only 80/443 publicly bound (ss -tlnp / security groups)."
+  }
+ },
+ {
+  "verdict": "confirmed",
+  "fingerprint": "checkout-unverified-senderphone-customer-scoping",
+  "title": "Unverified sender.phone exposes a full order row and the paymentKey bearer to any third-party phone bootstrap panel",
+  "description": "Checkout binds orderer.phone to the OTP-verified session (checkout.ts:148-153 — 401/403) but NOT sender.phone (checkout.ts:85 — validPhone shape check only), stored raw as senderPhone (190). /api/me/bootstrap OR-matches senderPhone (route:31) and returns the full unstripped row for non-recv matches — address:53, phone:54, message:56, senderName:61, total:65 — plus paymentKey=o.idempotencyKey (route:88). A buyer submitting a third party phone as sender.phone makes that phone bootstrap return the row + bearer key, which alone authorizes checkout/[key]/status (key alone), payment/manual/receipt (code+key findFirst, no session; → payment_under_review, bounded by awaiting_payment + window + attempts), and gifts/media POST/GET sender preview (no status/expiry gate on the sender branch). Impact nuance (verifier): the unstripped row content is buyer-supplied data the buyer already knows — the server-generated exposures are the paymentKey bearer, buyer-uploaded media, and the flow of recipient PII to a phone that never consented; shipped client hardcodes sender.phone=session phone (pishnam-store.ts:474,547), so exploitation requires deliberate raw-API use.",
+  "root_cause": "no control binds senderPhone to the session (the asymmetry vs the enforced orderer gate at checkout.ts:151) while bootstrap/media/receipt treat senderPhone as a trust anchor.",
+  "intended_behavior": "Bind senderPhone to the session like orderer (reject mismatch or derive from session); never echo the bearer for a senderPhone-only match; add a status/expiry gate to the media isSender branch.",
+  "trace": [
+   {
+    "kind": "entrypoint",
+    "file": "src/lib/orders/checkout.ts",
+    "line": 85,
+    "scope": "parseCheckout",
+    "description": "sender.phone shape-valid only, no session comparison"
+   },
+   {
+    "kind": "propagation",
+    "file": "src/lib/orders/checkout.ts",
+    "line": 190,
+    "scope": "order.create",
+    "description": "senderPhone stored; sibling orderer gate (151) does not cover sender"
+   },
+   {
+    "kind": "propagation",
+    "file": "src/app/api/me/bootstrap/route.ts",
+    "line": 31,
+    "scope": "findMany OR",
+    "description": "third party panel includes the buyer order via senderPhone leg"
+   },
+   {
+    "kind": "sink",
+    "file": "src/app/api/me/bootstrap/route.ts",
+    "line": 88,
+    "scope": "mappedNew",
+    "description": "isRecv=false → unstripped fields (53-56,61,65) + paymentKey (88); key gates receipt/status/media"
+   }
+  ],
+  "evidence": [
+   {
+    "file": "src/lib/orders/checkout.ts",
+    "line": 85,
+    "description": "sender.phone never bound to session"
+   },
+   {
+    "file": "src/lib/orders/checkout.ts",
+    "line": 151,
+    "description": "sibling orderer control — the asymmetry"
+   },
+   {
+    "file": "src/app/api/me/bootstrap/route.ts",
+    "line": 31,
+    "description": "senderPhone match column"
+   },
+   {
+    "file": "src/app/api/me/bootstrap/route.ts",
+    "line": 53,
+    "description": "address unstripped for non-recv"
+   },
+   {
+    "file": "src/app/api/me/bootstrap/route.ts",
+    "line": 88,
+    "description": "paymentKey to any non-recv match incl. senderPhone-only"
+   },
+   {
+    "file": "src/app/api/payment/manual/receipt/route.ts",
+    "line": 24,
+    "description": "code+key sole proof (bounded by awaiting_payment + window + attempts)"
+   },
+   {
+    "file": "src/app/api/gifts/media/route.ts",
+    "line": 114,
+    "description": "isSender branch has no status/expiry gate vs recipient branch"
+   }
+  ],
+  "conditions": [
+   {
+    "kind": "authorization_role",
+    "description": "any OTP-verified buyer; shipped client always sends session phone — needs deliberate raw API use"
+   },
+   {
+    "kind": "data_state",
+    "description": "phone entered as sender.phone belongs to a person who can verify a session; disclosed row content is buyer-typed (server-generated artifacts: paymentKey bearer, buyer-uploaded media)"
+   },
+   {
+    "kind": "user_interaction",
+    "description": "none beyond the third party normal login"
+   }
+  ],
+  "execution": {
+   "attacker_perspective": "verified buyer POSTs checkout with sender.phone=victim; victim bootstrap returns the full row + paymentKey; key then used against receipt (within payment window), media, status",
+   "payloads": [
+    "POST /api/checkout {sender:{phone:victim}, recipient:{…}}",
+    "GET /api/me/bootstrap (as victim) → address, message, paymentKey",
+    "POST /api/payment/manual/receipt / POST|GET /api/gifts/media / GET /api/checkout/{key}/status"
+   ],
+   "instructions": [
+    "static: missing binding + OR-match + bearer gating verified; controlled repro: two scratch accounts"
+   ],
+   "observed_result": "Source inspection only (verifier re-read checkout.ts, bootstrap, receipt, media, status routes, shipped client): statically establishes (1) no sender/session binding; (2) unstripped fields + paymentKey for senderPhone-matched rows; (3) key gates receipt/media/status with noted bounds. No execution performed."
+  },
+  "remediation": {
+   "strategy": "Reject sender.phone !== sessionPhone at createOrder (or derive from session); defense-in-depth: bootstrap echoes paymentKey only to sessionPhone/userPhone matches; add status/expiry gate to the media isSender branch.",
+   "code_changes": [
+    {
+     "file_name": "src/lib/orders/checkout.ts",
+     "fixed_code": "// see strategy — enforce the invariant at this site"
+    },
+    {
+     "file_name": "src/app/api/me/bootstrap/route.ts",
+     "fixed_code": "// see strategy — enforce the invariant at this site"
+    },
+    {
+     "file_name": "src/app/api/gifts/media/route.ts",
+     "fixed_code": "// see strategy — enforce the invariant at this site"
+    }
+   ]
+  },
+  "severity": {
+   "likelihood": {
+    "score": "medium",
+    "reason": "any verified buyer; deliberate API use"
+   },
+   "impact": {
+    "score": "medium",
+    "reason": "unrelated principal gains the full order row (recipient PII — buyer-typed), sender-preview media with no status gate, and the payment bearer; one order per attack, bearer use bounded"
+   },
+   "overall_severity": "medium"
+  },
+  "confidence": {
+   "score": "high",
+   "reason": "missing binding + trust anchors statically visible and re-verified; impact nuance noted without changing the authorization-model break"
+  }
+ },
+ {
+  "verdict": "confirmed",
+  "fingerprint": "checkout.idempotency-key-no-entropy-floor",
+  "title": "Idempotency-Key doubles as unauthenticated order-status bearer but accepts 8-char low-entropy values",
+  "description": "The Idempotency-Key is the sole credential for GET /api/checkout/[key]/status (no session, no origin check; returns code/status/total/paid/payment/paymentMethod/expiresAt), yet the server enforces only charset+length [A-Za-z0-9._-]{8,64} with no entropy floor. Keys never rotate or expire. Guessed weak keys disclose order meta; POST checkout gives OTP callers a key-existence oracle (422 idempotency_key_reuse at checkout.ts:285). Shipped client uses crypto.randomUUID (pishnam-store.ts:533), so exploitation needs a client that chose a weak key (legacy charset explicitly supported by design).",
+  "root_cause": "validator is shape-only (no entropy floor) while the raw client key is the permanent status bearer.",
+  "intended_behavior": "Server-enforced entropy floor (≥16 chars, ≥2 classes) or a server-generated statusToken binding; the raw client key must not be the sole poll credential.",
+  "trace": [
+   {
+    "kind": "entrypoint",
+    "file": "src/lib/orders/crypto.ts",
+    "line": 41,
+    "scope": "NONCE_RE",
+    "description": "charset+length only — aaaaaaaa passes"
+   },
+   {
+    "kind": "propagation",
+    "file": "src/app/api/checkout/route.ts",
+    "line": 14,
+    "scope": "key stored",
+    "description": "client-chosen string becomes permanent bearer"
+   },
+   {
+    "kind": "sink",
+    "file": "src/app/api/checkout/[key]/status/route.ts",
+    "line": 30,
+    "scope": "disclosure",
+    "description": "no session check; returns code/status/total/paid/payment to any bearer; rateLimit(order_status, clientIp, 60, 600) is the only brake"
+   }
+  ],
+  "evidence": [
+   {
+    "file": "src/lib/orders/crypto.ts",
+    "line": 41,
+    "description": "NONCE_RE 8..64 charset only, no entropy floor"
+   },
+   {
+    "file": "src/app/api/checkout/[key]/status/route.ts",
+    "line": 2,
+    "description": "comment: The key is the secret."
+   },
+   {
+    "file": "src/app/api/checkout/[key]/status/route.ts",
+    "line": 30,
+    "description": "payload fields returned with no session check"
+   },
+   {
+    "file": "src/lib/orders/checkout.ts",
+    "line": 285,
+    "description": "422 idempotency_key_reuse — existence oracle for verified sessions"
+   },
+   {
+    "file": "src/lib/pishnam-store.ts",
+    "line": 533,
+    "description": "shipped client key = crypto.randomUUID()"
+   }
+  ],
+  "conditions": [
+   {
+    "kind": "data_state",
+    "description": "victim order key chosen with low entropy (~≤40 bits) — shipped UUIDv4 unaffected"
+   },
+   {
+    "kind": "timing_dependency",
+    "description": "no key expiry — lifetime of order row"
+   },
+   {
+    "kind": "system_configuration",
+    "description": "60/600s per-IP status limit (XFF first-hop)"
+   }
+  ],
+  "execution": {
+   "attacker_perspective": "probe candidate weak keys against the status route; 200 reveals order meta",
+   "payloads": [
+    "GET /api/checkout/aaaaaaaa/status",
+    "GET /api/checkout/12345678/status"
+   ],
+   "instructions": [
+    "scratch check: order with key test1234 → status returns owner meta without session"
+   ],
+   "observed_result": "Source-inspection-only: validator accepts 8-char single-class keys; status route requires no session and returns the claimed fields; cross-user impact needs victim-side weak key (shipped client uses UUIDv4). No execution performed."
+  },
+  "remediation": {
+   "strategy": "Raise the floor (16+ chars, 2+ classes) and/or issue a server-generated statusToken at creation; keep legacy acceptance behind a migration window.",
+   "code_changes": [
+    {
+     "file_name": "src/lib/orders/crypto.ts",
+     "fixed_code": "// see strategy — enforce the invariant at this site"
+    }
+   ]
+  },
+  "severity": {
+   "likelihood": {
+    "score": "low",
+    "reason": "needs victim client with weak key; shipped client uses UUIDv4"
+   },
+   "impact": {
+    "score": "low",
+    "reason": "cross-user read of one order meta per guessed key (no PII/address in payload)"
+   },
+   "overall_severity": "low"
+  },
+  "confidence": {
+   "score": "high",
+   "reason": "regex/payload/guards verified exact; uncertainty captured as condition"
+  }
+ },
+ {
+  "verdict": "confirmed",
+  "fingerprint": "checkout.key-charset-validator-divergence",
+  "title": "Idempotency-Key validated by three divergent rules — status route rejects dotted keys checkout accepted; receipt/recheck accept any ≥8-char string",
+  "description": "Canonical NONCE_RE [A-Za-z0-9._-]{8,64} (crypto.ts:41) governs checkout POST and gifts/media POST and allows dots — the documented legacy charset. The status route uses an inline [A-Za-z0-9_-]{8,64} (no dot, line 16); receipt and recheck accept key.length>=8 with ANY charset (both line 21). A dotted key creates an order that can never be polled (400 bad_key forever) — breaking the ACK/poll flow for the documented legacy charset; differential 400/404/422 behavior across consumers of the same credential.",
+  "root_cause": "canonical validator not adopted by all consumers; status kept an older inline regex; receipt/recheck use bare length checks.",
+  "intended_behavior": "All five consumers validate through crypto.ts isValidRequestNonce/normalizeRequestNonce.",
+  "trace": [
+   {
+    "kind": "entrypoint",
+    "file": "src/lib/orders/crypto.ts",
+    "line": 41,
+    "scope": "canonical NONCE_RE",
+    "description": "allows dots (documented legacy charset)"
+   },
+   {
+    "kind": "propagation",
+    "file": "src/app/api/checkout/route.ts",
+    "line": 14,
+    "scope": "order created",
+    "description": "dotted key stored"
+   },
+   {
+    "kind": "sink",
+    "file": "src/app/api/checkout/[key]/status/route.ts",
+    "line": 16,
+    "scope": "status gate",
+    "description": "inline regex rejects dot → 400 bad_key forever; receipt:21/recheck:21 accept any ≥8 chars"
+   }
+  ],
+  "evidence": [
+   {
+    "file": "src/lib/orders/crypto.ts",
+    "line": 35,
+    "description": "S-10 comment claims canonical governance — not true for 3 of 5 consumers"
+   },
+   {
+    "file": "src/app/api/checkout/[key]/status/route.ts",
+    "line": 16,
+    "description": "inline regex omits dot — verified literal"
+   },
+   {
+    "file": "src/app/api/payment/manual/receipt/route.ts",
+    "line": 21,
+    "description": "key.length<8 only check — verified literal"
+   },
+   {
+    "file": "src/app/api/payment/zarinpal/recheck/route.ts",
+    "line": 21,
+    "description": "same bare length check — verified literal"
+   },
+   {
+    "file": "src/app/api/gifts/media/route.ts",
+    "line": 59,
+    "description": "uses isValidRequestNonce — intended pattern"
+   }
+  ],
+  "conditions": [
+   {
+    "kind": "data_state",
+    "description": "client uses dotted key subset of documented legacy charset (shipped UUIDs unaffected)"
+   }
+  ],
+  "execution": {
+   "attacker_perspective": "not attacker-driven — self-DoS of status/ACK for dotted-key orders; inconsistent verdicts for the same credential",
+   "payloads": [
+    "POST /api/checkout with Idempotency-Key: ab12.cd34 → 201",
+    "GET /api/checkout/ab12.cd34/status → 400 bad_key"
+   ],
+   "instructions": [
+    "static: create with canonical validator, evaluate status inline regex on same string"
+   ],
+   "observed_result": "Source-inspection-only: three validation policies verified literally and the divergent char is real; availability impact confined to dotted-key orders. No execution performed."
+  },
+  "remediation": {
+   "strategy": "All five consumers call the canonical validator; status uses isValidRequestNonce; receipt/recheck normalize before lookup.",
+   "code_changes": [
+    {
+     "file_name": "src/app/api/checkout/[key]/status/route.ts",
+     "fixed_code": "// see strategy — enforce the invariant at this site"
+    },
+    {
+     "file_name": "src/app/api/payment/manual/receipt/route.ts",
+     "fixed_code": "// see strategy — enforce the invariant at this site"
+    },
+    {
+     "file_name": "src/app/api/payment/zarinpal/recheck/route.ts",
+     "fixed_code": "// see strategy — enforce the invariant at this site"
+    }
+   ]
+  },
+  "severity": {
+   "likelihood": {
+    "score": "low",
+    "reason": "needs dotted-key client; shipped UUIDs unaffected"
+   },
+   "impact": {
+    "score": "low",
+    "reason": "self-DoS + validator inconsistency; no disclosure/privilege"
+   },
+   "overall_severity": "low"
+  },
+  "confidence": {
+   "score": "high",
+   "reason": "policies literal in source, all five consumers checked"
+  }
+ },
+ {
+  "verdict": "confirmed",
+  "fingerprint": "checkout.unpaid-reservation-no-cap",
+  "title": "Unpaid checkout reservations have no per-principal cap — one buyer can lock shared stock for the hardcoded 24h window",
+  "description": "createOrder reserves inventory atomically for every shape-valid checkout; expiresAt = now+24h for zarinpal / +10min for manual_transfer, hardcoded in the create payload. Nothing bounds concurrent unpaid reservations per principal: no count/findMany of the principal open orders exists anywhere on the creation path (checkout.ts, pricing.ts, db-write.ts — grep-verified), no middleware exists, and the only brake is rateLimit(checkout, clientIp, 5, 600) keyed on first-hop XFF. One OTP session can lock a small variant for 24h; sustained submitting ≈250 units/IP/10min. A failed zarinpalCreate after commit additionally strands the awaiting order holding stock.",
+  "root_cause": "stock decrement is unconditional for shape-valid checkouts; no per-principal unpaid-reservation budget is checked inside the tx before decrement; window hardcoded.",
+  "intended_behavior": "Cap concurrent unpaid reservations per principal (e.g. >=3 open awaiting/under_review/failed orders for the session phone → 429) checked inside the same tx before decrement; shorter/metered unpaid window for the gateway path.",
+  "trace": [
+   {
+    "kind": "entrypoint",
+    "file": "src/app/api/checkout/route.ts",
+    "line": 9,
+    "scope": "POST checkout",
+    "description": "only rateLimit(checkout, ip, 5, 600) at 13 precedes creation; no middleware"
+   },
+   {
+    "kind": "propagation",
+    "file": "src/lib/orders/checkout.ts",
+    "line": 145,
+    "scope": "orderer gates pass",
+    "description": "no count of principal existing unpaid orders anywhere before/inside the tx"
+   },
+   {
+    "kind": "propagation",
+    "file": "src/lib/orders/checkout.ts",
+    "line": 172,
+    "scope": "stock decrement",
+    "description": "updateMany decrement up to 5×10 units/order; retriedTransaction adds no cap"
+   },
+   {
+    "kind": "sink",
+    "file": "src/lib/orders/checkout.ts",
+    "line": 228,
+    "scope": "expiresAt 24h",
+    "description": "blocks others with 409 sold_out until expiry/cancel releases stock"
+   }
+  ],
+  "evidence": [
+   {
+    "file": "src/lib/orders/checkout.ts",
+    "line": 171,
+    "description": "decrement loop, no reservation accounting"
+   },
+   {
+    "file": "src/lib/orders/checkout.ts",
+    "line": 225,
+    "description": "expiresAt ternary hardcoded; 24h applies to zarinpal"
+   },
+   {
+    "file": "src/app/api/checkout/route.ts",
+    "line": 13,
+    "description": "sole request-side bound is the per-IP limiter"
+   },
+   {
+    "file": "src/lib/rate-limit.ts",
+    "line": 88,
+    "description": "clientIp takes first XFF hop"
+   },
+   {
+    "file": "prisma/schema.prisma",
+    "line": 292,
+    "description": "Order.expiresAt non-null — every order holds stock"
+   },
+   {
+    "file": "src/lib/orders/expire.ts",
+    "line": 11,
+    "description": "EXPIRABLE = awaiting_payment/failed only — auto-expire is the sole self-healing brake"
+   }
+  ],
+  "conditions": [
+   {
+    "kind": "authentication_level",
+    "description": "one OTP-verified session"
+   },
+   {
+    "kind": "data_state",
+    "description": "target variants in stock (small single-variant catalog)"
+   },
+   {
+    "kind": "system_configuration",
+    "description": "24h zarinpal window hardcoded; 5/600s per-IP checkout limiter"
+   }
+  ],
+  "execution": {
+   "attacker_perspective": "buyer submits unpaid zarinpal checkouts and never pays; stock transfers to 24h private reservations until the expiry sweep releases it",
+   "payloads": [
+    "POST /api/checkout x5/10min/IP with items qty 10, paymentMethod zarinpal"
+   ],
+   "instructions": [
+    "scratch-DB repro: seed stock 10, two createOrder calls, second buyer 409 sold_out for 24h"
+   ],
+   "observed_result": "Source-inspection-only: no cap/count on open orders exists on the createOrder path (checkout.ts, pricing.ts, db-write.ts, no middleware); decrement persists until the hardcoded window; only request-side bound is the XFF-keyed limiter. No execution performed."
+  },
+  "remediation": {
+   "strategy": "Per-principal open-reservation budget inside the same tx (count awaiting_payment/payment_under_review/failed for userPhone >= 3 → 429); optionally meter the 24h gateway window.",
+   "code_changes": [
+    {
+     "file_name": "src/lib/orders/checkout.ts",
+     "fixed_code": "// see strategy — enforce the invariant at this site"
+    }
+   ]
+  },
+  "severity": {
+   "likelihood": {
+    "score": "high",
+    "reason": "one request + standard session exhausts a small variant for 24h"
+   },
+   "impact": {
+    "score": "medium",
+    "reason": "shared-inventory denial for the window (lost sales); self-healing via expiry sweep, recoverable; no money/data effect"
+   },
+   "overall_severity": "medium"
+  },
+  "confidence": {
+   "score": "high",
+   "reason": "absence directly visible on the single creation path; every cited line verified exact"
+  }
+ },
+ {
+  "verdict": "confirmed",
+  "fingerprint": "docker-healthcheck-probes-nonexistent-api-health",
+  "title": "Docker HEALTHCHECK probes /api/health which does not exist — container permanently unhealthy on every Docker deployment",
+  "description": "Dockerfile HEALTHCHECK fetches http://127.0.0.1:3000/api/health and exits 0 only on 2xx; no health route exists anywhere in the route tree (full enumeration of 75 route.ts files; rg health over src/app zero-match), no rewrites exist in next.config.ts, and the proxy matcher excludes /api. Every probe 404s → exit 1 → after start-period 20s + 3 retries the container is permanently unhealthy; Coolify — the documented production platform in code comments — acts on health for rollouts. Deterministic availability defect; docs/13-g-infra-ops.md §5.1 plans /api/health as a W1-2 deliverable never implemented (the planned systemd deploy health gate would also fail/rollback every release).",
+  "root_cause": "HEALTHCHECK written against a planned /api/health route (docs §5.1 contract) never implemented; nothing binds the probe target to the route tree.",
+  "intended_behavior": "Serve the probe target (add src/app/api/health/route.ts returning 2xx with a real SELECT 1 per docs §5.1) or repoint/remove the probe; add a regression check that the healthcheck URL maps to a registered route.",
+  "trace": [
+   {
+    "kind": "entrypoint",
+    "file": "Dockerfile",
+    "line": 41,
+    "scope": "HEALTHCHECK CMD",
+    "description": "404 → r.ok=false → exit 1 on every probe"
+   },
+   {
+    "kind": "propagation",
+    "file": "next.config.ts",
+    "line": 62,
+    "scope": "nextConfig object",
+    "description": "no rewrites of any kind"
+   },
+   {
+    "kind": "propagation",
+    "file": "src/proxy.ts",
+    "line": 75,
+    "scope": "matcher excludes /api",
+    "description": "proxy cannot create the missing route"
+   },
+   {
+    "kind": "sink",
+    "file": "src/app/api/route.ts",
+    "line": 3,
+    "scope": "sole root GET /api stub",
+    "description": "GET /api/health → 404 forever"
+   }
+  ],
+  "evidence": [
+   {
+    "file": "Dockerfile",
+    "line": 40,
+    "description": "interval/timeout/start-period/retries → unhealthy is permanent"
+   },
+   {
+    "file": "Dockerfile",
+    "line": 41,
+    "description": "exit expression keys on r.ok"
+   },
+   {
+    "file": "src/app/api/route.ts",
+    "line": 3,
+    "description": "full route-tree enumeration of all 75 route files found zero health routes; this stub is the only root handler"
+   },
+   {
+    "file": "next.config.ts",
+    "line": 62,
+    "description": "no rewrites key"
+   },
+   {
+    "file": "docs/13-g-infra-ops.md",
+    "line": 205,
+    "description": "§5.1 defines the /api/health contract — planned, never built"
+   },
+   {
+    "file": "docker-compose.yml",
+    "line": 3,
+    "description": "Coolify referenced as production platform in code comments"
+   }
+  ],
+  "conditions": [
+   {
+    "kind": "system_configuration",
+    "description": "every Docker/Compose/Coolify consumer of this image; deterministic from first boot, no attacker involvement; restart/kill-loop vs failed-rollout behavior is orchestrator-dependent"
+   }
+  ],
+  "execution": {
+   "attacker_perspective": "not attacker-driven; operator availability/health-signal defect",
+   "payloads": [
+    "GET /api/health (container-internal probe)"
+   ],
+   "instructions": [
+    "static: enumerated src/app route tree for health (absent), checked rewrites (none) and proxy matcher (excludes /api)"
+   ],
+   "observed_result": "Source inspection only: route absence + probe expression → every probe 404 → exit 1 → permanent unhealthy; downstream restart behavior orchestrator-dependent. No execution performed."
+  },
+  "remediation": {
+   "strategy": "Add src/app/api/health/route.ts returning 2xx (per docs §5.1: ok + db SELECT 1 + version); alternatively repoint the HEALTHCHECK to an existing unauthenticated route.",
+   "code_changes": [
+    {
+     "file_name": "src/app/api/health/route.ts",
+     "fixed_code": "// see strategy — enforce the invariant at this site"
+    },
+    {
+     "file_name": "Dockerfile",
+     "fixed_code": "// see strategy — enforce the invariant at this site"
+    }
+   ]
+  },
+  "severity": {
+   "likelihood": {
+    "score": "high",
+    "reason": "deterministic from first boot, no preconditions"
+   },
+   "impact": {
+    "score": "medium",
+    "reason": "permanent false-unhealthy on a shipped deploy path; health-gated rollouts fail and health-acting orchestrators loop; availability-only"
+   },
+   "overall_severity": "medium"
+  },
+  "confidence": {
+   "score": "high",
+   "reason": "both facts directly visible in source; no runtime fact can change the 404"
+  }
+ },
+ {
+  "verdict": "confirmed",
+  "fingerprint": "gift-open.anonymous-lock-mutation-and-existence-oracle",
+  "title": "Anonymous gift-open distinguishes existing codes and can permanently lock the legacy open path + trigger SMS",
+  "description": "open returns 404 not_found for missing code (route:29) but 400 wrong_password/423 gift_locked for existing (30/57) — an order-code existence oracle; rate-limit key embeds the code (${code}:${clientIp}, route:23) so cross-code probing from one IP is unthrottled as a set; codes are sequential PN-YYMMDD-#### from a DailyCounter. Each wrong guess persists giftOpenAttempts unauthenticated; the 10th cumulative failure permanently sets giftLockedAt (40) — repo-wide grep shows giftLockedAt appears ONLY in open/route.ts, no unlock path anywhere in src/ — and enqueues admin_alert SMS to buyer (text contains order code, 49) + owner (51-54). Primary recipient path (gift_recv OTP → /view) has no giftLockedAt check → impact low.",
+  "root_cause": "distinguishable responses for missing vs wrong-password; failures persistently mutate lockout state and enqueue SMS with no capability beyond the enumerable sequential code, and no recovery action exists.",
+  "intended_behavior": "Uniform error shape for missing/wrong; attributable per-code global budget (e.g. code-independent IP bucket); admin unlock action clearing giftLockedAt/attempts.",
+  "trace": [
+   {
+    "kind": "entrypoint",
+    "file": "src/app/api/gifts/[code]/open/route.ts",
+    "line": 17,
+    "scope": "POST open",
+    "description": "anonymous over sequential code space"
+   },
+   {
+    "kind": "propagation",
+    "file": "src/app/api/gifts/[code]/open/route.ts",
+    "line": 29,
+    "scope": "lookup",
+    "description": "404 missing vs 400/423 existing"
+   },
+   {
+    "kind": "propagation",
+    "file": "src/app/api/gifts/[code]/open/route.ts",
+    "line": 36,
+    "scope": "failed branch",
+    "description": "giftOpenAttempts+1 persisted unauthenticated"
+   },
+   {
+    "kind": "sink",
+    "file": "src/app/api/gifts/[code]/open/route.ts",
+    "line": 43,
+    "scope": "lock tx",
+    "description": "10th sets giftLockedAt permanently + admin_alert SMS to buyer+owner"
+   }
+  ],
+  "evidence": [
+   {
+    "file": "src/app/api/gifts/[code]/open/route.ts",
+    "line": 29,
+    "description": "404 only for missing codes"
+   },
+   {
+    "file": "src/app/api/gifts/[code]/open/route.ts",
+    "line": 23,
+    "description": "rate key ${code}:${clientIp} — cross-code unthrottled as a set"
+   },
+   {
+    "file": "src/app/api/gifts/[code]/open/route.ts",
+    "line": 40,
+    "description": "giftLockedAt only writer; no clearer in src/"
+   },
+   {
+    "file": "src/app/api/gifts/[code]/open/route.ts",
+    "line": 49,
+    "description": "SMS to buyer contains order code"
+   },
+   {
+    "file": "src/app/api/gifts/[code]/view/route.ts",
+    "line": 1,
+    "description": "no giftLockedAt check — primary OTP view path unaffected"
+   },
+   {
+    "file": "src/lib/orders/code.ts",
+    "line": 22,
+    "description": "sequential PN-YYMMDD-#### from DailyCounter"
+   }
+  ],
+  "conditions": [
+   {
+    "kind": "authentication_level",
+    "description": "none"
+   },
+   {
+    "kind": "data_state",
+    "description": "valid code guesses; ~10 rate-limited failures per target gift to lock it"
+   },
+   {
+    "kind": "user_interaction",
+    "description": "buyer/owner receive SMS; no recipient interaction needed for the lock"
+   }
+  ],
+  "execution": {
+   "attacker_perspective": "walk codes separating 404 from 400/423; send 10 spaced wrong passwords per target to permanently lock the legacy open path and trigger buyer+owner SMS",
+   "payloads": [
+    "POST /api/gifts/PN-251213-0001/open {\"password\":\"x\"}"
+   ],
+   "instructions": [
+    "source-only: response distinction + mutation + SMS enqueue + absent unlock path read from source and repo-wide grep"
+   ],
+   "observed_result": "Source-inspection-only: 404 vs 400/423/200 distinction, persistent state mutation, SMS enqueue, and no-unlock-path (grep) all directly visible; denial confined to the legacy password-open surface. No execution performed."
+  },
+  "remediation": {
+   "strategy": "Uniform generic error for missing/wrong; owner-gated unlock action clearing giftLockedAt/giftOpenAttempts.",
+   "code_changes": [
+    {
+     "file_name": "src/app/api/gifts/[code]/open/route.ts",
+     "fixed_code": "// see strategy — enforce the invariant at this site"
+    },
+    {
+     "file_name": "src/app/api/admin/orders/[id]/route.ts",
+     "fixed_code": "// see strategy — enforce the invariant at this site"
+    }
+   ]
+  },
+  "severity": {
+   "likelihood": {
+    "score": "high",
+    "reason": "single unauthenticated requests; no precondition beyond code format"
+   },
+   "impact": {
+    "score": "low",
+    "reason": "per-gift denial of legacy open path + one-shot SMS + code enumeration; primary view path unaffected"
+   },
+   "overall_severity": "low"
+  },
+  "confidence": {
+   "score": "high",
+   "reason": "all elements directly visible in source; overall ≤ impact"
+  }
+ },
+ {
+  "verdict": "confirmed",
+  "fingerprint": "gift-open.giftOpenAttempts-non-atomic-lockout",
+  "title": "Non-atomic failed-attempt counter inflates the gift-open brute-force budget past the 10-fail lock",
+  "description": "POST /api/gifts/{code}/open is an anonymous code+password capability over sequential codes; its anti-brute-force control is a cumulative counter (10 wrong → permanent lock). The counter is read-modify-write: findUnique (route:25) resolves in an earlier tick, then await req.json() (32) and the blocking scryptSync (crypto.ts:28) execute before the write (38-41) — which sets the ABSOLUTE value order.giftOpenAttempts + 1, not {increment:1}, with no conditional predicate. Concurrent wrong attempts that already read the same counter serialize their writes afterward and all write stale+1 (lost update): a wave of N advances the counter ~1, lock fires after ~10 waves instead of 10 requests. Per-IP 5/900s caps but does not serialize; meaningful scale-up needs IP diversity (deployment factor, not claimed). Default password is auto-generated 4-digit (9000 keyspace).",
+  "root_cause": "open/route.ts:36-41 computes attempts=staleRead+1 and writes the absolute value; no atomic increment, no conditional lock decision at write time; the codebase atomic patterns (rate-limit.ts:56-58 increment, retention.ts:70-74 conditional updateMany) exist but are unused here.",
+  "intended_behavior": "Atomic increment ({increment:1}) + conditional lock decided on the incremented value in one write (or conditional updateMany gated on giftLockedAt null).",
+  "trace": [
+   {
+    "kind": "entrypoint",
+    "file": "src/app/api/gifts/[code]/open/route.ts",
+    "line": 17,
+    "scope": "POST open",
+    "description": "anonymous"
+   },
+   {
+    "kind": "propagation",
+    "file": "src/app/api/gifts/[code]/open/route.ts",
+    "line": 25,
+    "scope": "findUnique",
+    "description": "reads giftOpenAttempts into handler memory"
+   },
+   {
+    "kind": "propagation",
+    "file": "src/app/api/gifts/[code]/open/route.ts",
+    "line": 32,
+    "scope": "await req.json()",
+    "description": "yield point between read and write"
+   },
+   {
+    "kind": "propagation",
+    "file": "src/lib/orders/crypto.ts",
+    "line": 28,
+    "scope": "scryptSync",
+    "description": "synchronous, blocks loop, sits between read and write"
+   },
+   {
+    "kind": "sink",
+    "file": "src/app/api/gifts/[code]/open/route.ts",
+    "line": 38,
+    "scope": "db.order.update",
+    "description": "writes absolute stale+1 (not increment); lock only when locally-computed ≥10 — concurrent waves under-count"
+   }
+  ],
+  "evidence": [
+   {
+    "file": "src/app/api/gifts/[code]/open/route.ts",
+    "line": 36,
+    "description": "attempts computed from stale read"
+   },
+   {
+    "file": "src/app/api/gifts/[code]/open/route.ts",
+    "line": 40,
+    "description": "absolute write, no increment, no predicate"
+   },
+   {
+    "file": "src/lib/orders/crypto.ts",
+    "line": 28,
+    "description": "verifyGiftPassword uses scryptSync between read and write"
+   },
+   {
+    "file": "src/lib/rate-limit.ts",
+    "line": 56,
+    "description": "sibling control uses {increment:1} — atomic pattern exists in-repo"
+   },
+   {
+    "file": "src/app/api/gifts/[code]/open/route.ts",
+    "line": 23,
+    "description": "rate 5/900s per code+IP"
+   },
+   {
+    "file": "src/lib/orders/checkout.ts",
+    "line": 207,
+    "description": "default password randomInt 4-digit — 9000 keyspace"
+   }
+  ],
+  "conditions": [
+   {
+    "kind": "authentication_level",
+    "description": "none"
+   },
+   {
+    "kind": "timing_dependency",
+    "description": "concurrent failed attempts interleaving at await points; per-IP capped 5/15min"
+   },
+   {
+    "kind": "network_routing",
+    "description": "guess budgets beyond ~50/IP need IP diversity (noted, not claimed)"
+   }
+  ],
+  "execution": {
+   "attacker_perspective": "anonymous attacker hammers concurrent wrong passwords per known code, rotating IPs; each synchronized wave costs the counter ~1 instead of N",
+   "payloads": [
+    "POST /api/gifts/PN-YYMMDD-####/open {\"password\":\"1234\"} x N concurrent"
+   ],
+   "instructions": [
+    "source-only: lost-update shape + blocking scrypt read from source; Node interleaving reasoned at await points"
+   ],
+   "observed_result": "Source-inspection-only: counter update is a non-atomic absolute write derived from a read resolved at an earlier tick; scryptSync placement verified; rate-limited attempts never reach the counter; designed budget ~10 failures vs realized ~10 waves × window budget. No execution performed."
+  },
+  "remediation": {
+   "strategy": "Atomic updateMany increment ({giftOpenAttempts:{increment:1}}) gated giftLockedAt null; decide lock on the returned incremented value in the same write.",
+   "code_changes": [
+    {
+     "file_name": "src/app/api/gifts/[code]/open/route.ts",
+     "fixed_code": "// see strategy — enforce the invariant at this site"
+    }
+   ]
+  },
+  "severity": {
+   "likelihood": {
+    "score": "medium",
+    "reason": "concurrency trivial; materially raising success probability needs IP diversity"
+   },
+   "impact": {
+    "score": "medium",
+    "reason": "partial defeat of the explicit 10-fail lock protecting gift message content; one gift per success"
+   },
+   "overall_severity": "medium"
+  },
+  "confidence": {
+   "score": "high",
+   "reason": "non-atomic shape, await-point interleaving and scrypt placement directly visible in source"
+  }
+ },
+ {
+  "verdict": "needs_validation",
+  "fingerprint": "git-config.remote-url.embedded-credential",
+  "title": "Live GitHub access token embedded in the git remote URL inside .git/config of the working copy",
+  "description": ".git/config line 10 stores origin as https://isnamni:<credential>@github.com/isnamni/yekdoost.git for fetch and push — credential-bearing URL pattern verified via pattern match and masked output; the secret value was never printed or extracted. .git/ is untracked (not a committed secret), but it is a push-capable plaintext credential in a workspace whose own bundling/extract scripts move artifacts around — any export including .git/ leaks repository write access, chaining into the deploy pipeline. Corroboration: worklog.md:467 documents pushes from this workspace and worklog.md:481 explicitly recommends the owner ROTATE the GitHub PAT ('it was pasted in chat') — i.e. a live, rotation-pending credential. Token scope/ownership/rotation status not observable from source.",
+  "claimed_root_cause": "remote configured with credentials embedded in the URL instead of a credential helper/SSH; nothing detects credential-bearing remote URLs in exported artifacts or warns on chat-pasted PATs.",
+  "trace": [
+   {
+    "kind": "entrypoint",
+    "file": ".git/config",
+    "line": 10,
+    "scope": "remote.origin.url",
+    "description": "https://isnamni:<credential>@github.com/… — presence verified by pattern test, value redacted"
+   },
+   {
+    "kind": "propagation",
+    "file": "worklog.md",
+    "line": 467,
+    "scope": "push workflow",
+    "description": "baseline pushed from this workspace"
+   },
+   {
+    "kind": "propagation",
+    "file": "worklog.md",
+    "line": 481,
+    "scope": "incident note",
+    "description": "owner advised to ROTATE the GitHub PAT — rotation status unknown"
+   },
+   {
+    "kind": "sink",
+    "file": "scripts/extract-bundle.mjs",
+    "line": 1,
+    "scope": "export surface",
+    "description": "script exists; whether its runtime outputs include .git/ is not in source"
+   }
+  ],
+  "evidence": [
+   {
+    "file": ".git/config",
+    "line": 10,
+    "description": "url line matches ://user:secret@ pattern; value never printed"
+   },
+   {
+    "file": "worklog.md",
+    "line": 467,
+    "description": "pushes from this workspace"
+   },
+   {
+    "file": "worklog.md",
+    "line": 481,
+    "description": "rotation recommendation — live rotation-pending credential"
+   }
+  ],
+  "blockers": [
+   "token scope, owner (platform-issued vs personal PAT), and rotation status not observable from source",
+   "whether any export/bundle/backup artifact actually includes .git/ (extract-bundle.mjs runtime behavior not in source)"
+  ],
+  "validation_plan": {
+   "deployment": "Owner-observed: git config --get remote.origin.url on the build machine; if a token is embedded switch to a credential helper/SSH and rotate the token in GitHub settings (worklog already recommends rotation); grep exported bundles/archives for .git/config and rotate if found; check GitHub security log for the token recent use."
+  }
+ },
+ {
+  "verdict": "needs_validation",
+  "fingerprint": "git-history.env-and-db-blobs.reachable-from-main",
+  "title": "Historically committed .env and db/custom.db blobs remain reachable from main and origin/main (local refs) despite the documented history rewrite — and .env was re-added AFTER the purge",
+  "description": "worklog.md:467 records the incident: .env + db/custom.db historically tracked (environment auto-commits), reached the remote, purged via rm --cached + history rewrite (force-push clean main). In this clone: commit aecaa4a (2026-10-15) adds .env — verified via git show: exactly 50 bytes, single key DATABASE_URL whose value begins file:/home (a local sandbox SQLite path — dev-only, harmless); commit 4eba4da (2026-10-12) adds db/custom.db — verified 24,576 bytes. Both commits verified ancestors via git merge-base --is-ancestor against HEAD AND the locally-fetched origin/main. Decisive new fact: 7f6618b (task-14 final state, i.e. after the documented purge) IS an ancestor of aecaa4a — the purge did not stick even locally: the same task-20 auto-commit that gutted .gitignore re-introduced .env to the tracked tree. Blob hygiene verified: strings scan of the db blob = 0 phone-like, 0 order-code-like, 0 secret strings. Local reachability certain; whether the REMOTE currently serves these blobs is outside source (origin/main is a fetched snapshot, not live truth).",
+  "claimed_root_cause": "the task-14 purge never removed the blobs from the main lineage, AND the task-20 auto-commit re-added .env afterwards while .gitignore was gutted — db/custom.db original add was never rewritten out of either lineage.",
+  "trace": [
+   {
+    "kind": "entrypoint",
+    "file": "worklog.md",
+    "line": 467,
+    "scope": "incident record",
+    "description": "leak + purge claim: .env + db/custom.db historically tracked, reached the remote, purged via rm --cached + history rewrite"
+   },
+   {
+    "kind": "propagation",
+    "file": "worklog.md",
+    "line": 476,
+    "scope": "task-14 final state",
+    "description": "purged main == 7f6618b — yet 7f6618b is an ancestor of the later commit aecaa4a which re-adds .env (ancestry verified by git merge-base --is-ancestor)"
+   },
+   {
+    "kind": "propagation",
+    "file": ".gitignore",
+    "line": 7,
+    "scope": "ignore rule .env",
+    "description": "protects the working tree only, not history blobs"
+   },
+   {
+    "kind": "sink",
+    "file": ".git/config",
+    "line": 10,
+    "scope": "origin remote",
+    "description": "repo consumed by deploys — blobs aecaa4a(.env) and 4eba4da(db/custom.db) remain reachable in the main/origin-main lineage"
+   }
+  ],
+  "evidence": [
+   {
+    "file": "worklog.md",
+    "line": 467,
+    "description": "verified verbatim: purge claim + dev-only .env assessment"
+   },
+   {
+    "file": "worklog.md",
+    "line": 476,
+    "description": "task-14 final state main == 7f6618b — pre-dates aecaa4a"
+   },
+   {
+    "file": ".gitignore",
+    "line": 7,
+    "description": ".env ignore rule — history not protected"
+   },
+   {
+    "file": ".git/config",
+    "line": 10,
+    "description": "origin URL (credential redacted) — ancestry facts: aecaa4a→HEAD true, 4eba4da→HEAD true, aecaa4a→origin/main true, 4eba4da→origin/main true, 7f6618b→aecaa4a true (git merge-base --is-ancestor); git show aecaa4a:.env = 50 bytes, single DATABASE_URL key with file:/home value (dev-only); git show 4eba4da --stat = db/custom.db 24576 bytes, strings scan clean of phone/order-code/secret strings"
+   }
+  ],
+  "blockers": [
+   "whether the remote currently serves commits aecaa4a/4eba4da and their blobs (out-of-band rewrite or provider GC not observable without network; local origin/main is only the last-fetched snapshot)",
+   "whether other clones/forks/platform caches retained pre-rewrite history"
+  ],
+  "validation_plan": {
+   "local": "Already established by verification: ancestry checks all true; .env content dev-only; db blob strings-clean.",
+   "deployment": "Owner-observed: git fetch origin && git merge-base --is-ancestor aecaa4a origin/main (or browse the commit on GitHub); if reachable, purge with git filter-repo + force-push, re-check the task-20 auto-commit environment, then verify git log origin/main -- .env db/custom.db is empty."
+  }
+ },
+ {
+  "verdict": "confirmed",
+  "fingerprint": "media.posts.deleted-cover-remains-public",
+  "title": "Deleted or unpublished post cover images remain publicly streamable: posts/ prefix has no DB lifecycle gate and post delete/clear paths never remove the file or MediaBlob row",
+  "description": "GET /api/media serves every safe-named posts/ file without any DB check (unlike products/ DB-gated at 21-27 and branding/ Setting-gated at 28-30). The only invalidation mechanism is deleteMediaFile, but no post lifecycle path invokes it: DELETE removes the Post row only; PATCH coverKey:'' skips GC (condition at 60 requires truthy input.coverKey); publish:false touches nothing. Disk file AND MediaBlob row survive, so deleted covers keep streaming with immutable cache, contradicting the route stated contract \"deletion invalidates via 404\" (comment line 7). Inline images have no GC path at all.",
+  "root_cause": "posts/ read branch applies no DB/lifecycle gate; post DELETE and coverKey-clear omit deleteMediaFile (for posts/ keys the MediaBlob row is removable only via deleteMediaFile).",
+  "intended_behavior": "Honor the stated contract on every lifecycle transition (delete/clear/unpublish) and/or DB-gate posts/ reads like products/.",
+  "trace": [
+   {
+    "kind": "entrypoint",
+    "file": "src/app/api/admin/posts/[id]/route.ts",
+    "line": 85,
+    "scope": "DELETE",
+    "description": "removes only the Post row; no deleteMediaFile, unlike product-gallery sibling"
+   },
+   {
+    "kind": "propagation",
+    "file": "src/app/api/admin/posts/[id]/route.ts",
+    "line": 60,
+    "scope": "PATCH coverKey clear",
+    "description": "GC condition requires truthy input.coverKey — clearing orphans the file"
+   },
+   {
+    "kind": "propagation",
+    "file": "src/lib/media-blob.ts",
+    "line": 26,
+    "scope": "getMediaBlob",
+    "description": "blob row still present; deleteMediaBlob reachable only via deleteMediaFile"
+   },
+   {
+    "kind": "propagation",
+    "file": "src/lib/media.ts",
+    "line": 79,
+    "scope": "readPublicMedia",
+    "description": "no per-key gate for posts/ — prefix allowlist only"
+   },
+   {
+    "kind": "sink",
+    "file": "src/app/api/media/[...key]/route.ts",
+    "line": 35,
+    "scope": "GET",
+    "description": "deleted cover bytes with Cache-Control immutable instead of contract 404"
+   }
+  ],
+  "evidence": [
+   {
+    "file": "src/app/api/admin/posts/[id]/route.ts",
+    "line": 85,
+    "description": "DELETE: no deleteMediaFile"
+   },
+   {
+    "file": "src/app/api/admin/posts/[id]/route.ts",
+    "line": 60,
+    "description": "GC skipped when cover cleared"
+   },
+   {
+    "file": "src/app/api/media/[...key]/route.ts",
+    "line": 31,
+    "description": "posts/ branch no DB check"
+   },
+   {
+    "file": "src/app/api/media/[...key]/route.ts",
+    "line": 7,
+    "description": "stated contract deletion invalidates via 404"
+   },
+   {
+    "file": "src/app/api/admin/posts/image/route.ts",
+    "line": 38,
+    "description": "inline uploads: no DB row, no GC path at all"
+   },
+   {
+    "file": "src/lib/media-blob.ts",
+    "line": 35,
+    "description": "blob copy persists; no job sweeps posts media"
+   }
+  ],
+  "conditions": [
+   {
+    "kind": "authorization_role",
+    "description": "admin performs deletion; failure = deletion not propagating to public read"
+   },
+   {
+    "kind": "data_state",
+    "description": "deleted/unpublished post had coverKey/inline images; file/blob still exists"
+   },
+   {
+    "kind": "authentication_level",
+    "description": "anonymous reader with previously-public URL"
+   }
+  ],
+  "execution": {
+   "attacker_perspective": "anonymous visitor re-fetches a deleted post cover URL (exposed while published) and still receives bytes with 1-year immutable cache",
+   "payloads": [
+    "GET /api/media/posts/<ts36>-<rand6>.jpg"
+   ],
+   "instructions": [
+    "source-only: absent gate + absent GC calls statically provable"
+   ],
+   "observed_result": "Source inspection established both decisive facts: the posts/ branch applies no DB/lifecycle gate and streams whatever safe-named posts/ file exists with immutable cache; no post lifecycle path nor any job/startup sweep calls deleteMediaFile/deleteMediaBlob for posts/ keys, so file and blob survive deletion. No execution was performed (source-only run)."
+  },
+  "remediation": {
+   "strategy": "GC media on delete and on coverKey change (including clearing to \"\"); optionally DB-gate posts/ reads.",
+   "code_changes": [
+    {
+     "file_name": "src/app/api/admin/posts/[id]/route.ts",
+     "fixed_code": "// see strategy — enforce the invariant at this site"
+    }
+   ]
+  },
+  "severity": {
+   "likelihood": {
+    "score": "medium",
+    "reason": "every published post exposes its cover URL durably; deletion deterministically triggers stale serving"
+   },
+   "impact": {
+    "score": "low",
+    "reason": "content class already public before deletion; violation is retention past the owner deletion/takedown boundary + blob growth"
+   },
+   "overall_severity": "low"
+  },
+  "confidence": {
+   "score": "high",
+   "reason": "both facts statically demonstrable"
+  }
+ },
+ {
+  "verdict": "needs_validation",
+  "fingerprint": "netlify-runtime-db-fresh-seeded-demo-sqlite",
+  "title": "Netlify deployments run on a per-instance /tmp SQLite freshly demo-seeded on every build",
+  "description": "Every Netlify deploy recreates db/custom.db with demo data (seed-commerce + seed-blog), bundles it via outputFileTracingIncludes ./db/**, and at cold start bootstrapServerlessSqlite() rewrites DATABASE_URL to a per-instance /tmp/custom.db copy when the env URL is absent or points at a missing/empty or /tmp file. Warm instances keep their pre-deploy copy (copy skipped when target ≥100KB) → split-brain after redeploys; all writes land in a throwaway per-instance file. A real store served by this deployment would show demo products while payments write into ephemeral storage. Source calls Netlify a live mirror of the Coolify single-box target, so which platform serves the production domain, and whether site env pins an external DATABASE_URL (which the bootstrap honors untouched), are deployment facts.",
+  "claimed_root_cause": "Deployment config makes a throwaway demo-seeded SQLite the default runtime datastore of the serverless target with no guard preventing production traffic from landing on it.",
+  "trace": [
+   {
+    "kind": "entrypoint",
+    "file": "netlify.toml",
+    "line": 18,
+    "scope": "build command",
+    "description": "db push + demo seeds every deploy"
+   },
+   {
+    "kind": "propagation",
+    "file": "next.config.ts",
+    "line": 66,
+    "scope": "outputFileTracingIncludes ./db/**",
+    "description": "bundled db ships inside the function"
+   },
+   {
+    "kind": "propagation",
+    "file": "src/lib/db.ts",
+    "line": 6,
+    "scope": "bootstrapServerlessSqlite()",
+    "description": "runs on every cold start"
+   },
+   {
+    "kind": "sink",
+    "file": "src/lib/sqlite-serverless.ts",
+    "line": 66,
+    "scope": "DATABASE_URL rewrite",
+    "description": "file:/tmp/custom.db; warm instances keep stale copy (copy skipped ≥100KB at :47)"
+   }
+  ],
+  "evidence": [
+   {
+    "file": "netlify.toml",
+    "line": 18,
+    "description": "db push + demo seeds every deploy"
+   },
+   {
+    "file": "netlify.toml",
+    "line": 13,
+    "description": "documented site env list contains no DATABASE_URL"
+   },
+   {
+    "file": "netlify.toml",
+    "line": 1,
+    "description": "live mirror of the Coolify single-box target"
+   },
+   {
+    "file": "src/lib/sqlite-serverless.ts",
+    "line": 47,
+    "description": "copy skipped when target ≥100KB — stale DB survives on warm instances"
+   },
+   {
+    "file": "src/lib/sqlite-serverless.ts",
+    "line": 37,
+    "description": "external/non-file DATABASE_URL wins untouched — the only escape hatch"
+   },
+   {
+    "file": "next.config.ts",
+    "line": 66,
+    "description": "tracing includes ./db/**"
+   },
+   {
+    "file": "scripts/seed-commerce.ts",
+    "line": 9,
+    "description": "demo catalog confirmed"
+   }
+  ],
+  "blockers": [
+   "which platform serves the production domain — Coolify vs Netlify — is not pinned in source",
+   "whether the Netlify site env sets an external DATABASE_URL or the site is preview-only (documented site-env list omits it; UI/API state is owner-observed)",
+   "Netlify lambda instance lifetime for /tmp/custom.db (real data-loss/split-brain window)"
+  ],
+  "validation_plan": {
+   "deployment": "Owner-observed: confirm which DNS domain serves production and whether Netlify is attached; inspect Netlify env for DATABASE_URL; if Netlify serves traffic, place a dummy order, redeploy, observe whether it survives."
+  }
+ },
+ {
+  "verdict": "confirmed",
+  "fingerprint": "otp.verify-attempt-counter-check-then-act-race",
+  "title": "Concurrent verifies defeat the OTP 5-attempt cap → 4-digit brute force and account/owner-seat takeover",
+  "description": "verifyOtp enforces MAX_ATTEMPTS=5 as check-then-act: findFirst (otp.ts:61-64), attempts>=5 tested on the stale read (65), timingSafeEqual runs BEFORE the failed-attempt increment (66 vs 68); no transaction or conditional attempt claim serializes the sequence. Under Prisma/SQLite connection_limit=1 all burst findFirsts enqueue and execute before any increment; on PG reads are unserialized outright. The matching guess is consumed atomically (72-73) and converts into a 30-day customer session plus an owner admin seat when the phone is in ADMIN_SEED_PHONES (verify:37-44). The 10/900s otp_verify limiter is itself voided at window start by the companion rate-limit reset race, making sustained brute force practical (codes re-issuable 3/hour/phone). No preventing layer: no middleware; proxy matcher excludes /api; assertSameOrigin passes no-Origin callers.",
+  "root_cause": "src/lib/auth/otp.ts:61-73 attempt counting without atomicity (read→check→compare→increment only on failure; no conditional claim gated on attempts<MAX_ATTEMPTS && used=false).",
+  "intended_behavior": "Each verification first atomically claims one attempt (conditional updateMany gated attempts<5 && used=false) and only compares/consumes on success.",
+  "trace": [
+   {
+    "kind": "entrypoint",
+    "file": "src/app/api/auth/verify/route.ts",
+    "line": 22,
+    "scope": "POST /api/auth/verify",
+    "description": "unauthenticated phone+guess; assertSameOrigin passes no-Origin callers"
+   },
+   {
+    "kind": "propagation",
+    "file": "src/lib/rate-limit.ts",
+    "line": 44,
+    "scope": "otp_verify 10/900s",
+    "description": "window-reset upsert admits the burst past 10"
+   },
+   {
+    "kind": "propagation",
+    "file": "src/lib/auth/otp.ts",
+    "line": 65,
+    "scope": "verifyOtp",
+    "description": "every racer reads the same used=false code with attempts<5"
+   },
+   {
+    "kind": "sink",
+    "file": "src/lib/auth/otp.ts",
+    "line": 66,
+    "scope": "timingSafeEqual→consume",
+    "description": "matching guess wins; 30-day customer session + owner admin seat for seed phones"
+   }
+  ],
+  "evidence": [
+   {
+    "file": "src/lib/auth/otp.ts",
+    "line": 65,
+    "description": "attempt cap tested on the stale findFirst read — no conditional claim"
+   },
+   {
+    "file": "src/lib/auth/otp.ts",
+    "line": 68,
+    "description": "increment only on failed compare, separate from the check"
+   },
+   {
+    "file": "src/lib/auth/otp.ts",
+    "line": 72,
+    "description": "atomic consume only AFTER compare — guards double-use, not the cap"
+   },
+   {
+    "file": "src/lib/auth/otp.ts",
+    "line": 40,
+    "description": "randomInt(1_000,10_000) → 9000-value keyspace"
+   },
+   {
+    "file": "src/lib/rate-limit.ts",
+    "line": 47,
+    "description": "limiter reset sets count:1 unconditionally"
+   },
+   {
+    "file": "src/app/api/auth/verify/route.ts",
+    "line": 44,
+    "description": "success mints admin session for seed phones"
+   },
+   {
+    "file": "src/lib/db.ts",
+    "line": 24,
+    "description": "SQLite connection_limit=1 serializes statements, not the read→compare→act sequence"
+   }
+  ],
+  "conditions": [
+   {
+    "kind": "authentication_level",
+    "description": "unauthenticated"
+   },
+   {
+    "kind": "data_state",
+    "description": "unused unexpired AuthCode exists (attacker issues via auth/request)"
+   },
+   {
+    "kind": "timing_dependency",
+    "description": "racers findFirsts complete before any failed-increment commits; limiter window reset at burst start"
+   },
+   {
+    "kind": "user_interaction",
+    "description": "victim must not complete verification first"
+   },
+   {
+    "kind": "system_configuration",
+    "description": "holds on BOTH backends — SQLite (serialized statements still admit synchronized bursts) and PG (unserialized reads); exploit throughput differs by backend"
+   }
+  ],
+  "execution": {
+   "attacker_perspective": "issue one OTP, fire high-concurrency verify wave with disjoint guesses; repeat up to 3 issues/hour until match",
+   "payloads": [
+    "POST /api/auth/request {\"phone\":\"09XX...\"}",
+    "POST /api/auth/verify xN concurrent {\"code\":\"<distinct guesses>\"}"
+   ],
+   "instructions": [
+    "burst covers N of 9000 per wave; stop at first 200 with session cookies"
+   ],
+   "observed_result": "Source inspection only — no execution was performed. Established: the attempts check consumes the findFirst snapshot with no transaction/lock/conditional claim anywhere on the path (otp.ts:61-73 read in full); the atomic updateMany only prevents double-consumption, not cap bypass; route layer has no additional gate; keyspace 9000; success mints a 30-day customer session and an owner admin session for seed phones. Backend behavior reasoned from code shape + connection_limit=1 + dual schema selection — race exists on both backends; no measured timings."
+  },
+  "remediation": {
+   "strategy": "Atomic attempt claim before compare (conditional updateMany attempts<MAX_ATTEMPTS, used=false); pair with atomic limiter window reset.",
+   "code_changes": [
+    {
+     "file_name": "src/lib/auth/otp.ts",
+     "fixed_code": "// see strategy — enforce the invariant at this site"
+    },
+    {
+     "file_name": "src/lib/rate-limit.ts",
+     "fixed_code": "// see strategy — enforce the invariant at this site"
+    }
+   ]
+  },
+  "severity": {
+   "likelihood": {
+    "score": "medium",
+    "reason": "sustained concurrent bursts over hours; 3 re-issues/hour; throughput backend-dependent"
+   },
+   "impact": {
+    "score": "high",
+    "reason": "full customer takeover (30-day session); owner admin seat for ADMIN_SEED_PHONES phones"
+   },
+   "overall_severity": "high"
+  },
+  "confidence": {
+   "score": "high",
+   "reason": "no transaction/lock anywhere on the path; interleaving source-determined for both backends"
+  }
+ },
+ {
+  "verdict": "confirmed",
+  "fingerprint": "payments/receipt-sha256-dedupe-check-then-act",
+  "title": "Receipt sha256 dedupe is non-atomic — concurrent identical uploads back two orders (one-receipt-one-payment control defeated)",
+  "description": "POST /api/payment/manual/receipt dedupes via findFirst(receiptHash) at line 44 then creates the Payment at line 52 with no transaction/lock and no unique constraint (Payment.receiptHash has no @unique in either schema). Two concurrent uploads of identical bytes to two attacker-held awaiting_payment orders both pass the same findFirst and both commit — one bank-transfer screenshot backs two orders; same check-then-act pattern writes RetentionRenewal.receiptHash in renew/receipt (dedupe read 50-53, update 56-59). Conversion still requires admin approval, so impact stops at the review queue.",
+  "root_cause": "one-receipt-one-payment invariant enforced only at app level; schema comment says dedupe enforced in code; no @unique.",
+  "intended_behavior": "DB-enforced constraint (nullable @unique receiptHash) + P2002 mapped to duplicate_receipt.",
+  "trace": [
+   {
+    "kind": "entrypoint",
+    "file": "src/app/api/payment/manual/receipt/route.ts",
+    "line": 44,
+    "scope": "dedupe findFirst",
+    "description": "check-then-act begins"
+   },
+   {
+    "kind": "propagation",
+    "file": "src/app/api/payment/manual/receipt/route.ts",
+    "line": 52,
+    "scope": "payment.create",
+    "description": "second concurrent identical upload passes the same findFirst; no tx anywhere in the handler"
+   },
+   {
+    "kind": "sink",
+    "file": "src/app/api/payment/manual/receipt/route.ts",
+    "line": 66,
+    "scope": "transition",
+    "description": "both orders payment_under_review with same receiptHash; variant across Payment+RetentionRenewal at renew/receipt:50-59"
+   }
+  ],
+  "evidence": [
+   {
+    "file": "src/app/api/payment/manual/receipt/route.ts",
+    "line": 44,
+    "description": "findFirst receiptHash in [pending_review, verified]"
+   },
+   {
+    "file": "src/app/api/payment/manual/receipt/route.ts",
+    "line": 52,
+    "description": "create outside any tx incl. the dedupe read"
+   },
+   {
+    "file": "prisma/schema.prisma",
+    "line": 350,
+    "description": "receiptHash no @unique (dedupe enforced in code)"
+   },
+   {
+    "file": "prisma/schema.postgres.prisma",
+    "line": 355,
+    "description": "same in PG schema; RetentionRenewal.receiptHash also unconstrained"
+   },
+   {
+    "file": "src/app/api/gifts/[code]/renew/receipt/route.ts",
+    "line": 51,
+    "description": "renewal dedupe findFirst then update — same non-atomic pattern"
+   }
+  ],
+  "conditions": [
+   {
+    "kind": "data_state",
+    "description": "attacker holds two awaiting_payment orders with own code+key pairs"
+   },
+   {
+    "kind": "timing_dependency",
+    "description": "two POSTs interleave between findFirst (44) and create (52) — trivially scriptable"
+   }
+  ],
+  "execution": {
+   "attacker_perspective": "buyer with two unpaid card-to-card orders uploads same screenshot to both in parallel; both enter review with identical hash",
+   "payloads": [
+    "two concurrent multipart POST /api/payment/manual/receipt (identical bytes, different code+key)"
+   ],
+   "instructions": [
+    "create two manual orders; send both POSTs concurrently; both 201"
+   ],
+   "observed_result": "Source-inspection-only: dedupe non-atomic (read 44 / write 52, separate awaits); no unique constraint in either schema; interleaving statically possible. No execution performed."
+  },
+  "remediation": {
+   "strategy": "receiptHash nullable @unique on Payment + RetentionRenewal; map P2002 to duplicate_receipt; keep findFirst only for the friendly 409.",
+   "code_changes": [
+    {
+     "file_name": "prisma/schema.prisma",
+     "fixed_code": "// see strategy — enforce the invariant at this site"
+    },
+    {
+     "file_name": "prisma/schema.postgres.prisma",
+     "fixed_code": "// see strategy — enforce the invariant at this site"
+    },
+    {
+     "file_name": "src/app/api/payment/manual/receipt/route.ts",
+     "fixed_code": "// see strategy — enforce the invariant at this site"
+    }
+   ]
+  },
+  "severity": {
+   "likelihood": {
+    "score": "low",
+    "reason": "concurrent race + two attacker-held orders"
+   },
+   "impact": {
+    "score": "low",
+    "reason": "defeats automated double-payment guard; admin approval still gates goods"
+   },
+   "overall_severity": "low"
+  },
+  "confidence": {
+   "score": "high",
+   "reason": "no constraint in either schema (verified both files); check/write separate"
+  }
+ },
+ {
+  "verdict": "needs_validation",
+  "fingerprint": "payments/zarinpal-simulate-authority-accepted-as-paid",
+  "title": "Zarinpal simulate mode silently accepts local SIM* authorities as paid in production (not covered by assertProdSecrets)",
+  "description": "When ZARINPAL_MERCHANT_ID is unset, zarinpalSimulate() flips the PSP seam to a local simulator: create mints SIM+24hex with no provider call, redirect goes to on-site /pay-gateway (which navigates to the real callback), verify returns ok for ANY SIM-prefixed authority with no external/amount check, and the unauthenticated callback then marks paid. If this is the production configuration, any OTP-verified customer marks orders paid with zero money movement; cron reconcile auto-verifies stale SIM payments after 1h. assertProdSecrets covers only SESSION_SECRET/CRON_SECRET/ADMIN_PANEL_PASSWORD; env schema declares the merchant id optional. Every code-path claim is source-provable; the decisive missing fact is the deployed env value, with conflicting in-repo hints.",
+  "claimed_root_cause": "simulate/production decision keyed solely on the optional merchant id with fail-open default; prod secret guard never extended to it.",
+  "trace": [
+   {
+    "kind": "entrypoint",
+    "file": "src/app/api/payment/zarinpal/callback/route.ts",
+    "line": 17,
+    "scope": "unauthenticated GET",
+    "description": "Authority+Status from query"
+   },
+   {
+    "kind": "propagation",
+    "file": "src/app/api/payment/zarinpal/callback/route.ts",
+    "line": 24,
+    "scope": "lookup",
+    "description": "findFirst payment by authority"
+   },
+   {
+    "kind": "propagation",
+    "file": "src/lib/orders/checkout.ts",
+    "line": 406,
+    "scope": "simulate verify",
+    "description": "SIM* → ok:true, no fetch, no amount check"
+   },
+   {
+    "kind": "sink",
+    "file": "src/app/api/payment/zarinpal/callback/route.ts",
+    "line": 56,
+    "scope": "mark paid",
+    "description": "updateMany verified + transitionOrder paid; cron reconcile uses the same path"
+   }
+  ],
+  "evidence": [
+   {
+    "file": "src/lib/orders/checkout.ts",
+    "line": 368,
+    "description": "simulate === !env.ZARINPAL_MERCHANT_ID"
+   },
+   {
+    "file": "src/lib/orders/checkout.ts",
+    "line": 384,
+    "description": "SIM authority minted locally"
+   },
+   {
+    "file": "src/lib/orders/checkout.ts",
+    "line": 406,
+    "description": "startsWith(SIM) accepted as ok"
+   },
+   {
+    "file": "src/lib/orders/checkout.ts",
+    "line": 377,
+    "description": "redirect to local /pay-gateway when simulate"
+   },
+   {
+    "file": "src/components/shop/screens/pay-gateway.tsx",
+    "line": 25,
+    "description": "screen navigates to the real callback — simulated success completes the round trip"
+   },
+   {
+    "file": "src/lib/env.ts",
+    "line": 28,
+    "description": "merchant id optional"
+   },
+   {
+    "file": "src/lib/env.ts",
+    "line": 60,
+    "description": "guard covers only 3 secrets"
+   },
+   {
+    "file": "src/app/api/jobs/[name]/route.ts",
+    "line": 91,
+    "description": "reconcile-payments: stale initiated → zarinpalVerify → SIM ok → paid"
+   }
+  ],
+  "blockers": [
+   "value of ZARINPAL_MERCHANT_ID in the deployed production environment — source cannot establish whether it is set; zarinpalSimulate() flips the whole seam on its absence",
+   "whether the deployed platform injects ZARINPAL_MERCHANT_ID through any out-of-repo mechanism — in-repo hints conflict (netlify.toml lists it as + later; ops doc says VPS .env with sandbox value until phase-3 switch; worklog says simulate is active for now)"
+  ],
+  "validation_plan": {
+   "local": "None required — branch is static; no in-repo layer gates simulate mode in production (verified: only consumers of the flag are checkout, callback, recheck, jobs reconcile).",
+   "deployment": "Owner-observed, no target probing: (a) inspect production env for ZARINPAL_MERCHANT_ID (Coolify VPS .env / Netlify site env); (b) alternatively place one test order and read ack.payment.redirectUrl — StartPay URL = real mode, /pay-gateway?authority=SIM… = simulate mode. If simulate active, set the merchant id or make simulate fail closed (refuse SIM-verify when NODE_ENV=production) before launch."
+  }
+ },
+ {
+  "verdict": "confirmed",
+  "fingerprint": "pishnam-store-logout-incomplete-draft-wipe",
+  "title": "Logout leaves the private gift draft (message + recipient name/phone/address) in localStorage on shared devices, violating the store A-05 privacy wipe law",
+  "description": "zustand persist 'pishnam-app' holds the draft: private message, recipient name/mobile/province/city/address, sender fields. A-05 wipes the draft only after successful checkout; logout() (and the boot guest-hygiene branch) reset only user/orders/pendingOrder/orderer — resetBuilder (the exact wipe, sole caller pay-modal.tsx:130) is never invoked on logout; the sole logout call site (dashboards.tsx:2295) calls logout() alone; no localStorage.removeItem anywhere. partialize persists the fields and merge rehydrates them → the next same-profile user sees the previous user's draft prefilled. Verified no other wipe-on-logout path exists.",
+  "root_cause": "A-05 draft wipe bound to checkout-success instead of the session/device lifecycle; logout and boot guest-hygiene omit the gift-draft fields while the store own comments declare the invariant they violate.",
+  "intended_behavior": "Logout (and stale-session boot hygiene) performs the resetBuilder-grade wipe (message, receiver, senderName, senderPhrase, senderDisplay, addonLines, media meta); regression test asserting the persisted record contains no draft fields after logout.",
+  "trace": [
+   {
+    "kind": "entrypoint",
+    "file": "src/components/shop/screens/flow.tsx",
+    "line": 945,
+    "scope": "recipient form binds receiver values",
+    "description": "previous user types recipient PII + private message into persisted store"
+   },
+   {
+    "kind": "propagation",
+    "file": "src/lib/pishnam-store.ts",
+    "line": 832,
+    "scope": "partialize",
+    "description": "message/receiver/senderName/senderPhrase persisted to localStorage"
+   },
+   {
+    "kind": "propagation",
+    "file": "src/lib/pishnam-store.ts",
+    "line": 406,
+    "scope": "logout",
+    "description": "wipes only user/orders/pendingOrder/orderer; resetBuilder not called; sole call site dashboards.tsx:2295"
+   },
+   {
+    "kind": "propagation",
+    "file": "src/lib/pishnam-store.ts",
+    "line": 774,
+    "scope": "merge",
+    "description": "draft rehydrates into next session; pishnam-sync.ts:179-188 guest hygiene same gap"
+   },
+   {
+    "kind": "sink",
+    "file": "src/components/shop/screens/flow.tsx",
+    "line": 953,
+    "scope": "receiver.phone rendered prefilled",
+    "description": "next profile user reads previous draft"
+   }
+  ],
+  "evidence": [
+   {
+    "file": "src/lib/pishnam-store.ts",
+    "line": 406,
+    "description": "logout wipe list incomplete"
+   },
+   {
+    "file": "src/lib/pishnam-store.ts",
+    "line": 401,
+    "description": "comment states the intended invariant"
+   },
+   {
+    "file": "src/lib/pishnam-store.ts",
+    "line": 663,
+    "description": "A-05 wipe comment; executes only on checkout success"
+   },
+   {
+    "file": "src/lib/pishnam-store.ts",
+    "line": 708,
+    "description": "resetBuilder — sole caller pay-modal.tsx:130"
+   },
+   {
+    "file": "src/lib/pishnam-store.ts",
+    "line": 829,
+    "description": "partialize persists draft fields"
+   },
+   {
+    "file": "src/lib/pishnam-store.ts",
+    "line": 762,
+    "description": "merge rehydrates"
+   },
+   {
+    "file": "src/components/shop/screens/flow.tsx",
+    "line": 942,
+    "description": "prefill render"
+   },
+   {
+    "file": "src/components/shop/screens/dashboards.tsx",
+    "line": 2292,
+    "description": "logout button calls logout() only"
+   },
+   {
+    "file": "src/lib/pishnam-sync.ts",
+    "line": 179,
+    "description": "boot guest hygiene same gap"
+   }
+  ],
+  "conditions": [
+   {
+    "kind": "data_state",
+    "description": "draft composed but no successful checkout — checkout/manual-pay success are the only wipes"
+   },
+   {
+    "kind": "authentication_level",
+    "description": "composing user session then ended (logout or expiry)"
+   },
+   {
+    "kind": "user_interaction",
+    "description": "different person later uses same browser profile and opens the builder — the code own declared shared-device threat model"
+   }
+  ],
+  "execution": {
+   "attacker_perspective": "next human on the shared profile opens the builder/recipient form and reads the previous draft (private message + recipient PII) prefilled — no credentials, no network",
+   "payloads": [
+    "open site → read localStorage 'pishnam-app' / prefilled form fields"
+   ],
+   "instructions": [
+    "source-only: persist scope, incomplete logout wipe, merge rehydration and UI prefill statically verified end-to-end; absence of any competing wipe path verified"
+   ],
+   "observed_result": "Source inspection only: every link statically provable; boundary declared by the code own comments. No execution performed."
+  },
+  "remediation": {
+   "strategy": "Bind the A-05 wipe to logout() and the boot guest-hygiene branch (same field set as resetBuilder); add a regression test asserting the persisted record contains no draft fields after logout.",
+   "code_changes": [
+    {
+     "file_name": "src/lib/pishnam-store.ts",
+     "fixed_code": "// see strategy — enforce the invariant at this site"
+    },
+    {
+     "file_name": "src/lib/pishnam-sync.ts",
+     "fixed_code": "// see strategy — enforce the invariant at this site"
+    }
+   ]
+  },
+  "severity": {
+   "likelihood": {
+    "score": "low",
+    "reason": "requires shared profile + abandoned draft + later user"
+   },
+   "impact": {
+    "score": "medium",
+    "reason": "cross-user disclosure of private gift content and recipient PII with zero effort; one device profile, one draft; availability/auth unaffected"
+   },
+   "overall_severity": "medium"
+  },
+  "confidence": {
+   "score": "high",
+   "reason": "every link statically provable including absence of any competing wipe path; the boundary is declared by the code own comments"
+  }
+ },
+ {
+  "verdict": "confirmed",
+  "fingerprint": "prebuild.migrate-giftorders-error-swallowed-drop-giftorder",
+  "title": "Failed legacy GiftOrder migration is swallowed, then the destructive schema push drops GiftOrder — silent permanent loss of legacy orders",
+  "description": "prebuild.mjs:60-68 runs the one-time GiftOrder→Order migration inside a bare catch treating EVERY failure as 'GiftOrder table likely absent' — no error-code discrimination (42P01 vs connection/permission/constraint). Build then continues to prisma db push --accept-data-loss (71-74) against a schema with no GiftOrder model (grep confirms) → push drops the legacy table. migrate-giftorders.sql:5-7 states the script exists so a production DB with legacy rows 'never loses them'; on its own failure path the guarantee inverts. Deployer is not fully blind (stdio inherit streams the CLI error) but the build never fails; no rollback exists for a partially-applied migration (two sequential INSERT...SELECTs).",
+  "root_cause": "blanket catch conflates table-absent with any other SQL failure; destructive push is not conditioned on migration success.",
+  "intended_behavior": "Only the missing-relation error (42P01) is benign; any other failure must abort the build before db push; never drop GiftOrder until verified empty or fully migrated.",
+  "trace": [
+   {
+    "kind": "entrypoint",
+    "file": "scripts/prebuild.mjs",
+    "line": 61,
+    "scope": "legacy migration",
+    "description": "bunx prisma db execute --file scripts/migrate-giftorders.sql"
+   },
+   {
+    "kind": "propagation",
+    "file": "scripts/prebuild.mjs",
+    "line": 66,
+    "scope": "catch-all",
+    "description": "every non-zero exit swallowed; build continues"
+   },
+   {
+    "kind": "propagation",
+    "file": "scripts/prebuild.mjs",
+    "line": 72,
+    "scope": "destructive push",
+    "description": "db push --accept-data-loss --skip-generate — unconditional"
+   },
+   {
+    "kind": "sink",
+    "file": "prisma/schema.postgres.prisma",
+    "line": 67,
+    "scope": "no GiftOrder model",
+    "description": "push drops the table + any un-migrated legacy rows"
+   }
+  ],
+  "evidence": [
+   {
+    "file": "scripts/prebuild.mjs",
+    "line": 65,
+    "description": "bare catch swallows all failures (no SQLSTATE check)"
+   },
+   {
+    "file": "scripts/migrate-giftorders.sql",
+    "line": 5,
+    "description": "stated preservation purpose"
+   },
+   {
+    "file": "scripts/prebuild.mjs",
+    "line": 72,
+    "description": "--accept-data-loss executes regardless of migration outcome"
+   },
+   {
+    "file": "prisma/schema.postgres.prisma",
+    "line": 67,
+    "description": "GiftOrder retired — grep confirms no model in either schema"
+   },
+   {
+    "file": "scripts/migrate-giftorders.sql",
+    "line": 23,
+    "description": "two sequential INSERT...SELECTs — no transaction around partial failure"
+   }
+  ],
+  "conditions": [
+   {
+    "kind": "data_state",
+    "description": "target DB contains legacy GiftOrder rows (source notes 0 rows in every known env — impact conditional)"
+   },
+   {
+    "kind": "system_configuration",
+    "description": "any non-missing-table migration failure in the same build"
+   }
+  ],
+  "execution": {
+   "attacker_perspective": "not attacker-driven: a build-time dependency failure converts a protective migration into a no-op followed by a destructive push",
+   "payloads": [
+    "build with a postgres:// DATABASE_URL while the migration SQL fails non-benignly → build continues and db push drops GiftOrder"
+   ],
+   "instructions": [
+    "provision DB with legacy rows; make the migration fail non-benignly; observe build continue to the drop"
+   ],
+   "observed_result": "source-inspection-only: control flow is direct — catch continues, push unconditional, schema has no GiftOrder model. No execution performed."
+  },
+  "remediation": {
+   "strategy": "Fail closed: treat only 42P01/missing-relation as benign; re-raise anything else so the build aborts before db push; optionally wrap the SQL in a transaction and verify remaining GiftOrder count is 0 before allowing the push.",
+   "code_changes": [
+    {
+     "file_name": "scripts/prebuild.mjs",
+     "fixed_code": "// see strategy — enforce the invariant at this site"
+    }
+   ]
+  },
+  "severity": {
+   "likelihood": {
+    "score": "low",
+    "reason": "requires legacy rows present AND a non-benign migration failure in the same build"
+   },
+   "impact": {
+    "score": "medium",
+    "reason": "permanent silent loss of legacy financial records exactly where the code promises preservation"
+   },
+   "overall_severity": "medium"
+  },
+  "confidence": {
+   "score": "high",
+   "reason": "swallowing catch + unconditional push + absent model all source-visible"
+  }
+ },
+ {
+  "verdict": "needs_validation",
+  "fingerprint": "prebuild.no-env-gate.db-mutation-on-every-build",
+  "title": "Build-time DB mutation has no environment gate — migration + db push --accept-data-loss + 4 seeds run on any build whose DATABASE_URL is postgres",
+  "description": "prebuild.mjs:49-53 gates solely on the DATABASE_URL protocol regex; no NODE_ENV/VERCEL_ENV/branch/preview distinction exists anywhere in prebuild.mjs or the package.json build chain (the only VERCEL check is post-build.mjs:12 — AFTER all DB mutation, and only for standalone assembly). prisma db push --accept-data-loss bypasses interactive confirmation; the mutation precedes next build, so it executes even when the build subsequently fails. Every such build — including preview contexts if they resolve the same URL — migrates, destructively pushes schema, and writes 4 seeds to whatever DB the build env points to. Scope note: netlify.toml never invokes prebuild.mjs (inline SQLite URL), so the exposed surface is hosts running the package.json build with a postgres:// URL — Vercel/Coolify per source. The missing fact sizing the blast radius: whether preview deployments share the production DATABASE_URL.",
+  "claimed_root_cause": "protocol-only gate + unconditional --accept-data-loss; environment separation lives entirely outside the repository.",
+  "trace": [
+   {
+    "kind": "entrypoint",
+    "file": "package.json",
+    "line": 7,
+    "scope": "build chain",
+    "description": "prebuild runs before build success on every deploy build"
+   },
+   {
+    "kind": "propagation",
+    "file": "scripts/prebuild.mjs",
+    "line": 50,
+    "scope": "sole gate",
+    "description": "protocol regex on DATABASE_URL is the complete guard"
+   },
+   {
+    "kind": "propagation",
+    "file": "scripts/prebuild.mjs",
+    "line": 72,
+    "scope": "destructive push",
+    "description": "--accept-data-loss — flag bypasses interactive guard, no dry-run"
+   },
+   {
+    "kind": "sink",
+    "file": "scripts/prebuild.mjs",
+    "line": 83,
+    "scope": "seed stage",
+    "description": "4 seeds against whatever DB the build env points to"
+   }
+  ],
+  "evidence": [
+   {
+    "file": "scripts/prebuild.mjs",
+    "line": 49,
+    "description": "raw = env DATABASE_URL — the only variable consulted"
+   },
+   {
+    "file": "scripts/prebuild.mjs",
+    "line": 50,
+    "description": "protocol regex is the complete guard; no other conditional"
+   },
+   {
+    "file": "scripts/post-build.mjs",
+    "line": 12,
+    "description": "VERCEL checked only AFTER mutation, for standalone assembly"
+   },
+   {
+    "file": "scripts/prebuild.mjs",
+    "line": 72,
+    "description": "unconditional --accept-data-loss --skip-generate"
+   },
+   {
+    "file": "package.json",
+    "line": 7,
+    "description": "DB mutation precedes next build success"
+   },
+   {
+    "file": "netlify.toml",
+    "line": 18,
+    "description": "Netlify path never runs prebuild — scope limited to Vercel/Coolify-style builds"
+   }
+  ],
+  "blockers": [
+   "the DATABASE_URL configured for PREVIEW vs production deployments on the hosting platform (Vercel/Coolify) is not present in source",
+   "whether the platform executes the package.json build script for every deploy context (including previews) is a platform default, not visible in the repository"
+  ],
+  "validation_plan": {
+   "local": "None required — control absence fully source-visible (prebuild.mjs:49-53 is the only gate).",
+   "deployment": "Owner-observed: open hosting deploy logs for one PREVIEW deployment and check for \"[prebuild] PostgreSQL detected → prisma db push\"; confirm in platform settings whether previews inherit the production DATABASE_URL (Vercel: per-environment env scoping; Coolify: per-app preview env)."
+  }
+ },
+ {
+  "verdict": "confirmed",
+  "fingerprint": "public-internal-html-artifacts-unauth-static-serving",
+  "title": "Internal audit and architecture documents shipped in public/ are served unauthenticated on every deployment path (S-12 exclusion covers only 2 of 6 artifacts, and only on the Docker path)",
+  "description": "public/ doubles as an internal drop-box: audit-report.html (76-finding internal audit with source paths/line numbers and control narration — line 733 verified), pishnam-docs.html (full API inventory — line 245), pishnam-architecture.html (historical critical gaps — line 210), pishnam-round30-report.html (providers, topology, env-handling narration — line 431), pishnam-prescription.html, plus public/pages/ = 32 prototype HTML pages, 18MB, zero references from src/. S-12 .dockerignore excludes ONLY public/pages (45) + public/audit-report.html (46) on the Docker path; the four pishnam docs ride Dockerfile:19 COPY . . → :34 COPY public into the runner and are served by :42 CMD node server.js with no auth. src/proxy.ts matcher (71-76) excludes extension paths. Vercel/Netlify have no ignore mechanism at all. robots.txt Allow: / — crawlers permitted; noindex on only 2 of 6. Content re-scan: 0 emails, 0 phones, 0 key/token patterns, 0 fetch() — innerHTML sinks fed solely by in-file static content → no XSS, no credentials/PII.",
+  "root_cause": "public/ treated as internal scratch while every deploy path serves it wholesale; the S-12 exclusion covers 2 of 6 artifacts on 1 of 3 paths; no noindex/robots disallow for the rest.",
+  "intended_behavior": "Internal docs must not live under public/ (move to docs/); exclusion parity across Docker/Vercel/Netlify; noindex + robots disallow for anything intentionally reachable; delete orphaned public/pages from git.",
+  "trace": [
+   {
+    "kind": "entrypoint",
+    "file": "Dockerfile",
+    "line": 19,
+    "scope": "COPY . .",
+    "description": "pishnam docs enter the builder (absent from .dockerignore)"
+   },
+   {
+    "kind": "propagation",
+    "file": ".dockerignore",
+    "line": 45,
+    "scope": "S-12 filter",
+    "description": "lines 44-46: public/pages + public/audit-report.html ONLY"
+   },
+   {
+    "kind": "propagation",
+    "file": "Dockerfile",
+    "line": 34,
+    "scope": "runner COPY public",
+    "description": "unfiltered remainder shipped into the runtime image"
+   },
+   {
+    "kind": "sink",
+    "file": "Dockerfile",
+    "line": 42,
+    "scope": "CMD node server.js",
+    "description": "standalone Next serves public/*.html unauthenticated; proxy matcher exempts extension paths; no auth layer"
+   }
+  ],
+  "evidence": [
+   {
+    "file": ".dockerignore",
+    "line": 44,
+    "description": "author-intent comment; rules at 45/46 — the four pishnam docs uncovered"
+   },
+   {
+    "file": "Dockerfile",
+    "line": 19,
+    "description": "COPY . . verified"
+   },
+   {
+    "file": "Dockerfile",
+    "line": 34,
+    "description": "COPY --from=builder /app/public ./public verified"
+   },
+   {
+    "file": "Dockerfile",
+    "line": 42,
+    "description": "CMD [node, server.js] verified"
+   },
+   {
+    "file": "src/proxy.ts",
+    "line": 75,
+    "description": "matcher excludes extension paths"
+   },
+   {
+    "file": "public/robots.txt",
+    "line": 14,
+    "description": "Allow: / under User-agent: * — crawlers permitted; noindex on only 2 of 6 artifacts"
+   },
+   {
+    "file": "netlify.toml",
+    "line": 19,
+    "description": "publish=.next from a plain git checkout — no ignore mechanism"
+   },
+   {
+    "file": "public/audit-report.html",
+    "line": 733,
+    "description": "internal control narration inside 76-entry FINDINGS with src paths"
+   },
+   {
+    "file": "public/pishnam-docs.html",
+    "line": 245,
+    "description": "API endpoints section"
+   },
+   {
+    "file": "public/pishnam-architecture.html",
+    "line": 210,
+    "description": "historical critical gaps list"
+   },
+   {
+    "file": "public/audit-report.html",
+    "line": 1,
+    "description": "masked content scans across all five HTMLs: 0 emails/phones/key patterns/fetch() calls; public/pages = 32 files/18MB with 0 src references"
+   }
+  ],
+  "conditions": [
+   {
+    "kind": "system_configuration",
+    "description": "Docker path statically provable; Vercel/Netlify widening rests on platform convention"
+   },
+   {
+    "kind": "user_interaction",
+    "description": "none: single unauthenticated GET of a guessable URL"
+   }
+  ],
+  "execution": {
+   "attacker_perspective": "anonymous visitor/crawler fetches /pishnam-docs.html etc. and reads complete internal API/DB/security documentation enabling targeted recon",
+   "payloads": [
+    "GET /pishnam-docs.html",
+    "GET /audit-report.html",
+    "GET /pages/main.html"
+   ],
+   "instructions": [
+    "static: build context + COPY chain + static serving + matcher bypass + no auth layer; artifact bodies read directly"
+   ],
+   "observed_result": "source-inspection-only: Docker-path exposure fully determined in source (every cited line re-verified); artifact contents scanned via masked greps — no credentials/PII found, innerHTML sinks fed by in-file constants only. No execution performed; no network; nothing modified."
+  },
+  "remediation": {
+   "strategy": "Move internal docs out of public/ into docs/; delete orphaned public/pages from git; extend S-12 exclusions to all internal artifacts on every path (or gate them); add noindex + robots disallow for anything intentionally reachable.",
+   "code_changes": [
+    {
+     "file_name": ".dockerignore",
+     "fixed_code": "// see strategy — enforce the invariant at this site"
+    },
+    {
+     "file_name": "Dockerfile",
+     "fixed_code": "// see strategy — enforce the invariant at this site"
+    },
+    {
+     "file_name": "public/robots.txt",
+     "fixed_code": "// see strategy — enforce the invariant at this site"
+    }
+   ]
+  },
+  "severity": {
+   "likelihood": {
+    "score": "low",
+    "reason": "URLs unlinked/unsitemapped; discovery needs filename knowledge (names obvious, robots permits crawling)"
+   },
+   "impact": {
+    "score": "low",
+    "reason": "disclosure of non-secret internals — complete recon map; verified no credentials/PII; documented gaps fixed in current source"
+   },
+   "overall_severity": "low"
+  },
+  "confidence": {
+   "score": "high",
+   "reason": "Docker-path core fully source-determined and line-verified; only cross-platform widening rests on convention, already flagged"
+  }
+ },
+ {
+  "verdict": "needs_validation",
+  "fingerprint": "rate-limit.clientIp.xff-first-hop-identity",
+  "title": "Rate-limit identity trusts attacker-influenceable X-Forwarded-For first hop; production ingress decides whether caps (incl. the admin door only throttle) can be rotated",
+  "description": "clientIp() returns the FIRST XFF element (else X-Real-IP, else 'unknown'); every IP-scoped limit keys on it incl. admin_login 5/900 — the ONLY brute-force control on the admin password door (verified: no lockout/captcha anywhere; admin/password keys the rotation guard on the same identity). First-hop-wins parsing: (a) direct origin exposure → fully attacker-chosen identity; (b) appending ingress (prod sketch sets only X-Real-IP) → client fake first hop survives; (c) replacing ingress (repo Caddyfile:9 source-confirmed) → spoofing defeated but edge/CDN collapses users to shared buckets; (d) stripping without X-Real-IP → everyone shares 'unknown'. Decisive branch = deployed ingress behavior: the repo references at least three candidate production frontends (VPS Caddy sketch + Arvan CDN, Coolify, Vercel, Netlify).",
+  "claimed_root_cause": "rate-limit identity derivation unconditionally trusts client-supplied XFF first hop (or X-Real-IP) with no trusted-proxy validation anywhere.",
+  "trace": [
+   {
+    "kind": "entrypoint",
+    "file": "src/lib/rate-limit.ts",
+    "line": 86,
+    "scope": "clientIp()",
+    "description": "XFF first element / X-Real-IP / unknown"
+   },
+   {
+    "kind": "propagation",
+    "file": "src/app/api/auth/admin-login/route.ts",
+    "line": 24,
+    "scope": "rateLimit(admin_login)",
+    "description": "sole brute-force control on the password door"
+   },
+   {
+    "kind": "sink",
+    "file": "src/app/api/auth/admin-login/route.ts",
+    "line": 46,
+    "scope": "createSession",
+    "description": "on the attempt where password verifies, admin session minted — control keyed to a rotatable identity"
+   }
+  ],
+  "evidence": [
+   {
+    "file": "src/lib/rate-limit.ts",
+    "line": 88,
+    "description": "fwd.split(\",\")[0].trim() — first hop wins"
+   },
+   {
+    "file": "src/app/api/auth/admin-login/route.ts",
+    "line": 24,
+    "description": "5/900s sole throttle; no account lockout anywhere"
+   },
+   {
+    "file": "src/app/api/admin/password/route.ts",
+    "line": 49,
+    "description": "same identity for password change"
+   },
+   {
+    "file": "Caddyfile",
+    "line": 9,
+    "description": "sandbox replaces XFF — verified verbatim"
+   },
+   {
+    "file": "docs/13-g-infra-ops.md",
+    "line": 111,
+    "description": "prod sketch sets only X-Real-IP; XFF unaddressed"
+   },
+   {
+    "file": "src/app/api/auth/request/route.ts",
+    "line": 32,
+    "description": "auth_req_ip on same identity"
+   }
+  ],
+  "blockers": [
+   "which ingress fronts production (Vercel edge / VPS Caddy / Coolify-Traefik / Arvan CDN / Netlify) is not determinable from the repo — all are referenced in source",
+   "whether it strips, replaces, or appends client XFF (trusted_proxies) is a deployed-config fact; the docs sketch is explicitly a sketch",
+   "whether any direct origin port (app :3000, Caddy :81) is publicly reachable — full-bypass branch — is firewall fact"
+  ],
+  "validation_plan": {
+   "deployment": "Owner-observed on the box (no external probing): request an IP-limited endpoint from loopback via the edge hostname with X-Forwarded-For: 192.0.2.7, then read newest RateLimitBucket keys read-only from the DB — if the key embeds 192.0.2.7 the client first hop survives (rotation possible); if the peer/edge address, replace-branch holds. Complement with caddy adapt --pretty | grep -i forwarded and firewall confirmation that :3000/:81 are not public. On a Vercel/Netlify path, log the computed clientIp() server-side for one self-request and compare against the connecting address."
+  }
+ },
+ {
+  "verdict": "confirmed",
+  "fingerprint": "rate-limit.window-reset-upsert-count-reset-race",
+  "title": "Rate-limit window reset admits unbounded concurrent requests, voiding SMS-bombing and brute-force caps",
+  "description": "The DB fixed-window limiter resets via read-then-upsert whose update branch sets count:1 unconditionally (rate-limit.ts:47) whenever the row exists — fresh or expired — and the admission test compares the upsert RETURNED row count (1) against max (50). N concurrent callers on a missing/expired bucket each rewrite count to 1 and are all admitted — on SQLite (statement serialization still admits every racer: each runs its own unconditional reset and compares its own returned count) and identically on PG (ON CONFLICT DO UPDATE SET count=1). Voids at every window start: auth_req_ip 5/600, auth_req_phone 3/600, otp_phone_cooldown 1/60, otp_phone_hour 3/3600, otp_ip_day 10/day, otp_verify 10/900, admin_login 5/900. Each admitted auth/request spends a real owner-paid SMS; admin_login guesses multiply (no lockout/captcha anywhere); enables the OTP race candidate.",
+  "root_cause": "rate-limit.ts:39-50 check-then-act reset (update branch sets count:1, not an increment; max check uses the post-reset returned count); no transaction/conditional window claim.",
+  "intended_behavior": "Window reset = atomic conditional claim (updateMany gated windowStart lte cutoff); all other callers take the atomic increment path (56-59).",
+  "trace": [
+   {
+    "kind": "entrypoint",
+    "file": "src/app/api/auth/admin-login/route.ts",
+    "line": 24,
+    "scope": "rateLimit(admin_login)",
+    "description": "same helper guards request/verify/OTP limits"
+   },
+   {
+    "kind": "propagation",
+    "file": "src/lib/rate-limit.ts",
+    "line": 39,
+    "scope": "findUnique",
+    "description": "missing/expired observed by all racers"
+   },
+   {
+    "kind": "sink",
+    "file": "src/lib/rate-limit.ts",
+    "line": 47,
+    "scope": "upsert update branch",
+    "description": "count rewritten to 1 for each racer; max check (50) compares the returned post-reset count and passes for all"
+   }
+  ],
+  "evidence": [
+   {
+    "file": "src/lib/rate-limit.ts",
+    "line": 47,
+    "description": "update branch sets count:1 unconditionally"
+   },
+   {
+    "file": "src/lib/rate-limit.ts",
+    "line": 41,
+    "description": "expiry test outside tx"
+   },
+   {
+    "file": "src/lib/rate-limit.ts",
+    "line": 56,
+    "description": "same-window path IS atomic increment — the invariant the reset path lacks"
+   },
+   {
+    "file": "src/app/api/auth/request/route.ts",
+    "line": 32,
+    "description": "SMS caps rely on limiter"
+   },
+   {
+    "file": "src/lib/auth/otp.ts",
+    "line": 36,
+    "description": "per-phone OTP caps rely on limiter"
+   },
+   {
+    "file": "src/app/api/auth/admin-login/route.ts",
+    "line": 24,
+    "description": "admin door guess cap relies on limiter"
+   },
+   {
+    "file": "src/lib/db.ts",
+    "line": 24,
+    "description": "SQLite serialization cannot help: each racer runs its own unconditional reset"
+   }
+  ],
+  "conditions": [
+   {
+    "kind": "timing_dependency",
+    "description": "concurrent requests observe the bucket before any upsert commits"
+   },
+   {
+    "kind": "system_configuration",
+    "description": "backend-independent by code shape (returned-row comparison + unconditional reset)"
+   },
+   {
+    "kind": "authentication_level",
+    "description": "no auth — all protected ops public"
+   }
+  ],
+  "execution": {
+   "attacker_perspective": "script parallel bursts (50-500) at window boundaries against any limited endpoint",
+   "payloads": [
+    "N concurrent POST /api/auth/request",
+    "N concurrent POST /api/auth/admin-login {\"password\":\"guess\"}"
+   ],
+   "instructions": [
+    "wait for bucket expiry or fresh IP key; fire burst; repeat per window"
+   ],
+   "observed_result": "Source inspection only — no execution performed. Established: the reset update branch writes count=1 unconditionally and the max test uses the returned row (count=1), so every concurrent caller that observed a missing/expired bucket is admitted on both backends; the retry loop only re-enters via findUnique→increment which also admits for max≥2; admitted paths perform no further limit; no lockout/captcha exists."
+  },
+  "remediation": {
+   "strategy": "Atomic conditional window claim (updateMany where windowStart lte cutoff) + atomic increment path for everyone else; keep unique-violation retry for creation.",
+   "code_changes": [
+    {
+     "file_name": "src/lib/rate-limit.ts",
+     "fixed_code": "// see strategy — enforce the invariant at this site"
+    }
+   ]
+  },
+  "severity": {
+   "likelihood": {
+    "score": "medium",
+    "reason": "trivially scriptable concurrency at window start"
+   },
+   "impact": {
+    "score": "medium",
+    "reason": "owner SMS spend + harassment via voided OTP caps; multiplied admin-door and verify guesses; full takeover requires chained OTP race"
+   },
+   "overall_severity": "medium"
+  },
+  "confidence": {
+   "score": "high",
+   "reason": "counter reset directly visible in the update branch; no lock/tx anywhere; backend-independent by code shape"
+  }
+ },
+ {
+  "verdict": "confirmed",
+  "fingerprint": "refund-photo-stem-collision-rollback",
+  "title": "Refund photo rollback uses order-id-only stems: losing concurrent request deletes the winner committed refund evidence",
+  "description": "Refund photos stored at refunds/<orderId-sanitized>-<n>.<ext> — stems derive solely from order id + slot index + sniffed extension (route:61/:67), and storeMediaFile overwrites (writeFile no exclusive-create; blob upsert). Two concurrent refund POSTs both pass same-origin/session/ownership/rateLimit/REFUNDABLE from the pre-transition read and store identical stems; transitionOrder conditional updateMany lets exactly one commit; the loser throws 409 AFTER storage (withWriteRetry does not retry AppError) and its catch (route:98 inner, 109 outer) deletes storedKeys via deleteMediaFile — the same keys the winner committed Order.refundPhotos references — silently destroying committed evidence. Same deletion shape on post-storage tx failure of a re-request after admin reopen.",
+  "root_cause": "order-id-derived stems + unconditional rollback deleteMediaFile with no check that committed state references the keys.",
+  "intended_behavior": "Per-attempt unique stems (like receipts randomUUID) and/or reference-aware rollback (delete only keys absent from committed refundPhotos).",
+  "trace": [
+   {
+    "kind": "entrypoint",
+    "file": "src/app/api/orders/[id]/refund/route.ts",
+    "line": 21,
+    "scope": "two concurrent POSTs",
+    "description": "both pass ownership + REFUNDABLE from pre-transition status read"
+   },
+   {
+    "kind": "propagation",
+    "file": "src/app/api/orders/[id]/refund/route.ts",
+    "line": 61,
+    "scope": "stem construction",
+    "description": "order-id-only — identical across attempts"
+   },
+   {
+    "kind": "propagation",
+    "file": "src/lib/media.ts",
+    "line": 31,
+    "scope": "storeMediaFile",
+    "description": "writeFile overwrites (disk; blob upsert)"
+   },
+   {
+    "kind": "propagation",
+    "file": "src/lib/orders/transition.ts",
+    "line": 36,
+    "scope": "loser 409",
+    "description": "count!==1 → concurrent_update thrown AFTER storage; not retried"
+   },
+   {
+    "kind": "sink",
+    "file": "src/app/api/orders/[id]/refund/route.ts",
+    "line": 98,
+    "scope": "rollback",
+    "description": "deleteMediaFile(storedKeys) — winner committed keys; outer catch 109 repeats"
+   }
+  ],
+  "evidence": [
+   {
+    "file": "src/app/api/orders/[id]/refund/route.ts",
+    "line": 61,
+    "description": "stem order-id-only"
+   },
+   {
+    "file": "src/app/api/orders/[id]/refund/route.ts",
+    "line": 67,
+    "description": "deterministic key"
+   },
+   {
+    "file": "src/lib/media.ts",
+    "line": 31,
+    "description": "writeFile overwrite; blob upsert overwrite"
+   },
+   {
+    "file": "src/lib/orders/transition.ts",
+    "line": 36,
+    "description": "count!==1 → 409 after storage"
+   },
+   {
+    "file": "src/app/api/orders/[id]/refund/route.ts",
+    "line": 98,
+    "description": "catch deletes storedKeys; 109 repeats"
+   },
+   {
+    "file": "src/lib/media.ts",
+    "line": 49,
+    "description": "unconditional rm + blob delete"
+   },
+   {
+    "file": "src/lib/payments/manual.ts",
+    "line": 30,
+    "description": "sibling control: receipts use randomUUID stems"
+   },
+   {
+    "file": "src/lib/db-write.ts",
+    "line": 15,
+    "description": "retryable set excludes AppError 409 — loser exits to catch"
+   }
+  ],
+  "conditions": [
+   {
+    "kind": "data_state",
+    "description": "two sessions passing ownership on same shipped|delivered order (or failed re-request after reopen)"
+   },
+   {
+    "kind": "timing_dependency",
+    "description": "both complete storage before loser transition; loser must lose the single-winner race"
+   },
+   {
+    "kind": "data_state",
+    "description": "destructive case needs same sniffed extension per slot (typical same-format photos)"
+   }
+  ],
+  "execution": {
+   "attacker_perspective": "authorized party sends two concurrent refund POSTs with different photos; loser rollback erases winner committed evidence (and pre-deletion overwrote it)",
+   "payloads": [
+    "two concurrent multipart POST /api/orders/<cuid>/refund (valid session, differing bytes)"
+   ],
+   "instructions": [
+    "scratch: dummy shipped order + two concurrent POSTs; one 201 one 409; committed keys absent from storage"
+   ],
+   "observed_result": "Source-inspection-only: full static lineage stem→overwrite→loser 409 (unretried AppError)→delete verified; no reference-check before rollback; no preventing layer found. No execution performed."
+  },
+  "remediation": {
+   "strategy": "Per-attempt unique stems (randomUUID slice, mirroring receipts) + reference-aware rollback (delete only keys absent from committed refundPhotos).",
+   "code_changes": [
+    {
+     "file_name": "src/app/api/orders/[id]/refund/route.ts",
+     "fixed_code": "// see strategy — enforce the invariant at this site"
+    }
+   ]
+  },
+  "severity": {
+   "likelihood": {
+    "score": "low",
+    "reason": "near-concurrent same-order requests or failed re-request"
+   },
+   "impact": {
+    "score": "low",
+    "reason": "destroys ≤3 damage-evidence images of one refund claim; no money/state corruption beyond"
+   },
+   "overall_severity": "low"
+  },
+  "confidence": {
+   "score": "high",
+   "reason": "complete static lineage verified line-by-line; divergent sibling confirms intent"
+  }
+ },
+ {
+  "verdict": "confirmed",
+  "fingerprint": "repo.tool-results-upload.tracked-despite-gitignore",
+  "title": "34 files (30 agent-session transcripts + 4 owner upload artifacts, ~18.1MB) tracked in git despite explicit .gitignore rules",
+  "description": ".gitignore declares tool-results/ (line 21) and upload/ (line 25) ignored, but git ls-files -i -c --exclude-standard returns exactly 34 tracked files: 30 tool-results transcripts (~1.5MB — internal dev/audit history, a secrets NAME-inventory, ops plans) and 4 upload files (launch guide, past security review enumerating P0 findings + remediation roadmap, 2 large HTML exports ~17.3MB). Mechanism (verifier correction): the rules pre-existed; the task-20 auto-commit (aecaa4a) gutted .gitignore to 2 lines and added the files in the same commit; the rules were restored later but git rm --cached ran only for .env/.next/db — never for tool-results/upload; tracked files override ignore. Every clone/push ships the internal security posture. Content re-scan: no live secrets (case-sensitive scans zero; the only AKIA hits are random base64 in data-URIs; the secrets inventory lists env-var NAMES only; placeholder postgres URLs).",
+  "root_cause": "the task-20 auto-commit committed tool-results/upload during the window the ignore rules were absent; when the rules were restored git rm --cached was run for .env/.next/db only — never for these dirs.",
+  "intended_behavior": "git ls-files -i -c --exclude-standard returns empty; both dirs untracked and kept local-only; CI guard fails on tracked-but-ignored files.",
+  "trace": [
+   {
+    "kind": "entrypoint",
+    "file": ".gitignore",
+    "line": 21,
+    "scope": "ignore rule tool-results/",
+    "description": "rule present in HEAD yet 30 files tracked"
+   },
+   {
+    "kind": "propagation",
+    "file": ".gitignore",
+    "line": 25,
+    "scope": "ignore rule upload/",
+    "description": "rule present yet 4 files tracked — tracked files override ignore rules"
+   },
+   {
+    "kind": "propagation",
+    "file": "tool-results/read_1791861643841_20d5fdf7bf65.txt",
+    "line": 197,
+    "scope": "tracked transcript",
+    "description": "git history shows the rules were gutted then restored while the files stayed tracked (rm --cached never ran for these dirs)"
+   },
+   {
+    "kind": "sink",
+    "file": "next.config.ts",
+    "line": 85,
+    "scope": "outputFileTracingExcludes",
+    "description": "author marker that these dirs are sandbox-only and never meant to ship — yet every clone receives them"
+   }
+  ],
+  "evidence": [
+   {
+    "file": ".gitignore",
+    "line": 21,
+    "description": "tool-results/ rule; 30 files tracked (git ls-files -i -c --exclude-standard count = 34, ~18.1MB)"
+   },
+   {
+    "file": ".gitignore",
+    "line": 25,
+    "description": "upload/ rule; 4 files tracked"
+   },
+   {
+    "file": "tool-results/read_1791861643841_20d5fdf7bf65.txt",
+    "line": 197,
+    "description": "env-var names only, no values (masked content scan)"
+   },
+   {
+    "file": "next.config.ts",
+    "line": 85,
+    "description": "outputFileTracingExcludes these dirs — never meant to ship"
+   }
+  ],
+  "conditions": [
+   {
+    "kind": "system_configuration",
+    "description": "repository hosted/pushed — every reader/clone receives the artifacts"
+   }
+  ],
+  "execution": {
+   "attacker_perspective": "any principal with repo read access obtains internal security history, findings lists and ops plans without exploitation; no live credentials inside",
+   "payloads": [
+    "git clone <repo> && git ls-files -i -c --exclude-standard → 34 files"
+   ],
+   "instructions": [
+    "clone; git ls-files -i -c --exclude-standard → 34; read contents"
+   ],
+   "observed_result": "source-inspection-only: working-tree + git metadata inspection; all 34 tracked-ignored files enumerated and content-scanned by masked grep; no commands executed against the app; no network; nothing modified."
+  },
+  "remediation": {
+   "strategy": "git rm -r --cached tool-results upload; commit; add CI guard failing on tracked-but-ignored files. Blobs remain in older history — acceptable since contents are non-secret.",
+   "code_changes": [
+    {
+     "file_name": ".gitignore",
+     "fixed_code": "// see strategy — enforce the invariant at this site"
+    }
+   ]
+  },
+  "severity": {
+   "likelihood": {
+    "score": "high",
+    "reason": "unconditional on every clone/push of main"
+   },
+   "impact": {
+    "score": "low",
+    "reason": "disclosure of non-secret internals; no live credential (re-verified case-sensitively)"
+   },
+   "overall_severity": "low"
+  },
+  "confidence": {
+   "score": "high",
+   "reason": "tracked-ignored state directly observable; contents reviewed with masked scans; mechanism timeline reconstructed from git history"
+  }
+ },
+ {
+  "verdict": "confirmed",
+  "fingerprint": "retention.purge-scan-write-gap-vs-paid-renewal",
+  "title": "Purge job can destroy a paid renewal gift content approved inside the purge scan-to-write window",
+  "description": "purgeExpiredMessages selects victims via untransactioned findMany (retention.ts:207-212), deletes media from the stale scan keys (216, per-key I/O widening the window), then writes message=''/purged with where:{id} ONLY (220) — the per-row tx contains just the unconditional update + OrderEvent; NO re-check of expiry/purge state at write time. applyPaidRenewal re-checks purge only inside its own tx (163) with no coordination against an in-flight purge scan. If admin approval commits between the scan and that row write, the purge deletes the just-renewed order media and wipes the message while the renewal stays paid — money taken for destroyed content. Expired-but-unpurged is exactly the renewable state; ticker every 60s take=25; cron take=100.",
+  "root_cause": "per-row purge write unconditional (where:{id}) derived from stale in-memory scan; approval path mutates exactly the fields the purge decision was based on with no write-time re-verification on either side.",
+  "intended_behavior": "Purge claim atomic + conditional (updateMany gated messageExpiresAt lt now AND purgeStatus in active/purge_failed; count==0 → skip row); re-read mediaKeys inside the claim before deleting media.",
+  "trace": [
+   {
+    "kind": "entrypoint",
+    "file": "src/app/api/admin/renewals/[id]/route.ts",
+    "line": 42,
+    "scope": "approve",
+    "description": "applyPaidRenewal extends expiry + sets active"
+   },
+   {
+    "kind": "propagation",
+    "file": "src/lib/orders/retention.ts",
+    "line": 207,
+    "scope": "purge scan",
+    "description": "untransactioned findMany of expired rows"
+   },
+   {
+    "kind": "propagation",
+    "file": "src/lib/orders/retention.ts",
+    "line": 216,
+    "scope": "media deletion",
+    "description": "deletes keys captured in stale scan; per-key I/O widens window"
+   },
+   {
+    "kind": "sink",
+    "file": "src/lib/orders/retention.ts",
+    "line": 220,
+    "scope": "unconditional update",
+    "description": "where:{id} only, no re-check — wipes just-renewed order; renewal stays paid"
+   }
+  ],
+  "evidence": [
+   {
+    "file": "src/lib/orders/retention.ts",
+    "line": 208,
+    "description": "scan predicate outside any tx"
+   },
+   {
+    "file": "src/lib/orders/retention.ts",
+    "line": 220,
+    "description": "write where:{id} only — no expiry/purge predicate"
+   },
+   {
+    "file": "src/lib/orders/retention.ts",
+    "line": 163,
+    "description": "applyPaidRenewal re-checks only within its own tx"
+   },
+   {
+    "file": "src/lib/orders/retention.ts",
+    "line": 178,
+    "description": "approval sets active + future expiry"
+   },
+   {
+    "file": "src/instrumentation.ts",
+    "line": 50,
+    "description": "60s ticker (purge take=25)"
+   },
+   {
+    "file": "src/app/api/jobs/[name]/route.ts",
+    "line": 109,
+    "description": "purge-messages job take=100"
+   },
+   {
+    "file": "src/app/api/admin/renewals/[id]/route.ts",
+    "line": 41,
+    "description": "approval path has no purge coordination"
+   }
+  ],
+  "conditions": [
+   {
+    "kind": "timing_dependency",
+    "description": "approval commits inside a specific scan-to-write window (widened by file I/O; recurs 60s)"
+   },
+   {
+    "kind": "data_state",
+    "description": "order expired-but-unpurged — exactly the renewal-requestable state"
+   },
+   {
+    "kind": "authentication_level",
+    "description": "legitimate admin approval; no attacker privilege — integrity/availability failure"
+   }
+  ],
+  "execution": {
+   "attacker_perspective": "paying customer requests renewal on expired-not-purged order; approval lands inside a purge pass window → paid content destroyed while renewal is recorded paid",
+   "payloads": [
+    "POST /api/gifts/{code}/renew {\"plan\":\"6m\"}",
+    "POST /api/gifts/{code}/renew/receipt",
+    "PATCH /api/admin/renewals/{id} {\"action\":\"approve\"} timed vs 60s ticker"
+   ],
+   "instructions": [
+    "source-only: interleaving read from the two uncoordinated write paths"
+   ],
+   "observed_result": "Source-inspection-only: scan and per-row wipe are not one tx; per-row tx contains only the unconditional update + event create (no re-check); media deleted from stale keys before the write; approval re-verifies only in its own tx; ticker recurring. No execution performed."
+  },
+  "remediation": {
+   "strategy": "Conditional atomic purge claim (updateMany gated on still-expired + not recovered; count==0 → skip); re-read mediaKeys inside the claim — mirrors the codebase markFirstDisplay conditional pattern.",
+   "code_changes": [
+    {
+     "file_name": "src/lib/orders/retention.ts",
+     "fixed_code": "// see strategy — enforce the invariant at this site"
+    }
+   ]
+  },
+  "severity": {
+   "likelihood": {
+    "score": "low",
+    "reason": "specific timing window + expired-unpurged state"
+   },
+   "impact": {
+    "score": "medium",
+    "reason": "permanent loss of paid message+media; renewal recorded paid — money for destroyed content; single order per occurrence"
+   },
+   "overall_severity": "medium"
+  },
+  "confidence": {
+   "score": "high",
+   "reason": "both write paths + missing write predicate + scheduler fully visible"
+  }
+ },
+ {
+  "verdict": "needs_validation",
+  "fingerprint": "route-handler-full-body-parse-before-size-cap",
+  "title": "Upload/JSON route handlers fully buffer the request body before any size bound exists (no cap at any repo-visible layer)",
+  "description": "Verified literally per route: manual receipt formData() :18 precedes rateLimit :22 (keyed on client-chosen code) and the size check :37, then a second full copy Buffer.from(arrayBuffer) :38; experiences formData() :31 / json() :42 precede zod and the 2/h per-IP limit :62 (comment: validation FIRST); gifts/media parse :53 precedes size :76 (pre-parse per-IP rateLimit exists at :52); refund photos parsed :45 before per-photo checks :63-64; admin logo parse :27 before size :30 (owner-gated). No layer bounds request size: no bodySizeLimit (would not cover route handlers anyway), proxy excludes /api, Caddyfile and the docs Caddy sketch set no request_body cap. On the documented 512MB-heap target a multi-hundred-MB request forces over-budget allocation; sustained outage additionally depends on the two weakly-bounded variants and XFF rotatability.",
+  "claimed_root_cause": "caps implemented as post-parse per-file checks; no pre-parse Content-Length/stream cap anywhere in the repo; two routes rate-limit only after parse; all per-IP limits key on the first XFF value which the sandbox Caddyfile overwrites but a Coolify/Traefik edge behavior is a deployment fact.",
+  "trace": [
+   {
+    "kind": "entrypoint",
+    "file": "src/app/api/payment/manual/receipt/route.ts",
+    "line": 18,
+    "scope": "await req.formData()",
+    "description": "entire body buffered before any bound"
+   },
+   {
+    "kind": "propagation",
+    "file": "src/app/api/payment/manual/receipt/route.ts",
+    "line": 22,
+    "scope": "rateLimit(receipt, code)",
+    "description": "client-supplied code key, AFTER parse; rotating codes = fresh buckets"
+   },
+   {
+    "kind": "propagation",
+    "file": "src/app/api/payment/manual/receipt/route.ts",
+    "line": 37,
+    "scope": "file.size check",
+    "description": "first size bound — body already buffered"
+   },
+   {
+    "kind": "sink",
+    "file": "src/app/api/payment/manual/receipt/route.ts",
+    "line": 38,
+    "scope": "Buffer.from(await file.arrayBuffer())",
+    "description": "second full copy before any rejection"
+   }
+  ],
+  "evidence": [
+   {
+    "file": "src/app/api/payment/manual/receipt/route.ts",
+    "line": 18,
+    "description": "parse precedes limit+size"
+   },
+   {
+    "file": "src/app/api/experiences/route.ts",
+    "line": 31,
+    "description": "formData/json precede zod and the limit"
+   },
+   {
+    "file": "src/app/api/gifts/media/route.ts",
+    "line": 53,
+    "description": "parse at 53, size at 76 — pre-parse limiter exists"
+   },
+   {
+    "file": "src/app/api/orders/[id]/refund/route.ts",
+    "line": 45,
+    "description": "photos parsed before per-photo checks"
+   },
+   {
+    "file": "next.config.ts",
+    "line": 62,
+    "description": "no body-size setting of any kind"
+   },
+   {
+    "file": "Caddyfile",
+    "line": 15,
+    "description": "no request_body limit; XFF overwritten here"
+   },
+   {
+    "file": "docs/13-g-infra-ops.md",
+    "line": 91,
+    "description": "production Caddy sketch: no request_body cap"
+   },
+   {
+    "file": "docs/13-g-infra-ops.md",
+    "line": 18,
+    "description": "512MB max-old-space / MemoryMax 768M target"
+   },
+   {
+    "file": "src/lib/rate-limit.ts",
+    "line": 88,
+    "description": "clientIp = first XFF value"
+   }
+  ],
+  "blockers": [
+   "which front proxy serves production is not pinned by the repo (docs sketch systemd+Caddy; code comments say Coolify/Traefik) — whether the real edge imposes a request-body cap is owner-observed",
+   "whether the production proxy overwrites or appends X-Forwarded-For (per-IP rotatability) is a deployment fact",
+   "runtime memory behavior of req.formData()/req.json() on multi-hundred-MB bodies inside the 512MB heap was not executed — statically the parse completes before file.size is consulted"
+  ],
+  "validation_plan": {
+   "local": "Owner-side: run standalone server with max-old-space-size=512; POST 1-2GB multipart to /api/experiences and /api/payment/manual/receipt (rotating codes); watch RSS — expect climb by ~body size before any 400/429.",
+   "deployment": "Owner observes live edge config: request-body limit present? XFF overwritten or appended? Add request_body max_size + overwrite XFF at edge; re-run oversized probe → early 413 before the app allocates."
+  }
+ },
+ {
+  "verdict": "confirmed",
+  "fingerprint": "seed-admin-demo.prod-demo-dataset-and-prefix-wipes",
+  "title": "Demo dataset (fake verified orders, public fake reviews, operator seats) and loose-prefix destructive wipes run against the production DB on every deploy",
+  "description": "seed-admin-demo.mjs:8 documents 'Local dev only — production DB is never touched', but prebuild.mjs:83 executes it unconditionally on every PG build. Wipes at :87-94 delete by loose prefixes: appUser phone startsWith '0912111' (0912 = live MCI prefix block; any real customer whose number starts with those 7 digits is deleted), smsOutbox '0935123', adminUser '0935777'. Inserts: 48 demo orders (44 plan + 4 timestamped today for «فروش امروز») with VERIFIED payments, 6/8 reviews approved:true served publicly by GET /api/reviews (consumed by the storefront info screen), 2 published experiences, 10 AppUsers, 3 operator AdminUser rows (2 active). Dashboards polluted, public reviews fake, real rows matching prefixes partially deleted — every deploy. Mitigating tension: prebuild comments say the owner asked for demo data on the deployed panel — that cannot cover the public fake reviews or prefix-collision deletes.",
+  "root_cause": "prebuild wires a dev-only script into the unconditional PG seed chain; cleanup deletes by loose phone prefixes rather than exact demo identifiers.",
+  "intended_behavior": "Demo dataset dev-only (excluded from deploy builds or behind an explicit env opt-in); any wipe uses exact 11-digit demo identifiers / PN-DEMO codes; if demo data ships, demo reviews stay approved:false.",
+  "trace": [
+   {
+    "kind": "entrypoint",
+    "file": "package.json",
+    "line": 7,
+    "scope": "build chain",
+    "description": "reaches prebuild.mjs on every deploy build"
+   },
+   {
+    "kind": "propagation",
+    "file": "scripts/prebuild.mjs",
+    "line": 83,
+    "scope": "PG seed stage",
+    "description": "execSync(seed-admin-demo) — contradicts its own line-8 contract"
+   },
+   {
+    "kind": "propagation",
+    "file": "scripts/seed-admin-demo.mjs",
+    "line": 92,
+    "scope": "prefix wipe",
+    "description": "appUser startsWith 0912111 deletes any real matching account"
+   },
+   {
+    "kind": "propagation",
+    "file": "scripts/seed-admin-demo.mjs",
+    "line": 230,
+    "scope": "demo insertion",
+    "description": "48 orders with verified payments; rows timestamped today"
+   },
+   {
+    "kind": "sink",
+    "file": "src/app/api/reviews/route.ts",
+    "line": 25,
+    "scope": "public GET",
+    "description": "approved:true served with no auth — fake reviews go live; consumed by info.tsx:1191"
+   }
+  ],
+  "evidence": [
+   {
+    "file": "scripts/seed-admin-demo.mjs",
+    "line": 8,
+    "description": "broken contract"
+   },
+   {
+    "file": "scripts/prebuild.mjs",
+    "line": 83,
+    "description": "unconditional PG execution (counter-comment 81-82 cannot cover public reviews/prefix deletes)"
+   },
+   {
+    "file": "scripts/seed-admin-demo.mjs",
+    "line": 92,
+    "description": "appUser startsWith 0912111 wipe"
+   },
+   {
+    "file": "scripts/seed-admin-demo.mjs",
+    "line": 286,
+    "description": "approved: i % 3 !== 2 → 6 of 8 reviews pre-approved"
+   },
+   {
+    "file": "src/app/api/reviews/route.ts",
+    "line": 25,
+    "description": "public serving of approved:true rows"
+   },
+   {
+    "file": "src/components/shop/screens/info.tsx",
+    "line": 1191,
+    "description": "storefront fetches /api/reviews"
+   },
+   {
+    "file": "scripts/seed-admin-demo.mjs",
+    "line": 360,
+    "description": "3 operator rows, 2 active"
+   },
+   {
+    "file": "scripts/seed-admin-demo.mjs",
+    "line": 225,
+    "description": "4 orders timestamped today"
+   }
+  ],
+  "conditions": [
+   {
+    "kind": "system_configuration",
+    "description": "PG build path (netlify.toml does NOT run this seed — Vercel/Coolify scope)"
+   },
+   {
+    "kind": "data_state",
+    "description": "real rows matching demo phone prefixes deleted on every deploy; all visitors see fake approved reviews; dashboards show fake verified revenue"
+   }
+  ],
+  "execution": {
+   "attacker_perspective": "not attacker-driven: the pipeline pollutes and partially deletes production business data",
+   "payloads": [
+    "deploy with a postgres:// DATABASE_URL → GET /api/reviews serves demo reviews approved:true; AppUser rows with phone prefix 0912111 are deleted each deploy"
+   ],
+   "instructions": [
+    "deploy with PG URL; query demo rows + GET /api/reviews; insert a real AppUser with phone 0912111xxxxx and redeploy to observe deletion"
+   ],
+   "observed_result": "source-inspection-only: contract contradiction, prefix wipes, verified-payment mapping, review approval math, and the unauthenticated public serving path fully source-visible. No execution performed."
+  },
+  "remediation": {
+   "strategy": "Remove seed-admin-demo from the deploy chain (dev-only or DEMO_SEED env opt-in); replace phone-prefix wipes with exact 11-digit demo identifiers; set approved:false on demo reviews if demo data must ship.",
+   "code_changes": [
+    {
+     "file_name": "scripts/prebuild.mjs",
+     "fixed_code": "// see strategy — enforce the invariant at this site"
+    },
+    {
+     "file_name": "scripts/seed-admin-demo.mjs",
+     "fixed_code": "// see strategy — enforce the invariant at this site"
+    }
+   ]
+  },
+  "severity": {
+   "likelihood": {
+    "score": "high",
+    "reason": "runs on every deploy build of the documented production path"
+   },
+   "impact": {
+    "score": "medium",
+    "reason": "production data-integrity violation: fake verified revenue, fake public reviews, deletion of any real customer rows matching loose prefixes; no privilege gain"
+   },
+   "overall_severity": "medium"
+  },
+  "confidence": {
+   "score": "high",
+   "reason": "contract contradiction, wipe predicates, and the complete public serving path are line-level source facts"
+  }
+ },
+ {
+  "verdict": "confirmed",
+  "fingerprint": "seed-commerce.upsert-update.reverts-owner-settings-prices",
+  "title": "Deploy-time seed silently reverts owner-managed Settings, payment destination, and product prices on every build",
+  "description": "On every PG build scripts/prebuild.mjs:77 runs seed-commerce.ts whose upserts carry unconditional update branches: the SETTINGS map (seed-commerce.ts:34-47) holds 11 hardcoded keys — incl. manual_card_number/sheba/name (40-42) and money-path prices — all forced back via update:{value} in the loop at 74-76; variant priceToman is reset at :59 (main gifts) and :71 (addons) and product display fields at :54/:66; seed-blog.ts:256 forces published:true. All 11 keys are inside the MANAGED_KEYS whitelist that PATCH /api/admin/settings gates to role=owner (route.ts:69) — the same keys pricing.ts consumes (55-68) and /api/payment/manual/instructions serves (14, 21-22). seed-round34-images.mjs:151-154 implements the correct owner-marker pattern for site_logo, proving the omission. Note: the price-edit runtime path (admin/products/[id]) is open to any admin seat — widening the set of runtime writes the seed reverts.",
+  "root_cause": "upsert update branches unconditional (seed-commerce.ts:54,59,66,71,75); prebuild.mjs:77 runs the seed unconditionally on the PG path; no owner-modified marker or create-only semantics for settings (contrast: site_logo_source marker).",
+  "intended_behavior": "Deploy seeds bootstrap-only: create-if-missing upserts (update:{}), never overwrite owner-manageable values, or honor an owner marker like site_logo_source=owner.",
+  "trace": [
+   {
+    "kind": "entrypoint",
+    "file": "package.json",
+    "line": 7,
+    "scope": "build chain",
+    "description": "prebuild runs on every deploy build"
+   },
+   {
+    "kind": "propagation",
+    "file": "scripts/prebuild.mjs",
+    "line": 77,
+    "scope": "PG seed stage",
+    "description": "execSync(seed-commerce) after protocol gate + destructive push, unconditional"
+   },
+   {
+    "kind": "propagation",
+    "file": "scripts/seed-commerce.ts",
+    "line": 75,
+    "scope": "Setting upsert loop",
+    "description": "update:{value} forces all 11 SETTINGS keys incl. card number/sheba/name"
+   },
+   {
+    "kind": "propagation",
+    "file": "scripts/seed-commerce.ts",
+    "line": 59,
+    "scope": "variant upsert",
+    "description": "update:{priceToman:PRICE} resets seeded price"
+   },
+   {
+    "kind": "sink",
+    "file": "src/lib/orders/pricing.ts",
+    "line": 67,
+    "scope": "pricing reads reverted rows",
+    "description": "customers charged reverted values; manual/instructions shows reverted card"
+   }
+  ],
+  "evidence": [
+   {
+    "file": "scripts/prebuild.mjs",
+    "line": 77,
+    "description": "seed-commerce executed unconditionally on PG builds"
+   },
+   {
+    "file": "scripts/seed-commerce.ts",
+    "line": 75,
+    "description": "upsert update:{value} — no marker check anywhere in file"
+   },
+   {
+    "file": "scripts/seed-commerce.ts",
+    "line": 40,
+    "description": "manual_card_number/sheba/name hardcoded in SETTINGS"
+   },
+   {
+    "file": "scripts/seed-commerce.ts",
+    "line": 59,
+    "description": "variant update:{priceToman:PRICE}"
+   },
+   {
+    "file": "src/app/api/admin/settings/route.ts",
+    "line": 69,
+    "description": "requireAdmin(owner) — same keys owner-only at runtime"
+   },
+   {
+    "file": "src/app/api/admin/products/[id]/route.ts",
+    "line": 16,
+    "description": "priceToman runtime edit field (any admin seat)"
+   },
+   {
+    "file": "src/lib/orders/pricing.ts",
+    "line": 66,
+    "description": "charm/ship fees read from Setting rows"
+   },
+   {
+    "file": "src/app/api/payment/manual/instructions/route.ts",
+    "line": 21,
+    "description": "instructions render cardNumber/sheba from reverted rows"
+   },
+   {
+    "file": "scripts/seed-round34-images.mjs",
+    "line": 154,
+    "description": "contrast: owner-marker pattern exists in-repo"
+   },
+   {
+    "file": "scripts/seed-blog.ts",
+    "line": 256,
+    "description": "update branch forces published:true"
+   }
+  ],
+  "conditions": [
+   {
+    "kind": "system_configuration",
+    "description": "PG DATABASE_URL build (documented production path)"
+   },
+   {
+    "kind": "data_state",
+    "description": "owner (or any admin) changed a seeded Setting key, variant/product price or display field, or unpublished a seeded post since the last deploy"
+   }
+  ],
+  "execution": {
+   "attacker_perspective": "not attacker-driven: the deploy pipeline acts against owner-authorized runtime writes",
+   "payloads": [
+    "deploy with a postgres:// DATABASE_URL after editing any seeded Setting in the panel → Setting rows revert (owner-observed deploy-log + DB read-back)"
+   ],
+   "instructions": [
+    "owner edits ship_fee via panel; redeploy; read back Setting row + checkout quote"
+   ],
+   "observed_result": "source-inspection-only: prebuild.mjs:77 runs seed-commerce unconditionally on PG; update branches force source values with no marker guard; pricing.ts and manual/instructions consume the reverted rows. No execution performed."
+  },
+  "remediation": {
+   "strategy": "Create-if-missing upserts (update:{}) for all seed-commerce writes; extend the site_logo_source marker pattern to settings/prices; drop published:true from seed-blog update branch (create-only).",
+   "code_changes": [
+    {
+     "file_name": "scripts/seed-commerce.ts",
+     "fixed_code": "// see strategy — enforce the invariant at this site"
+    },
+    {
+     "file_name": "scripts/seed-blog.ts",
+     "fixed_code": "// see strategy — enforce the invariant at this site"
+    }
+   ]
+  },
+  "severity": {
+   "likelihood": {
+    "score": "medium",
+    "reason": "fires every PG deploy; any owner customization since last deploy is reverted"
+   },
+   "impact": {
+    "score": "medium",
+    "reason": "silent reversion of owner-authorized money-path writes: stale card/IBAN shown to payers, reverted prices charged — no privilege gain, financial-integrity damage"
+   },
+   "overall_severity": "medium"
+  },
+  "confidence": {
+   "score": "high",
+   "reason": "complete static trace; contrasting in-repo control confirms preservation is achievable and its omission is real"
+  }
+ },
+ {
+  "verdict": "needs_validation",
+  "fingerprint": "sms-outbox-deliver-before-claim",
+  "title": "SMS outbox drain delivers before claiming — overlapping drains can double-send queued SMS including OTP codes",
+  "description": "flushSms selects queued rows (status='queued', sendAfter≤now — schema defaults), awaits provider deliver() (Kavenegar timeout 8s), then writes sent — no conditional queued→sending claim, no transaction, so any two overlapping readers deliver the same rows. Verified callers: FOUR flushSms call sites, not three — the default-on 60s ticker (busy flag prevents self-overlap only), the secret-gated sms-flush job, owner flush/retry actions (admin/sms/actions:44,52), plus any second app instance. sendSmsNow (OTP) inserts a queued row and delivers in-request unawaited (otp.ts:50 void sendSmsNow), so rows are drain-eligible during their own provider call → a tick landing inside that window double-sends the OTP. OTP remains a single valid code (atomic consume) — no auth weakening; impact = duplicate SMS spend. Dev-echo (no provider configured) makes duplication instant-but-inert; the decisive runtime facts are outside source.",
+  "claimed_root_cause": "read → deliver → mark without a queued→sending claim; ticker uncoordinated with the HTTP job path, the owner flush/retry actions, and request-path sendSmsNow.",
+  "trace": [
+   {
+    "kind": "entrypoint",
+    "file": "src/instrumentation.ts",
+    "line": 50,
+    "scope": "60s tick, flushSms(20)",
+    "description": "default-on unless INTERNAL_CRON=0 — the drain every other caller shares"
+   },
+   {
+    "kind": "propagation",
+    "file": "src/app/api/jobs/[name]/route.ts",
+    "line": 35,
+    "scope": "POST sms-flush (parallel entry)",
+    "description": "external scheduler runs the same unclaimed drain; owner flush/retry actions are a fourth caller"
+   },
+   {
+    "kind": "propagation",
+    "file": "src/lib/sms/index.ts",
+    "line": 262,
+    "scope": "findMany queued",
+    "description": "no claim/conditional update; status flips only after delivery"
+   },
+   {
+    "kind": "propagation",
+    "file": "src/lib/auth/otp.ts",
+    "line": 50,
+    "scope": "void sendSmsNow",
+    "description": "row created queued, delivered unawaited — drain-eligible window"
+   },
+   {
+    "kind": "sink",
+    "file": "src/lib/sms/index.ts",
+    "line": 273,
+    "scope": "await deliver()",
+    "description": "provider send per overlapping reader precedes the status write"
+   }
+  ],
+  "evidence": [
+   {
+    "file": "src/lib/sms/index.ts",
+    "line": 262,
+    "description": "queued rows selected with no claim"
+   },
+   {
+    "file": "src/lib/sms/index.ts",
+    "line": 273,
+    "description": "deliver precedes status write; update unconditional on status"
+   },
+   {
+    "file": "src/instrumentation.ts",
+    "line": 50,
+    "description": "ticker default on; busy flag prevents self-overlap only"
+   },
+   {
+    "file": "src/app/api/jobs/[name]/route.ts",
+    "line": 35,
+    "description": "external sms-flush job"
+   },
+   {
+    "file": "src/app/api/admin/sms/actions/route.ts",
+    "line": 44,
+    "description": "owner flush action — fourth call site"
+   },
+   {
+    "file": "prisma/schema.prisma",
+    "line": 367,
+    "description": "status default queued; sendAfter default now()"
+   },
+   {
+    "file": "src/lib/auth/otp.ts",
+    "line": 50,
+    "description": "OTP via unawaited sendSmsNow"
+   },
+   {
+    "file": "src/lib/sms/index.ts",
+    "line": 311,
+    "description": "dev echo when no provider configured — inert duplication"
+   }
+  ],
+  "blockers": [
+   "requires observing the production SMS provider configuration — deliver() echoes (instant, inert duplication) when neither ippanel nor KAVENEGAR is configured; provider env not in source",
+   "requires observing scheduler coexistence — external timer vs 60s ticker vs owner flush/retry vs second instance; the single-process ticker alone cannot self-overlap, but ticker-vs-in-flight-OTP-deliver can",
+   "attempts>1 rows on SmsOutbox or provider duplicate logs must confirm realized impact"
+  ],
+  "validation_plan": {
+   "local": "Owner fixture (target execution barred here): scratch DB, one queued row, stub deliver() ~1s, two concurrent flushSms(30) — count deliver() calls (2 = confirmed); with a queued→sending claim added, expect exactly 1.",
+   "deployment": "Owner-observed: confirm INTERNAL_CRON + provider keys + whether a timer calls POST /api/jobs/sms-flush; query SmsOutbox for status=sent with attempts>1 or provider logs showing duplicates around tick boundaries."
+  }
+ },
+ {
+  "verdict": "needs_validation",
+  "fingerprint": "trim-trace.standalone-purge-finality-unpinned-plugin",
+  "title": "Netlify release-bundle purge finality rests on an unpinned @netlify/plugin-nextjs: manifest rewrite cannot affect the already-materialized standalone tree, and both purge layers have enumerated holes",
+  "description": "trim-trace purges via two disconnected layers: regex filtering of .nft.json file lists (trim-trace.mjs:39-49) and enumerated rmSync of .next/standalone paths (:55-103). Source verifies: (1) the rewrite cannot change what ships on the standalone path — next build copyTracedFiles (node_modules/next/dist/build/utils.js:960) materializes .next/standalone from the ORIGINAL manifests during next build, and trim runs only afterwards (netlify.toml:18); (2) the layers disagree: DENY (:11-21) contains no env pattern at all and omits download/, while STANDALONE_DENY (:55-94) omits report/, tests/, AGENTS.md, worklog.md, bun.lockb and enumerates only 4 env variants — @next/env canonical candidate list includes .env.${d}.local first, so .env.production.local/.env.development.local are missed by both layers; (3) the deciding consumer is declared unpinned (netlify.toml:26) and absent from package.json/bun.lock/node_modules — whether the zip uses the disk-purged standalone verbatim (making the rewrite inert and layer-2 holes final) or re-derives from rewritten manifests (making layer-2 holes moot but layer-1 holes final) is unreviewable from source. No leak demonstrated: .env is gitignored/untracked so on the only host where trim runs (git checkout) no env files exist, and no source-visible trace read pulls the uncovered tracked files.",
+  "claimed_root_cause": "purge control split across two inconsistent enumerated layers whose effectiveness is decided by an unversioned external packager resolved at deploy time, instead of one pattern-based purge applied before any consumer reads the artifacts, with the packager pinned.",
+  "trace": [
+   {
+    "kind": "entrypoint",
+    "file": "netlify.toml",
+    "line": 18,
+    "scope": "build command",
+    "description": "next build && trim-trace — trim after build, before plugin packaging"
+   },
+   {
+    "kind": "propagation",
+    "file": "scripts/trim-trace.mjs",
+    "line": 39,
+    "scope": "manifest rewrite",
+    "description": "inert for the already-copied standalone tree; DENY matches no env files"
+   },
+   {
+    "kind": "propagation",
+    "file": "scripts/trim-trace.mjs",
+    "line": 74,
+    "scope": "standalone purge",
+    "description": "STANDALONE_DENY enumerates 4 env variants; misses .env.*.local, report/, tests/, AGENTS.md, worklog.md, bun.lockb"
+   },
+   {
+    "kind": "sink",
+    "file": "netlify.toml",
+    "line": 26,
+    "scope": "plugin packaging",
+    "description": "@netlify/plugin-nextjs unpinned — packaging mode decides which layer holes are final"
+   }
+  ],
+  "evidence": [
+   {
+    "file": "netlify.toml",
+    "line": 18,
+    "description": "command chain places trim between next build and packaging"
+   },
+   {
+    "file": "scripts/trim-trace.mjs",
+    "line": 11,
+    "description": "DENY list: no env pattern; no report/tests/download"
+   },
+   {
+    "file": "scripts/trim-trace.mjs",
+    "line": 76,
+    "description": "env purge enumerates 4 variants only"
+   },
+   {
+    "file": "scripts/trim-trace.mjs",
+    "line": 55,
+    "description": "STANDALONE_DENY gaps"
+   },
+   {
+    "file": "next.config.ts",
+    "line": 76,
+    "description": "outputFileTracingExcludes omit report/tests/download"
+   },
+   {
+    "file": "node_modules/next/dist/build/utils.js",
+    "line": 960,
+    "description": "copyTracedFiles copies from original manifests during build"
+   },
+   {
+    "file": "node_modules/@next/env/dist/index.js",
+    "line": 1,
+    "description": "canonical candidate list starts with .env.${d}.local"
+   },
+   {
+    "file": "package.json",
+    "line": 7,
+    "description": "build chain never invokes trim; no @netlify/plugin-nextjs dependency anywhere"
+   },
+   {
+    "file": ".gitignore",
+    "line": 6,
+    "description": ".env/.env.* ignored and untracked"
+   }
+  ],
+  "blockers": [
+   "the @netlify/plugin-nextjs version Netlify resolves (unpinned in netlify.toml:26; absent from package.json, bun.lock and node_modules) and its packaging mode: zip trimmed standalone verbatim (disk purge final, manifest rewrite inert) vs re-derive bundles from rewritten manifests",
+   "whether the resolved plugin performs post-trim re-inclusion from the project root that could restore trimmed files",
+   "whether /_next/image on the deployed site is served by Netlify Image CDN or by the Next function optimizer (trim deletes sharp; next lazy-requires it with no fallback)"
+  ],
+  "validation_plan": {
+   "local": "Owner scratch clone: run the netlify.toml:18 chain, snapshot .next/standalone, run trim, diff — grep for .env*, report/, tests/, worklog.md, node_modules/{sharp,@img,@prisma/engines}, node_modules/.prisma; establishes exactly what the disk purge removes/leaves and which nft entries go stale.",
+   "deployment": "Owner-observed: record the resolved plugin version from a deploy log; download the deployed function archive and diff its file list against post-trim standalone + nft manifests; verify /_next/image resolves."
+  }
+ }
+]

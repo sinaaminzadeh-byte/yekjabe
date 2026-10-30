@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>گزارش امنیتی پروژه یک‌دوست — به زبان ساده</title>
+<style>
+  :root{
+    --bg:#f6f7f4; --card:#ffffff; --ink:#1e293b; --muted:#64748b; --line:#e2e8f0;
+    --teal:#0f766e; --teal-soft:#ccfbf1; --amber:#b45309; --amber-soft:#fef3c7;
+    --red:#b91c1c; --red-soft:#fee2e2; --green:#15803d; --green-soft:#dcfce7; --slate-soft:#f1f5f9;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font-family:"Vazirmatn","Vazir",Tahoma,"Segoe UI",sans-serif;line-height:2;font-size:16px}
+  .wrap{max-width:920px;margin:0 auto;padding:24px 16px 64px}
+  header.hero{background:linear-gradient(135deg,#134e4a,#0f766e);color:#fff;border-radius:20px;padding:32px 28px;margin-bottom:24px}
+  header.hero h1{margin:0 0 8px;font-size:26px;line-height:1.6}
+  header.hero p{margin:4px 0;opacity:.92;font-size:15px}
+  .chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px}
+  .chip{background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.25);border-radius:999px;padding:4px 14px;font-size:13px}
+  section{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:24px;margin-bottom:20px}
+  h2{font-size:20px;margin:0 0 12px;color:var(--teal);display:flex;align-items:center;gap:8px}
+  h2 .n{background:var(--teal);color:#fff;border-radius:10px;width:30px;height:30px;display:inline-flex;align-items:center;justify-content:center;font-size:15px;flex:0 0 auto}
+  h3{font-size:16px;margin:18px 0 6px}
+  p{margin:8px 0}
+  .muted{color:var(--muted);font-size:14px}
+  .steps{counter-reset:s;list-style:none;padding:0;margin:12px 0}
+  .steps li{counter-increment:s;position:relative;padding:10px 52px 10px 12px;border-right:3px solid var(--teal-soft);margin-bottom:10px;border-radius:8px;background:var(--slate-soft)}
+  .steps li::before{content:counter(s);position:absolute;right:10px;top:10px;background:var(--teal);color:#fff;width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px}
+  .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin:16px 0}
+  .stat{border:1px solid var(--line);border-radius:12px;padding:14px;text-align:center;background:var(--slate-soft)}
+  .stat b{display:block;font-size:28px;line-height:1.4}
+  .stat span{font-size:13px;color:var(--muted)}
+  .stat.red b{color:var(--red)} .stat.amber b{color:var(--amber)} .stat.teal b{color:var(--teal)} .stat.green b{color:var(--green)}
+  .finding{border:1px solid var(--line);border-radius:12px;padding:16px;margin:12px 0;background:#fff}
+  .finding h4{margin:0 0 6px;font-size:15.5px;line-height:1.8}
+  .tag{display:inline-block;border-radius:999px;padding:1px 10px;font-size:12px;font-weight:700;margin-inline-start:6px;vertical-align:middle}
+  .tag.high{background:var(--red-soft);color:var(--red)} .tag.med{background:var(--amber-soft);color:var(--amber)}
+  .tag.low{background:var(--teal-soft);color:var(--teal)} .tag.nv{background:#ede9fe;color:#6d28d9}
+  .finding p{margin:6px 0;font-size:14.5px}
+  .kv{background:var(--slate-soft);border-radius:8px;padding:8px 12px;margin:6px 0;font-size:14px}
+  .kv b{color:var(--teal)}
+  code{background:var(--slate-soft);border-radius:6px;padding:1px 7px;font-size:12.5px;direction:ltr;display:inline-block;font-family:ui-monospace,Consolas,monospace}
+  .file{font-size:12px;color:var(--muted);direction:ltr;display:inline-block}
+  .callout{border-radius:12px;padding:14px 16px;margin:14px 0;font-size:14.5px}
+  .callout.warn{background:var(--amber-soft);border:1px solid #fcd34d}
+  .callout.good{background:var(--green-soft);border:1px solid #86efac}
+  .callout.info{background:#e0f2fe;border:1px solid #7dd3fc}
+  table{width:100%;border-collapse:collapse;font-size:13.5px;margin:10px 0}
+  th,td{border:1px solid var(--line);padding:8px 10px;text-align:right;vertical-align:top}
+  th{background:var(--slate-soft)}
+  ul{margin:6px 0;padding-inline-start:22px}
+  li{margin:4px 0}
+  footer{text-align:center;color:var(--muted);font-size:13px;margin-top:28px}
+  .order{list-style:none;padding:0;counter-reset:o}
+  .order li{counter-increment:o;position:relative;padding:10px 48px 10px 12px;background:var(--slate-soft);border-radius:10px;margin:8px 0}
+  .order li::before{content:counter(o);position:absolute;right:10px;top:12px;background:#334155;color:#fff;border-radius:8px;width:26px;height:26px;display:flex;align-items:center;justify-content:center;font-size:13px}
+  @media (max-width:600px){ body{font-size:15px} header.hero{padding:24px 18px} section{padding:18px 14px} }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="hero">
+  <h1>🛡️ گزارش آزمون امنیت پروژه «یک‌دوست»</h1>
+  <p>ابزار رسمی ممیزی امنیتی Cloudflare (<span class="file">security-audit-skill</span>) — طبق راهنمای خودش نصب و اجرا شد</p>
+  <p class="muted" style="color:#d1fae5">هیچ خطایی در کد زده نشد؛ فقط بررسی و گزارش. تاریخ ممیزی: آبان ۱۴۰۴ — نسخهٔ کد: <span class="file" style="color:#d1fae5">128f6ba</span></p>
+  <div class="chips">
+    <span class="chip">۳۸ کارشناس خودکار</span>
+    <span class="chip">۷۵ مسیر API</span>
+    <span class="chip">۲۵ حوزهٔ پوشش‌داده‌شده</span>
+    <span class="chip">۳۶ یافتهٔ نهایی</span>
+    <span class="chip">بدون دسترسی به سرور واقعی</span>
+  </div>
+</header>
+
+<section>
+  <h2><span class="n">۱</span> چه اتفاقی افتاد؟ (خلاصهٔ سه‌خطی)</h2>
+  <p>ابزار ممیزی امنیتی Cloudflare را طبق راهنمای خودش نصب کردم، روی کل پروژه اجرا کردم و نتیجه را به شکل فایل‌های گزارش استاندارد داخل پوشهٔ <span class="file">security-audit/run-1</span> ذخیره کردم که الان روی گیت هم پوش شده. این صفحه، نسخهٔ «به زبان سادهٔ» همان گزارش است.</p>
+  <div class="callout info">🔎 <b>مهم:</b> کل ممیزی فقط با «خواندن کد» انجام شد — نه حتی یک درخواست به سرور واقعی زده شد، هیچ دادهٔ واقعی مشتری دستکاری نشد و هیچ تغییری در کد داده نشد. پس این بررسی صددرصد بی‌خطر برای فروشگاه بود.</div>
+</section>
+
+<section>
+  <h2><span class="n">۲</span> چطور اجرا شد؟ (روند کار در ۶ قدم)</h2>
+  <ol class="steps">
+    <li><b>شناسایی (Recon):</b> ۴ کارشناسِ جدا از هم، نقشهٔ کامل پروژه را کشیدند: چه کسی به چه چیزی دسترسی دارد، ورودی‌ها از کجا می‌آیند، کجاها فایل ذخیره می‌شود و…</li>
+    <li><b>شکار باگ (Hunting):</b> ۱۸ کارشناس مستقل، هر کدام یک حوزهٔ مشخص (مثلاً «داشبورد ادمین»، «پرداخت»، «کد هدیه») را با چشمِ شکاک خواندند و ۳۶ مشکل بالقوه پیدا کردند.</li>
+    <li><b>بازبینی پوشش (Critic):</b> ۳ منتقد جدا، چک کردند که هیچ گوشه‌ای از پروژه جا نمانده باشد — همین مرحله دو نقطهٔ فراموش‌شده پیدا کرد (فایل‌های HTML داخلی در پوشهٔ public و اسکریپت ساخت بستهٔ نهایی).</li>
+    <li><b>راستی‌آزمایی مستقل (Validation):</b> ۸ کارشناسِ تازه (که خودشان شکارچی نبودند) تک‌تک ۳۶ مشکل را دوباره از اول خواندند و سعی کردند رد کنند؛ نتیجه: ۲۶ مورد تأیید شد، ۱۰ مورد «نیازمند بررسی روی سرور» ماند، ۰ مورد رد شد.</li>
+    <li><b>تأیید نهایی (Verification):</b> ۵ کارشناس دیگر هم نسخهٔ نهایی گزارش را بازبینی کردند — هر ۳۶ مورد تأیید شد بدون هیچ اصلاحی.</li>
+    <li><b>گزارش:</b> سه فایل استاندارد (REPORT / FINDINGS-DETAIL / NEEDS-VALIDATION) + همین صفحهٔ فارسی تولید و روی گیت پوش شد.</li>
+  </ol>
+</section>
+
+<section>
+  <h2><span class="n">۳</span> خلاصهٔ نتایج</h2>
+  <div class="stats">
+    <div class="stat red"><b>۲</b><span>بحرانی-بالا (High)</span></div>
+    <div class="stat amber"><b>۱۱</b><span>متوسط (Medium)</span></div>
+    <div class="stat teal"><b>۱۳</b><span>کم (Low)</span></div>
+    <div class="stat green"><b>۰</b><span>ردشده (اشتباه بودند)</span></div>
+    <div class="stat"><b>۱۰</b><span>نیازمند بررسی روی سرور</span></div>
+  </div>
+  <div class="callout good">✅ <b>خبر خوب:</b> پایه‌های امنیتی پروژه قوی است. همهٔ ۳۵ مسیر ادمین محافظت دارند، رمزها با الگوریتم‌های درست ذخیره می‌شوند، قیمت‌ها سمت سرور حساب می‌شود و آپلودها از نظر نوع فایل بررسی می‌شوند. مشکلاتی که پیدا شد بیشتر «خطاهای هم‌زمانی» و «سهو در مراحل ساخت/استقرار» است تا حفره‌های بزرگ طراحی.</div>
+</section>
+
+<section>
+  <h2><span class="n">۴</span> مهم‌ترین یافته‌ها — به زبان ساده</h2>
+
+  <h3>🔴 دو مشکل «بالا» (اولویت فوری)</h3>
+
+  <div class="finding">
+    <h4>۱) ادمینِ «اپراتور» می‌تواند رمزهای یک‌بارمصرف (OTP) همه را ببیند <span class="tag high">بالا</span></h4>
+    <p>وقتی کد OTP برای کسی پیامک می‌شود، خودِ کد به‌صورت <b>متن ساده</b> در جدول پیامک‌ها ذخیره می‌شود و صفحهٔ «لاگ پیامک‌ها» پنل ادمین، این کد را بدون پوشاندن به <b>هر ادمینی (حتی اپراتور)</b> نشان می‌دهد. یعنی یک اپراتور می‌تواند برای موبایلِ «مالک» درخواست کد بدهد، از لاگ کد را بردارد و وارد حسابِ مالک شود!</p>
+    <div class="kv"><b>کجا:</b> <span class="file">src/lib/sms/index.ts:239</span> ذخیرهٔ کد + <span class="file">src/app/api/admin/sms/logs/route.ts:39</span> نمایش بدون ماسک</div>
+    <div class="kv"><b>راه‌حل:</b> کد OTP اصلاً در پیامک‌های ذخیره‌شده ذخیره نشود (هنگام ذخیره، حرف‌های محرمانه با *** جایگزین شوند) و صفحهٔ لاگ هم فقط برای مالک باز باشد.</div>
+  </div>
+
+  <div class="finding">
+    <h4>۲) با ارسال هم‌زمان درخواست‌ها، محدودیت ۵ بارِ اشتباهِ کد OTP دور زده می‌شود <span class="tag high">بالا</span></h4>
+    <p>سیستم بعد از ۵ بار اشتباه، کد را قفل می‌کند؛ اما این شمارش به‌صورت «اول بخوان، بعد بنویس» است و <b>قفل رویش ندارد</b>. اگر کسی صدها درخواست هم‌زمان با حدس‌های مختلف بفرستد، همه قبل از اینکه شمارنده زیاد شود، پاس را می‌خورند. چون کد ۴ رقمی است (فقط ۹۰۰۰ حالت)، با تلاش مداوم حدس زدنی می‌شود. مشابه همین نقص در «شمارندهٔ محدودیت درخواست» هم هست که همهٔ سقف‌های حفاظتی (پیامک، ورود ادمین و…) را موقع شروع هر پنجرهٔ زمانی بی‌اثر می‌کند.</p>
+    <div class="kv"><b>کجا:</b> <span class="file">src/lib/auth/otp.ts:61-73</span> و <span class="file">src/lib/rate-limit.ts:39-50</span></div>
+    <div class="kv"><b>راه‌حل:</b> کم‌کردن شمارنده با دستور اتمی دیتابیس (increment شرطی) انجام شود؛ در پروژه خودتان الگوی درستش موجود است و فقط باید این دو نقطه هم از همان استفاده کنند.</div>
+  </div>
+
+  <h3>🟠 یافته‌های متوسط (۱۱ مورد — خلاصهٔ مهم‌ترین‌ها)</h3>
+  <table>
+    <tr><th>مشکل</th><th>یعنی چه؟</th><th>رفع</th></tr>
+    <tr><td><b>دکمهٔ حذف پرداخت بی‌محافظ</b></td><td>هر اپراتور می‌تواند «هر» رکورد پرداخت (حتی تأییدشده) را با رسیدش برای همیشه حذف کند — بدون هیچ لاگی. برای پنهان‌کردن ردپای پرداخت خطرناک است.</td><td>حذف فقط برای رکوردهای در انتظار بررسی + ثبت رخداد در تاریخچه</td></tr>
+    <tr><td><b>حذف فایل از راه coverKey پست‌ها</b></td><td>ادمین اپراتور می‌تواند با دو ویرایش ساده، فایل هر محصول، عکس‌های خصوصی بازبینی، یا حتی لوگوی سایت را حذف کند — کاری که باید فقط مالک بکند.</td><td>اعتبارسنجی شکلِ نام فایل هنگام ذخیرهٔ coverKey</td></tr>
+    <tr><td><b>رزرو انبار بدون سقف</b></td><td>هر خریدار می‌تواند بدون پرداخت، موجودی یک محصول را ۲۴ ساعت کامل قفل کند (حتی کل موجودی یک محصول کم‌موجود).</td><td>سقفِ «سفارش پرداخت‌نشدهٔ باز» برای هر کاربر (مثلاً ۳)</td></tr>
+    <tr><td><b>قفل رمز کارت هدیه سست</b></td><td>شمارندهٔ ۱۰ بارِ اشتباهِ رمز کارت هم مشکل هم‌زمانی دارد؛ حدس‌های هم‌زمان عملاً یک‌بار حساب می‌شوند.</td><td>همان اصلاح اتمی شمارنده</td></tr>
+    <tr><td><b>پاک‌سازی ممکن است هدیهٔ تمدیدشده را پاک کند</b></td><td>اگر تأیید «تمدید پیام هدیه» دقیقاً وسط کارِ دائمی‌کردنِ خودکار پیام‌های منقضی انجام شود، پیامِ تازه پرداخت‌شده پاک می‌شود ولی پول تمدید گرفته شده.</td><td>نوشتنِ پاک‌سازی فقط با شرط «هنوز منقضی است»</td></tr>
+    <tr><td><b>شمارهٔ فرستنده تأیید نمی‌شود</b></td><td>خریدار می‌تواند شمارهٔ هر کسی را «فرستنده» بزند؛ آن شخص پنل خودش را باز کند، آدرس و پیامِ خصوصیِ هدیه و کلید پرداختِ آن سفارش را می‌بیند.</td><td>شمارهٔ فرستنده به شمارهٔ حسابِ واردشده محدود شود</td></tr>
+    <tr><td><b>پیش‌نویس هدیه در خروج نمی‌میرد</b></td><td>پیام خصوصی هدیه و مشخصات گیرنده (نام/موبایل/آدرس) در مرورگرِ مشترک بعد از خروجِ کاربر باقی می‌ماند و کاربر بعدی آن را از پیش پرشده می‌بیند — خودِ کد هم این را ممنوع کرده!</td><td>همان پاک‌سازیِ بعد از خرید، هنگام خروج هم اجرا شود</td></tr>
+    <tr><td><b>Healthcheck داکر مسیرِ ناموجود</b></td><td>داکر مدام به <code>/api/health</code> سر می‌زند ولی چنین مسیری وجود ندارد ⇒ کانتینر همیشه «ناسالم» گزارش می‌شود؛ استقرارهای Coolify خراب می‌شوند.</td><td>اضافه‌کردن مسیر <code>/api/health</code> (یک خط!)</td></tr>
+    <tr><td><b>هر استقرار، تنظیمات شما را برمی‌گرداند!</b></td><td>با هر دیپلوی، شماره کارت/شبا، قیمت‌ها و تنظیماتی که از پنل عوض کرده‌اید با مقدارهای قدیمیِ داخل اسکریپت seed بازنویسی می‌شود.</td><td>seed فقط «اگر نبود بسازد»، نه بازنویسی</td></tr>
+    <tr><td><b>دادهٔ تقلبی در دیتابیس واقعی</b></td><td>همان اسکریپتِ دموی محلی، روی دیتابیس اصلی هم اجرا می‌شود: ۴۸ سفارش جعلی «تأییدشده»، نظرات تقلبیِ تأییدشده که در سایت عمومی نمایش داده می‌شوند، و حذفِ هر حساب واقعی که شماره‌اش با پیشوند دمو شروع شود!</td><td>دمو از زنجیرهٔ استقرار حذف شود؛ پاک‌سازی با شناسهٔ دقیق نه پیشوند</td></tr>
+    <tr><td><b>سکوت بعد از خطای مهاجرت دیتابیس</b></td><td>اگر انتقال داده‌های قدیمی (GiftOrder) وسط کار خطا بدهد، خطا نادیده گرفته می‌شود و قدم بعدی جدول قدیمی را با همهٔ داده‌هایش حذف می‌کند.</td><td>خطای واقعی = توقف ساخت، قبل از push مخرب</td></tr>
+  </table>
+
+  <h3>🟢 یافته‌های کم (۱۳ مورد — خیلی کوتاه)</h3>
+  <ul>
+    <li>مسیر پیگیری سفارش با حدسِ کدِ ترتیبی + شماره موبایل قابل جست‌وجوست (وضعیت سفارش دیگران لو می‌رود).</li>
+    <li>فلوچارت «آیا این شماره هدیه گرفته؟» از طریق درخواست OTP عمومی قابل پرس‌وجوست + مزاحمت پیامکی ۳ عدد در ساعت.</li>
+    <li>۵ مسیر عمومی (تماس/نظر/تجربه/پیگیری/OTP) محافظ same-origin ندارند → سایت‌های دیگر می‌توانند بازدیدکننده‌ها را به ثبت اسپم وادار کنند.</li>
+    <li>عکس‌های کاور پست‌های حذف‌شده همچنان قابل دانلود عمومی‌اند (حذف، فایل را پاک نمی‌کند).</li>
+    <li>کلیدِ وضعیت سفارش (Idempotency-Key) فقط ۸ کاراکتر حداقل دارد و هرگز منقضی نمی‌شود.</li>
+    <li>سه مسیر مختلف، این کلید را با سه قانون متفاوت اعتبارسنجی می‌کنند (سفارشِ با نقطه در کلید، قابل پیگیری نیست!).</li>
+    <li>رسید پرداختِ تکراری با ارسال هم‌زمان می‌تواند دو سفارش را پشتیبانی کند.</li>
+    <li>دسترسی ناشناس به مسیر قدیمی بازکردن کارت، وجود/نبودنِ کد سفارش را لو می‌دهد و می‌تواند کارت را برای همیشه قفل کند (هیچ راهِ بازکردن قفل هم نیست!).</li>
+    <li>روی‌نویسی عکس‌های بازگشت کالا می‌تواند مدرکِ ثبت‌شده را پاک کند.</li>
+    <li>پنل گیرنده، هدیه‌های «پرداخت‌نشده/منقضی» را هم نشان می‌دهد — کد خودش گفته نباید!</li>
+    <li>۳۴ فایل داخلی (لاگ‌های کاری، گزارش‌های ممیزی قبلی ~۱۸MB) با وجود gitignore روی گیت هستند.</li>
+    <li>مستندات داخلی (گزارش ممیزی، معماری، نقشه API) از پوشهٔ public بدون هیچ محافظتی سرو می‌شوند — نقشهٔ کامل حمله برای مهاجم!</li>
+    <li>دو یافتهٔ کوچک اعتبارسنجی کلید (خلاصه شد در دو مورد بالا).</li>
+  </ul>
+</section>
+
+<section>
+  <h2><span class="n">۵</span> ⚠️ ده مورد که باید «خودتان روی سرور» چک کنید</h2>
+  <p class="muted">این‌ها قطعی نیستند چون جواب‌شان داخل کد نیست (تنظیمات سرور/ورکل است). هر کدام راهنمای چکِ بی‌خطر دارند (فایل NEEDS-VALIDATION.md):</p>
+  <div class="callout warn">💳 <b>مهم‌ترین‌شان — حالت شبیه‌سازی زرین‌پال:</b> اگر متغیر <code>ZARINPAL_MERCHANT_ID</code> روی سرورِ اصلی تنظیم <b>نشده</b> باشد، درگاه به «حالت شبیه‌سازی» می‌رود و هر سفارشی بدون پول واقعی «پرداخت‌شده» می‌شود! همین حالا چک کنید یا یک سفارش آزمایشی بزنید و ببینید به زرین‌پال می‌رود یا به صفحهٔ داخلی pay-gateway. اگر شبیه‌سازی بود، قبل از لانچ واقعی حتماً مرچنت‌آی‌دی را ست کنید.</div>
+  <table>
+    <tr><th>مورد</th><th>باید چه چکی بکنید؟</th></tr>
+    <tr><td>محدودیت‌های IP بر پایهٔ هدر X-Forwarded-For</td><td>چک کنید پروکسیِ اصلی XFF را «بازنویسی» می‌کند یا نه (وگرنه سقف‌ها با هدر جعلی دور زده می‌شود)</td></tr>
+    <tr><td>هوپِ داخلی <code>?XTransformPort=</code> در Caddy</td><td>فقط برای سندباکس است — مطمئن شوید روی سرور عمومی نیست</td></tr>
+    <tr><td>سقف حجم بدنهٔ درخواست‌ها</td><td>هیچ‌جای کد سقفی نیست؛ در پروکسیِ اصلی سقف بگذارید (وگرنه درخواست‌های چندصدمگابایتی رم را می‌بلعند)</td></tr>
+    <tr><td>دیتابیس Netlify</td><td>هر دیپلویِ Netlify یک دیتابیس «دموی موقتی» تازه می‌سازد — مطمئن شوید سایت اصلی از Coolify/ورکل سرو می‌شود نه Netlify</td></tr>
+    <tr><td>prebuild بدون دروازهٔ محیطی</td><td>هر بیلدی که URL دیتابیسش postgres باشد مستقیم دیتابیس را تغییر می‌دهد — ببینید بیلدهای preview هم به دیتابیس اصلی وصل‌اند؟</td></tr>
+    <tr><td>ارسال دوبارهٔ پیامک‌ها</td><td>اگر هم تایمر داخلی فعال باشد هم کرون خارجی، پیامک دوبل می‌رود (هزینهٔ شما)</td></tr>
+    <tr><td>توکن گیت‌هاب داخل <code>.git/config</code></td><td>یک توکن پوش‌دار به‌صورت متن ساده داخل پروژه است — چرخشش (rotate) توصیه شده؛ به credential helper منتقل کنید</td></tr>
+    <tr><td>بقایای <code>.env</code> و db در تاریخچهٔ گیت</td><td>کامیت‌های قدیمی هنوز قابل دسترسی‌اند (محتوا فقط dev بود) — با git filter-repo پاک کنید</td></tr>
+    <tr><td>پلاگین Netlify پین‌نشده</td><td>نسخهٔ پلاگین بسته‌بندی در lockfile نیست؛ پینش کنید تا رفتار بستهٔ استقرار قابل بررسی شود</td></tr>
+  </table>
+</section>
+
+<section>
+  <h2><span class="n">۶</span> نقاط قوت (که دیده شد و تعریف هم دارد 👏)</h2>
+  <ul>
+    <li>هر ۳۵ مسیر ادمین بدون استثنا محافظت‌شده‌اند — با grep اثبات شد.</li>
+    <li>رمزها و کدهای OTP هش‌شده ذخیره می‌شوند (HMAC/scrypt)، مقایسه‌ها همه timing-safe است.</li>
+    <li>کوکی‌های نشست در حالت prod از نوع <code>__Host-</code> با HttpOnly و Secure — الگوی مدرن و درست.</li>
+    <li>فایل‌های آپلودی با «جادو-بایت» شناسایی می‌شوند نه پسوندِ ادعایی؛ نام فایل‌ها همیشه سرورساخت است.</li>
+    <li>قیمت‌ها هیچ‌وقت از مشتری قبول نمی‌شود؛ همیشه از دیتابیس حساب می‌شود.</li>
+    <li>اگر رازهای پیش‌فرضِ dev در حالت production بمانند، سرور اصلاً بالا نمی‌آید (guard بوت).</li>
+    <li>خروجی HTML برای ربات‌ها escape-first است و هیچ دادهٔ خصوصی‌ای رندر نمی‌کند.</li>
+  </ul>
+</section>
+
+<section>
+  <h2><span class="n">۷</span> پیشنهاد ترتیب رفع (بعداً که تصمیم گرفتید)</h2>
+  <ol class="order">
+    <li>مهر و موم OTP: خاموش‌کردن ذخیرهٔ کد در لاگ پیامک + اتمی‌کردن شمارنده‌های OTP و rate-limit (سه یافتهٔ بالا یک‌جا حل می‌شوند)</li>
+    <li>چکِ سرورِ اصلی: مرچنت‌آی‌دی زرین‌پال، XFF، بودنِ XTransformPort روی پروداکشن</li>
+    <li>جداسازی دمو از پروداکشن: seed فقط create-if-missing؛ حذف seed-admin-demo از زنجیرهٔ دیپلوی؛ دکمهٔ discard شرطی شود</li>
+    <li><code>/api/health</code> را اضافه کنید (یک فایل پنج‌خطی) تا استقرار داکر سالم شود</li>
+    <li>مستندات داخلی را از <code>public/</code> به <code>docs/</code> منتقل و از گیت هم پاک کنید؛ توکن گیت را rotate کنید</li>
+    <li>سقف رزرو پرداخت‌نشده + پاک‌سازی پیش‌نویس هنگام خروج + بستن شکاف‌های کوچک باقیمانده</li>
+  </ol>
+</section>
+
+<section>
+  <h2><span class="n">۸</span> فایل‌های گزارش روی گیت</h2>
+  <table>
+    <tr><th>فایل</th><th>چیست؟</th></tr>
+    <tr><td><span class="file">security-audit/run-1/REPORT.md</span></td><td>گزارش اصلی انگلیسی (خلاصه، جدول ۲۶ یافتهٔ تأییدشده، پوشش، یادداشت‌های سخت‌سازی)</td></tr>
+    <tr><td><span class="file">security-audit/run-1/FINDINGS-DETAIL.md</span></td><td>جزئیات کامل هر یافتهٔ متوسط/بالا: مسیر دقیق کد، خط‌به‌خط، شرایط بازتولید و راه‌حل</td></tr>
+    <tr><td><span class="file">security-audit/run-1/NEEDS-VALIDATION.md</span></td><td>۱۰ موردِ نیازمند بررسی روی سرور + راهنمای گام‌به‌گام چکِ بی‌خطر</td></tr>
+    <tr><td><span class="file">security-audit/run-1/findings.json</span></td><td>دادهٔ خام ۳۶ یافته در قالب استاندارد (برای ابزارها/اتوماسیون)</td></tr>
+    <tr><td><span class="file">security-audit/run-1/coverage-ledger.json</span></td><td>دفتر پوشش: کدام حوزه را کدام کارشناس با چه شواهدی بست</td></tr>
+    <tr><td><span class="file">security-audit/run-1/architecture.md</span> و <span class="file">run-metadata.json</span></td><td>نقشهٔ معماری ممیزی و اطلاعات اجرا (پروفایل، بودجه، وضعیت)</td></tr>
+  </table>
+  <div class="callout info">🧭 <b>نکتهٔ شفافیت:</b> یک دور ممیزی طبق آمار خودِ ابزار Cloudflare حدوداً نیمی از مشکلاتی را پیدا می‌کند که با اجراهای مکرر پیدا می‌شوند. این گزارش «پوشش کامل» ادعا نمی‌کند؛ دفتر پوشش دقیقاً نشان می‌دهد چه چیزی بسته شده و چه چیزی مانده.</div>
+</section>
+
+<footer>تهیه‌شده با security-audit-skill (Cloudflare) • ممیزی فقط با تحلیل کد، بدون هیچ درخواست به سرور واقعی • این صفحه noindex است</footer>
+</div>
+</body>
+</html>

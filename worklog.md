@@ -1204,3 +1204,26 @@ Stage Summary:
 - هر دو باگ deploy-specific بودند و در سندباکس نامرئی: پیشخوان فقط روی PostgreSQL، آپلود فقط روی فایل‌سیستم فقط-خواندنی. از این پس روی Vercel: داشبورد دیتا می‌دهد و هر آپلودی (لوگو/عکس محصول/کاور بلاگ/رسید کارت‌به‌کارت/عکس تجربه) در دیتابیس می‌ماند و با کول‌استارت نمی‌پرد.
 - دکمه خروج، نشست HttpOnly را سمت سرور هم نابود می‌کند (فقط UI نیست) — پنل روی سیستم مشترک امن شد.
 - یادداشت برای آینده: MESSAGE_MEDIA_MAX_BYTES=10MB از سقف بدنه‌ی ۴٫۵MB لامبدای Vercel بزرگ‌تر است (پلتفرم 413 می‌دهد)؛ فشرده‌سازی سمت کلاینت یا پایین‌آوردن سقف برای نسخه دیپلوی لازم است (خارج از محدوده این راند).
+
+---
+## Task ID: 43
+Agent: main (Z.ai Code)
+Task: راند ۴۳ — درخواست مالک: نصب و اجرای ابزار رسمی ممیزی امنیتی Cloudflare (security-audit-skill) طبق راهنمای خودش روی پروژه، پوش گزارش‌ها روی گیت، بدون هیچ تغییری در کدها + گزارش HTML فارسی ساده
+
+Work Log:
+- INSTALL: کلون repo رسمی cloudflare/security-audit-skill → نصب دستی در ~/.claude/skills/security-audit (npx skills add در sandbox تعاملی ماند و timeout خورد؛ نصب دستی معادل همان ساختار SKILL.md + ۱۴ فایل دامنه + ۲ ولیدیتور zero-dependency). ولیدیتورها با node v24 تست شدند.
+- FULL AUDIT MODE (استاندارد، بودجه ۴۵ ایجنت، خرج واقعی ۳۸): فاز ۱ شناسایی با ۴ ایجنت موازی (محصول/stack، principals/controls، entry surfaces/sinks، execution/deployment) → architecture.md؛ دفتر پوشش ۲۳ واحدی (surface×boundary×subsystem×attack-class) با coverage_id درصد-انکود مطابق اسپک → validate-coverage-ledger PASS.
+- فاز ۲ شکار: ۱۶ شکارچی موازی wave-1 (ادمین خواندن/نوشتن/آپلود/لاگ-SMS، auth، crypto، checkout، payments، refund، gifts×۲، UGC، media، upload-DoS، origin/rate-limit، client-SPA، bot-view+jobs، deploy، build+hygiene، wildcard) → ۲۵ کاندیدای confirmed + ۹ needs_validation + ۱ کاندیدای مال‌فورم (دیسکارد شد)؛ ledger آپدیت و PASS.
+- CRITIC WAVES: post-wave critic یک شکاف واقعی پیدا کرد (public/*.html داخلی served عمومی) → wave-2 با hunter-17؛ final-clean critic شکاف دوم (scripts/trim-trace.mjs) → wave-3 با hunter-18؛ critic نهایی هیچ کار پذیرفتنی دیگری نیافت (۲ پیشنهاد reassign بدون دلیلِ source-backed مردود شد) → حلقهٔ پوشش بسته شد؛ ۲۵ واحد نهایی (۲۰ candidate + ۵ covered).
+- فاز ۳ راستی‌آزمایی مستقل: ۸ وریفایر تازه (که شکارچی نبودند) هر ۳۶ کاندیدا را تک‌تک سعی در رد کردن کردند → ۲۶ confirmed / ۱۰ needs_validation / ۰ rejected؛ اصلاحات خطی (line 16→23 track، شمارش ۱۲→۱۱ کلید seed، ۳→۲ صندلی اکتیو، چهارمین caller SMS) اعمال شد.
+- فاز ۴: findings.json (۳۶ رکورد، sorted، schema-exact) → validate-findings PASS + validate-coverage-ledger PASS. نکات ولیدیتور: verdict الزامی، خط ≥۱، مسیرهای امن، یک sink، payloads minItems، kind enum — همه رفع شد.
+- فاز ۵ تأیید نهایی: ۵ وریفایرِ دیگر (جدای فاز ۳) هر ۳۶ رکورد نهایی را خط‌به‌خط بازبینی کردند → ۳۶/۳۶ verified، صفر replacement.
+- فاز ۶ گزارش: REPORT.md (پروفایل/پوشش/جدول یافته‌ها/hardening/نقاط قوت) + FINDINGS-DETAIL.md (trace/evidence/شرایط/بازتولید/راه‌حل برای همهٔ medium+) + NEEDS-VALIDATION.md (۱۰ lead با plan دقیق owner-observed) + run-metadata.json → run_status=complete (۱۹/۵ covered/candidate، ۰ deferred).
+- یافته‌های کلیدی: HIGH×۲ — ① کد OTP به‌صورت plaintext در SmsOutbox.params ذخیره و از /api/admin/sms/logs به اپراتورها داده می‌شود → تصاحب صندلی مالک/مشتری ② رِیس check-then-act در شمارندهٔ تلاش OTP + رِیس پنجرهٔ rate-limit (هر دو بدون قفل اتمی) → حدس‌زدنی شدن کد ۴رقمی. MEDIUM×۱۱ شامل: discard بی‌شرط پرداخت، coverKey→حذف‌فایل عمومی توسط اپراتور، سقف‌نشدن رزرو انبار ۲۴h، رِیس قفل کارت هدیه، purge-vs-renewal (پاک شدن محتوای تمدیدشدهٔ پرداخت‌شده)، sender.phone تأییدنشدن→PII+paymentKey به غریبه، پیش‌نویس هدیه در خروج localStorage، healthcheck داکر روی مسیر ناموجود، seedهای استقرار که تنظیمات مالک/کارت/قیمت را هر دیپلوی بازنویسی می‌کنند، seed-admin-demo روی دیتابیس production (نظر جعلی تأییدشده + حذف با پیشوند شماره واقعی)، مهاجرت GiftOrder با catch-all + push مخرب.
+- NEEDS_VALIDATION×۱۰ (عامل خارج از ریپو): زرین‌پال simulate بدون مرچنت‌آی‌دی (SIM* → paid!)، XFF trust، XTransformPort hop، body-size cap ناموجود، SQLite دموی Netlify، SMS deliver-before-claim، prebuild بدون گیت محیطی، بقایای .env/db در تاریخچهٔ گیت (env بعد از purge دوباره اضافه شده!)، توکن GitHub در .git/config، پلاگین Netlify پین‌نشده.
+- گزارش فارسی: security-audit/run-1/fa-security-report.html — RTL، بدون وابستگی خارجی، ۸ سکشن به زبان ساده (روند ۶قدمی، آمار، یافته‌ها با «یعنی چه/کجا/راه‌حل»، چک‌لیست سرور، نقاط قوت، ترتیب پیشنهادی رفع، نقشهٔ فایل‌ها) + noindex.
+- مالکیت فایل‌ها: security-audit/run-1/.gitignore فقط agents/ را ignore می‌کند (scratch ایجنت‌ها)؛ ۷ آرتیفکت مشترک + گزارش فارسی کامیت و پوش شدند. هیچ فایل کدی پروژه تغییری نکرد (تعهد کاربر).
+
+Stage Summary:
+- ممیزی کامل استاندارد-profile طبق SKILL.md انجام شد: ۳۸/۴۵ ایجنت، صفر اجرای کد هدف (سندباکس OS وجود نداشت → همه چیز source-only و صداقت‌آمیز needs_validation)، صفر رکورد ردشده به‌اشتباه، صفر replacement در فاز ۵.
+- مهم‌ترین اقدام فوری برای مالک: ① چک ZARINPAL_MERCHANT_ID روی پروداکشن ② ماسک کردن code در SmsOutbox ③ اتمی‌کردن شمارنده‌های otp.ts/rate-limit.ts. جزئیات و دستورالعمل‌های بی‌خطر در NEEDS-VALIDATION.md و fa-security-report.html.

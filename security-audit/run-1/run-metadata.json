@@ -1,0 +1,60 @@
+{
+  "run_id": "yekdoost-run-1",
+  "repo": "yekdoost",
+  "target": "/home/z/my-project",
+  "source_ref": "git HEAD 128f6ba (round 42, worktree clean)",
+  "profile": "standard",
+  "scope_paths": [
+    "src/**",
+    "prisma/**",
+    "scripts/**",
+    "package.json",
+    "bun.lock",
+    "next.config.ts",
+    "Caddyfile",
+    "Dockerfile",
+    "docker-compose.yml",
+    "netlify.toml",
+    ".gitignore",
+    "eslint.config.mjs"
+  ],
+  "out_of_scope_paths": [
+    "docs/**",
+    "design-ref/**",
+    "public/pages/**",
+    "report/**",
+    "download/**",
+    "examples/**",
+    "node_modules/**"
+  ],
+  "budget": 45,
+  "execution_policy": "sandboxed-source-and-local-only",
+  "execution_note": "OS-enforced sandbox for target-controlled execution is unavailable in this environment (unshare operation not permitted, no network-namespace isolation, shared dev server on :3000 serves the live preview). Per SKILL.md the run executes NO target-controlled code; hunting is source-only (method: source, artifact: null). Any decisive fact requiring local execution or deployment observation is recorded as needs_validation with the exact blocker.",
+  "companion_files": [
+    "ATTACK-CLASSES.md",
+    "WEB-PROTOCOL-AND-AUTH.md",
+    "CLIENT-SIDE.md",
+    "CLOUD-AND-DEPLOYMENT.md",
+    "SUPPLY-CHAIN-AND-RELEASE.md",
+    "DATA-ISOLATION-AND-LIFECYCLE.md",
+    "RESOURCE-EXHAUSTION-AND-AVAILABILITY.md",
+    "PROTOCOLS-RPC-AND-MESSAGING.md"
+  ],
+  "prior_runs": [],
+  "prior_ledger_paths": [],
+  "prior_findings_paths": [],
+  "shared_file_owner": "parent",
+  "output_dir": "/home/z/my-project/security-audit/run-1",
+  "output_dir_note": "User explicitly requested audit artifacts be committed to the repository; parent verified 'security-audit/' is not version-control-ignored and the user instructed 'فایل های گزارش رو روی گیت هم بعدش پوش کنی'. agents/ scratch subtree is gitignored inside run-1.",
+  "run_status": "complete",
+  "agents_spent": {
+    "reconnaissance": 4,
+    "hunters": 18,
+    "critics": 3,
+    "phase3_verifiers": 8,
+    "phase5_verifiers": 5,
+    "total": 38,
+    "budget": 45
+  },
+  "critic_note": "Wave-3 post-wave and final-clean critic duties were merged into one fresh critic invocation (agent count discipline); it returned no accepted missing_units and no legitimate reassign_ids, closing the loop."
+}
