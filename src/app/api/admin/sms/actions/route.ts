@@ -24,7 +24,7 @@ const schema = z.discriminatedUnion("action", [
   z.object({ action: z.literal("template_test"), templateKey: z.string().min(2).max(64), phone: z.string().min(10).max(15) }),
   z.object({ action: z.literal("flush") }),
   z.object({ action: z.literal("retry"), id: z.string().min(6).max(64) }),
-  z.object({ action: z.literal("connection_test"), apiKey: z.string().max(300).optional() }),
+  z.object({ action: z.literal("connection_test"), apiKey: z.string().max(300).optional(), baseUrl: z.string().max(200).optional() }),
   z.object({ action: z.literal("send_custom"), phone: z.string().min(10).max(15), text: z.string().min(2).max(265) }),
 ]);
 
@@ -65,10 +65,11 @@ export async function POST(req: Request) {
 
     if (parsed.data.action === "connection_test") {
       const s = await getSmsSettings(true);
-      // کلیدِ پیشنهادیِ هنوز ذخیره‌نشده هم قابل تست است تا مالک قبل از ذخیره بداند
+      // کلید/آدرسِ پیشنهادیِ هنوز ذخیره‌نشده هم قابل تست است تا مالک قبل از ذخیره بداند
       const key = (parsed.data.apiKey ?? "").trim() || s.apiKey;
-      const diag = await ippanelCreditDiag(key);
-      return NextResponse.json({ ok: diag.ok, ...diag, source: s.apiKeySource });
+      const base = (parsed.data.baseUrl ?? "").trim() || s.baseUrl;
+      const diag = await ippanelCreditDiag(key, base);
+      return NextResponse.json({ ok: diag.ok, ...diag, source: s.apiKeySource, baseUrl: base });
     }
 
     if (parsed.data.action === "send_custom") {

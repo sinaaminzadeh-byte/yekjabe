@@ -1251,3 +1251,22 @@ Work Log:
 Stage Summary:
 - کلید API، خط ارسال، شمارهٔ هشدار مالک و سوییچ اصلی سرویس از این پس همه از خودِ داشبورد (تب پیامک‌ها) کنترل می‌شوند — بدون Vercel، بدون ری‌دیپلوی، با تست اتصال زنده و گزارش کامل.
 - داشبورد پیامک ارتقا یافت: آمار کامل‌تر (کل + per-template)، ارسال دستی، جست‌وجو/فیلتر/خروجی CSV در گزارش، و رفتار «مکث صف» به‌جای مردود شدن هنگام خاموشی سرویس.
+
+---
+## Task ID: 45
+Agent: main (Z.ai Code)
+Task: راند ۴۵ — درخواست مالک: «ای‌پنل دو آدرس اتصال دارد (مربوط به سرور داخلی و خارجی) — مستندات» + «کد پترن gcrspg6fz0mtzmf و متن «کد ورود شما جهت پیگیری: %code% - مجموعه رنگ خودرو آرام» روی سرویس دیگرم کار می‌کند — دوباره تست کن»
+
+Work Log:
+- RESEARCH: مستندات رسمی Edge (ippanelcom.github.io/Edge-Document) + سورس رسمی PHP SDK (github.com/ippanel/php-rest-sdk Client.php) خوانده شد. دو نسل آدرس تأیید شد: ① لبه: https://edge.ippanel.com/v1 با هدر Authorization (ارسال یکپارچه /api/send با sending_type) ② کلاسیک: https://api(.2).ippanel.com/api/v1 با هدر apikey/x-api-key (پترن: POST /sms/pattern/normal/send {code,sender,recipient,variable}؛ متن ساده: POST /sms/send/webservice/single؛ اعتبار: GET /sms/accounting/credit/show → data.credit).
+- FEATURE DUAL-ADAPTER: src/lib/sms/ippanel.ts بازنویسی شد — هر سه تابع (ippanelSendPattern/ippanelSendPlain/ippanelCreditDiag) حالا baseUrl صریح می‌گیرند و بر اساس هاست، نسل درست (edge/legacy) را با شکل درستِ درخواست و پاسخ اجرا می‌کنند. فرمت گیرنده: لبه +98…، کلاسیک 98912… (طبق نمونه‌های SDK رسمی). انتخاب خودکار نسل با هاست (edge.ippanel.com ⇒ لبه، بقیه ⇒ کلاسیک) — آدرس سفارشی هم کار می‌کند.
+- FEATURE BASE-URL PANEL: کلید جدید sms_base_url در جدول Setting + سه پریست و گزینهٔ سفارشی. اعتبارسنجی https-only (isValidSmsBaseUrl) + فالبک پیش‌فرض لبه. GET/PUT /api/admin/sms/settings و GET /api/admin/sms حالا baseUrl/baseUrlSource برمی‌گردانند؛ connection_test کاندیدای آدرس را هم قبل از ذخیره تست می‌کند.
+- UI ENDPOINT-SELECTOR: کارت جدید «آدرس اتصال سرویس» در تب پیامک‌ها — رادیو سه‌گانه (لبه/کلاسیک ۱ داخلی/کلاسیک ۲ خارجی) + سفارشی، چیپ «فعلی»، لینک مستندات رسمی، دکمهٔ ذخیرهٔ مستقل. تست اتصال همیشه روی آدرسِ انتخابیِ فرم اجرا می‌شود (قبل از ذخیره هم قابل تست است).
+- ERROR-MSG: خطای ۵۰x حالا راهنمایی می‌دهد: «در تنظیمات، آدرس سرویس دیگر را هم امتحان کن» + پیام فارسی جدا برای 401/403 (کلید پذیرفته نشد).
+- PATTERN SEED: قالب otp_login حالا با پترن تأییدشدهٔ مالک (gcrspg6fz0mtzmf — متن %code%) سید می‌شود؛ دیتابیس محلی هم آپدیت شد.
+- QA محلی: eslint=۰. agent-browser: تب پیامک‌ها رندر کامل ✓ رادیو آدرس‌ها + چیپ «فعلی» ✓ تعویض به کلاسیک ۲ و تست اتصال (کاندیدای آدرس در بدنهٔ درخواست) ✓ کارت otp_login «پترن: gcrspg6fz0mtzmf» ✓. سندباکس توسط CDN ای‌پنل مسدود است (۵۰۲ روی هر ۳ هاست) — تست واقعیِ ارسال روی پروداکشن انجام شد (بند بعد).
+- DEPLOY+PROD-TEST: پوش → دیپلوی ورسل → ورود با رمز مالک → PUT کلید API مالک در تنظیمات پنل پروداکشن → PATCH پترن otp_login → template_test به شمارهٔ مالک → نتیجه در گزارش outbox بررسی شد (جزئیات در پیام نهایی به مالک).
+
+Stage Summary:
+- دو آدرس اتصال ای‌پنل (داخلی/خارجی) به‌صورت پنلی قابل انتخاب است — بدون ری‌دیپلوی، با تست اتصال قبل و بعد از ذخیره.
+- پترن OTP تأییدشدهٔ مالک سیم‌کشی شد و مسیر ارسال پترن روی هر دو نسل آدرس کار می‌کند.

@@ -25,6 +25,8 @@ interface SmsSettingsView {
   enabled: boolean;
   ownerMobile: string;
   ownerMobileSource: "panel" | "env" | "none";
+  baseUrl: string;
+  baseUrlSource: "panel" | "default";
 }
 
 interface SmsTemplateRow {
@@ -89,6 +91,19 @@ const SMS_TEMPLATE_LABEL: Record<string, string> = {
 const inputCls =
   "h-11 rounded-2xl border-[1.5px] border-[#CFE6EF] bg-[#F8FDFF] px-3.5 text-[14px] font-bold text-[#04202E] outline-none focus:border-[#00ABE7]";
 
+// ── آدرس‌های اتصال ای‌پنل (مستندات: سرور داخلی/خارجی) ──
+// طبق مستندات رسمی دو نسل آدرس وجود دارد؛ پنل‌های مختلف به یکی از این‌ها وصل‌اند.
+const SMS_BASE_PRESETS = [
+  { id: "edge", url: "https://edge.ippanel.com/v1", title: "لبه (جدید) — پیش‌فرض", sub: "edge.ippanel.com" },
+  { id: "api1", url: "https://api.ippanel.com/api/v1", title: "کلاسیک — آدرس ۱", sub: "api.ippanel.com (سرور داخلی)" },
+  { id: "api2", url: "https://api2.ippanel.com/api/v1", title: "کلاسیک — آدرس ۲", sub: "api2.ippanel.com (سرور خارجی)" },
+] as const;
+
+function basePresetId(url: string): string {
+  const p = SMS_BASE_PRESETS.find((x) => x.url === url);
+  return p ? p.id : url ? "custom" : "edge";
+}
+
 export function SmsTab() {
   const [data, setData] = useState<SmsData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -103,6 +118,8 @@ export function SmsTab() {
   const [settings, setSettings] = useState<SmsSettingsView | null>(null);
   const [formSender, setFormSender] = useState("");
   const [formOwner, setFormOwner] = useState("");
+  const [formBaseId, setFormBaseId] = useState("edge");
+  const [formCustomBase, setFormCustomBase] = useState("");
   const [apiKeyInput, setApiKeyInput] = useState("");
   const [showKeyInput, setShowKeyInput] = useState(false);
   const [savingSettings, setSavingSettings] = useState(false);
@@ -156,8 +173,17 @@ export function SmsTab() {
     setSettings(s);
     setFormSender(s.sender);
     setFormOwner(s.ownerMobile);
+    const pid = basePresetId(s.baseUrl);
+    setFormBaseId(pid);
+    setFormCustomBase(pid === "custom" ? s.baseUrl : "");
     setApiKeyInput("");
     setShowKeyInput(!s.apiKeySet);
+  };
+
+  /** آدرسِ انتخاب‌شدهٔ فرم — برای تست و ذخیره (کاندیدای هنوز ذخیره‌نشده هم) */
+  const candidateBaseUrl = (): string => {
+    if (formBaseId === "custom") return formCustomBase.trim();
+    return SMS_BASE_PRESETS.find((x) => x.id === formBaseId)?.url ?? "";
   };
 
   const loadLogs = (status = logStatus, page = 1, q = logQ, template = logTemplate) => {
@@ -237,6 +263,15 @@ export function SmsTab() {
 
   const saveGeneral = () => putSettings({ sender: formSender, ownerMobile: formOwner }, "تنظیمات ذخیره شد ✓");
 
+  const saveBaseUrl = () => {
+    const url = candidateBaseUrl();
+    if (formBaseId === "custom" && !url) {
+      toast({ title: "آدرس سفارشی را وارد کن", description: "باید با https:// شروع شود." });
+      return;
+    }
+    void putSettings({ baseUrl: url }, "آدرس سرویس ذخیره شد ✓");
+  };
+
   const saveApiKey = () => {
     if (!apiKeyInput.trim()) {
       toast({ title: "کلید API را وارد کن", description: "کلید را از پنل ippanel بخش API Keys بردار." });
@@ -259,7 +294,11 @@ export function SmsTab() {
       const res = await fetch("/api/admin/sms/actions", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "connection_test", apiKey: apiKeyInput.trim() || undefined }),
+        body: JSON.stringify({
+          action: "connection_test",
+          apiKey: apiKeyInput.trim() || undefined,
+          baseUrl: candidateBaseUrl() || undefined,
+        }),
       });
       const b = (await res.json().catch(() => ({}))) as { ok?: boolean; credit?: number; error?: string };
       setProbeResult({ ok: Boolean(b.ok), credit: b.credit, error: b.error });
@@ -629,6 +668,87 @@ export function SmsTab() {
                   {probeResult.ok ? `وصل است ✓ اعتبار: ${money(Math.floor(probeResult.credit ?? 0))}` : `ناموفق: ${probeResult.error ?? "نامشخص"}`}
                 </span>
               )}
+            </div>
+          </div>
+
+          {/* آدرس اتصال سرویس — سرور داخلی/خارجی مستندات ای‌پنل */}
+          <div className="rounded-[20px] border border-[#E3F0F5] bg-[#FBFEFF] p-4">
+            <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+              <span className="text-[13.5px] font-black text-[#04202E]">آدرس اتصال سرویس</span>
+              {settings.baseUrlSource === "panel" ? (
+                <span className="rounded-lg bg-[#E7F8EF] px-2.5 py-1 text-[11px] font-extrabold text-[#1E7A46]">ذخیره شده — سفارشی</span>
+              ) : (
+                <span className="rounded-lg bg-[#E3F6FD] px-2.5 py-1 text-[11px] font-extrabold text-[#006387]">پیش‌فرض (لبه)</span>
+              )}
+            </div>
+            <p className="mb-3 text-[11.5px] font-medium leading-[1.9] text-[#4A6572]">
+              طبق مستندات ای‌پنل، اتصال دو آدرس دارد و مربوط به سرور داخلی و خارجی است — پنل شما به یکی از این‌ها وصل است.
+              اگر ارسال یا تست اتصال خطای ۵۰x داد، آدرس دیگر را انتخاب و تست کن.{" "}
+              <a href="https://ippanel.com/developers/documents" target="_blank" rel="noreferrer" className="font-extrabold text-[#006387] underline">
+                مستندات رسمی
+              </a>
+            </p>
+            <div className="flex flex-col gap-2" role="radiogroup" aria-label="آدرس اتصال سرویس پیامک">
+              {SMS_BASE_PRESETS.map((p) => {
+                const active = formBaseId === p.id;
+                const isCurrent = settings.baseUrl === p.url;
+                return (
+                  <button
+                    key={p.id}
+                    type="button"
+                    role="radio"
+                    aria-checked={active}
+                    onClick={() => setFormBaseId(p.id)}
+                    className={`flex items-center justify-between gap-2 rounded-2xl border-[1.5px] px-4 py-2.5 text-right transition-colors ${
+                      active ? "border-[#00ABE7] bg-[#E3F6FD]" : "border-[#DDEEF5] bg-white hover:border-[#B7DCEB]"
+                    }`}
+                  >
+                    <span className="flex flex-col">
+                      <span className={`text-[12.5px] font-black ${active ? "text-[#006387]" : "text-[#04202E]"}`}>{p.title}</span>
+                      <span dir="ltr" className="text-[10.5px] font-bold text-[#8FA6B0]">{p.sub}</span>
+                    </span>
+                    <span className="flex items-center gap-1.5">
+                      {isCurrent && <span className="rounded-full bg-[#E7F8EF] px-2 py-0.5 text-[10px] font-extrabold text-[#1E7A46]">فعلی</span>}
+                      <span className={`inline-block h-4 w-4 rounded-full border-[2px] ${active ? "border-[#00ABE7] bg-[#00ABE7]" : "border-[#CFE6EF] bg-white"}`} />
+                    </span>
+                  </button>
+                );
+              })}
+              <button
+                type="button"
+                role="radio"
+                aria-checked={formBaseId === "custom"}
+                onClick={() => setFormBaseId("custom")}
+                className={`flex items-center justify-between gap-2 rounded-2xl border-[1.5px] px-4 py-2.5 text-right transition-colors ${
+                  formBaseId === "custom" ? "border-[#00ABE7] bg-[#E3F6FD]" : "border-[#DDEEF5] bg-white hover:border-[#B7DCEB]"
+                }`}
+              >
+                <span className="text-[12.5px] font-black text-[#04202E]">سفارشی…</span>
+                <span className={`inline-block h-4 w-4 rounded-full border-[2px] ${formBaseId === "custom" ? "border-[#00ABE7] bg-[#00ABE7]" : "border-[#CFE6EF] bg-white"}`} />
+              </button>
+              {formBaseId === "custom" && (
+                <input
+                  value={formCustomBase}
+                  onChange={(e) => setFormCustomBase(e.target.value)}
+                  dir="ltr"
+                  placeholder="https://…/api/v1"
+                  className={inputCls}
+                  aria-label="آدرس سفارشی سرویس"
+                />
+              )}
+            </div>
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={() => void saveBaseUrl()}
+                disabled={savingSettings || candidateBaseUrl() === settings.baseUrl}
+                className="h-10 rounded-full bg-[#04202E] px-5 text-[12px] font-extrabold text-white disabled:opacity-40"
+              >
+                ذخیرهٔ آدرس سرویس
+              </button>
+              <span className="text-[10.5px] font-medium text-[#8FA6B0]">
+                ذخیره بلافاصله «تست اتصال» را روی همین آدرس اجرا می‌کند — یا با دکمهٔ تستِ بالا، آدرسِ انتخابی را قبل از ذخیره بسنج.
+              </span>
             </div>
           </div>
 

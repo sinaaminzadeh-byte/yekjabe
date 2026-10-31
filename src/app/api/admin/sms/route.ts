@@ -31,7 +31,7 @@ export async function GET() {
 
     // تنظیمات پنلی (کلید فقط نقاب‌شده) — DB > env
     const s = await getSmsSettings();
-    const creditDiag = s.apiKey ? await ippanelCreditDiag(s.apiKey) : { ok: false as const, error: "کلید API تنظیم نشده است" };
+    const creditDiag = s.apiKey ? await ippanelCreditDiag(s.apiKey, s.baseUrl) : { ok: false as const, error: "کلید API تنظیم نشده است" };
 
     return NextResponse.json({
       ok: true,
@@ -47,6 +47,8 @@ export async function GET() {
         enabled: s.enabled,
         ownerMobile: s.ownerMobile,
         ownerMobileSource: s.ownerMobileSource,
+        baseUrl: s.baseUrl,
+        baseUrlSource: s.baseUrlSource,
       },
       provider: {
         ippanel: Boolean(s.apiKey),

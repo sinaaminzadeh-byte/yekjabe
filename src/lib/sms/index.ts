@@ -38,7 +38,9 @@ export const SMS_SEEDS: (SmsTemplateConfig & { isSystem: true })[] = [
     key: "otp_login",
     label: "کد تأیید ورود / ثبت‌نام",
     description: "وقتی کاربر شماره‌اش را برای ورود یا ثبت‌نام وارد می‌کند",
-    patternCode: "",
+    // round 45: پترن تأییدشدهٔ مالک روی ای‌پنل (روی سرویس دیگرش در حال کار است) —
+    // متنِ پترن: «کد ورود شما جهت پیگیری: %code% - مجموعه رنگ خودرو آرام»
+    patternCode: "gcrspg6fz0mtzmf",
     variables: { code: "code" },
     fallbackText: "جعبه آبی: کد تأیید {code} — این کد را با کسی به اشتراک نگذارید.",
     enabled: true,
@@ -244,7 +246,7 @@ export async function sendCustomNow(
     if (!s.enabled) throw new Error("sms_disabled");
     if (!s.apiKey) throw new Error("sms_no_api_key");
     assertSane(text);
-    const r = await ippanelSendPlain(s.apiKey, text, s.sender, phone);
+    const r = await ippanelSendPlain(s.apiKey, s.baseUrl, text, s.sender, phone);
     await db.smsOutbox.update({
       where: { id: row.id },
       data: { status: "sent", sentAt: new Date(), attempts: 1, provider: r.provider, messageId: r.messageId },
@@ -368,7 +370,7 @@ async function deliver(phone: string, template: string, params: Record<string, s
 
   // ۱) pattern path — fast, text lives on ippanel side
   if (cfg.patternCode) {
-    const r = await ippanelSendPattern(settings.apiKey, cfg.patternCode, sender, phone, mapVars(vars, params));
+    const r = await ippanelSendPattern(settings.apiKey, settings.baseUrl, cfg.patternCode, sender, phone, mapVars(vars, params));
     return { provider: r.provider, messageId: r.messageId };
   }
 
@@ -376,7 +378,7 @@ async function deliver(phone: string, template: string, params: Record<string, s
   if (cfg.fallbackText.trim()) {
     const text = renderFallback(cfg.fallbackText, params);
     assertSane(text);
-    const r = await ippanelSendPlain(settings.apiKey, text, sender, phone);
+    const r = await ippanelSendPlain(settings.apiKey, settings.baseUrl, text, sender, phone);
     return { provider: r.provider, messageId: r.messageId };
   }
 

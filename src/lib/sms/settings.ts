@@ -6,9 +6,12 @@
 //   sms_sender         — خط ارسال (3000505 / +983000505 / 0912… — نرمال می‌شود)
 //   sms_enabled        — کلید اصلی سرویس ("1"/"0") — خاموش ⇒ صف موقتاً می‌ایستد
 //   sms_owner_mobile   — شمارهٔ هشدارهای مدیریتی (جای OWNER_MOBILE پنلی)
+//   sms_base_url       — آدرس اتصال سرویس (سرور داخلی/خارجی مستندات ای‌پنل) —
+//                        پیش‌فرض edge.ippanel.com/v1؛ کلاسیک api(.2).ippanel.com/api/v1
 // اولویت: مقدار پنل (DB) > متغیر محیطی. کش ۳۰ ثانیه‌ای + باطل‌سازی فوری پس از ذخیره.
 import { db } from "../db";
 import { env } from "../env";
+import { DEFAULT_SMS_BASE_URL, isValidSmsBaseUrl } from "./ippanel";
 
 export const SMS_SETTING_KEYS = {
   apiKey: "sms_api_key",
@@ -16,6 +19,7 @@ export const SMS_SETTING_KEYS = {
   enabled: "sms_enabled",
   ownerMobile: "sms_owner_mobile",
   provider: "sms_provider",
+  baseUrl: "sms_base_url",
 } as const;
 
 export interface SmsSettings {
@@ -27,6 +31,8 @@ export interface SmsSettings {
   enabled: boolean;
   ownerMobile: string; // resolved (panel first, env fallback)
   ownerMobileSource: "panel" | "env" | "none";
+  baseUrl: string; // resolved connection address (domestic/foreign server)
+  baseUrlSource: "panel" | "default";
   apiKeyHint: string; // masked: «…be9ZWU=» — safe to show in the panel
 }
 
@@ -76,6 +82,10 @@ export async function getSmsSettings(force = false): Promise<SmsSettings> {
   const owner = resolve(m.get(SMS_SETTING_KEYS.ownerMobile), env.OWNER_MOBILE);
   const enabledRaw = m.get(SMS_SETTING_KEYS.enabled);
 
+  // آدرس اتصال: پنل > پیش‌فرض (لبه). مقدار نامعتبر ⇒ نادیده گرفته می‌شود.
+  const panelBase = (m.get(SMS_SETTING_KEYS.baseUrl) ?? "").trim();
+  const baseUrl = panelBase && isValidSmsBaseUrl(panelBase) ? panelBase.replace(/\/+$/, "") : DEFAULT_SMS_BASE_URL;
+
   const value: SmsSettings = {
     provider: "ippanel",
     apiKey: key.value,
@@ -86,6 +96,8 @@ export async function getSmsSettings(force = false): Promise<SmsSettings> {
     enabled: enabledRaw !== "0",
     ownerMobile: normalizePhoneDigits(owner.value),
     ownerMobileSource: owner.source,
+    baseUrl,
+    baseUrlSource: panelBase && isValidSmsBaseUrl(panelBase) ? "panel" : "default",
     apiKeyHint: maskKey(key.value),
   };
   cache = { at: Date.now(), value };
@@ -105,6 +117,7 @@ export async function smsProviderReady(): Promise<boolean> {
 export function validateSmsSettingsInput(input: {
   sender?: string;
   ownerMobile?: string;
+  baseUrl?: string;
 }): string | null {
   if (input.sender !== undefined) {
     const n = normalizePhoneDigits(input.sender);
@@ -115,6 +128,9 @@ export function validateSmsSettingsInput(input: {
     if (n && !/^(\+98|0098|98|0)?9\d{9}$/.test(n.replace(/^\+/, ""))) {
       return "شمارهٔ موبایل مالک معتبر نیست (مثال: 09123456789).";
     }
+  }
+  if (input.baseUrl !== undefined && input.baseUrl.trim() && !isValidSmsBaseUrl(input.baseUrl.trim())) {
+    return "آدرس سرویس معتبر نیست — باید با https:// شروع شود.";
   }
   return null;
 }

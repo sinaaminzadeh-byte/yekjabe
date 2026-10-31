@@ -1,41 +1,89 @@
-// ── sms/ippanel.ts — ippanel.com EDGE API adapter (owner rounds 26 & 44) ──
-// Official docs: https://ippanelcom.github.io/Edge-Document/docs
-//   Base URL : https://edge.ippanel.com/v1
-//   Auth     : Authorization: <apikey|token> (raw value — no Bearer prefix)
-// ONE unified send endpoint, «۲ روش» per the owner:
-//   POST /api/send  sending_type:"pattern"    → pattern (پترن) send — fast path
-//   POST /api/send  sending_type:"webservice" → plain text send
-//   GET  /api/payment/credit/mine             → panel credit (admin card)
-// Success envelope: { data: { message_outbox_ids: [id] }, meta: { status: true,
-//   message: "انجام شد", message_code: "200-1" } } — business errors keep the
-//   same envelope with meta.status=false and a PERSIAN meta.message which we
-//   surface verbatim, so the admin SMS report shows the provider's own reason
-//   (e.g. «اطلاعات وارد شده صحیح نمی باشد» on a bad key). Short timeouts;
-//   failures throw so the outbox retry/backoff and reports stay honest.
-// Round 44: apiKey/sender now come from PANEL settings (src/lib/sms/settings.ts)
-//   with env fallback — every function takes an explicit apiKey argument so the
-//   «تست اتصال» button can probe a *candidate* key before the owner saves it.
-const BASE = "https://edge.ippanel.com/v1";
+// ── sms/ippanel.ts — ippanel.com adapter, BOTH server generations (rounds 26/44/45) ──
+// Per the owner: ippanel.com documents TWO connection addresses (domestic vs
+// foreign server) — https://ippanel.com/developers/documents — and accounts on
+// different servers must call their own address. Verified against official docs
+// and SDKs:
+//
+//   ① Edge (new generation) — default
+//      Base : https://edge.ippanel.com/v1
+//      Auth : Authorization: <apikey>          (raw — no Bearer prefix)
+//      Send : POST /api/send  {sending_type:"pattern"|"webservice", from_number,
+//                              code|message, recipients:[+98…], params}
+//      Credit: GET /api/payment/credit/mine → data.credit
+//      Docs : https://ippanelcom.github.io/Edge-Document/docs
+//
+//   ② Legacy (classic REST — official PHP/Go/Python SDKs)
+//      Base : https://api2.ippanel.com/api/v1  (and api.ippanel.com/api/v1)
+//      Auth : apikey: <apikey>   (+ x-api-key sent too — both accepted)
+//      Pattern : POST /sms/pattern/normal/send {code, sender, recipient, variable}
+//      Plain   : POST /sms/send/webservice/single {sender, recipient:[…], message,
+//                description:{summary, count_recipient}}
+//      Credit  : GET /sms/accounting/credit/show → data.credit
+//      Source  : github.com/ippanel/php-rest-sdk Client.php (ENDPOINT, sendPattern,
+//                send, getCredit)
+//
+// Success envelope on both: { data, meta:{status:true,message,message_code} } —
+// business errors keep the envelope with meta.status=false and a PERSIAN
+// meta.message which we surface verbatim, so the admin SMS report shows the
+// provider's own reason. Every function takes an explicit baseUrl so the panel
+// can test a *candidate* address before saving it.
+export const IPANEL_BASES = {
+  edge: "https://edge.ippanel.com/v1",
+  legacyDomestic: "https://api.ippanel.com/api/v1",
+  legacyForeign: "https://api2.ippanel.com/api/v1",
+} as const;
 
-function headers(apiKey: string): Record<string, string> {
-  return {
-    Authorization: apiKey,
-    "Content-Type": "application/json",
-    Accept: "application/json",
-  };
+export const DEFAULT_SMS_BASE_URL = IPANEL_BASES.edge;
+
+/** Which request shape does this base URL speak? Edge host ⇒ edge, else legacy. */
+export function smsGeneration(baseUrl: string): "edge" | "legacy" {
+  return /(^|\.)edge\.ippanel\.com$/i.test(safeHost(baseUrl)) ? "edge" : "legacy";
 }
 
-interface EdgeEnvelope {
+function safeHost(url: string): string {
+  try {
+    return new URL(url).host;
+  } catch {
+    return "";
+  }
+}
+
+/** Validates a candidate base URL from the panel — https only, sane host. */
+export function isValidSmsBaseUrl(u: string): boolean {
+  if (!u) return true; // empty ⇒ default
+  try {
+    const p = new URL(u);
+    return p.protocol === "https:" && p.host.includes(".") && u.length <= 200;
+  } catch {
+    return false;
+  }
+}
+
+function headersFor(apiKey: string, generation: "edge" | "legacy"): Record<string, string> {
+  if (generation === "legacy") {
+    // official PHP SDK sends `apikey:` — we also send `x-api-key:` for mirrors
+    return { apikey: apiKey, "x-api-key": apiKey };
+  }
+  return { Authorization: apiKey };
+}
+
+interface Envelope {
   data?: unknown;
   meta?: { status?: boolean; message?: string; message_code?: string } | null;
 }
 
-async function call(apiKey: string, path: string, init: RequestInit): Promise<EdgeEnvelope> {
+async function call(
+  apiKey: string,
+  base: string,
+  generation: "edge" | "legacy",
+  path: string,
+  init: RequestInit,
+): Promise<Envelope> {
   let res: Response;
   try {
-    res = await fetch(`${BASE}${path}`, {
+    res = await fetch(`${base.replace(/\/+$/, "")}${path}`, {
       ...init,
-      headers: { ...headers(apiKey), ...(init.headers ?? {}) },
+      headers: { ...headersFor(apiKey, generation), Accept: "application/json", "Content-Type": "application/json", ...(init.headers ?? {}) },
       signal: AbortSignal.timeout(10_000),
       cache: "no-store",
     });
@@ -44,29 +92,41 @@ async function call(apiKey: string, path: string, init: RequestInit): Promise<Ed
     throw new Error(`ippanel_network_${e instanceof Error && e.name === "TimeoutError" ? "timeout" : "error"}`);
   }
   const raw = await res.text().catch(() => "");
-  let body: EdgeEnvelope = {};
+  let body: Envelope = {};
   try {
-    body = JSON.parse(raw) as EdgeEnvelope;
+    body = JSON.parse(raw) as Envelope;
   } catch {
     body = {};
   }
-  // 200 + meta.status=true is the ONLY success shape (docs §Responses);
-  // 401/422 keep the same envelope with meta.status=false + Persian message.
   if (body.meta?.status === true) return body;
-  // 5xx from the provider usually returns an HTML Cloudflare error page (no
-  // JSON envelope) — name it plainly so the panel doesn't show a bare «502».
-  if (res.status >= 500) {
-    throw new Error(`ippanel_outage_${res.status} — سرویس پیامکی موقتاً در دسترس نیست (${res.status})`);
+  if (body.meta?.status === false) {
+    // provider's own business error — surface its Persian message verbatim
+    const code = body.meta.message_code ? `[${body.meta.message_code}] ` : "";
+    throw new Error(`${code}${body.meta.message ?? "خطای ناشناختهٔ سرویس پیامکی"}`.slice(0, 180));
   }
-  const code = body.meta?.message_code ? `[${body.meta.message_code}] ` : "";
-  const msg = body.meta?.message ? ` — ${body.meta.message}` : "";
-  throw new Error(`ippanel_${res.status} ${code}${msg}`.trim().slice(0, 180) || `ippanel_http_${res.status}`);
+  // 5xx usually returns an HTML Cloudflare error page (no JSON envelope).
+  // Round 45: hint about the OTHER server address — per the docs, panels on the
+  // other server must use the other base URL.
+  if (res.status >= 500) {
+    throw new Error(
+      `ippanel_http_${res.status} — پاسخ ۵۰x از آدرس سرویس (قطعی موقت یا مسدودی CDN) — در تنظیمات، آدرس سرویس دیگر را هم امتحان کن`.slice(0, 180),
+    );
+  }
+  if (res.status === 401 || res.status === 403) {
+    throw new Error(`ippanel_${res.status} — کلید API پذیرفته نشد (${res.status})`);
+  }
+  if (!res.ok) {
+    throw new Error(`ippanel_http_${res.status} — ${body.meta?.message ?? raw.slice(0, 80)}`.slice(0, 180));
+  }
+  // 2xx without meta — legacy quirk tolerance: accept when data exists
+  if (body.data !== undefined && body.data !== null) return body;
+  throw new Error("ippanel_bad_response — پاسخ نامعتبر از سرویس پیامک");
 }
 
 /**
- * E.164 — the Edge API requires +98… format for BOTH the sender line and the
- * recipients. Internal storage uses 09xxxxxxxxx; panel lines may be configured
- * as 3000505 / +983000505 / 983000505 / ۰۹۱۲… — all normalize here.
+ * E.164 (+98…) for Edge — the Edge API wants +98 for sender and recipients.
+ * Internal storage uses 09xxxxxxxxx; panel lines may be 3000505 / +983000505 /
+ * 983000505 / ۰۹۱۲… — all normalize here.
  */
 function toE164(raw: string): string {
   let s = raw.replace(/[۰-۹]/g, (d) => String("۰۱۲۳۴۵۶۷۸۹".indexOf(d))).replace(/[^\d+]/g, "");
@@ -77,34 +137,57 @@ function toE164(raw: string): string {
   return `+98${s.startsWith("0") ? s.slice(1) : s}`;
 }
 
+/** Legacy format per the official SDK examples: recipient «98912…» (no plus). */
+function toLegacyRecipient(raw: string): string {
+  return toE164(raw).replace(/^\+/, "");
+}
+
+function pickMessageId(body: Envelope): string {
+  const d = body.data as { message_outbox_ids?: unknown[]; message_id?: unknown } | null;
+  if (d && typeof d.message_id !== "undefined") return String(d.message_id);
+  if (d && Array.isArray(d.message_outbox_ids) && d.message_outbox_ids.length) {
+    return String(d.message_outbox_ids[0]);
+  }
+  return "";
+}
+
 export interface PatternSendResult {
   messageId: string;
   provider: "ippanel_pattern";
 }
 
-/** Pattern send — `variables` keys are the pattern's own variable names. */
+/** Pattern send — `variables` keys are the pattern's own variable names (%code% …). */
 export async function ippanelSendPattern(
   apiKey: string,
+  baseUrl: string,
   patternCode: string,
   sender: string,
   recipient: string,
   variables: Record<string, string>,
 ): Promise<PatternSendResult> {
-  const body = await call(apiKey, "/api/send", {
-    method: "POST",
-    body: JSON.stringify({
-      sending_type: "pattern",
-      from_number: toE164(sender) || undefined,
-      code: patternCode,
-      recipients: [toE164(recipient)],
-      params: variables,
-    }),
-  });
-  const ids = (body.data as { message_outbox_ids?: unknown[] } | null)?.message_outbox_ids;
-  return {
-    messageId: String(Array.isArray(ids) && ids.length ? ids[0] : ""),
-    provider: "ippanel_pattern",
-  };
+  const generation = smsGeneration(baseUrl);
+  const body =
+    generation === "edge"
+      ? await call(apiKey, baseUrl, generation, "/api/send", {
+          method: "POST",
+          body: JSON.stringify({
+            sending_type: "pattern",
+            from_number: toE164(sender) || undefined,
+            code: patternCode,
+            recipients: [toE164(recipient)],
+            params: variables,
+          }),
+        })
+      : await call(apiKey, baseUrl, generation, "/sms/pattern/normal/send", {
+          method: "POST",
+          body: JSON.stringify({
+            code: patternCode,
+            sender: toE164(sender) || undefined,
+            recipient: toLegacyRecipient(recipient),
+            variable: variables,
+          }),
+        });
+  return { messageId: pickMessageId(body), provider: "ippanel_pattern" };
 }
 
 export interface PlainSendResult {
@@ -112,44 +195,58 @@ export interface PlainSendResult {
   provider: "ippanel";
 }
 
-/** Plain (non-pattern) send — used only when a template has no pattern code. */
+/** Plain (non-pattern) send — used when a template has no pattern code. */
 export async function ippanelSendPlain(
   apiKey: string,
+  baseUrl: string,
   text: string,
   sender: string,
   recipient: string,
 ): Promise<PlainSendResult> {
-  const body = await call(apiKey, "/api/send", {
-    method: "POST",
-    body: JSON.stringify({
-      sending_type: "webservice",
-      from_number: toE164(sender) || undefined,
-      message: text,
-      params: { recipients: [toE164(recipient)] },
-    }),
-  });
-  const ids = (body.data as { message_outbox_ids?: unknown[] } | null)?.message_outbox_ids;
-  return {
-    messageId: String(Array.isArray(ids) && ids.length ? ids[0] : ""),
-    provider: "ippanel",
-  };
+  const generation = smsGeneration(baseUrl);
+  const body =
+    generation === "edge"
+      ? await call(apiKey, baseUrl, generation, "/api/send", {
+          method: "POST",
+          body: JSON.stringify({
+            sending_type: "webservice",
+            from_number: toE164(sender) || undefined,
+            message: text,
+            params: { recipients: [toE164(recipient)] },
+          }),
+        })
+      : await call(apiKey, baseUrl, generation, "/sms/send/webservice/single", {
+          method: "POST",
+          body: JSON.stringify({
+            sender: toE164(sender) || undefined,
+            recipient: [toLegacyRecipient(recipient)],
+            message: text,
+            description: { summary: "ارسال از پنل", count_recipient: "1" },
+          }),
+        });
+  return { messageId: pickMessageId(body), provider: "ippanel" };
 }
 
 /** Panel credit — admin «اعتبار پنل» card (best-effort, never blocks sending). */
-export async function ippanelCredit(apiKey: string): Promise<number | null> {
-  const d = await ippanelCreditDiag(apiKey);
+export async function ippanelCredit(apiKey: string, baseUrl: string): Promise<number | null> {
+  const d = await ippanelCreditDiag(apiKey, baseUrl);
   return d.ok ? (d.credit ?? null) : null;
 }
 
 /** Credit + RAW connection diagnosis — admin SMS tab shows the provider's own
- * error text (e.g. 502 outage / bad key) instead of a silent «—». Accepts an
- * explicit key so «تست اتصال» can validate a not-yet-saved candidate key. */
+ * error text instead of a silent «—». Accepts explicit key AND base URL so
+ * «تست اتصال» can validate not-yet-saved candidates. */
 export async function ippanelCreditDiag(
   apiKey: string,
+  baseUrl: string,
 ): Promise<{ ok: boolean; credit?: number; error?: string }> {
   if (!apiKey) return { ok: false, error: "کلید API تنظیم نشده است" };
   try {
-    const body = await call(apiKey, "/api/payment/credit/mine", { method: "GET" });
+    const generation = smsGeneration(baseUrl);
+    const body =
+      generation === "edge"
+        ? await call(apiKey, baseUrl, generation, "/api/payment/credit/mine", { method: "GET" })
+        : await call(apiKey, baseUrl, generation, "/sms/accounting/credit/show", { method: "GET" });
     const d = body.data as { credit?: number | string } | null;
     const n = Number(d?.credit);
     return Number.isFinite(n) ? { ok: true, credit: n } : { ok: false, error: "پاسخ غیرمنتظره سرویس" };
