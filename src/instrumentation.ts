@@ -5,9 +5,9 @@
 // Disable with INTERNAL_CRON="0".
 export async function register() {
   if (process.env.NEXT_RUNTIME !== "nodejs") return;
-  // NOTE: the serverless SQLite bootstrap does NOT live here — Netlify's
-  // bundled handler skips instrumentation.register(). It runs synchronously
-  // from src/lib/db.ts (via src/lib/sqlite-serverless.ts) instead.
+  // NOTE: Netlify's handler DOES run register(). The serverless SQLite
+  // bootstrap runs synchronously from src/lib/env.ts and src/lib/db.ts (via
+  // src/lib/sqlite-serverless.ts), so whichever loads first sets DATABASE_URL.
 
   // ── S-01 (audit wave 37): نگهبان سکرت‌های پروداکشن ──
   // در production اگر SESSION_SECRET / ADMIN_PANEL_PASSWORD / CRON_SECRET
