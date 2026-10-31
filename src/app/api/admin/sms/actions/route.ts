@@ -69,7 +69,7 @@ export async function POST(req: Request) {
       const key = (parsed.data.apiKey ?? "").trim() || s.apiKey;
       const base = (parsed.data.baseUrl ?? "").trim() || s.baseUrl;
       const diag = await ippanelCreditDiag(key, base);
-      return NextResponse.json({ ok: diag.ok, ...diag, source: s.apiKeySource, baseUrl: base });
+      return NextResponse.json({ ...diag, ok: diag.ok, source: s.apiKeySource, baseUrl: base });
     }
 
     if (parsed.data.action === "send_custom") {
