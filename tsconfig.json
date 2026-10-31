@@ -41,6 +41,7 @@
     "examples",
     "skills",
     "mini-services",
-    "tool-results"
+    "tool-results",
+    "cloudflare-worker.ts"
   ]
 }

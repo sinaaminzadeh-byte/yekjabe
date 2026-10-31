@@ -19,13 +19,17 @@ const header = `// ────────────────────�
 // Source of truth: prisma/schema.prisma (SQLite, dev/authoring).
 // Regenerate after every schema change:  bun scripts/sync-pg-schema.mjs
 // Deploy path: scripts/prisma-boot.mjs picks THIS file when DATABASE_URL is a
-// postgres:// URL (Vercel / Coolify). Identical models ⇒ identical TS types.
+// postgres:// URL (Vercel / Coolify / Cloudflare Workers). Identical models ⇒
+// identical TS types.
 // ─────────────────────────────────────────────────────────────────────────────
 
 generator client {
   provider      = "prisma-client-js"
-  // Vercel functions = Amazon Linux (openssl 1.0.x on the older runtime,
-  // 3.0.x on Node 20+/AL2023) — ship every Linux engine plus the build host's.
+  // Engineless client (JS query compiler + node-postgres driver adapter via
+  // src/lib/db.ts) — REQUIRED for Cloudflare Workers, where the Rust query
+  // engine binary cannot run; identical behavior on Node (Vercel/Coolify).
+  previewFeatures = ["driverAdapters", "queryCompiler"]
+  // Legacy engine path keeps working where an adapter isn't wired.
   binaryTargets = ["native", "rhel-openssl-1.0.x", "rhel-openssl-3.0.x"]
 }
 

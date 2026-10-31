@@ -1,4 +1,5 @@
 import { PrismaClient } from '@prisma/client'
+import { PrismaPg } from '@prisma/adapter-pg'
 import { bootstrapServerlessSqlite } from './sqlite-serverless'
 
 // Serverless (Netlify) cold start: point DATABASE_URL at a writable copy of
@@ -24,6 +25,22 @@ function sqliteUrl(): string | undefined {
   return `${raw}?connection_limit=1&pool_timeout=20`
 }
 
+/**
+ * PostgreSQL runs through the engineless driver adapter (@prisma/adapter-pg):
+ * the JS query compiler replaces the Rust query-engine binary, which cannot
+ * execute inside Cloudflare Workers (workerd). Identical behavior on Node
+ * hosts (Vercel / Coolify). Activated purely by the DATABASE_URL protocol —
+ * no extra flag. Small pool: one isolate ≈ one small app instance; Neon's
+ * pooler absorbs the fan-out.
+ */
+function pgAdapter(): PrismaPg | undefined {
+  const url = process.env.DATABASE_URL ?? ""
+  if (!/^postgres(ql)?:\/\//i.test(url)) return undefined
+  return new PrismaPg({ connectionString: url, max: 5 })
+}
+
+const pg = pgAdapter()
+
 export const db =
   globalForPrisma.prisma ??
   new PrismaClient({
@@ -33,7 +50,14 @@ export const db =
         : process.env.PRISMA_QUERY_LOG === "1"
           ? ["query", "error", "warn"]
           : ["error", "warn"],
-    ...(sqliteUrl() ? { datasources: { db: { url: sqliteUrl() } } } : {}),
+    // Cast: the SQLite-generated client type has no `adapter` key while the
+    // queryCompiler-generated PG client requires it — the runtime branch below
+    // always matches whichever client scripts/prisma-boot.mjs generated.
+    ...((pg
+      ? { adapter: pg }
+      : sqliteUrl()
+        ? { datasources: { db: { url: sqliteUrl() } } }
+        : {}) as ConstructorParameters<typeof PrismaClient>[0]),
   })
 
 if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = db

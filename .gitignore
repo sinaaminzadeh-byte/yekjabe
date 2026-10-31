@@ -2,6 +2,9 @@
 node_modules/
 .next/
 out/
+.open-next/
+.wrangler/
+.dev.vars
 
 # env & secrets — NEVER commit
 .env
