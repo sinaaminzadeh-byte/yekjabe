@@ -1,4 +1,4 @@
-// ── sms/ippanel.ts — ippanel.com EDGE API adapter (owner round 26) ──
+// ── sms/ippanel.ts — ippanel.com EDGE API adapter (owner rounds 26 & 44) ──
 // Official docs: https://ippanelcom.github.io/Edge-Document/docs
 //   Base URL : https://edge.ippanel.com/v1
 //   Auth     : Authorization: <apikey|token> (raw value — no Bearer prefix)
@@ -12,20 +12,17 @@
 //   surface verbatim, so the admin SMS report shows the provider's own reason
 //   (e.g. «اطلاعات وارد شده صحیح نمی باشد» on a bad key). Short timeouts;
 //   failures throw so the outbox retry/backoff and reports stay honest.
-import { env } from "../env";
-
+// Round 44: apiKey/sender now come from PANEL settings (src/lib/sms/settings.ts)
+//   with env fallback — every function takes an explicit apiKey argument so the
+//   «تست اتصال» button can probe a *candidate* key before the owner saves it.
 const BASE = "https://edge.ippanel.com/v1";
 
-function headers(): Record<string, string> {
+function headers(apiKey: string): Record<string, string> {
   return {
-    Authorization: env.IPPANEL_API_KEY ?? "",
+    Authorization: apiKey,
     "Content-Type": "application/json",
     Accept: "application/json",
   };
-}
-
-export function ippanelConfigured(): boolean {
-  return Boolean(env.IPPANEL_API_KEY);
 }
 
 interface EdgeEnvelope {
@@ -33,12 +30,12 @@ interface EdgeEnvelope {
   meta?: { status?: boolean; message?: string; message_code?: string } | null;
 }
 
-async function call(path: string, init: RequestInit): Promise<EdgeEnvelope> {
+async function call(apiKey: string, path: string, init: RequestInit): Promise<EdgeEnvelope> {
   let res: Response;
   try {
     res = await fetch(`${BASE}${path}`, {
       ...init,
-      headers: { ...headers(), ...(init.headers ?? {}) },
+      headers: { ...headers(apiKey), ...(init.headers ?? {}) },
       signal: AbortSignal.timeout(10_000),
       cache: "no-store",
     });
@@ -46,13 +43,24 @@ async function call(path: string, init: RequestInit): Promise<EdgeEnvelope> {
     // network/DNS/timeout — name it so the report is readable at a glance
     throw new Error(`ippanel_network_${e instanceof Error && e.name === "TimeoutError" ? "timeout" : "error"}`);
   }
-  const body = (await res.json().catch(() => ({}))) as EdgeEnvelope;
+  const raw = await res.text().catch(() => "");
+  let body: EdgeEnvelope = {};
+  try {
+    body = JSON.parse(raw) as EdgeEnvelope;
+  } catch {
+    body = {};
+  }
   // 200 + meta.status=true is the ONLY success shape (docs §Responses);
   // 401/422 keep the same envelope with meta.status=false + Persian message.
   if (body.meta?.status === true) return body;
+  // 5xx from the provider usually returns an HTML Cloudflare error page (no
+  // JSON envelope) — name it plainly so the panel doesn't show a bare «502».
+  if (res.status >= 500) {
+    throw new Error(`ippanel_outage_${res.status} — سرویس پیامکی موقتاً در دسترس نیست (${res.status})`);
+  }
   const code = body.meta?.message_code ? `[${body.meta.message_code}] ` : "";
   const msg = body.meta?.message ? ` — ${body.meta.message}` : "";
-  throw new Error(`ippanel_${res.status} ${code}${msg}`.trim().slice(0, 180));
+  throw new Error(`ippanel_${res.status} ${code}${msg}`.trim().slice(0, 180) || `ippanel_http_${res.status}`);
 }
 
 /**
@@ -76,12 +84,13 @@ export interface PatternSendResult {
 
 /** Pattern send — `variables` keys are the pattern's own variable names. */
 export async function ippanelSendPattern(
+  apiKey: string,
   patternCode: string,
   sender: string,
   recipient: string,
   variables: Record<string, string>,
 ): Promise<PatternSendResult> {
-  const body = await call("/api/send", {
+  const body = await call(apiKey, "/api/send", {
     method: "POST",
     body: JSON.stringify({
       sending_type: "pattern",
@@ -105,11 +114,12 @@ export interface PlainSendResult {
 
 /** Plain (non-pattern) send — used only when a template has no pattern code. */
 export async function ippanelSendPlain(
+  apiKey: string,
   text: string,
   sender: string,
   recipient: string,
 ): Promise<PlainSendResult> {
-  const body = await call("/api/send", {
+  const body = await call(apiKey, "/api/send", {
     method: "POST",
     body: JSON.stringify({
       sending_type: "webservice",
@@ -126,17 +136,20 @@ export async function ippanelSendPlain(
 }
 
 /** Panel credit — admin «اعتبار پنل» card (best-effort, never blocks sending). */
-export async function ippanelCredit(): Promise<number | null> {
-  const d = await ippanelCreditDiag();
+export async function ippanelCredit(apiKey: string): Promise<number | null> {
+  const d = await ippanelCreditDiag(apiKey);
   return d.ok ? (d.credit ?? null) : null;
 }
 
 /** Credit + RAW connection diagnosis — admin SMS tab shows the provider's own
- * error text (e.g. 502 outage / bad key) instead of a silent «—». */
-export async function ippanelCreditDiag(): Promise<{ ok: boolean; credit?: number; error?: string }> {
-  if (!ippanelConfigured()) return { ok: false, error: "IPPANEL_API_KEY تنظیم نشده" };
+ * error text (e.g. 502 outage / bad key) instead of a silent «—». Accepts an
+ * explicit key so «تست اتصال» can validate a not-yet-saved candidate key. */
+export async function ippanelCreditDiag(
+  apiKey: string,
+): Promise<{ ok: boolean; credit?: number; error?: string }> {
+  if (!apiKey) return { ok: false, error: "کلید API تنظیم نشده است" };
   try {
-    const body = await call("/api/payment/credit/mine", { method: "GET" });
+    const body = await call(apiKey, "/api/payment/credit/mine", { method: "GET" });
     const d = body.data as { credit?: number | string } | null;
     const n = Number(d?.credit);
     return Number.isFinite(n) ? { ok: true, credit: n } : { ok: false, error: "پاسخ غیرمنتظره سرویس" };

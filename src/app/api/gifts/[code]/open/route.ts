@@ -10,6 +10,7 @@ import { verifyGiftPassword } from "@/lib/orders/crypto";
 import { isMessageExpired, markFirstDisplay } from "@/lib/orders/retention";
 import { isViewableStatus, senderLabelFor } from "@/lib/orders/gift-view";
 import { enqueueSms } from "@/lib/sms";
+import { getSmsSettings } from "@/lib/sms/settings";
 import { env } from "@/lib/env";
 
 const MAX_ATTEMPTS = 10;
@@ -40,6 +41,8 @@ export async function POST(req: Request, { params }: { params: Promise<{ code: s
         data: { giftOpenAttempts: attempts, ...(locked ? { giftLockedAt: new Date() } : {}) },
       });
       if (locked) {
+        // شمارهٔ مالک از تنظیمات پنل (DB > env) — رند ۴۴
+        const settingsOwner = (await getSmsSettings()).ownerMobile;
         await db.$transaction(async (tx) => {
           await tx.orderEvent.create({
             data: { orderId: order.id, type: "note", note: "gift_locked_too_many_attempts", actor: "system" },
@@ -48,7 +51,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ code: s
           if (alertTo) {
             await enqueueSms(tx, { phone: alertTo, template: "admin_alert", params: { text: `رمز کارت سفارش ${order.code} زیاد اشتباه وارد شد؛ کارت قفل شد.` } });
           }
-          const owner = env.OWNER_MOBILE;
+          const owner = settingsOwner || env.OWNER_MOBILE;
           if (owner) {
             await enqueueSms(tx, { phone: owner, template: "admin_alert", params: { text: `سفارش ${order.code} قفل شد (تلاش ناموفق رمز).` } });
           }

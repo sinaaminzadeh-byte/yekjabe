@@ -1,5 +1,6 @@
 // ── /api/admin/sms — بخش پیامک داشبورد (owner round) ──
-// GET   → stats + provider status + credit + all templates (any admin seat)
+// GET   → stats (+per-template usage) + provider status from PANEL settings +
+//         credit + all templates (any admin seat)
 // PATCH → update ONE template (patternCode / fallbackText / variables /
 //         enabled) — OWNER-only, same policy as the تنظیمات tab.
 import { NextResponse } from "next/server";
@@ -9,8 +10,8 @@ import { AppError, toErrorResponse } from "@/lib/errors";
 import { assertSameOrigin, requireAdmin } from "@/lib/auth/session";
 import { isRateLimited, clientIp, rateLimit } from "@/lib/rate-limit";
 import { ensureSmsSeeds, invalidateSmsTemplateCache, getSmsTemplateMap } from "@/lib/sms";
-import { ippanelConfigured, ippanelCreditDiag } from "@/lib/sms/ippanel";
-import { env } from "@/lib/env";
+import { ippanelCreditDiag } from "@/lib/sms/ippanel";
+import { getSmsSettings } from "@/lib/sms/settings";
 
 export async function GET() {
   try {
@@ -18,28 +19,42 @@ export async function GET() {
     await ensureSmsSeeds();
     const map = await getSmsTemplateMap();
 
-    const [todaySent, queued, failed, dead, templates] = await Promise.all([
+    const [todaySent, sentTotal, queued, failed, dead, perTemplate, templates] = await Promise.all([
       db.smsOutbox.count({ where: { status: "sent", sentAt: { gte: new Date(Date.now() - 86_400_000) } } }),
+      db.smsOutbox.count({ where: { status: "sent" } }),
       db.smsOutbox.count({ where: { status: "queued" } }),
       db.smsOutbox.count({ where: { status: "queued", attempts: { gt: 0 } } }),
       db.smsOutbox.count({ where: { status: "dead" } }),
+      db.smsOutbox.groupBy({ by: ["template"], where: { status: "sent" }, _count: { _all: true } }),
       db.smsTemplate.findMany({ orderBy: { key: "asc" } }),
     ]);
 
-    // owner mobile for the هشدار card (read-only display)
-    const owner = env.OWNER_MOBILE ?? "";
+    // تنظیمات پنلی (کلید فقط نقاب‌شده) — DB > env
+    const s = await getSmsSettings();
+    const creditDiag = s.apiKey ? await ippanelCreditDiag(s.apiKey) : { ok: false as const, error: "کلید API تنظیم نشده است" };
 
     return NextResponse.json({
       ok: true,
-      stats: { sent24h: todaySent, queued, failed, dead },
-      provider: {
-        ippanel: ippanelConfigured(),
-        sender: env.IPPANEL_SENDER ?? "",
-        kavenegar: Boolean(env.KAVENEGAR_API_KEY),
+      stats: { sent24h: todaySent, sentTotal, queued, failed, dead },
+      perTemplate: perTemplate.map((r) => ({ template: r.template, sent: r._count._all })),
+      settings: {
+        provider: s.provider,
+        apiKeySet: Boolean(s.apiKey),
+        apiKeyHint: s.apiKeyHint,
+        apiKeySource: s.apiKeySource,
+        sender: s.sender,
+        senderSource: s.senderSource,
+        enabled: s.enabled,
+        ownerMobile: s.ownerMobile,
+        ownerMobileSource: s.ownerMobileSource,
       },
-      credit: ippanelConfigured() ? (await ippanelCreditDiag()).credit ?? null : null,
-      creditDiag: await ippanelCreditDiag(),
-      ownerMobile: owner,
+      provider: {
+        ippanel: Boolean(s.apiKey),
+        sender: s.sender,
+        kavenegar: false, // legacy env provider — kept out of the panel UI
+      },
+      credit: creditDiag.ok ? creditDiag.credit ?? null : null,
+      creditDiag,
       templates: templates.map((t) => ({
         key: t.key,
         label: t.label,

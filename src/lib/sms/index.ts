@@ -17,7 +17,8 @@
 import type { Prisma } from "@prisma/client";
 import { db } from "../db";
 import { env } from "../env";
-import { ippanelConfigured, ippanelSendPattern, ippanelSendPlain } from "./ippanel";
+import { ippanelSendPattern, ippanelSendPlain } from "./ippanel";
+import { getSmsSettings } from "./settings";
 
 type Tx = Prisma.TransactionClient;
 
@@ -230,6 +231,34 @@ export async function enqueueSms(
   });
 }
 
+/** ارسال دستی از پنل (owner) — متنِ دلخواه به یک شماره، با ثبت کامل در گزارش. */
+export async function sendCustomNow(
+  phone: string,
+  text: string,
+): Promise<{ ok: boolean; error?: string }> {
+  const row = await db.smsOutbox.create({
+    data: { phone, template: "custom", params: JSON.stringify({ text }) },
+  });
+  try {
+    const s = await getSmsSettings();
+    if (!s.enabled) throw new Error("sms_disabled");
+    if (!s.apiKey) throw new Error("sms_no_api_key");
+    assertSane(text);
+    const r = await ippanelSendPlain(s.apiKey, text, s.sender, phone);
+    await db.smsOutbox.update({
+      where: { id: row.id },
+      data: { status: "sent", sentAt: new Date(), attempts: 1, provider: r.provider, messageId: r.messageId },
+    });
+    return { ok: true };
+  } catch (e) {
+    await db.smsOutbox.update({
+      where: { id: row.id },
+      data: { status: "failed", attempts: 1, error: String(e).slice(0, 200) },
+    });
+    return { ok: false, error: String(e).slice(0, 120) };
+  }
+}
+
 /** Urgent path — create the row AND deliver immediately (OTP, admin test). */
 export async function sendSmsNow(
   input: { phone: string; template: string; params?: Record<string, string> },
@@ -256,9 +285,15 @@ export async function sendSmsNow(
 
 const BACKOFF_MS = [60_000, 86_400_000, 5 * 86_400_000, 30 * 86_400_000]; // ۱دقیقه → ۱د → ۵د → ۳۰د → dead
 
-/** Drain queued SMS. Called by the sms-flush job every 2 minutes (and admin). */
-export async function flushSms(limit = 30): Promise<{ sent: number; failed: number; dead: number }> {
+/** Drain queued SMS. Called by the sms-flush job every 2 minutes (and admin).
+ * Round 44: سوییچ اصلی سرویس خاموش باشد صف «مکث» می‌کند — ردیف‌ها در صف
+ * می‌مانند (نه مردود) تا با روشن‌کردن دوبارهٔ سرویس، ارسال شوند. */
+export async function flushSms(
+  limit = 30,
+): Promise<{ sent: number; failed: number; dead: number; paused?: boolean }> {
   await ensureSmsSeeds();
+  const settings = await getSmsSettings();
+  if (!settings.enabled) return { sent: 0, failed: 0, dead: 0, paused: true };
   const queued = await db.smsOutbox.findMany({
     where: { status: "queued", sendAfter: { lte: new Date() } },
     orderBy: { createdAt: "asc" },
@@ -305,10 +340,14 @@ interface DeliverResult {
 async function deliver(phone: string, template: string, params: Record<string, string>): Promise<DeliverResult> {
   const cfg = (await getSmsTemplateMap()).get(template);
   const vars = cfg?.variables ?? {};
-  const sender = env.IPPANEL_SENDER ?? "";
+  const settings = await getSmsSettings();
+  const sender = settings.sender;
+
+  // سوییچ اصلی سرویس (پنل) خاموش ⇒ هیچ ارسالی نمی‌رود — خطای شفاف برای گزارش
+  if (!settings.enabled) throw new Error("sms_disabled");
 
   // Dev sandbox: no real provider — echo marks it sent so the queue drains.
-  if (env.devEcho || (!ippanelConfigured() && !env.KAVENEGAR_API_KEY)) {
+  if (env.devEcho || (!settings.apiKey && !env.KAVENEGAR_API_KEY)) {
     // S-09 (audit wave 38): the echo line used to print the FULL rendered text
     // — for otp_login/otp_gift that meant the 4-digit code landed in dev.log
     // (and dev.log.1 is git-tracked!). OTP codes must never be logged in ANY
@@ -329,7 +368,7 @@ async function deliver(phone: string, template: string, params: Record<string, s
 
   // ۱) pattern path — fast, text lives on ippanel side
   if (cfg.patternCode) {
-    const r = await ippanelSendPattern(cfg.patternCode, sender, phone, mapVars(vars, params));
+    const r = await ippanelSendPattern(settings.apiKey, cfg.patternCode, sender, phone, mapVars(vars, params));
     return { provider: r.provider, messageId: r.messageId };
   }
 
@@ -337,7 +376,7 @@ async function deliver(phone: string, template: string, params: Record<string, s
   if (cfg.fallbackText.trim()) {
     const text = renderFallback(cfg.fallbackText, params);
     assertSane(text);
-    const r = await ippanelSendPlain(text, sender, phone);
+    const r = await ippanelSendPlain(settings.apiKey, text, sender, phone);
     return { provider: r.provider, messageId: r.messageId };
   }
 

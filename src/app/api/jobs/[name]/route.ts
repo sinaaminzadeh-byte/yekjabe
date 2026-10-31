@@ -8,6 +8,7 @@ import { AppError, toErrorResponse } from "@/lib/errors";
 import { env } from "@/lib/env";
 import { transitionOrder } from "@/lib/orders/transition";
 import { flushSms, enqueueSms } from "@/lib/sms";
+import { getSmsSettings } from "@/lib/sms/settings";
 import { zarinpalVerify } from "@/lib/orders/checkout";
 import { purgeExpiredMessages } from "@/lib/orders/retention";
 
@@ -67,7 +68,8 @@ const JOBS: Record<string, () => Promise<string>> = {
     if (low.length === 0) return "all good";
     const pending = await db.smsOutbox.findFirst({ where: { template: "admin_alert", status: "queued", params: { contains: "موجودی" } } });
     if (pending) return "alert already queued";
-    const owner = env.OWNER_MOBILE;
+    // شمارهٔ مالک از تنظیمات پنل (DB > env) — رند ۴۴
+    const owner = (await getSmsSettings()).ownerMobile;
     if (owner) {
       const text = `موجودی کم: ${low.map((v) => `${v.product.slug}(${v.stock})`).join("، ").slice(0, 40)}`;
       await db.$transaction(async (tx) => {

@@ -1,15 +1,31 @@
 "use client";
 
 // ── «پیامک‌ها» tab (A-02 split, owner-only) ──
-// بخش پیامک کامل (owner round): تنظیمات قالب‌ها + کد پترن ippanel + متن
-// پیش‌فرض قابل ویرایش + ارسال آزمایشی + گزارش ارسال‌ها. متن‌ها در لحظه‌ی
-// ارسال از جدول SmsTemplate خوانده می‌شوند — یعنی هر تغییر اینجا بدون
-// تغییر کد، روی پیامک‌های بعدی اعمال می‌شود.
+// Round 44 — بخش پیامک کامل با کنترل بیشتر:
+//   ۱) تنظیمات سرویس: کلید API / شمارهٔ فرستنده / شمارهٔ مالک / سوییچ اصلی —
+//      همه از خودِ پنل (بدون Vercel و ری‌دیپلوی)، با تست اتصال زنده
+//   ۲) ارسال دستی پیامک به هر شماره (ثبت کامل در گزارش)
+//   ۳) قالب‌ها: کد پترن ippanel + متن پیش‌فرض قابل ویرایش + ارسال آزمایشی
+//   ۴) گزارش: فیلتر وضعیت + جست‌وجوی شماره + فیلتر قالب + خروجی CSV + ارسال دوباره
+// متن و تنظیمات در لحظهٔ ارسال از دیتابیس خوانده می‌شوند — هر تغییر بدون
+// تغییر کد روی پیامک‌های بعدی اعمال می‌شود.
 import { useEffect, useState } from "react";
 import { fa, money } from "@/lib/fa";
 import { useToast } from "@/hooks/use-toast";
 import { StatCard } from "@/components/shop/admin/admin-ui";
 import { adminFetch, invalidateAdminCache } from "@/components/shop/admin/admin-cache";
+
+interface SmsSettingsView {
+  provider: string;
+  apiKeySet: boolean;
+  apiKeyHint: string;
+  apiKeySource: "panel" | "env" | "none";
+  sender: string;
+  senderSource: "panel" | "env" | "none";
+  enabled: boolean;
+  ownerMobile: string;
+  ownerMobileSource: "panel" | "env" | "none";
+}
 
 interface SmsTemplateRow {
   key: string;
@@ -24,11 +40,12 @@ interface SmsTemplateRow {
 }
 
 interface SmsData {
-  stats: { sent24h: number; queued: number; failed: number; dead: number };
+  stats: { sent24h: number; sentTotal: number; queued: number; failed: number; dead: number };
+  perTemplate: { template: string; sent: number }[];
+  settings: SmsSettingsView;
   provider: { ippanel: boolean; sender: string; kavenegar: boolean };
   credit: number | null;
   creditDiag?: { ok: boolean; credit?: number; error?: string };
-  ownerMobile: string;
   templates: SmsTemplateRow[];
 }
 
@@ -56,6 +73,7 @@ const SMS_STATUS_CHIP: Record<string, { label: string; bg: string; fg: string }>
 
 const SMS_TEMPLATE_LABEL: Record<string, string> = {
   otp_login: "کد ورود",
+  otp_gift: "کد باز کردن هدیه",
   order_confirm: "ثبت سفارش",
   paid: "تأیید پرداخت",
   receipt_received: "دریافت رسید",
@@ -65,7 +83,11 @@ const SMS_TEMPLATE_LABEL: Record<string, string> = {
   delivered: "تحویل گیرنده",
   abandoned_cart: "سبد رهاشده",
   admin_alert: "هشدار مدیریتی",
+  custom: "ارسال دستی",
 };
+
+const inputCls =
+  "h-11 rounded-2xl border-[1.5px] border-[#CFE6EF] bg-[#F8FDFF] px-3.5 text-[14px] font-bold text-[#04202E] outline-none focus:border-[#00ABE7]";
 
 export function SmsTab() {
   const [data, setData] = useState<SmsData | null>(null);
@@ -77,17 +99,37 @@ export function SmsTab() {
   const [testing, setTesting] = useState("");
   const [testPhone, setTestPhone] = useState("");
 
-  // logs
+  // ── تنظیمات سرویس (پنلی) ──
+  const [settings, setSettings] = useState<SmsSettingsView | null>(null);
+  const [formSender, setFormSender] = useState("");
+  const [formOwner, setFormOwner] = useState("");
+  const [apiKeyInput, setApiKeyInput] = useState("");
+  const [showKeyInput, setShowKeyInput] = useState(false);
+  const [savingSettings, setSavingSettings] = useState(false);
+  const [probing, setProbing] = useState(false);
+  const [probeResult, setProbeResult] = useState<{ ok: boolean; credit?: number; error?: string } | null>(null);
+
+  // ── ارسال دستی ──
+  const [manualPhone, setManualPhone] = useState("");
+  const [manualText, setManualText] = useState("");
+  const [manualBusy, setManualBusy] = useState(false);
+
+  // ── گزارش ──
   const [logs, setLogs] = useState<SmsLogRow[]>([]);
   const [logStatus, setLogStatus] = useState("");
+  const [logQ, setLogQ] = useState("");
+  const [logTemplate, setLogTemplate] = useState("");
   const [logPage, setLogPage] = useState(1);
   const [logPages, setLogPages] = useState(1);
+  const [logTotal, setLogTotal] = useState(0);
   const [logsBusy, setLogsBusy] = useState(false);
+  const [exporting, setExporting] = useState(false);
 
   const load = (fresh = false) => {
     adminFetch<SmsData>("/api/admin/sms", { fresh })
       .then((j) => {
         setData(j);
+        applySettings(j.settings);
         setEdits((prev) => {
           const next = { ...prev };
           for (const t of j.templates) {
@@ -110,15 +152,26 @@ export function SmsTab() {
       });
   };
 
-  const loadLogs = (status = logStatus, page = 1) => {
+  const applySettings = (s: SmsSettingsView) => {
+    setSettings(s);
+    setFormSender(s.sender);
+    setFormOwner(s.ownerMobile);
+    setApiKeyInput("");
+    setShowKeyInput(!s.apiKeySet);
+  };
+
+  const loadLogs = (status = logStatus, page = 1, q = logQ, template = logTemplate) => {
     setLogsBusy(true);
-    adminFetch<{ logs?: SmsLogRow[]; page?: number; pages?: number }>(`/api/admin/sms/logs?status=${encodeURIComponent(status)}&page=${page}`)
-      .then((j) => j)
-      .then((j: { logs?: SmsLogRow[]; page?: number; pages?: number } | null) => {
+    const params = new URLSearchParams({ status, page: String(page) });
+    if (q.trim()) params.set("q", q.trim());
+    if (template) params.set("template", template);
+    adminFetch<{ logs?: SmsLogRow[]; page?: number; pages?: number; total?: number }>(`/api/admin/sms/logs?${params.toString()}`)
+      .then((j) => {
         if (j) {
           setLogs(j.logs ?? []);
           setLogPage(j.page ?? 1);
           setLogPages(j.pages ?? 1);
+          setLogTotal(j.total ?? 0);
         }
       })
       .catch(() => {})
@@ -129,9 +182,131 @@ export function SmsTab() {
     load();
   }, []);
 
+  // فیلترها با تأخیر کوتاه (تایپ شماره نباید برای هر حرف یک درخواست بزند)
   useEffect(() => {
-    loadLogs(logStatus, 1);
-  }, [logStatus]);
+    const t = setTimeout(() => loadLogs(logStatus, 1, logQ, logTemplate), 350);
+    return () => clearTimeout(t);
+  }, [logStatus, logQ, logTemplate]);
+
+  // ── ذخیرهٔ تنظیمات سرویس ──
+  const putSettings = async (payload: Record<string, unknown>, okTitle: string) => {
+    setSavingSettings(true);
+    try {
+      const res = await fetch("/api/admin/sms/settings", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const b = (await res.json().catch(() => ({}))) as {
+        ok?: boolean;
+        error?: string;
+        details?: { message?: string };
+        settings?: SmsSettingsView;
+        connectionTest?: { ok: boolean; credit?: number; error?: string };
+      };
+      if (!res.ok || !b.ok) {
+        toast({
+          title: "ذخیره نشد",
+          description:
+            b.error === "owner_only"
+              ? "این کار فقط با حساب مالک انجام می‌شه."
+              : (b.details?.message ?? "خطای سرور — دوباره تلاش کن."),
+        });
+        return null;
+      }
+      if (b.settings) applySettings(b.settings);
+      invalidateAdminCache();
+      load(true);
+      const ct = b.connectionTest;
+      toast({
+        title: okTitle,
+        description: ct
+          ? ct.ok
+            ? `تست اتصال: وصل است ✓ اعتبار پنل ${money(Math.floor(ct.credit ?? 0))}`
+            : `تست اتصال: ${ct.error ?? "نامشخص"}`
+          : undefined,
+      });
+      return b;
+    } catch {
+      toast({ title: "ذخیره نشد — دوباره تلاش کن" });
+      return null;
+    } finally {
+      setSavingSettings(false);
+    }
+  };
+
+  const saveGeneral = () => putSettings({ sender: formSender, ownerMobile: formOwner }, "تنظیمات ذخیره شد ✓");
+
+  const saveApiKey = () => {
+    if (!apiKeyInput.trim()) {
+      toast({ title: "کلید API را وارد کن", description: "کلید را از پنل ippanel بخش API Keys بردار." });
+      return;
+    }
+    void putSettings({ apiKey: apiKeyInput.trim() }, "کلید API ذخیره شد ✓");
+  };
+
+  const clearApiKey = () => void putSettings({ apiKey: "" }, "کلید API پاک شد");
+
+  const toggleEnabled = () => {
+    if (!settings) return;
+    void putSettings({ enabled: !settings.enabled }, settings.enabled ? "سرویس پیامک خاموش شد" : "سرویس پیامک روشن شد ✓");
+  };
+
+  const probeConnection = async () => {
+    setProbing(true);
+    setProbeResult(null);
+    try {
+      const res = await fetch("/api/admin/sms/actions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "connection_test", apiKey: apiKeyInput.trim() || undefined }),
+      });
+      const b = (await res.json().catch(() => ({}))) as { ok?: boolean; credit?: number; error?: string };
+      setProbeResult({ ok: Boolean(b.ok), credit: b.credit, error: b.error });
+    } catch {
+      setProbeResult({ ok: false, error: "ارتباط با سرور برقرار نشد" });
+    } finally {
+      setProbing(false);
+    }
+  };
+
+  // ── ارسال دستی ──
+  const sendManual = async () => {
+    if (!manualPhone.trim() || !manualText.trim()) {
+      toast({ title: "شماره و متن پیام را کامل کن" });
+      return;
+    }
+    setManualBusy(true);
+    try {
+      const res = await fetch("/api/admin/sms/actions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "send_custom", phone: manualPhone.trim(), text: manualText.trim() }),
+      });
+      const b = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string; details?: { message?: string } };
+      if (!res.ok || !b.ok) {
+        toast({
+          title: "ارسال نشد",
+          description:
+            b.error === "invalid_phone"
+              ? "شماره موبایل معتبر نیست."
+              : (b.details?.message ?? b.error ?? "خطای سرور یا سرویس‌دهنده — گزارش را ببین."),
+        });
+        loadLogs();
+        return;
+      }
+      toast({ title: "پیامک ارسال شد ✓", description: "در گزارش ارسال‌ها ثبت شد." });
+      setManualText("");
+      setManualPhone("");
+      invalidateAdminCache();
+      loadLogs();
+      load(true);
+    } catch {
+      toast({ title: "ارسال نشد — دوباره تلاش کن" });
+    } finally {
+      setManualBusy(false);
+    }
+  };
 
   const saveTemplate = async (key: string) => {
     const e = edits[key];
@@ -182,14 +357,14 @@ export function SmsTab() {
               ? "شماره موبایل معتبر نیست."
               : (b.error ?? "خطای سرور یا سرویس‌دهنده — گزارش را در جدول ببین."),
         });
-        loadLogs(logStatus, 1);
+        loadLogs();
         return;
       }
       toast({
         title: "پیامک آزمایشی رفت ✓",
         description: b.mode === "pattern" ? `با پترن: ${b.preview ?? ""}` : (b.preview ?? "با متن ساده"),
       });
-      loadLogs(logStatus, 1);
+      loadLogs();
     } catch {
       toast({ title: "ارسال آزمایشی نشد — دوباره تلاش کن" });
     } finally {
@@ -205,13 +380,13 @@ export function SmsTab() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "flush" }),
       });
-      const b = (await res.json().catch(() => ({}))) as { ok?: boolean; sent?: number; failed?: number; dead?: number };
+      const b = (await res.json().catch(() => ({}))) as { ok?: boolean; sent?: number; failed?: number; dead?: number; paused?: boolean };
       toast({
-        title: b.ok ? "صف پیامک تخلیه شد ✓" : "تخلیه‌ی صف نشد",
-        description: b.ok ? `ارسال‌شده: ${fa(b.sent ?? 0)} — ناموفق: ${fa(b.failed ?? 0)} — مردود: ${fa(b.dead ?? 0)}` : undefined,
+        title: b.ok && b.paused ? "سرویس خاموش است — صف مکث کرده" : b.ok ? "صف پیامک تخلیه شد ✓" : "تخلیه‌ی صف نشد",
+        description: b.ok && !b.paused ? `ارسال‌شده: ${fa(b.sent ?? 0)} — ناموفق: ${fa(b.failed ?? 0)} — مردود: ${fa(b.dead ?? 0)}` : b.paused ? "برای ادامه، سوییچ سرویس را روشن کن." : undefined,
       });
       invalidateAdminCache();
-      loadLogs(logStatus, 1);
+      loadLogs();
       load(true);
     } catch {
       toast({ title: "تخلیه‌ی صف نشد — دوباره تلاش کن" });
@@ -229,9 +404,9 @@ export function SmsTab() {
         body: JSON.stringify({ action: "retry", id }),
       });
       const b = (await res.json().catch(() => ({}))) as { ok?: boolean; sent?: number };
-      toast({ title: b.ok && (b.sent ?? 0) > 0 ? "دوباره ارسال شد ✓" : "در صف ارسال دوباره قرار گرفت", description: undefined });
+      toast({ title: b.ok && (b.sent ?? 0) > 0 ? "دوباره ارسال شد ✓" : "در صف ارسال دوباره قرار گرفت" });
       invalidateAdminCache();
-      loadLogs(logStatus, logPage);
+      loadLogs(logStatus, logPage, logQ, logTemplate);
       load(true);
     } catch {
       toast({ title: "ارسال دوباره نشد" });
@@ -240,34 +415,96 @@ export function SmsTab() {
     }
   };
 
-  if (loading || !data) {
+  const exportCsv = async () => {
+    setExporting(true);
+    try {
+      const params = new URLSearchParams({ status: logStatus, export: "1" });
+      if (logQ.trim()) params.set("q", logQ.trim());
+      if (logTemplate) params.set("template", logTemplate);
+      const j = await adminFetch<{ logs?: SmsLogRow[] }>(`/api/admin/sms/logs?${params.toString()}`, { fresh: true });
+      const rows = j?.logs ?? [];
+      const head = ["phone", "template", "status", "provider", "created_at", "sent_at", "error"];
+      const esc = (v: string) => `"${String(v ?? "").replace(/"/g, '""')}"`;
+      const lines = [head.join(",")];
+      for (const r of rows) {
+        lines.push(
+          [
+            r.phone,
+            r.template,
+            r.status,
+            r.provider,
+            r.createdAt,
+            r.sentAt ?? "",
+            r.error,
+          ]
+            .map(esc)
+            .join(","),
+        );
+      }
+      const blob = new Blob([`\uFEFF${lines.join("\n")}`], { type: "text/csv;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `sms-log-${new Date().toISOString().slice(0, 10)}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast({ title: `خروجی CSV آماده شد (${fa(rows.length)} ردیف)` });
+    } catch {
+      toast({ title: "خروجی CSV نشد — دوباره تلاش کن" });
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  if (loading || !data || !settings) {
     return <div className="rounded-[22px] bg-white px-5 py-6 text-center text-[13px] font-bold text-[#4A6572]">در حال بارگذاری…</div>;
   }
 
+  const perTemplateMap = new Map(data.perTemplate.map((p) => [p.template, p.sent]));
   const placeholdersOf = (text: string, vars: Record<string, string>): [string, string][] => {
     const found = new Set<string>(Object.keys(vars));
     for (const m of text.matchAll(/\{(\w+)\}/g)) found.add(m[1]);
     return [...found].map((k) => [k, vars[k] ?? k]);
   };
-
-  const toEn = (v: string) => v.replace(/[۰-۹]/g, (d) => String("۰۱۲۳۴۵۶۷۸۹".indexOf(d))).replace(/\D/g, "");
+  const sourceChip = (src: "panel" | "env" | "none") =>
+    src === "panel" ? (
+      <span className="rounded-lg bg-[#E3F6FD] px-2 py-0.5 text-[10px] font-extrabold text-[#006387]">پنلی</span>
+    ) : src === "env" ? (
+      <span className="rounded-lg bg-[#FFF3C9] px-2 py-0.5 text-[10px] font-extrabold text-[#7A5C00]">متغیر محیطی</span>
+    ) : null;
 
   return (
     <div className="flex flex-col gap-4">
-      {/* وضعیت سرویس + آمار */}
+      {/* سوییچ اصلی + آمار */}
       <section className="rounded-[24px] border border-[#DDEEF5] bg-white p-5">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-          <h2 className="m-0 text-[16px] font-black text-[#04202E]">سرویس پیامک (ippanel)</h2>
-          <span
-            className="rounded-full px-3 py-1.5 text-[11.5px] font-extrabold"
-            style={{ background: data.provider.ippanel ? "#E7F8EF" : "#FFE9F0", color: data.provider.ippanel ? "#1E7A46" : "#B02A52" }}
-          >
-            {data.provider.ippanel ? "کلید API وصل است" : "کلید API تنظیم نشده (IPPANEL_API_KEY)"}
-          </span>
+          <h2 className="m-0 text-[16px] font-black text-[#04202E]">سرویس پیامک</h2>
+          <div className="flex flex-wrap items-center gap-2">
+            <span
+              className="rounded-full px-3 py-1.5 text-[11.5px] font-extrabold"
+              style={{ background: settings.apiKeySet ? "#E7F8EF" : "#FFE9F0", color: settings.apiKeySet ? "#1E7A46" : "#B02A52" }}
+            >
+              {settings.apiKeySet ? `کلید API ذخیره است ${settings.apiKeyHint}` : "کلید API تنظیم نشده"}
+            </span>
+            <button
+              type="button"
+              onClick={() => void toggleEnabled()}
+              disabled={savingSettings}
+              aria-pressed={settings.enabled}
+              className="flex h-9 items-center gap-2 rounded-full px-1.5 pe-4 text-[12px] font-extrabold transition-colors disabled:opacity-50"
+              style={{ background: settings.enabled ? "#E7F8EF" : "#F0F3F5", color: settings.enabled ? "#1E7A46" : "#5B7482" }}
+            >
+              <span className="relative flex h-6 w-11 items-center rounded-full transition-colors" style={{ background: settings.enabled ? "#2E9E63" : "#C6D2D8" }}>
+                <span className="absolute h-5 w-5 rounded-full bg-white shadow transition-all" style={{ [settings.enabled ? "right" : "left"]: "2px" }} />
+              </span>
+              {settings.enabled ? "سرویس فعال" : "سرویس خاموش"}
+            </button>
+          </div>
         </div>
-        <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-          <StatCard n={fa(data.stats.sent24h)} label="ارسال‌شده (۲۴ ساعت)" bg="#E7F8EF" />
-          <StatCard n={fa(data.stats.queued)} label="در صف ارسال" bg="#E3F6FD" />
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
+          <StatCard n={fa(data.stats.sentTotal)} label="کل ارسال‌شده" bg="#E7F8EF" />
+          <StatCard n={fa(data.stats.sent24h)} label="ارسال ۲۴ ساعت اخیر" bg="#E3F6FD" />
+          <StatCard n={fa(data.stats.queued)} label="در صف ارسال" bg="#F0F3F5" />
           <StatCard n={fa(data.stats.failed)} label="ناموفق (تلاش دوباره)" bg="#FFF3C9" />
           <StatCard n={fa(data.stats.dead)} label="مردود (رد شد)" bg="#FFE9F0" />
         </div>
@@ -275,14 +512,14 @@ export function SmsTab() {
           {data.credit !== null && <span>اعتبار پنل: <b className="text-[#04202E]">{money(Math.floor(data.credit))}</b></span>}
           {data.creditDiag && !data.creditDiag.ok && (
             <span className="rounded-full bg-[#FFF3C9] px-2.5 py-1 text-[11px] font-extrabold text-[#7A5C00]" dir="auto">
-              وضعیت اتصال ippanel: ✗ {data.creditDiag.error ?? "نامشخص"}
+              وضعیت اتصال: ✗ {data.creditDiag.error ?? "نامشخص"}
             </span>
           )}
           {data.creditDiag?.ok && (
-            <span className="rounded-full bg-[#E7F8EF] px-2.5 py-1 text-[11px] font-extrabold text-[#1E7A46]">وضعیت اتصال ippanel: ✓ وصل است</span>
+            <span className="rounded-full bg-[#E7F8EF] px-2.5 py-1 text-[11px] font-extrabold text-[#1E7A46]">وضعیت اتصال: ✓ وصل است</span>
           )}
-          {data.provider.sender && <span>شماره فرستنده: <b dir="ltr" className="text-[#04202E]">{data.provider.sender}</b></span>}
-          {data.ownerMobile && <span>شماره هشدار مدیریتی: <b dir="ltr" className="text-[#04202E]">{data.ownerMobile}</b> (از متغیر محیطی OWNER_MOBILE)</span>}
+          {settings.sender && <span>شماره فرستنده: <b dir="ltr" className="text-[#04202E]">{settings.sender}</b> {sourceChip(settings.senderSource)}</span>}
+          {settings.ownerMobile && <span>هشدار مدیریتی به: <b dir="ltr" className="text-[#04202E]">{settings.ownerMobile}</b> {sourceChip(settings.ownerMobileSource)}</span>}
           <span>صف هر ۲ دقیقه به‌طور خودکار خالی می‌شود.</span>
         </div>
         <div className="mt-3 flex flex-wrap items-center gap-3">
@@ -294,7 +531,7 @@ export function SmsTab() {
               dir="ltr"
               inputMode="numeric"
               placeholder="09xxxxxxxxx"
-              className="h-11 w-[180px] rounded-2xl border-[1.5px] border-[#CFE6EF] bg-[#F8FDFF] px-3.5 text-[14px] font-bold text-[#04202E] outline-none focus:border-[#00ABE7]"
+              className={`${inputCls} w-[180px]`}
             />
           </label>
           <button
@@ -308,11 +545,185 @@ export function SmsTab() {
         </div>
       </section>
 
+      {/* تنظیمات سرویس — کلید API / فرستنده / مالک */}
+      <section className="rounded-[24px] border border-[#DDEEF5] bg-white p-5">
+        <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
+          <h2 className="m-0 text-[16px] font-black text-[#04202E]">تنظیمات سرویس پیامک</h2>
+          <span className="rounded-full bg-[#F0F3F5] px-3 py-1 text-[11px] font-extrabold text-[#5B7482]">سرویس‌دهنده: پنل پیامکی (فراز / ippanel)</span>
+        </div>
+        <p className="mb-4 mt-1 text-[12px] font-medium leading-[1.9] text-[#4A6572]">
+          این تنظیمات از خود پنل ذخیره می‌شوند و نیازی به محیط استقرار نیست. کلید API را از پنل پیامکی
+          (بخش توسعه‌دهندگان ← API Keys) بردار و همین‌جا ذخیره کن؛ بعد از ذخیره، اتصال خودکار تست می‌شود.
+          خط ارسال را خالی بگذاری، خط پیش‌فرض پنل استفاده می‌شود.
+        </p>
+
+        <div className="flex flex-col gap-4">
+          {/* کلید API */}
+          <div className="rounded-[20px] border border-[#E3F0F5] bg-[#FBFEFF] p-4">
+            <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+              <span className="text-[13.5px] font-black text-[#04202E]">کلید API</span>
+              {settings.apiKeySet ? (
+                <span className="flex items-center gap-2">
+                  <span dir="ltr" className="rounded-lg bg-[#E7F8EF] px-2.5 py-1 text-[11px] font-extrabold text-[#1E7A46]">ذخیره شده {settings.apiKeyHint}</span>
+                  {sourceChip(settings.apiKeySource)}
+                </span>
+              ) : (
+                <span className="rounded-lg bg-[#FFE9F0] px-2.5 py-1 text-[11px] font-extrabold text-[#B02A52]">تنظیم نشده — ارسال واقعی انجام نمی‌شود</span>
+              )}
+            </div>
+            {(showKeyInput || !settings.apiKeySet) && (
+              <div className="flex flex-wrap items-center gap-2">
+                <input
+                  value={apiKeyInput}
+                  onChange={(e) => setApiKeyInput(e.target.value)}
+                  dir="ltr"
+                  type="password"
+                  autoComplete="off"
+                  placeholder="کلید API را اینجا بچسبان…"
+                  className={`${inputCls} min-w-[260px] flex-1`}
+                />
+                <button
+                  type="button"
+                  onClick={() => void saveApiKey()}
+                  disabled={savingSettings || !apiKeyInput.trim()}
+                  className="h-11 rounded-full bg-[#04202E] px-5 text-[12.5px] font-extrabold text-white disabled:opacity-40"
+                >
+                  ذخیره کلید
+                </button>
+              </div>
+            )}
+            <div className="mt-2 flex flex-wrap items-center gap-2">
+              {settings.apiKeySet && (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => setShowKeyInput((v) => !v)}
+                    className="h-9 rounded-full border-[1.5px] border-[#CFE6EF] bg-white px-3.5 text-[11.5px] font-extrabold text-[#006387]"
+                  >
+                    {showKeyInput ? "بستن" : "تعویض کلید"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void clearApiKey()}
+                    disabled={savingSettings}
+                    className="h-9 rounded-full border-[1.5px] border-[#F3C6D4] bg-white px-3.5 text-[11.5px] font-extrabold text-[#B02A52] disabled:opacity-50"
+                  >
+                    پاک کردن کلید
+                  </button>
+                </>
+              )}
+              <button
+                type="button"
+                onClick={() => void probeConnection()}
+                disabled={probing}
+                className="h-9 rounded-full border-[1.5px] border-[#00ABE7] bg-white px-3.5 text-[11.5px] font-extrabold text-[#006387] disabled:opacity-50"
+              >
+                {probing ? "در حال تست…" : "تست اتصال و اعتبار"}
+              </button>
+              {probeResult && (
+                <span
+                  className="rounded-full px-3 py-1.5 text-[11px] font-extrabold"
+                  dir="auto"
+                  style={{ background: probeResult.ok ? "#E7F8EF" : "#FFE9F0", color: probeResult.ok ? "#1E7A46" : "#B02A52" }}
+                >
+                  {probeResult.ok ? `وصل است ✓ اعتبار: ${money(Math.floor(probeResult.credit ?? 0))}` : `ناموفق: ${probeResult.error ?? "نامشخص"}`}
+                </span>
+              )}
+            </div>
+          </div>
+
+          {/* فرستنده و مالک */}
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+            <label className="flex flex-col gap-1.5 text-[12px] font-bold text-[#4A6572]">
+              شمارهٔ فرستنده (خط ارسال)
+              <div className="flex items-center gap-2">
+                <input
+                  value={formSender}
+                  onChange={(e) => setFormSender(e.target.value)}
+                  dir="ltr"
+                  inputMode="numeric"
+                  placeholder="مثلاً 3000505 یا 09123456789"
+                  className={`${inputCls} flex-1`}
+                />
+                {sourceChip(settings.senderSource)}
+              </div>
+              <span className="text-[10.5px] font-medium text-[#8FA6B0]">خالی ⇒ خط پیش‌فرض پنل پیامکی استفاده می‌شود.</span>
+            </label>
+            <label className="flex flex-col gap-1.5 text-[12px] font-bold text-[#4A6572]">
+              شمارهٔ موبایل مالک (هشدارهای مدیریتی)
+              <div className="flex items-center gap-2">
+                <input
+                  value={formOwner}
+                  onChange={(e) => setFormOwner(e.target.value)}
+                  dir="ltr"
+                  inputMode="numeric"
+                  placeholder="09xxxxxxxxx"
+                  className={`${inputCls} flex-1`}
+                />
+                {sourceChip(settings.ownerMobileSource)}
+              </div>
+              <span className="text-[10.5px] font-medium text-[#8FA6B0]">هشدارهای داخلی (مثل کمبود موجودی) به این شماره می‌رود.</span>
+            </label>
+          </div>
+          <div>
+            <button
+              type="button"
+              onClick={() => void saveGeneral()}
+              disabled={savingSettings || (formSender === settings.sender && formOwner === settings.ownerMobile)}
+              className="h-11 rounded-full bg-[#04202E] px-5 text-[12.5px] font-extrabold text-white disabled:opacity-40"
+            >
+              {savingSettings ? "در حال ذخیره…" : "ذخیره تنظیمات"}
+            </button>
+          </div>
+        </div>
+      </section>
+
+      {/* ارسال دستی */}
+      <section className="rounded-[24px] border border-[#DDEEF5] bg-white p-5">
+        <h2 className="m-0 text-[16px] font-black text-[#04202E]">ارسال دستی پیامک</h2>
+        <p className="mb-3 mt-1 text-[12px] font-medium leading-[1.9] text-[#4A6572]">
+          پیام دلخواه به یک شماره — مثلاً اطلاع‌رسانی ویژه. ارسال در گزارش ثبت می‌شود.
+        </p>
+        <div className="flex flex-col gap-3 md:flex-row md:items-start">
+          <input
+            value={manualPhone}
+            onChange={(e) => setManualPhone(e.target.value)}
+            dir="ltr"
+            inputMode="numeric"
+            placeholder="09xxxxxxxxx"
+            className={`${inputCls} md:w-[200px]`}
+            aria-label="شماره گیرنده پیام دستی"
+          />
+          <div className="flex-1">
+            <textarea
+              value={manualText}
+              onChange={(e) => setManualText(e.target.value)}
+              rows={2}
+              maxLength={265}
+              placeholder="متن پیامک…"
+              className="w-full resize-none rounded-2xl border-[1.5px] border-[#CFE6EF] bg-[#F8FDFF] px-3.5 py-2.5 text-[13.5px] font-semibold leading-[1.9] text-[#04202E] outline-none focus:border-[#00ABE7]"
+              aria-label="متن پیام دستی"
+            />
+            <div className="mt-1 text-[10.5px] font-bold" style={{ color: manualText.length > 265 ? "#B02A52" : "#8FA6B0" }}>
+              {fa(manualText.length)} / {fa(265)} کاراکتر
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => void sendManual()}
+            disabled={manualBusy || !manualPhone.trim() || !manualText.trim()}
+            className="h-11 shrink-0 rounded-full bg-[#00ABE7] px-5 text-[12.5px] font-extrabold text-white disabled:opacity-40"
+          >
+            {manualBusy ? "در حال ارسال…" : "ارسال"}
+          </button>
+        </div>
+      </section>
+
       {/* قالب‌ها */}
       <section className="rounded-[24px] border border-[#DDEEF5] bg-white p-5">
         <h2 className="m-0 text-[16px] font-black text-[#04202E]">قالب‌های پیامک</h2>
         <p className="mb-4 mt-1.5 text-[12px] font-medium leading-[1.9] text-[#4A6572]">
-          متن پیش‌فرض هر پیامک همین‌جاست. اگر «کد پترن» بدهی، پیامک با همان پترنِ تعریف‌شده در پنل ippanel ارسال می‌شود
+          متن پیش‌فرض هر پیامک همین‌جاست. اگر «کد پترن» بدهی، پیامک با همان پترنِ تعریف‌شده در پنل پیامکی ارسال می‌شود
           (سریع‌تر) و فقط نام متغیرها مهم است؛ اگر پترن خالی بماند، متنِ همین فرم ارسال می‌شود. ارسال‌ها بر اساس
           تنظیم همین لحظه است — برای اعمال، نیازی به تغییر کد نیست.
         </p>
@@ -320,6 +731,7 @@ export function SmsTab() {
           {data.templates.map((t) => {
             const e = edits[t.key] ?? { patternCode: t.patternCode, fallbackText: t.fallbackText, variables: t.variables, enabled: t.enabled };
             const vars = placeholdersOf(e.fallbackText, e.variables);
+            const sentCount = perTemplateMap.get(t.key) ?? 0;
             const dirty =
               e.patternCode !== t.patternCode || e.fallbackText !== t.fallbackText || e.enabled !== t.enabled ||
               JSON.stringify(e.variables) !== JSON.stringify(t.variables);
@@ -335,6 +747,11 @@ export function SmsTab() {
                     >
                       {e.patternCode ? `پترن: ${e.patternCode}` : "متن ساده"}
                     </span>
+                    {sentCount > 0 && (
+                      <span className="rounded-full bg-[#E3F6FD] px-2.5 py-0.5 text-[10.5px] font-extrabold text-[#006387]">
+                        {fa(sentCount)} ارسال موفق
+                      </span>
+                    )}
                     {!t.enabled && <span className="rounded-full bg-[#FFE9F0] px-2.5 py-0.5 text-[10.5px] font-extrabold text-[#B02A52]">غیرفعال</span>}
                   </div>
                   <label className="flex cursor-pointer items-center gap-2 text-[12px] font-bold text-[#4A6572]">
@@ -351,7 +768,7 @@ export function SmsTab() {
                 <div className="mb-3 text-[12px] font-medium leading-[1.9] text-[#4A6572]">{t.description}</div>
                 <div className="flex flex-col gap-3 md:flex-row">
                   <label className="flex flex-1 flex-col gap-1.5 text-[12px] font-bold text-[#4A6572]">
-                    کد پترن ippanel (اختیاری)
+                    کد پترن (اختیاری)
                     <input
                       value={e.patternCode}
                       onChange={(ev) => setEdits((p) => ({ ...p, [t.key]: { ...e, patternCode: ev.target.value } }))}
@@ -361,7 +778,7 @@ export function SmsTab() {
                     />
                   </label>
                   <div className="flex flex-1 flex-col gap-1.5 text-[12px] font-bold text-[#4A6572]">
-                    نام متغیرهای پترن در ippanel
+                    نام متغیرهای پترن در پنل
                     <div className="flex flex-wrap gap-2">
                       {vars.length === 0 && <span className="text-[11.5px] font-medium text-[#8FA6B0]">متغیری ندارد</span>}
                       {vars.map(([k, v]) => (
@@ -425,35 +842,68 @@ export function SmsTab() {
       {/* گزارش ارسال‌ها */}
       <section className="rounded-[24px] border border-[#DDEEF5] bg-white p-5">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-2.5">
-          <h2 className="m-0 text-[16px] font-black text-[#04202E]">گزارش ارسال‌ها</h2>
+          <h2 className="m-0 text-[16px] font-black text-[#04202E]">
+            گزارش ارسال‌ها
+            <span className="ms-2 text-[12px] font-bold text-[#8FA6B0]">{fa(logTotal)} ردیف</span>
+          </h2>
           <div className="flex flex-wrap items-center gap-2">
-            {[
-              { k: "", label: "همه" },
-              { k: "queued", label: "در صف" },
-              { k: "sent", label: "ارسال‌شده" },
-              { k: "failed", label: "ناموفق" },
-              { k: "dead", label: "مردود" },
-            ].map((f) => (
-              <button
-                key={f.k}
-                type="button"
-                aria-pressed={logStatus === f.k}
-                onClick={() => setLogStatus(f.k)}
-                className="rounded-full px-3.5 py-1.5 text-[11.5px] font-extrabold transition-colors"
-                style={{ background: logStatus === f.k ? "#04202E" : "#F0F3F5", color: logStatus === f.k ? "#fff" : "#4A6572" }}
-              >
-                {f.label}
-              </button>
-            ))}
+            <input
+              value={logQ}
+              onChange={(e) => setLogQ(e.target.value)}
+              dir="ltr"
+              inputMode="numeric"
+              placeholder="جست‌وجوی شماره…"
+              className="h-9 w-[170px] rounded-full border-[1.5px] border-[#CFE6EF] bg-[#F8FDFF] px-3.5 text-[12px] font-bold text-[#04202E] outline-none focus:border-[#00ABE7]"
+              aria-label="جست‌وجوی شماره در گزارش"
+            />
+            <select
+              value={logTemplate}
+              onChange={(e) => setLogTemplate(e.target.value)}
+              className="h-9 rounded-full border-[1.5px] border-[#CFE6EF] bg-white px-3 text-[11.5px] font-extrabold text-[#006387] outline-none focus:border-[#00ABE7]"
+              aria-label="فیلتر قالب"
+            >
+              <option value="">همهٔ قالب‌ها</option>
+              {Object.entries(SMS_TEMPLATE_LABEL).map(([k, label]) => (
+                <option key={k} value={k}>{label}</option>
+              ))}
+            </select>
             <button
               type="button"
-              onClick={() => loadLogs(logStatus, 1)}
-              disabled={logsBusy}
+              onClick={() => void exportCsv()}
+              disabled={exporting}
               className="rounded-full border border-[#CFE6EF] px-3.5 py-1.5 text-[11.5px] font-extrabold text-[#006387] disabled:opacity-50"
             >
-              به‌روزرسانی
+              {exporting ? "…" : "خروجی CSV"}
             </button>
           </div>
+        </div>
+        <div className="mb-3 flex flex-wrap items-center gap-2">
+          {[
+            { k: "", label: "همه" },
+            { k: "queued", label: "در صف" },
+            { k: "sent", label: "ارسال‌شده" },
+            { k: "failed", label: "ناموفق" },
+            { k: "dead", label: "مردود" },
+          ].map((f) => (
+            <button
+              key={f.k}
+              type="button"
+              aria-pressed={logStatus === f.k}
+              onClick={() => setLogStatus(f.k)}
+              className="rounded-full px-3.5 py-1.5 text-[11.5px] font-extrabold transition-colors"
+              style={{ background: logStatus === f.k ? "#04202E" : "#F0F3F5", color: logStatus === f.k ? "#fff" : "#4A6572" }}
+            >
+              {f.label}
+            </button>
+          ))}
+          <button
+            type="button"
+            onClick={() => loadLogs()}
+            disabled={logsBusy}
+            className="rounded-full border border-[#CFE6EF] px-3.5 py-1.5 text-[11.5px] font-extrabold text-[#006387] disabled:opacity-50"
+          >
+            به‌روزرسانی
+          </button>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full min-w-[640px] border-collapse text-right">
