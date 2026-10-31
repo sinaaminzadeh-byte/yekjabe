@@ -1,7 +1,8 @@
 // ── data-root.ts — THE single seam for runtime file storage ──
 // Sandbox / single-box (Coolify): files live under .data/ next to the app.
 // Serverless (Netlify): the deploy bundle is read-only — the DATA_ROOT env
-// points this same seam at the writable /tmp mount (set in the site env).
+// points this same seam at the writable /tmp mount; without it serverless
+// runtimes fall back to /tmp/.data automatically.
 // Storage keys never carry the root; every reader/writer goes through
 // dataFile() — mirrors the S3 seam documented in payments/manual.ts.
 import path from "path";
@@ -11,7 +12,13 @@ import path from "path";
 // access opaque to the tracer; the runtime value is identical.
 const cwdFn = process.cwd.bind(process);
 
+const serverless =
+  process.env.NETLIFY === "true" ||
+  !!process.env.AWS_LAMBDA_FUNCTION_NAME ||
+  !!process.env.LAMBDA_TASK_ROOT;
+
 export function dataFile(key: string): string {
-  const root = process.env.DATA_ROOT || path.join(cwdFn(), ".data");
+  const root =
+    process.env.DATA_ROOT || (serverless ? "/tmp/.data" : path.join(cwdFn(), ".data"));
   return path.join(root, key);
 }

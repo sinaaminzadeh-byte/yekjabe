@@ -1079,6 +1079,18 @@ const FINDINGS = [
   "where": "scripts/prebuild.mjs:52-65",
   "fix": "لازم نیست؛ اگر روزی بیلد کند شد، seedها را مرحله‌ی جدا کنیم.",
   "resolvedNote": "بسته شد (راند ۳۹): مورد اطلاع‌رسانی بود — seedهای idempotent عمدی و بی‌خطرند؛ اگر روزی بیلد کند شد به مرحله‌ی جدا منتقل می‌شوند."
+ },
+ {
+  "id": "A-17",
+  "cat": "code",
+  "sev": "بحرانی",
+  "effort": "S",
+  "status": "fixed",
+  "title": "سایت روی Netlify دیپلوی می‌شد ولی همه‌ی صفحه‌ها خطای ۵۰۰ می‌دادند",
+  "what": "DATABASE_URL فقط داخل دستور build ست می‌شد و به سرور نمی‌رسید. هوک instrumentation اول env.ts را لود می‌کرد و اعتبارسنجی env قبل از آماده‌شدن دیتابیس، بالا آمدن سرور را رد می‌کرد. سکرت‌های پروداکشن هم روی سایت ست نشده بودند.",
+  "where": "src/lib/env.ts · src/instrumentation.ts · src/lib/data-root.ts",
+  "fix": "env.ts قبل از اعتبارسنجی، bootstrap دیتابیس SQLite را اجرا کند. روی Netlify، DATA_ROOT و SITE_URL پیش‌فرض درست بگیرند. سه سکرت در داشبورد Netlify ست شوند.",
+  "resolvedNote": "env.ts حالا خودش مسیر دیتابیس را روی /tmp/custom.db می‌گذارد. روی Netlify، آپلودها به /tmp/.data می‌روند و SITE_URL از URL خود Netlify خوانده می‌شود. فقط ست‌کردن سه سکرت در داشبورد با صاحب پروژه است."
  }
 ];
 

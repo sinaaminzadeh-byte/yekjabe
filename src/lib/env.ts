@@ -2,13 +2,20 @@
 // Guide §5: every secret comes from env; missing vars crash at start in prod.
 // In dev (sandbox) we fall back to safe local defaults so QA flows keep working.
 import { z } from "zod";
+import { bootstrapServerlessSqlite } from "./sqlite-serverless";
+
+// Serverless (Netlify) cold start: env.ts can load BEFORE db.ts (the
+// instrumentation hook imports it first), and DATABASE_URL only exists inside
+// the build shell — point it at the bundled seeded db before validating.
+bootstrapServerlessSqlite();
 
 const schema = z.object({
   NODE_ENV: z.enum(["development", "production", "test"]).default("development"),
   DATABASE_URL: z.string().min(1),
   SESSION_SECRET: z.string().min(16).default("pishnam-dev-secret-do-not-use-in-prod"),
   CRON_SECRET: z.string().min(8).default("pishnam-dev-cron-secret"),
-  SITE_URL: z.string().default("http://localhost:3000"),
+  // Netlify injects the production URL as URL at runtime — used when unset
+  SITE_URL: z.string().default(process.env.URL || "http://localhost:3000"),
   // phones allowed to hold an admin session (comma-separated), e.g. "0912…,0935…"
   ADMIN_SEED_PHONES: z.string().default(""),
   // "1" → OTP echoed in the response (dev/QA only; production ignores this)
